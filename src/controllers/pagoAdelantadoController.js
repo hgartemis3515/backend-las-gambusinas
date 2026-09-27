@@ -157,6 +157,32 @@ router.post('/pago-adelantado', authMozoOpcional, async (req, res) => {
 
     console.log('🔥 [PPA] Platos matched:', platosParaBoucher.length, '/', platosSeleccionados?.length || 0, 'seleccionados');
 
+    // No volver a cobrar una comanda que ya tiene un pago adelantado activo
+    // por el mismo monto. Si no, caja junta los dos tickets (217 + 217 = 434).
+    const comandaIdsPpaCheck = [...new Set(platosParaTicket.map((p) => String(p.comandaId)))];
+    const ppaPrevios = await ticketPagoAdelantadoModel.find({
+      comandas: { $in: comandaIdsPpaCheck },
+      isActive: { $ne: false },
+      estado: { $in: ['pendiente_aprobacion', 'aprobado'] },
+    }).select('ticketNumber total comandas platos').lean();
+    for (const comanda of comandas) {
+      const cid = String(comanda._id);
+      const nuevos = platosParaTicket.filter((p) => String(p.comandaId) === cid);
+      if (!nuevos.length) continue;
+      const lineasNuevas = new Set(nuevos.map((p) => String(p.platoLineaId)));
+      const previosDeEsta = ppaPrevios.filter((t) => (t.comandas || []).some((id) => String(id) === cid));
+      const solapa = previosDeEsta.some((t) => (t.platos || []).some((p) => lineasNuevas.has(String(p.platoLineaId))));
+      const ya = previosDeEsta.reduce((s, t) => s + (Number(t.total) || 0), 0);
+      const tope = Number(comanda.totalCalculado) || 0;
+      const cargoNuevo = nuevos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
+      if (solapa || (tope > 0 && ya > 0.02 && ya + cargoNuevo > tope + 0.02)) {
+        const n = previosDeEsta[0]?.ticketNumber;
+        return res.status(409).json({
+          error: `La comanda #${comanda.comandaNumber || cid.slice(-4)} ya tiene un pago adelantado${n ? ` (#${n})` : ''}. No se genera otro ticket.`,
+        });
+      }
+    }
+
     // Calcular totales (fallback si el boucher no trae IGV; el % sale de configuración)
     const subtotalTotal = platosParaBoucher.reduce((sum, p) => sum + (p.subtotal || 0), 0);
     const configMoneda = await calculosPrecios.getConfigMonedaCached();

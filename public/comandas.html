@@ -4963,14 +4963,15 @@ this.scheduleRefreshVentasTotales();
  const precio = Number.isFinite(precioRaw) ? precioRaw : 0;
  const subtotal = cantidad * precio;
 
- const platoObjectId = plato._id || null;
- const platoIdNumerico = item.platoId || plato.id || null;
- const subdocumentoId = item.subdocumentoId || item._id || null;
+        const platoObjectId = plato._id || null;
+        const platoIdNumerico = item.platoId || plato.id || null;
+        const subdocumentoId = item.subdocumentoId || item._id || null;
 
- return {
- _id: platoObjectId,
- platoId: platoIdNumerico,
- subdocumentoId: subdocumentoId,
+        return {
+        _id: platoObjectId,
+        platoId: platoIdNumerico,
+        subdocumentoId: subdocumentoId,
+        platoIndex: index,
  nombre: plato.nombre || item.nombre || 'Sin nombre',
  precio: Number(precio),
  precioBase,
@@ -7093,13 +7094,30 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  mapEditPlatoFromItem(item) {
   const tipo = item && item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
+  const idxRaw = Number(item && item.platoIndex);
   return {
     ...item,
     estadoOriginal: item.estado,
     cantidadOriginal: Number(item.cantidad) || 1,
+    eliminadoOriginal: !!item.eliminado,
+    platoIndex: Number.isInteger(idxRaw) && idxRaw >= 0 ? idxRaw : undefined,
     tipoServicio: tipo,
     tipoServicioOriginal: tipo,
   };
+ },
+
+ indicePlatoReal(p, idx) {
+  const n = Number(p && p.platoIndex);
+  return Number.isInteger(n) && n >= 0 ? n : idx;
+ },
+
+ indicesPlatosPendientesEliminar(items) {
+  const out = [];
+  (items || []).forEach((p, idx) => {
+    if (!p || !p.eliminado || p.eliminadoOriginal) return;
+    out.push(this.indicePlatoReal(p, idx));
+  });
+  return out;
  },
 
  platosTipoServicioCambios(items) {
@@ -7110,7 +7128,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     const orig = p.tipoServicioOriginal === 'para_llevar' ? 'para_llevar' : 'mesa';
     if (tipo !== orig) {
       out.push({
-        index: idx,
+        index: this.indicePlatoReal(p, idx),
         tipoServicio: tipo,
         lineaId: p.subdocumentoId || p._id,
       });
@@ -7194,8 +7212,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  // Clonar para no mutar y marcar estado original de cada ítem
  const clone = JSON.parse(JSON.stringify(grupo));
  (clone.comandas || []).forEach(c => {
- (c.items || []).forEach(item => {
+ (c.items || []).forEach((item, i) => {
    item.estadoOriginal = item.estado;
+   item.eliminadoOriginal = !!item.eliminado;
+   if (item.platoIndex == null) item.platoIndex = i;
    const tipo = item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
    item.tipoServicio = tipo;
    item.tipoServicioOriginal = tipo;
@@ -7688,19 +7708,26 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  try {
  for (const comanda of this.editGrupo.comandas) {
  const items = comanda.items || [];
- const indicesEliminados = [];
+ const indicesEliminados = this.indicesPlatosPendientesEliminar(items);
  const platosConCambios = [];
  items.forEach((p, idx) => {
- if (p.eliminado) indicesEliminados.push(idx);
- else if (p.estado && p.estadoOriginal !== p.estado) platosConCambios.push({ index: idx, estado: p.estado });
+ if (!p.eliminado && p.estado && p.estadoOriginal !== p.estado) {
+  platosConCambios.push({ index: this.indicePlatoReal(p, idx), estado: p.estado });
+ }
  });
  if (indicesEliminados.length > 0) {
- await apiPut('/comanda/' + comanda._id + '/eliminar-platos', {
+ const resEliminar = await apiPut('/comanda/' + comanda._id + '/eliminar-platos', {
  platosAEliminar: indicesEliminados,
  motivo: 'Eliminado desde edición de grupo',
  mozoId: null,
  forzarAdmin: true
  });
+ if (resEliminar && (resEliminar.error || resEliminar.detalles)) {
+  const errorMsg = resEliminar.detalles
+   ? resEliminar.detalles.join('\n')
+   : (resEliminar.message || 'Error al eliminar platos');
+  throw new Error(errorMsg);
+ }
  }
  if (platosConCambios.length > 0) {
  await apiPut('/comanda/' + comanda._id + '/actualizar-estados-platos', { platos: platosConCambios });
@@ -8058,12 +8085,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return;
  }
 
- const indicesEliminados = [];
- this.editPlatos.forEach((p, idx) => {
- if (p.eliminado) {
- indicesEliminados.push(idx);
- }
- });
+ const indicesEliminados = this.indicesPlatosPendientesEliminar(this.editPlatos);
 
  console.log('📤 Guardando cambios comanda:', {
  comandaId: this.editComanda._id,
@@ -8095,7 +8117,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const platosConCambios = [];
  this.editPlatos.forEach((p, idx) => {
  if (!p.eliminado && p.estado && p.estadoOriginal !== p.estado) {
- platosConCambios.push({ index: idx, estado: p.estado });
+ platosConCambios.push({ index: this.indicePlatoReal(p, idx), estado: p.estado });
  }
  });
 
