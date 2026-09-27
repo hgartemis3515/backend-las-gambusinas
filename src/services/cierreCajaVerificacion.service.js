@@ -209,6 +209,20 @@ function partirTicketPorMozos(ticket) {
   });
 }
 
+/** Número del día. El histórico del ticket solo si la comanda no trae numeroComandaDia. */
+function numerosDiaDeTicket(t) {
+  const docs = (t.comandas || []).filter((c) => c && typeof c === 'object');
+  const set = new Set();
+  for (const c of docs) {
+    const raw = c.numeroComandaDia != null && c.numeroComandaDia !== '' ? c.numeroComandaDia : null;
+    if (raw == null) continue;
+    const n = Number(raw);
+    if (!Number.isNaN(n)) set.add(n);
+  }
+  if (set.size) return [...set].sort((a, b) => a - b);
+  return Array.isArray(t.comandasNumbers) ? t.comandasNumbers : [];
+}
+
 /** Normaliza un ticket (de cualquier colección) al formato unificado de la UI. */
 function normalizarTicket(t, tipo) {
   const totales = totalesVistaCierre(t, tipo);
@@ -222,7 +236,7 @@ function normalizarTicket(t, tipo) {
     mozo: t.mozo,
     nombreMozo: t.nombreMozo || t.mozoNombre || t.mozo?.name || null,
     comandas: t.comandas || [],
-    comandasNumbers: t.comandasNumbers || [],
+    comandasNumbers: numerosDiaDeTicket(t),
     pedido: t.pedido || null,
     total: totales.total,
     subtotal: totales.subtotal,

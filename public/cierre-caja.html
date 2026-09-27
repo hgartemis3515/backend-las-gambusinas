@@ -333,7 +333,7 @@ tailwind.config = {
             </div>
             <div class="bg-bg-sidebar rounded-lg p-3">
               <p class="text-[10px] text-txt-muted uppercase">Mozo</p>
-              <p class="text-sm font-bold text-white mt-0.5" x-text="ticketDetalle?.nombreMozo || '—'"></p>
+              <p class="text-sm font-bold text-white mt-0.5" x-text="etiquetaMozoCierre(ticketDetalle)"></p>
             </div>
             <div class="bg-bg-sidebar rounded-lg p-3">
               <p class="text-[10px] text-txt-muted uppercase">Voucher</p>
@@ -734,6 +734,44 @@ function cierreApp() {
       return n || 'Sin mozo';
     },
 
+    etiquetaMozoCierre(t) {
+      if (!t) return '—';
+      const embebidas = (t.comandas || []).filter((c) => c && typeof c === 'object');
+      const orden = embebidas.slice().sort((a, b) => (Number(b.numeroComandaDia ?? b.comandaNumber) || 0) - (Number(a.numeroComandaDia ?? a.comandaNumber) || 0));
+      const grupos = new Map();
+      orden.forEach((c) => {
+        const nombre = (c.mozos && c.mozos.name) || c.mozoNombre || '';
+        const limpio = String(nombre).trim();
+        if (!limpio || limpio === 'Sin asignar' || limpio === 'Sin mozo') return;
+        if (!grupos.has(limpio)) grupos.set(limpio, []);
+        const n = Number(c.numeroComandaMozo);
+        if (Number.isFinite(n) && n > 0) grupos.get(limpio).push(n);
+      });
+      if (grupos.size) {
+        return [...grupos.entries()].map(([nombre, nums]) => (nums.length ? nums.join('+') + ' ' + nombre : nombre)).join(' · ');
+      }
+      const base = this.nombreMozoTicket(t);
+      const nums = [];
+      orden.forEach((c) => {
+        const n = Number(c.numeroComandaMozo);
+        if (Number.isFinite(n) && n > 0 && !nums.includes(n)) nums.push(n);
+      });
+      if (nums.length && base !== 'Sin mozo') return nums.join('+') + ' ' + base;
+      return base;
+    },
+
+    labelComandasDia(t) {
+      const docs = (t?.comandas || []).filter((c) => c && typeof c === 'object');
+      const dias = [...new Set(docs.map((c) => c.numeroComandaDia).filter((n) => n != null && n !== '').map(Number).filter((n) => !Number.isNaN(n)))];
+      const lista = dias.length
+        ? dias
+        : (t?.comandasNumbers || []).map(Number).filter((n) => !Number.isNaN(n));
+      if (!lista.length) return '—';
+      if (lista.length === 1) return '#' + lista[0];
+      const max = Math.max(...lista);
+      return [max, ...lista.filter((n) => n !== max).sort((a, b) => b - a)].map((n) => '#' + n).join('+');
+    },
+
     mozosOpcionesCierre() {
       const primero = new Map();
       for (const t of this.ticketsVerificacion || []) {
@@ -882,8 +920,8 @@ function cierreApp() {
             <td class="px-3 py-2.5 text-white text-xs font-bold">#${t.ticketNumber ?? '—'}</td>
             <td class="px-3 py-2.5">${tipoBadge}</td>
             <td class="px-3 py-2.5 text-txt-secondary text-xs">Mesa ${t.numMesa ?? '—'}</td>
-            <td class="px-3 py-2.5 text-txt-secondary text-xs">${this.escHtml(t.nombreMozo || '—')}</td>
-            <td class="px-3 py-2.5 text-txt-secondary text-xs">${(t.comandasNumbers || []).map((n) => '#' + n).join(', ') || '—'}</td>
+            <td class="px-3 py-2.5 text-txt-secondary text-xs">${this.escHtml(this.etiquetaMozoCierre(t))}</td>
+            <td class="px-3 py-2.5 text-txt-secondary text-xs">${this.escHtml(this.labelComandasDia(t))}</td>
             <td class="px-3 py-2.5 text-gold text-xs font-semibold text-right">
               S/. ${(t.total || 0).toFixed(2)}
               ${Number(t.montoDescuento) > 0 ? `<div class="text-[9px] text-st-pagado font-semibold">Subt. ${(Number(t.totalSinDescuento || t.subtotal || 0)).toFixed(2)} · Desc. -${Number(t.montoDescuento).toFixed(2)}</div>` : ''}

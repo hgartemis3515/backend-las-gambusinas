@@ -4,7 +4,7 @@
  */
 
 const BOUCHER_DESCUENTO_SELECT = 'montoDescuento descuentos totalSinDescuento totalConDescuento';
-const COMANDA_DESCUENTO_SELECT = 'comandaNumber numeroComandaDia numeroComandaMozo revisionTicket status descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado';
+const COMANDA_DESCUENTO_SELECT = 'comandaNumber numeroComandaDia numeroComandaMozo mozoNombre revisionTicket status descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado';
 /** Listados de tickets: status de comanda + estados vivos de plato (entrega mozos).
  * Incluye precio/cantidad de plato y cantidades[] para calcular el saldo pendiente
  * por cobrar de cada comanda (pago parcial) ver saldoPendienteComanda.js. */

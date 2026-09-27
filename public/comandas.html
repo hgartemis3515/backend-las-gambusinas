@@ -2876,7 +2876,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
      <div class="mt-1 text-[10px] text-[#a0a0b8] flex flex-wrap gap-x-3">
       <span x-text="'Mozo: ' + etiquetaMozoTicket(ticket)"></span>
       <span x-text="'Mesa: ' + (ticket.numMesa != null ? ticket.numMesa : '—')"></span>
-      <span x-text="'Comanda: #' + (ticket.comandaNumber || '—')"></span>
+      <span x-text="'Comanda: ' + labelComandasTicketBusqueda(ticket)"></span>
       <span x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
       <span x-show="ticket.createdAt" x-text="new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})"></span>
      </div>
@@ -7440,6 +7440,12 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   const n = Number(c && c.numeroComandaMozo);
   if (!c || base === 'Sin asignar' || !Number.isFinite(n) || n <= 0) return base;
   return n + ' ' + base;
+ },
+ labelComandasTicketBusqueda(ticket) {
+  const nums = this.numerosDiaGrupo(ticket && ticket.comandas);
+  if (nums.length) return nums.map((n) => '#' + n).join('+');
+  const n = ticket && (ticket.numeroComandaDia != null && ticket.numeroComandaDia !== '' ? ticket.numeroComandaDia : ticket.comandaNumber);
+  return n != null && n !== '' ? '#' + n : '—';
  },
  etiquetaMozoTicket(ticket) {
   if (!ticket) return '—';

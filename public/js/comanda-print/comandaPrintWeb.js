@@ -265,21 +265,31 @@ function resolverTotalesTicketImpresion(ticket, productos) {
  * Maps a ticket object (from aprobacion/PPA) to datos format for printing.
  * Handles flat structure from backend and nested objects from populate.
  */
+function numerosVisiblesDeTicket(ticket) {
+  const docs = (ticket?.comandas || []).filter((c) => c && typeof c === 'object');
+  const dias = new Set();
+  docs.forEach((c) => {
+    const raw = c.numeroComandaDia != null && c.numeroComandaDia !== '' ? c.numeroComandaDia : c.numComanda;
+    const n = Number(raw);
+    if (raw != null && raw !== '' && !Number.isNaN(n)) dias.add(n);
+  });
+  if (dias.size) return [...dias].sort((a, b) => a - b);
+  const nums = new Set();
+  (ticket?.comandasNumbers || []).forEach((n) => {
+    if (n == null || n === '') return;
+    const num = Number(n);
+    if (!Number.isNaN(num)) nums.add(num);
+  });
+  (ticket?.platos || []).forEach((p) => {
+    if (p?.comandaNumber == null || p.comandaNumber === '') return;
+    const num = Number(p.comandaNumber);
+    if (!Number.isNaN(num)) nums.add(num);
+  });
+  return [...nums].sort((a, b) => a - b);
+}
+
 function mapearTicketADatos(ticket) {
-  const comandasNumbers = (() => {
-    const nums = new Set();
-    (ticket.comandasNumbers || []).forEach((n) => {
-      if (n == null || n === '') return;
-      const num = Number(n);
-      if (!Number.isNaN(num)) nums.add(num);
-    });
-    (ticket.platos || []).forEach((p) => {
-      if (p?.comandaNumber == null || p.comandaNumber === '') return;
-      const num = Number(p.comandaNumber);
-      if (!Number.isNaN(num)) nums.add(num);
-    });
-    return [...nums].sort((a, b) => a - b);
-  })();
+  const comandasNumbers = numerosVisiblesDeTicket(ticket);
 
   const comandaNumeroDisplay = formatComandasNumbersLabel(comandasNumbers)
     || (ticket.ticketNumber ? `#${ticket.ticketNumber}` : '');
@@ -389,10 +399,11 @@ export async function imprimirComandaDesdeTicket(ticket, opts = {}) {
   const ticketId = ticket._id || ticket.ticketId || null;
   const tieneSnapshot = Array.isArray(ticket.platos) && ticket.platos.length > 0;
 
+  const numsDia = numerosVisiblesDeTicket(ticket);
   const printOpts = {
     ...opts,
     ticketEstado: ticket.estado,
-    comandasNumbersOverride: ticket.comandasNumbers || opts.comandasNumbersOverride || null,
+    comandasNumbersOverride: numsDia.length ? numsDia : (opts.comandasNumbersOverride || null),
   };
 
   if (ticketId && tieneSnapshot) {

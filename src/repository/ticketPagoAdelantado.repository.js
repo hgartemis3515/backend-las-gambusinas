@@ -149,7 +149,7 @@ async function obtenerTicketPorId(ticketId) {
     throw new Error('ID de ticket inválido');
   }
   const ticket = await ticketPagoAdelantadoModel.findById(ticketId)
-    .populate('comandas', 'comandaNumber status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
+    .populate('comandas', 'comandaNumber numeroComandaDia numeroComandaMozo mozoNombre revisionTicket status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('boucher')
