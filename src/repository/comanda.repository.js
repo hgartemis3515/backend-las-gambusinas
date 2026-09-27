@@ -5,6 +5,7 @@ const HistorialComandas = require("../database/models/historialComandas.model");
 const pedidoModel = require("../database/models/pedido.model");
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorHandler');
+const { rechazoOtroMozo } = require('../utils/accesoMesaMozo');
 const { parseHexColor } = require('../utils/hexColor');
 const moment = require('moment-timezone');
 const fs = require('fs');
@@ -968,8 +969,27 @@ const agregarComanda = async (data) => {
     }
   }
   // ========== FIN VALIDACION RESERVAS ==========
-  // Libre, pedido, preparado, esperando, pagado: permitir crear comanda. La mesa existe y está activa.
-  console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Sin restricción por comandas existentes`);
+  // Mesa en servicio (pedido, pagado, pendiente_aprobar, …): solo el mozo de la comanda más antigua.
+  if (data.origenCreacion !== 'dashboard') {
+    const existentes = await comandaModel.find({
+      mesas: mesa._id,
+      eliminada: { $ne: true },
+      IsActive: { $ne: false },
+      status: { $nin: ['cancelado', 'anulado'] },
+    }).select('mozos mozoNombre status createdAt comandaNumber IsActive eliminada').sort({ createdAt: 1 }).lean();
+    const rechazo = rechazoOtroMozo({
+      estadoMesa,
+      origenCreacion: data.origenCreacion,
+      mozoSolicitante: data.mozos,
+      comandas: existentes,
+    });
+    if (rechazo) {
+      const error = new Error(rechazo.message);
+      error.statusCode = rechazo.statusCode;
+      throw error;
+    }
+  }
+  console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa})`);
   }
 
   // ========== FASE A1: VALIDACIÓN BATCH DE PLATOS (OPTIMIZADO) ==========
