@@ -3949,29 +3949,46 @@ formatGrupoHistoricoLabel(comandas) {
   return orden.map((n) => `#${n}`).join('+');
 },
 
+// Extrae un número/etiqueta de mesa que se pueda pintar. Nunca devuelve un objeto
+// (Alpine x-text convertiría {} en "[object Object]").
+escalarNumeroMesa(valor) {
+  if (valor == null || valor === '') return null;
+  if (typeof valor === 'object') {
+    if (valor.sinMesa === true) return null;
+    const combinado = valor.nombreCombinado != null ? String(valor.nombreCombinado).trim() : '';
+    if (combinado && combinado !== '[object Object]') return combinado;
+    const n = valor.nummesa ?? valor.numMesa ?? valor.numero;
+    if (n != null && n !== '' && typeof n !== 'object') {
+      const s = String(n).trim();
+      if (s && s !== '[object Object]' && !/^sin\s*mesa$/i.test(s) && s !== 'SIN_MESA') return s;
+    }
+    return null;
+  }
+  const s = String(valor).trim();
+  if (!s || s === '[object Object]' || /^sin\s*mesa$/i.test(s) || s === 'SIN_MESA' || s.toUpperCase() === 'N/A') {
+    return null;
+  }
+  return s;
+},
+
 // ========== FUNCIÓN HELPER: Obtener nombre de mesa con soporte para mesas juntadas ==========
 // Si la mesa tiene nombreCombinado (ej: "M5,6,7"), lo usa.
 // Si no, usa el formato tradicional "M{nummesa}".
-// Acepta: (mesaNum, mesaObj) o (mesa) donde mesa puede ser objeto o número
+// Pedido para llevar / sin mesa física → "Sin mesa" (nunca "[object Object]").
 formatearNombreMesa(mesa, mesaObj = null) {
-  // Si hay mesaObj con nombreCombinado, usarlo (para grupos de mesas juntadas)
-  if (mesaObj && mesaObj.nombreCombinado) {
-    return mesaObj.nombreCombinado;
+  const obj = (mesa && typeof mesa === 'object' && !Array.isArray(mesa)) ? mesa : null;
+  const extra = (mesaObj && typeof mesaObj === 'object' && !Array.isArray(mesaObj)) ? mesaObj : null;
+  if ((obj && obj.sinMesa === true) || (extra && extra.sinMesa === true)) {
+    return 'Sin mesa';
   }
-  // Si el primer argumento es un objeto mesa con nombreCombinado
-  if (mesa && typeof mesa === 'object' && mesa.nombreCombinado) {
-    return mesa.nombreCombinado;
+  const combinado = (extra && extra.nombreCombinado) || (obj && obj.nombreCombinado);
+  if (combinado && String(combinado).trim() && String(combinado).trim() !== '[object Object]') {
+    return String(combinado).trim();
   }
-  // Si es un objeto mesa con nummesa
-  if (mesa && typeof mesa === 'object' && mesa.nummesa) {
-    return `M${mesa.nummesa}`;
-  }
-  // Si es solo un número
-  if (typeof mesa === 'number') {
-    return `M${mesa}`;
-  }
-  // Fallback
-  return mesa || '—';
+  const num = this.escalarNumeroMesa(mesa) ?? this.escalarNumeroMesa(mesaObj);
+  if (num == null) return 'Sin mesa';
+  if (/^M/i.test(String(num)) || String(num).includes(',')) return String(num);
+  return `M${num}`;
 },
 
  async init() {
@@ -5042,14 +5059,30 @@ this.scheduleRefreshVentasTotales();
  }
 
  const mesa = raw.mesas || raw.mesa;
- const mesaNorm = mesa && typeof mesa === 'object'
- ? { nummesa: mesa.nummesa || mesa.numMesa, area: mesa.area?.nombre || mesa.area || '', nombreCombinado: mesa.nombreCombinado || null }
- : { nummesa: mesa, area: '', nombreCombinado: null };
+ const areaRaw = (mesa && typeof mesa === 'object') ? mesa.area : null;
+ const areaNombre = (areaRaw && typeof areaRaw === 'object')
+   ? (areaRaw.nombre || '')
+   : (typeof areaRaw === 'string' ? areaRaw : '');
+ const nummesaRaw = (mesa && typeof mesa === 'object')
+   ? (mesa.nummesa ?? mesa.numMesa ?? mesa.numero)
+   : mesa;
+ const nummesa = this.escalarNumeroMesa(nummesaRaw) ?? this.escalarNumeroMesa(raw.mesaNumero);
+ const esSinMesa = raw.sinMesa === true
+   || (mesa && typeof mesa === 'object' && mesa.sinMesa === true)
+   || nummesa == null;
+ const mesaNorm = esSinMesa
+   ? { sinMesa: true, nummesa: null, area: '', nombreCombinado: null }
+   : {
+       nummesa: nummesa,
+       area: areaNombre,
+       nombreCombinado: (mesa && mesa.nombreCombinado) || null,
+       sinMesa: false
+     };
 
  // Extraer pedidoId y mesaId: puede venir como ObjectId string o como objeto populated
  const pedidoRef = raw.pedido ?? raw.pedidoId;
  const pedidoId = this.normalizeObjectId(pedidoRef?._id ?? pedidoRef);
- const mesaId = this.normalizeObjectId(mesa?._id ?? raw.mesas ?? raw.mesaId);
+ const mesaId = esSinMesa ? null : this.normalizeObjectId(mesa?._id ?? raw.mesas ?? raw.mesaId);
 
  const out = {
  _id: raw._id,
@@ -5060,7 +5093,8 @@ this.scheduleRefreshVentasTotales();
  numComandaHistorico: raw.comandaNumber != null ? raw.comandaNumber : (raw.numComandaHistorico ?? null),
  mesa: mesaNorm,
  mesaId: mesaId,
- mesaNumero: mesaNorm.nummesa ?? raw.mesaNumero ?? null,
+ mesaNumero: esSinMesa ? null : (mesaNorm.nummesa ?? raw.mesaNumero ?? null),
+ sinMesa: esSinMesa,
  mozo: raw.mozos?.name || raw.mozoNombre || raw.mozo || 'Sin asignar',
  mozoId: raw.mozos?._id || raw.mozoId || null,
  cliente: raw.cliente,
