@@ -7484,7 +7484,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return comanda?.numComanda || comanda?.numeroComandaDia || comanda?.comandaNumber || '—';
  },
  totalGeneralBasico(comandas) {
-  return (comandas || []).reduce((s, c) => s + Number(totalNetoComanda(c) || 0), 0);
+  return (comandas || []).reduce((s, c) => s + Number(this.totalNetoComanda(c) || 0), 0);
  },
  tieneMozoAsignado(c) {
   return !!(c && c.mozo && c.mozo !== 'Sin asignar');

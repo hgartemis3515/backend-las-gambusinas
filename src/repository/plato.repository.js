@@ -411,6 +411,13 @@ function buildTipoFilter(canonicalTipo) {
     };
 }
 
+const listarGruposSos = async () => {
+    return plato.find(
+        { grupoSos: { $exists: true, $nin: [null, ''] } },
+        { id: 1, grupoSos: 1 }
+    ).lean();
+};
+
 const listarPlatos = async () => {
     const data = await plato.find({}).sort(PLATO_SORT_MOZO);
     return data;
@@ -1325,6 +1332,7 @@ const actualizarTipoPlato = async (id, nuevoTipo) => {
 
 module.exports = {
     listarPlatos,
+    listarGruposSos,
     listarPlatosCartaMozo,
     listarPlatosPorTipo,
     crearPlato,
