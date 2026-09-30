@@ -47,6 +47,7 @@ tailwind.config = {
         <button @click="loadPlatos()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
         <button @click="imprimirPlatosPDF()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition" title="Imprimir lista de platos en una sola hoja A4">🖨️ Imprimir PDF</button>
         <button @click="openModalComplementosGestion()" class="px-4 py-2 border border-gold/50 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📚 Gestionar Complementos</button>
+        <button @click="openModalGrupoSos()" class="px-4 py-2 border border-gold/50 rounded-lg text-sm text-gold hover:bg-gold-20 transition">🍲 Gestionar grupo SOS</button>
         <button @click="openModalCategoriasGestion()" class="px-4 py-2 border border-gold/50 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📂 Gestionar Categorías</button>
         <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="openCreateModal()">+ Nuevo Plato</button>
       </div>
@@ -121,6 +122,7 @@ tailwind.config = {
                   <p class="font-medium text-sm" x-text="p.nombre"></p>
                   <p class="text-[10px] text-txt-muted" x-text="categoriasDe(p).join(' · ') + ' · ' + tiposLabel(p)"></p>
                   <p x-show="p.nombreCocina" class="text-[10px] text-gold/80 mt-0.5" x-text="'Cocina: ' + p.nombreCocina"></p>
+                  <p x-show="p.grupoSos" class="text-[10px] text-txt-muted mt-0.5" x-text="'SOS: ' + p.grupoSos"></p>
                   <p x-show="(p.nombresSincronizados || []).length" class="text-[10px] text-gold/70 mt-0.5" x-text="'También: ' + (p.nombresSincronizados || []).join(', ')"></p>
                   <p x-show="resumenMarcasGuarnicion(p)" class="text-[10px] text-txt-muted mt-0.5" x-text="resumenMarcasGuarnicion(p)"></p>
                   <p x-show="p.platoPrincipal" class="text-[10px] text-gold/70 mt-0.5">Variante sincronizada (título propio, otras marcas de guarnición)</p>
@@ -226,6 +228,7 @@ tailwind.config = {
             <p class="text-[10px] text-txt-muted mt-1">Título en el buscador de mozos. Si está sincronizado con otro plato, este nombre es propio (no se copia).</p>
           </div>
           <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del plato en Cocina <span class="text-[10px] text-txt-muted">(opcional)</span></label><input type="text" x-model="formPlato.nombreCocina" maxlength="40" placeholder="Ej: CEV, Lomo S/, Ají G" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"><p class="text-[10px] text-txt-muted mt-1">Se muestra en Ver Cocina siempre, y en la tabla KDS si está habilitado en Configuración → Cocina.</p></div>
+          <div><label class="text-xs text-txt-secondary mb-1 block">Agrupar en SOS <span class="text-[10px] text-txt-muted">(opcional)</span></label><input type="text" x-model="formPlato.grupoSos" maxlength="40" placeholder="Ej: Chaufa, Chicharrón" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"><p class="text-[10px] text-txt-muted mt-1">Si en la tabla SOS hay más de un plato con este mismo texto, se juntan. Si solo hay uno, se ve el nombre del plato.</p></div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Código de Cocina <span class="text-st-pagado">*</span> <span class="text-[10px] text-txt-muted">(KDS — único, 1 a 4 letras o números)</span></label>
@@ -873,6 +876,61 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL: GRUPO SOS -->
+<div x-show="modalGrupoSos" x-transition.opacity class="fixed inset-0 z-[55] flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalGrupoSos=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[900px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col" @click.stop>
+    <div class="bg-bg-sidebar p-5">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold">🍲 Gestionar grupo SOS</h2>
+          <p class="text-xs text-txt-muted">Los platos marcados salen juntos en la tabla SOS. Si el plato tiene tipos (pachamanca de 1 sabor, OP de guarnición), esos nombres entran en el mismo grupo.</p>
+        </div>
+        <button @click="modalGrupoSos=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+      </div>
+      <div class="mt-4 flex gap-2 flex-wrap items-center">
+        <button type="button" @click="nuevoGrupoSos()" class="px-3 py-1.5 rounded-lg text-xs border border-gold/40 text-gold">+ Nuevo grupo</button>
+        <template x-for="g in gruposSosLista()" :key="g.nombre">
+          <button type="button" @click="abrirGrupoSos(g.nombre)"
+            class="px-3 py-1.5 rounded-lg text-xs border"
+            :class="grupoSosAbierto.toLowerCase() === g.nombre.toLowerCase() ? 'bg-gold text-bg-primary border-gold' : 'border-white/20 text-txt-secondary'"
+            x-text="g.nombre + ' (' + g.n + ')'"></button>
+        </template>
+      </div>
+    </div>
+    <div class="p-4 border-b border-[rgba(212,175,55,0.15)] flex gap-2 flex-wrap">
+      <input type="text" x-model="nombreGrupoSos" maxlength="40" placeholder="Nombre del grupo. Ej: Pachamanca" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm flex-1 min-w-[200px] focus:border-gold focus:outline-none">
+      <input type="text" x-model="searchGrupoSos" placeholder="🔍 Buscar plato o tipo" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-56 focus:border-gold focus:outline-none">
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-2">
+      <template x-for="p in platosGrupoSosVisibles()" :key="p._id">
+        <div class="border border-[rgba(212,175,55,0.18)] rounded-lg p-3">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" class="accent-gold mt-1" :checked="!!idsGrupoSos[p._id]" @change="togglePlatoGrupoSos(p._id)">
+            <span class="min-w-0">
+              <span class="font-semibold text-sm" x-text="p.nombre"></span>
+              <span class="text-[11px] text-gold/80 ml-2" x-show="p.nombreCocina" x-text="p.nombreCocina"></span>
+              <span class="text-[10px] text-txt-muted ml-2" x-show="p.grupoSos" x-text="'SOS: ' + p.grupoSos"></span>
+            </span>
+          </label>
+          <div class="mt-2 pl-7 flex flex-wrap gap-1.5" x-show="tiposSosDePlato(p).length">
+            <span class="text-[10px] text-txt-muted w-full">Tipos que entran si marcas el plato</span>
+            <template x-for="(tipo, ti) in tiposSosDePlato(p)" :key="p._id + '-' + ti">
+              <span class="text-[11px] px-2 py-0.5 rounded bg-white/10" x-text="tipo"></span>
+            </template>
+          </div>
+        </div>
+      </template>
+      <p x-show="!platosGrupoSosVisibles().length" class="text-sm text-txt-muted">No hay platos con esa búsqueda.</p>
+    </div>
+    <div class="bg-bg-sidebar p-4 border-t border-[rgba(212,175,55,0.15)] flex justify-between items-center">
+      <span class="text-[11px] text-txt-muted" x-text="Object.keys(idsGrupoSos).length + ' plato(s) en el grupo'"></span>
+      <button type="button" @click="guardarGrupoSos()" :disabled="guardandoGrupoSos" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold disabled:opacity-50">
+        <span x-text="guardandoGrupoSos ? 'Guardando…' : 'Guardar grupo'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: GESTIÓN DE COMPLEMENTOS (BIBLIOTECA) -->
 <div x-show="modalGestionComplementos" x-transition.opacity class="fixed inset-0 z-[55] flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalGestionComplementos=false">
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[900px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
@@ -1478,6 +1536,7 @@ tailwind.config = {
       id: null,
       nombre: '',
       nombreCocina: '',
+      grupoSos: '',
       codigo: '',
       codigoMozo: '',
       precio: '',
@@ -1513,6 +1572,12 @@ tailwind.config = {
     
     // ============ ESTADO PARA GESTIÓN DE COMPLEMENTOS ============
     modalGestionComplementos: false,
+    modalGrupoSos: false,
+    searchGrupoSos: '',
+    nombreGrupoSos: '',
+    grupoSosAbierto: '',
+    idsGrupoSos: {},
+    guardandoGrupoSos: false,
     modalGestionCategorias: false,
     loadingGestionCategorias: false,
     guardandoGestionCategorias: false,
@@ -2008,6 +2073,7 @@ tailwind.config = {
         id: null,
         nombre: '',
         nombreCocina: '',
+        grupoSos: '',
         codigo: '',
         codigoMozo: '',
         precio: '',
@@ -2057,6 +2123,7 @@ tailwind.config = {
         id: p.id ?? null,
         nombre: p.nombre,
         nombreCocina: p.nombreCocina || '',
+        grupoSos: p.grupoSos || '',
         codigo: p.codigo || '',
         codigoMozo: p.codigoMozo || '',
         precio: p.precio,
@@ -2551,6 +2618,119 @@ tailwind.config = {
       if (!this.platos.length) await this.loadPlatos();
       if (!this.tiposPlato.length) await this.loadTiposPlato();
       await this.loadComplementosGestion();
+    },
+
+    async openModalGrupoSos() {
+      this.modalGrupoSos = true;
+      this.searchGrupoSos = '';
+      if (!this.platos.length) await this.loadPlatos();
+      if (!this.grupoSosAbierto) this.nuevoGrupoSos();
+    },
+
+    nuevoGrupoSos() {
+      this.nombreGrupoSos = '';
+      this.grupoSosAbierto = '';
+      this.idsGrupoSos = {};
+    },
+
+    abrirGrupoSos(nombre) {
+      const n = String(nombre || '').trim();
+      this.nombreGrupoSos = n;
+      this.grupoSosAbierto = n;
+      const next = {};
+      const clave = n.toLowerCase();
+      for (const p of this.platos || []) {
+        if (clave && String(p.grupoSos || '').trim().toLowerCase() === clave) next[String(p._id)] = true;
+      }
+      this.idsGrupoSos = next;
+    },
+
+    gruposSosLista() {
+      const map = new Map();
+      for (const p of this.platos || []) {
+        const n = String(p.grupoSos || '').trim();
+        if (!n) continue;
+        const k = n.toLowerCase();
+        if (!map.has(k)) map.set(k, { nombre: n, n: 0 });
+        map.get(k).n += 1;
+      }
+      return [...map.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    },
+
+    tiposSosDePlato(p) {
+      const base = String(p?.nombreCocina || p?.nombre || '').trim();
+      const out = [];
+      for (const g of p?.complementos || []) {
+        const anexa = g?.anexarVarianteAlNombre === true && g?.esVariantePlato !== true;
+        const variante = g?.esVariantePlato === true;
+        if (!anexa && !variante) continue;
+        for (const op of g.opciones || []) {
+          const nombre = String((op && op.nombre) || op || '').trim();
+          if (!nombre) continue;
+          out.push(anexa ? (base + ' ' + nombre).trim() : nombre);
+        }
+      }
+      return out;
+    },
+
+    platosGrupoSosVisibles() {
+      const q = String(this.searchGrupoSos || '').trim().toLowerCase();
+      const list = this.platos || [];
+      if (!q) return list;
+      return list.filter((p) => {
+        const blob = [
+          p.nombre,
+          p.nombreCocina,
+          p.codigo,
+          p.grupoSos,
+          ...this.tiposSosDePlato(p),
+        ].join(' ').toLowerCase();
+        return blob.includes(q);
+      });
+    },
+
+    togglePlatoGrupoSos(id) {
+      const k = String(id);
+      const next = { ...(this.idsGrupoSos || {}) };
+      if (next[k]) delete next[k];
+      else next[k] = true;
+      this.idsGrupoSos = next;
+    },
+
+    async guardarGrupoSos() {
+      const nombre = String(this.nombreGrupoSos || '').trim().slice(0, 40);
+      if (!nombre) {
+        alert('Escribe el nombre del grupo. Ejemplo: Pachamanca');
+        return;
+      }
+      const ids = this.idsGrupoSos || {};
+      const marcados = Object.keys(ids).filter((k) => ids[k]);
+      if (!marcados.length) {
+        alert('Marca al menos un plato.');
+        return;
+      }
+      const abierto = String(this.grupoSosAbierto || '').trim().toLowerCase();
+      this.guardandoGrupoSos = true;
+      try {
+        for (const p of this.platos || []) {
+          const id = String(p._id);
+          const marcado = !!ids[id];
+          const actual = String(p.grupoSos || '').trim();
+          const eraDeEste = abierto && actual.toLowerCase() === abierto;
+          let next = null;
+          if (marcado) next = nombre;
+          else if (eraDeEste) next = '';
+          else continue;
+          if (actual === next) continue;
+          await apiPut('/platos/' + p._id, { grupoSos: next });
+        }
+        await this.loadPlatos();
+        this.abrirGrupoSos(nombre);
+      } catch (e) {
+        alert((e && e.message) || 'No se pudo guardar el grupo.');
+      } finally {
+        this.guardandoGrupoSos = false;
+      }
     },
 
     async openModalCategoriasGestion() {
@@ -3509,6 +3689,7 @@ tailwind.config = {
       const payload = {
         nombre: String(this.formPlato.nombre || '').trim(),
         nombreCocina: String(this.formPlato.nombreCocina || '').trim(),
+        grupoSos: String(this.formPlato.grupoSos || '').trim(),
         codigo: codigoTrim,
         codigoMozo: this.formPlato.codigoMozo || '',
         precio: Number.isFinite(precioNum) && precioNum >= 0 ? precioNum : 0,

@@ -692,6 +692,12 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
       if (!comanda.areaNombre && comanda.mesas?.area?.nombre) {
         comanda.areaNombre = comanda.mesas.area.nombre;
       }
+      if (comanda.sinMesa === true) {
+        comanda.mesas = null;
+      } else if (!comanda.mesas && (comanda.mesaNumero == null || comanda.mesaNumero === '')) {
+        comanda.sinMesa = true;
+        comanda.mesas = null;
+      }
       return comanda;
     });
     
@@ -823,14 +829,35 @@ const agregarComanda = async (data) => {
     throw new Error('Las cantidades deben ser un array');
   }
 
-  const esSinMesa = data.sinMesa === true || data.mesas == null || data.mesas === '';
+  const mesaRef = data.mesas;
+  const mesaEsObjeto = mesaRef && typeof mesaRef === 'object' && !Array.isArray(mesaRef);
+  const mesaObjId = mesaEsObjeto && mesaRef._id ? mesaRef._id : null;
+  const mesaComoId = mesaEsObjeto && !mesaObjId
+    ? (typeof mesaRef.toString === 'function' ? String(mesaRef) : '')
+    : '';
+  const mesaIdValido = mesaObjId
+    || (typeof mesaRef === 'string' && /^[a-f0-9]{24}$/i.test(mesaRef) && mesaRef)
+    || (/^[a-f0-9]{24}$/i.test(mesaComoId) && mesaComoId !== '[object Object]' ? mesaComoId : null);
+
+  const esSinMesa = data.sinMesa === true
+    || mesaRef == null
+    || mesaRef === ''
+    || (mesaEsObjeto && (
+      mesaRef.sinMesa === true
+      || mesaRef.nummesa === 'Sin mesa'
+      || mesaRef.nummesa === 'SIN_MESA'
+      || !mesaIdValido
+    ));
   let mesa = null;
   let estadoMesa = 'libre';
 
   if (esSinMesa) {
     delete data.mesas;
     data.sinMesa = true;
+    data.mesaNumero = null;
     logger.info('Comanda sin mesa (para llevar)');
+  } else if (mesaIdValido) {
+    data.mesas = mesaIdValido;
   } else if (!data.mesas) {
     throw new Error('Debe proporcionarse una mesa');
   }
@@ -2269,6 +2296,13 @@ const actualizarComanda = async (comandaId, newData) => {
       .populate({ path: 'mesas', populate: { path: 'area' } })
       .populate({ path: 'cliente' })
       .populate({ path: 'platos.plato', model: 'platos' });
+
+    if (newData.sinMesa === true) {
+      newData.mesas = null;
+      newData.mesaNumero = null;
+    } else if (newData.mesas && typeof newData.mesas === 'object' && newData.mesas._id) {
+      newData.mesas = newData.mesas._id;
+    }
 
     let updatedComanda;
     if (Array.isArray(newData.cantidades) && !newData.platos) {

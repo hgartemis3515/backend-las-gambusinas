@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
     listarPlatos,
+    listarGruposSos,
     listarPlatosCartaMozo,
     listarPlatosPorTipo,
     obtenerPlatoPorId,
@@ -23,6 +24,10 @@ const { listarCategoriasLigero } = require("../repository/categoriaPlato.reposit
 
 router.get("/platos", async (req, res) => {
     try {
+        if (req.query.grupoSos === '1') {
+            const data = await listarGruposSos();
+            return res.json(data);
+        }
         if (req.query.carta === '1' || req.query.carta === 'true') {
             const data = await listarPlatosCartaMozo();
             return res.json(data);

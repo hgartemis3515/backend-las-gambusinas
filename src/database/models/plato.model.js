@@ -69,6 +69,15 @@ const platoSchema = new mongoose.Schema({
         trim: true,
         maxlength: MAX_LENGTH_NOMBRE_COCINA
     },
+    // Familia de la tabla SOS (Chaufa, Chicharrón). Vacío = no agrupa.
+    // No se copia a la comanda: la cocina lo lee del catálogo por platoId.
+    grupoSos: {
+        type: String,
+        required: false,
+        default: '',
+        trim: true,
+        maxlength: MAX_LENGTH_NOMBRE_COCINA
+    },
     precio: { type: Number, required: true, min: 0 },
     stock: { type: Number, required: true, min: 0 },
     categoria: {
@@ -346,6 +355,13 @@ platoSchema.pre('save', async function (next) {
             this.nombreCocina = limpio;
         } else {
             this.nombreCocina = '';
+        }
+        if (this.grupoSos != null) {
+            this.grupoSos = String(this.grupoSos)
+                .replace(/[\u0000-\u001F\u007F]/g, '')
+                .trim();
+        } else {
+            this.grupoSos = '';
         }
         {
             const { sanitizarCategoriasPlato } = require('../../utils/categoriasPlato');
