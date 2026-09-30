@@ -715,9 +715,14 @@ async function forzarPagoTicketComanda(ticketId, {
   const { aplicarDescuentoAVistaTicket } = require('../utils/descuentoTicketSnapshot');
   const motivoFinal = motivoForzarLimpio(motivo);
   const ticket = await ticketAprobacionModel.findById(ticketId);
-  if (!ticket || ticket.isActive === false) {
+  if (!ticket) {
     const err = new Error('Ticket no encontrado');
     err.statusCode = 404;
+    throw err;
+  }
+  if (ticket.isActive === false) {
+    const err = new Error('Este ticket ya no está activo. Si el mozo cobró después, recarga la tabla.');
+    err.statusCode = 400;
     throw err;
   }
   if (ticket.estado !== 'pendiente_aprobacion') {
@@ -769,7 +774,7 @@ async function forzarPagoTicketComanda(ticketId, {
     .map((p) => ({
       plato: p.plato,
       platoId: p.platoId,
-      platoSubdocId: p.platoLineaId,
+      platoLineaId: p.platoLineaId || null,
       nombre: p.nombre,
       precio: p.precio,
       cantidad: p.cantidad,
@@ -800,13 +805,15 @@ async function forzarPagoTicketComanda(ticketId, {
       : Math.max(0, Math.round((recibidoFinal - total) * 100) / 100);
   }
 
+  const sinMesaTicket = ticket.sinMesa === true || !ticket.mesa;
   const boucher = await crearBoucher({
-    mesa: ticket.mesa,
-    numMesa: ticket.numMesa,
+    mesa: sinMesaTicket ? undefined : ticket.mesa,
+    numMesa: sinMesaTicket ? undefined : ticket.numMesa,
+    sinMesa: sinMesaTicket,
     mozo: ticket.mozo,
     nombreMozo: ticket.nombreMozo || ticket.mozoNombre || 'N/A',
     cliente: ticket.cliente || null,
-    pedido: ticket.pedido,
+    pedido: ticket.pedido || null,
     comandas: ticket.comandas,
     comandasNumbers: ticket.comandasNumbers,
     platos: platosBoucher,

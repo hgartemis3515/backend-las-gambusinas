@@ -238,7 +238,7 @@ router.get('/aprobacion/buscar-ticket', async (req, res) => {
     res.json({ success: true, ticketNumber: Number(String(n).replace(/\D/g, '')) || n, tickets });
   } catch (error) {
     logger.error('Error al buscar ticket por número', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });
@@ -393,7 +393,7 @@ router.put('/aprobacion/grupo/forzar-pago', ...rolesTablaTickets, async (req, re
     });
   } catch (error) {
     logger.error('Error al forzar pago de grupo', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });
@@ -422,7 +422,7 @@ router.put('/aprobacion/:id/forzar-pago', ...rolesTablaTickets, async (req, res)
     });
   } catch (error) {
     logger.error('Error al forzar pago de ticket', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });
@@ -594,7 +594,7 @@ router.put('/aprobacion/:id/aprobar', ...rolesTablaTickets, async (req, res) => 
     });
   } catch (error) {
     logger.error('Error al aprobar ticket de aprobación', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });
@@ -650,7 +650,7 @@ router.put('/aprobacion/:id/reportar', ...rolesTablaTickets, async (req, res) =>
     });
   } catch (error) {
     logger.error('Error al reportar comanda', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });
@@ -683,7 +683,7 @@ router.post('/aprobacion/desde-comanda/:id', async (req, res) => {
     res.json({ success: true, ticket });
   } catch (error) {
     logger.error('Error al crear ticket de aprobación desde comanda', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });
@@ -700,7 +700,7 @@ router.get('/comanda/:id/tickets', async (req, res) => {
     res.json({ success: true, tickets });
   } catch (error) {
     logger.error('Error al obtener tickets de comanda', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });
@@ -776,7 +776,7 @@ router.put('/aprobacion/:id/editar', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error al editar ticket', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });
@@ -842,7 +842,7 @@ router.put('/aprobacion/:id/eliminar', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error al eliminar ticket', { error: error.message });
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || (error.name === 'ValidationError' ? 400 : 500);
     res.status(statusCode).json({ success: false, message: error.message });
   }
 });

@@ -119,9 +119,16 @@ const crearBoucher = async (data) => {
     try {
         console.log('📝 Creando boucher:', JSON.stringify(data, null, 2));
         
-        // Validar datos requeridos
-        if ((!data.sinMesa && !data.mesa) || !data.mozo || !data.platos || data.platos.length === 0) {
-            throw new Error('Datos incompletos para crear el boucher');
+        // Para llevar / SIN MESA: sin mesa no es error; el boucher se marca sinMesa.
+        if (!data.mesa) {
+            data.sinMesa = true;
+            if (data.numMesa == null) data.numMesa = null;
+        }
+
+        if (!data.mozo || !data.platos || data.platos.length === 0) {
+            const err = new Error('Datos incompletos para crear el boucher');
+            err.statusCode = 400;
+            throw err;
         }
         
         // Obtener configuración de moneda y precios

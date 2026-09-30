@@ -62,6 +62,13 @@ function toObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null;
 }
 
+function mesaIdDeTicket(ticket) {
+  const raw = ticket && (ticket.mesa?._id || ticket.mesa);
+  if (!raw) return null;
+  const s = String(raw);
+  return mongoose.Types.ObjectId.isValid(s) ? raw : null;
+}
+
 const MAX_COMANDA_SAVE_RETRIES = 3;
 
 /**
@@ -313,10 +320,13 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
   );
 
   // Snapshot para auditoría
+  const mesaIdTicket = mesaIdDeTicket(ticket);
   const datosAntes = {
     ticketEstado: alreadyApproved ? 'aprobado' : 'pendiente_aprobacion',
-    mesaEstado: (await mesasModel.findById(ticket.mesa).select('estado').lean())?.estado,
-    comandas: ticket.comandas.map((c) => c.toString()),
+    mesaEstado: mesaIdTicket
+      ? (await mesasModel.findById(mesaIdTicket).select('estado').lean())?.estado
+      : null,
+    comandas: (ticket.comandas || []).map((c) => c.toString()),
     boucherId: ticket.boucher,
   };
 
@@ -403,7 +413,9 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
   //   2. No quedan comandas activas con platos 'pendiente' (cobrados, sin aprobar).
   //   3. No hay otros tickets 'pendiente_aprobacion' del mismo pedido/mesa hoy.
   let mesaEstadoFinal = null;
-  const mesaDoc = esAbonoCantidad ? null : await mesasModel.findById(ticket.mesa).select('estado').lean();
+  const mesaDoc = esAbonoCantidad || !mesaIdTicket
+    ? null
+    : await mesasModel.findById(mesaIdTicket).select('estado').lean();
   if (mesaDoc) {
     if (opts.pagoForzado) {
       const estadoActual = (mesaDoc.estado || '').toLowerCase();
