@@ -92,9 +92,9 @@ function textoMesaTicket(mesa) {
 function celdaLlena(value) {
   const texto = String(value || '—');
   const n = texto.length;
-  const size = n <= 4 ? 32 : n <= 9 ? 24 : n <= 16 ? 18 : 14;
-  return `<td style="width:50%;height:52px;padding:0 2px;border:1px solid #000;vertical-align:middle;text-align:center;">
-    <div style="font-size:${size}px;font-weight:800;line-height:1.05;text-align:center;word-break:break-word;">${escapeHtml(texto)}</div>
+  const size = n <= 4 ? 26 : n <= 9 ? 20 : n <= 16 ? 15 : 12;
+  return `<td style="width:50%;padding:0;border:1px solid #000;vertical-align:middle;text-align:center;">
+    <div style="font-size:${size}px;font-weight:800;line-height:1;text-align:center;padding:1px 2px;word-break:break-word;">${escapeHtml(texto)}</div>
   </td>`;
 }
 
