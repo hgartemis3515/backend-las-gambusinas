@@ -74,6 +74,13 @@ La regla de negocio no cambia: con `entregarPlatoEnteroAbsoluto` el plato pasa a
 - Defender ya excluye `data`, `node.exe` y `mongod.exe`. Ethernet 2 ya tiene prioridad 10. Si Radmin VPN se vuelve a conectar, hay que dejarle métrica 50 para que no se ponga delante del cable.
 - Mozos y la computadora de cocina deben usar la IP `192.168.50.x` de esta PC. El puerto 3001 es la app de cocina; la API sigue en el backend de esta máquina.
 
+## 4.1 Verificado en código (2026-10-01)
+
+- [x] `POST /api/comanda` hace `res.json` y deja la auto-asignación y `nueva-comanda` en `setImmediate`. El mozo no espera a cocina.
+- [x] Cocina tiene el flujo de entregar el plato entero (`entregarPlatoEnteroKds`).
+- [ ] El aviso a cocina sigue recargando la comanda con `findById` + populate antes de emitir. No es el “un solo objeto ya en memoria”.
+- [ ] No se midió en el local el tope de 1 s hasta ver la tarjeta.
+
 ## 5. Cómo se sabe que quedó
 
 - Soltar una comanda en la app de mozos y ver la tarjeta en la tabla KDS de la otra computadora en menos de 1 segundo, con cocinero ya puesto.

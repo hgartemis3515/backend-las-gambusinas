@@ -28,6 +28,18 @@ export function letraRevisionTicket(n) {
   return s;
 }
 
+export function tipoCuadroTicket(lineas, { sinMesa = false } = {}) {
+  const tipos = (lineas || [])
+    .filter((p) => p && p.eliminado !== true && p.anulado !== true)
+    .map((p) => String(p.tipoServicio || 'mesa').toLowerCase());
+  const hayExtra = tipos.some((t) => t === 'extra_llevar');
+  const hayLlevar = tipos.some((t) => t === 'para_llevar');
+  const hayMesa = tipos.some((t) => t !== 'para_llevar' && t !== 'extra_llevar');
+  if (sinMesa || (tipos.length > 0 && hayLlevar && !hayMesa && !hayExtra)) return 'Para llevar';
+  if (hayExtra) return 'Mesa extra llevar';
+  return 'Para Mesa';
+}
+
 function ordenarNumerosLetrero(nums) {
   const list = [...nums].filter((n) => Number.isFinite(n));
   if (list.length <= 1) return list;
@@ -187,7 +199,7 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
   html += `<div style="text-align:center;font-size:22px;font-weight:800;letter-spacing:0.5px;line-height:1.15;padding:4px 0 6px;">${escapeHtml(letrero)}</div>`;
   html += `<table style="width:100%;border-collapse:collapse;margin-bottom:6px;">
     <tr>${celdaLlena(String(d.mozo || '—').toLocaleUpperCase('es-PE'))}${celdaLlena(textoMesaTicket(d.mesa).toLocaleUpperCase('es-PE'))}</tr>
-    <tr>${celdaMeta('Fecha', fecha)}${celdaMeta('Área', d.area)}</tr>
+    <tr>${celdaMeta('Fecha', fecha)}${celdaMeta('Tipo', tipoCuadroTicket(d.productos, { sinMesa: d.sinMesa === true || /^sin mesa$/i.test(String(d.mesa || '')) }))}</tr>
   </table>`;
   html += `<table style="width:100%;border-collapse:collapse;font-size:11px;">
     <thead>

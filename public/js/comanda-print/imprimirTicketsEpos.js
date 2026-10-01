@@ -198,7 +198,12 @@ function productosDe(grupo) {
       const unit = linea.precioUnitario != null
         ? Number(linea.precioUnitario)
         : (Number(linea.precio ?? linea?.plato?.precio) || 0);
-      out.push({ nombre, cantidad: cant, precio: unit });
+      out.push({
+        nombre,
+        cantidad: cant,
+        precio: unit,
+        tipoServicio: linea.tipoServicio || 'mesa',
+      });
     });
   }
   return out;
@@ -229,6 +234,7 @@ export async function imprimirTicketsEposAutomatico(comandas) {
     productos,
     mozo: etiquetaMozosLista(lista) || base.mozoNombre || (typeof base.mozo === 'string' ? base.mozo : base.mozo?.name) || '',
     mesa: mesaLabel(base),
+    sinMesa: lista.some((c) => c?.sinMesa === true),
     area: base.areaNombre || base.mesas?.area?.nombre || base.mesa?.area || '',
     fechaPedido: base.createdAt,
     montoDescuento: desc,
