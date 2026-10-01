@@ -253,6 +253,25 @@ app.use(logger.correlationMiddleware);
 
 app.use(express.json({ limit: '10mb' }));
 
+// Antes de los routers que exigen token en todo /api (notificaciones, mensajes…).
+// Si no, cocina y el panel leen 401 y siguen imprimiendo.
+app.get('/api/configuracion/impresion-automatica', async (req, res) => {
+  try {
+    const configuracionRepository = require('./src/repository/configuracion.repository');
+    const cfg = await configuracionRepository.obtenerConfiguracionSinCache();
+    const c = cfg?.cocina || {};
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      success: true,
+      detenerImpresionCocina: c.detenerImpresionCocina === true,
+      detenerImpresionCaja: c.detenerImpresionCaja === true,
+    });
+  } catch (error) {
+    logger.error('Error al leer parada de impresión', { error: error.message });
+    res.status(500).json({ success: false });
+  }
+});
+
 // Montar rutas de API individualmente
 app.use('/api', mesasRoutes);
 app.use('/api', mozosRoutes);

@@ -244,10 +244,10 @@ export async function imprimirTicketsEposAutomatico(comandas) {
   let detenerCocina = false;
   let detenerCaja = false;
   try {
-    const resCfg = await fetch('/api/configuracion');
+    const resCfg = await fetch('/api/configuracion/impresion-automatica');
     const cfg = await resCfg.json();
-    detenerCocina = cfg?.configuracion?.cocina?.detenerImpresionCocina === true;
-    detenerCaja = cfg?.configuracion?.cocina?.detenerImpresionCaja === true;
+    detenerCocina = cfg?.detenerImpresionCocina === true;
+    detenerCaja = cfg?.detenerImpresionCaja === true;
   } catch {
     detenerCocina = false;
     detenerCaja = false;

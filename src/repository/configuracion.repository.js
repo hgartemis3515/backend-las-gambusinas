@@ -303,6 +303,19 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             }
         );
 
+        if (datosFiltrados.cocina && typeof datosFiltrados.cocina === 'object') {
+            const parada = {};
+            if (datosFiltrados.cocina.detenerImpresionCocina !== undefined) {
+                parada['cocina.detenerImpresionCocina'] = datosFiltrados.cocina.detenerImpresionCocina === true;
+            }
+            if (datosFiltrados.cocina.detenerImpresionCaja !== undefined) {
+                parada['cocina.detenerImpresionCaja'] = datosFiltrados.cocina.detenerImpresionCaja === true;
+            }
+            if (Object.keys(parada).length) {
+                await ConfiguracionSistema.updateOne({ _id: 'configuracion_unica' }, { $set: parada });
+            }
+        }
+
         // Invalidar caché
         await invalidarCache();
         invalidarCacheCalculosPrecios();
