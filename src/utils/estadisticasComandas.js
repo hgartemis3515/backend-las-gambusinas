@@ -324,18 +324,11 @@ function matchFechaDiaOperativo(inicio, fin) {
 }
 
 /**
- * Período de caja: entra si se abrió, cobró o entregó en la ventana.
- * Distinto del día operativo: el cierre no puede perder un cobro de madrugada
- * que aún no tenía `incluidoEnCierre`.
+ * Período de caja = mismo eje que reportes «Hoy»: `createdAt` en 04:00–04:00 Lima.
+ * No entra una comanda de ayer solo porque se pagó o entregó hoy (inflaba el total).
  */
 function matchFechaPeriodoCaja(inicio, fin) {
-    return {
-        $or: [
-            { createdAt: { $gte: inicio, $lte: fin } },
-            { tiempoPagado: { $gte: inicio, $lte: fin } },
-            { tiempoEntregado: { $gte: inicio, $lte: fin } }
-        ]
-    };
+    return matchFechaDiaOperativo(inicio, fin);
 }
 
 /** Eje de agrupación horaria / diaria de reportes: mismo día operativo. */
@@ -422,8 +415,8 @@ function matchIncluidoEnEsteCierre(cierreId) {
 }
 
 /**
- * Cierres viejos sin marca incluidoEnCierre: ventana de caja
- * (apertura o cobro/entrega), sin comandas ya asignadas a otro cierre.
+ * Cierres viejos sin marca incluidoEnCierre: ventana por createdAt
+ * (mismo día operativo), sin comandas ya asignadas a otro cierre.
  */
 function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
     return {
@@ -443,9 +436,9 @@ function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
 }
 
 /**
- * Comandas del período de caja (no del día operativo de reportes):
- * apertura o cobro/entrega en la ventana, aún sin `incluidoEnCierre`.
- * Usa $and para no pisar el $or de fechas con el de incluidoEnCierre.
+ * Comandas del período pendiente de caja: createdAt en la ventana,
+ * aún sin `incluidoEnCierre`.
+ * Usa $and para no pisar el filtro de fechas con el de incluidoEnCierre.
  */
 function matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas = false } = {}) {
     const clauses = [

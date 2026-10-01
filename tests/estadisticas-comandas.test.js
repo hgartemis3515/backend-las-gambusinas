@@ -40,17 +40,12 @@ describe('estadisticasComandas', () => {
     expect(m.tiempoPagado).toBeUndefined();
   });
 
-  test('día operativo es createdAt; caja sigue abriendo por cobro/entrega', () => {
+  test('día operativo y caja usan createdAt (no cobro/entrega de otro día)', () => {
     const inicio = new Date('2026-09-19T05:00:00.000Z');
     const fin = new Date('2026-09-20T04:59:59.999Z');
-    expect(matchFechaDiaOperativo(inicio, fin)).toEqual({
-      createdAt: { $gte: inicio, $lte: fin }
-    });
-    expect(matchFechaPeriodoCaja(inicio, fin).$or).toEqual([
-      { createdAt: { $gte: inicio, $lte: fin } },
-      { tiempoPagado: { $gte: inicio, $lte: fin } },
-      { tiempoEntregado: { $gte: inicio, $lte: fin } }
-    ]);
+    const porCreatedAt = { createdAt: { $gte: inicio, $lte: fin } };
+    expect(matchFechaDiaOperativo(inicio, fin)).toEqual(porCreatedAt);
+    expect(matchFechaPeriodoCaja(inicio, fin)).toEqual(porCreatedAt);
     const stats = matchComandasEstadisticas(inicio, fin);
     expect(stats.createdAt).toEqual({ $gte: inicio, $lte: fin });
     expect(stats.$or).toBeUndefined();
@@ -259,7 +254,9 @@ describe('estadisticasComandas', () => {
     expect(m.$and).toHaveLength(3);
     expect(m.$and[0].status).toEqual({ $nin: ['cancelado', 'cancelada'] });
     expect(m.$and[0].fechaEliminacion).toEqual({ $eq: null });
-    expect(m.$and[1].$or).toHaveLength(3);
+    expect(m.$and[1]).toEqual({
+      createdAt: { $gte: inicio, $lte: fin }
+    });
     expect(m.$and[2].$or).toEqual(expect.arrayContaining([
       { incluidoEnCierre: cierreId },
       { incluidoEnCierre: String(cierreId) },
@@ -277,7 +274,9 @@ describe('estadisticasComandas', () => {
     expect(m.$and[0].fechaEliminacion).toEqual({ $eq: null });
     expect(m.$and[0].status).toEqual({ $nin: ['cancelado', 'cancelada'] });
     expect(m.$and[3].status).toEqual({ $in: ['pagado', 'entregado', 'completado', 'pendiente_aprobar'] });
-    expect(m.$and[1].$or).toHaveLength(3);
+    expect(m.$and[1]).toEqual({
+      createdAt: { $gte: inicio, $lte: fin }
+    });
     expect(m.$and[2].$or).toEqual([
       { incluidoEnCierre: null },
       { incluidoEnCierre: { $exists: false } }
@@ -331,6 +330,15 @@ describe('estadisticasComandas', () => {
     expect(g).toHaveLength(1);
     expect(g[0].totalVentas).toBe(79);
     expect(g[0].cantidad).toBe(1);
+  });
+
+  test('cierre pendiente no mete comanda de otro día por tiempoPagado', () => {
+    const inicio = new Date('2026-10-01T09:00:00.000Z');
+    const fin = new Date('2026-10-01T23:59:59.999Z');
+    const m = matchComandasCierrePendiente(inicio, fin);
+    expect(m.$and[1]).toEqual({ createdAt: { $gte: inicio, $lte: fin } });
+    expect(JSON.stringify(m)).not.toMatch(/tiempoPagado/);
+    expect(JSON.stringify(m)).not.toMatch(/tiempoEntregado/);
   });
 
   test('pendiente_aprobar y tiempoPagado cuentan como venta de cierre', () => {
