@@ -136,11 +136,11 @@ function resolverActorAuditoria(req) {
     const usuario = objectIdUsuarioOrNull(decoded?.id || decoded?._id || decoded?.usuarioId)
         || objectIdUsuarioOrNull(req.userId)
         || objectIdUsuarioOrNull(req.body?.usuarioId)
+        || objectIdUsuarioOrNull(req.body?.mozoId)
         || objectIdUsuarioOrNull(req.headers['x-user-id']);
     const usuarioNombre = decoded?.nombre || decoded?.name || decoded?.usuario
         || (typeof req.body?.usuarioNombre === 'string' && req.body.usuarioNombre.trim())
-        || (!usuario && typeof req.body?.usuarioId === 'string' ? req.body.usuarioId : null)
-        || 'dashboard';
+        || null;
     return { usuario, usuarioNombre };
 }
 
@@ -1056,7 +1056,8 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
 router.delete('/comanda/:id', async (req, res) => {
     const { id } = req.params;
     const motivo = req.body?.motivo || 'Eliminación desde endpoint DELETE (legacy)';
-    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    let usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     try {
         // Obtener snapshot antes de eliminar con datos completos
@@ -1120,6 +1121,7 @@ router.delete('/comanda/:id', async (req, res) => {
                 entidadId: id,
                 entidadTipo: 'comanda',
                 usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
                 mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
                 comandaId: id,
                 motivo: motivo.trim(),
@@ -1257,7 +1259,8 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
 router.delete('/comanda/:id/ultima', async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
-    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    let usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     // Validar que el motivo sea obligatorio
     if (!motivo || motivo.trim() === '') {
@@ -1317,6 +1320,7 @@ router.delete('/comanda/:id/ultima', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
             comandaId: id,
             motivo: motivo.trim(),
@@ -1367,7 +1371,8 @@ router.delete('/comanda/:id/ultima', async (req, res) => {
 router.delete('/comanda/:id/individual', async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
-    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    let usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     // Validar que el motivo sea obligatorio
     if (!motivo || motivo.trim() === '') {
@@ -1427,6 +1432,7 @@ router.delete('/comanda/:id/individual', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
             comandaId: id,
             motivo: motivo.trim(),
@@ -1478,7 +1484,8 @@ router.delete('/comanda/:id/individual', async (req, res) => {
 router.delete('/comanda/mesa/:mesaId/todas', async (req, res) => {
     const { mesaId } = req.params;
     const { motivo } = req.body;
-    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    let usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     // Validar que el motivo sea obligatorio
     if (!motivo || motivo.trim() === '') {
@@ -1581,6 +1588,7 @@ router.delete('/comanda/mesa/:mesaId/todas', async (req, res) => {
             entidadId: mesaId,
             entidadTipo: 'mesa',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             mesaId: mesaId,
             comandasIds: comandas.map(c => c._id.toString()),
             motivo: motivo.trim(),
@@ -1650,7 +1658,8 @@ router.delete('/comanda/mesa/:mesaId/todas', async (req, res) => {
 router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
     const { id, platoIndex } = req.params;
     const { razon } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    const usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     // Debounce map para evitar duplicados
     const debounceKey = `eliminar_${id}_${platoIndex}`;
@@ -1748,6 +1757,7 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
             estado: 'eliminado',
             timestamp: new Date(),
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             motivo: razon || 'Plato eliminado de comanda'
         });
         
@@ -1899,6 +1909,7 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             ip: req.ip,
             deviceId: req.headers['device-id'] || req.headers['x-device-id']
         };
@@ -1958,7 +1969,8 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
 router.put('/comanda/:id/editar-platos', async (req, res) => {
     const { id } = req.params;
     const { platosNuevos, platosEliminados, motivo } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    const usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     try {
         // Obtener snapshot antes de editar (con platos populados)
@@ -2116,6 +2128,7 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
             cantidades: comandaConPlatos.cantidades,
             observaciones: comandaConPlatos.observaciones,
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             accion: 'editada',
             motivo: motivo || 'Edición de platos'
         });
@@ -2126,6 +2139,7 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             ip: req.ip,
             deviceId: req.headers['device-id'] || req.headers['x-device-id']
         };
@@ -2277,6 +2291,7 @@ router.put("/comanda/:id", async (req, res) => {
 router.put('/comanda/:id/status', async (req, res) => {
     const { id } = req.params;
     const { nuevoStatus, motivo } = req.body;
+    const actor = resolverActorAuditoria(req);
     
     // Extraer información del usuario y dispositivo desde headers o body
     const usuarioId = req.body.usuarioId || req.headers['x-user-id'] || null;
@@ -2290,6 +2305,7 @@ router.put('/comanda/:id/status', async (req, res) => {
         
         const options = {
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             deviceId,
             sourceApp,
             motivo
@@ -2311,6 +2327,7 @@ router.put('/comanda/:id/status', async (req, res) => {
                 entidadId: id,
                 entidadTipo: 'comanda',
                 usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
                 ip: req.ip,
                 motivo: motivo || 'Reversión de comanda'
             };
@@ -2507,7 +2524,8 @@ router.put('/comanda/platos/estado-lote', async (req, res) => {
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const { id, platoId } = req.params;
     const { nuevoEstado, motivo, cocineroId, entregarEnteroAbsoluto, cantidadEntregar, entregaAutomatica } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    const usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
     // Validar que nuevoEstado sea válido
     const estadosValidos = ['recoger', 'salio', 'entregado', 'en_espera', 'pedido'];
@@ -2761,6 +2779,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                 entidadId: id,
                 entidadTipo: 'comanda',
                 usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
                 ip: req.ip,
                 motivo: motivo || 'Reversión de plato a pedido'
             };
@@ -3456,6 +3475,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
                     estado: 'eliminado',
                     timestamp: ahora,
                     usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
                     motivo: motivo.trim()
                 });
             });
@@ -3715,7 +3735,8 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
 router.put('/comanda/:id/anular-plato/:platoIndex', async (req, res) => {
     const { id, platoIndex } = req.params;
     const { motivo, observaciones, forzarAdmin } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    const usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'cocina';
     const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
 
@@ -3750,6 +3771,7 @@ router.put('/comanda/:id/anular-plato/:platoIndex', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             mesaId: resultado.comanda.mesas?._id || resultado.comanda.mesas,
             comandaId: id,
             motivo: motivo + (observaciones ? ` - ${observaciones}` : ''),
@@ -3819,6 +3841,7 @@ router.put('/comanda/:id/anular-plato/:platoIndex', async (req, res) => {
                 entidadId: id,
                 entidadTipo: 'comanda',
                 usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
                 motivo: `Intento fallido: ${error.message}`,
                 ip: req.ip,
                 deviceId
@@ -3838,7 +3861,8 @@ router.put('/comanda/:id/anular-plato/:platoIndex', async (req, res) => {
 router.put('/comanda/:id/anular-todo', async (req, res) => {
     const { id } = req.params;
     const { motivo, observaciones } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const actor = resolverActorAuditoria(req);
+    const usuarioId = actor.usuario || req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'cocina';
     const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
 
@@ -3872,6 +3896,7 @@ router.put('/comanda/:id/anular-todo', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             mesaId: resultado.mesaId,
             comandaId: id,
             motivo: motivo + (observaciones ? ` - ${observaciones}` : ''),
@@ -3934,6 +3959,7 @@ router.put('/comanda/:id/anular-todo', async (req, res) => {
 router.put('/comanda/:id/descuento', async (req, res) => {
     const { id } = req.params;
     const { descuento, monto, motivo, usuarioId, usuarioRol } = req.body;
+    const actor = resolverActorAuditoria(req);
     const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'api';
     const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
 
@@ -3981,6 +4007,7 @@ router.put('/comanda/:id/descuento', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             mesaId: resultado.comanda.mesas?._id || resultado.comanda.mesas,
             comandaId: id,
             motivo: (motivo && String(motivo).trim()) ? String(motivo).trim().slice(0, 200) : null,
@@ -4064,6 +4091,7 @@ router.put('/comanda/:id/descuento', async (req, res) => {
 router.delete('/comanda/:id/descuento', async (req, res) => {
     const { id } = req.params;
     const { usuarioId, usuarioRol, motivoEliminacion } = req.body;
+    const actor = resolverActorAuditoria(req);
     const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'api';
     const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
 
@@ -4149,6 +4177,7 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             mesaId: comanda.mesas?._id || comanda.mesas,
             comandaId: id,
             comandaNumber: comanda.comandaNumber,

@@ -173,6 +173,9 @@ const CONFIGURACION_DEFAULT = {
         ignorarFondoVistaMozo: false,
         // true (default): oculta el botón ANULAR en las tablas KDS de la app de cocina.
         ocultarAnularEnTablasKds: true,
+        // true = no imprime el ticket automático de esa impresora (envío mozos y eliminar).
+        detenerImpresionCocina: false,
+        detenerImpresionCaja: false,
         // true (default): Ver Comandas solo abre Vista Supervisor; General y Personalizada quedan ocultas.
         ocultarTablasKdsMenosSupervisor: true,
         tiemposGuarnicion: {
@@ -190,7 +193,7 @@ const CONFIGURACION_DEFAULT = {
         auditoriaExtendida: true
     },
 
-    // Clave de 6 dígitos que desbloquea cualquier pantalla de App Cocina (solo admin la configura)
+    // Clave de 6, 7 u 8 dígitos que desbloquea cualquier pantalla de App Cocina (solo admin la configura)
     pinUniversalCocina: '',
     // 4 combinaciones fijas de 3 dígitos (el admin las elige) + 15 de un solo uso.
     pinsAutorizacionOrden: [],
@@ -640,6 +643,14 @@ const configuracionSistemaSchema = new mongoose.Schema({
         ocultarTablasKdsMenosSupervisor: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.ocultarTablasKdsMenosSupervisor
+        },
+        detenerImpresionCocina: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.detenerImpresionCocina
+        },
+        detenerImpresionCaja: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.detenerImpresionCaja
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.

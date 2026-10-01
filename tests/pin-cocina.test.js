@@ -1,16 +1,19 @@
-const { PIN_COCINA_LEN, normalizarPinCocina, esPinCocinaValido } = require('../src/utils/pinCocina');
+const { PIN_COCINA_MIN, PIN_COCINA_MAX, normalizarPinCocina, esPinCocinaValido } = require('../src/utils/pinCocina');
 const { evaluarReasignacionProcesamiento } = require('../src/utils/reasignacionProcesamiento');
 
 describe('pinCocina', () => {
-  test('exige 6 dígitos', () => {
-    expect(PIN_COCINA_LEN).toBe(6);
+  test('acepta 6, 7 u 8 dígitos', () => {
+    expect(PIN_COCINA_MIN).toBe(6);
+    expect(PIN_COCINA_MAX).toBe(8);
     expect(esPinCocinaValido('123456')).toBe(true);
+    expect(esPinCocinaValido('1234567')).toBe(true);
+    expect(esPinCocinaValido('12345678')).toBe(true);
     expect(esPinCocinaValido('1234')).toBe(false);
-    expect(esPinCocinaValido('1234567')).toBe(false);
+    expect(esPinCocinaValido('123456789')).toBe(false);
   });
 
-  test('normaliza recortando a 6', () => {
-    expect(normalizarPinCocina('12ab34cd56')).toBe('123456');
+  test('normaliza recortando a 8', () => {
+    expect(normalizarPinCocina('12ab34cd5678')).toBe('12345678');
   });
 });
 

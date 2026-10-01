@@ -270,9 +270,9 @@ tailwind.config = {
           <input type="email" x-model="formUsuario.email" placeholder="usuario@email.com" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
         </div>
         <div>
-          <label class="text-xs text-txt-secondary mb-1 block">Clave 6 dígitos <span class="text-txt-muted">(App Cocina)</span></label>
-          <input type="text" inputmode="numeric" maxlength="6" x-model="formUsuario.claveCocina"
-            @input="formUsuario.claveCocina = String($event.target.value || '').replace(/\D/g, '').slice(0, 6)"
+          <label class="text-xs text-txt-secondary mb-1 block">Clave de bloqueo <span class="text-txt-muted">(6, 7 u 8 dígitos · App Cocina)</span></label>
+          <input type="text" inputmode="numeric" maxlength="8" x-model="formUsuario.claveCocina"
+            @input="formUsuario.claveCocina = String($event.target.value || '').replace(/\D/g, '').slice(0, 8)"
             placeholder="••••••"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono tracking-[0.35em]">
           <p class="text-[11px] text-txt-muted mt-1">Bloquea y desbloquea las tablas KDS y tickets en pantallas táctiles. Vacío = sin bloqueo.</p>
@@ -321,8 +321,8 @@ tailwind.config = {
         </div>
         <div x-show="puedeEditarClaveUniversal">
           <label class="text-xs text-txt-secondary mb-1 block">Clave universal admin <span class="text-txt-muted">(todos los admin)</span></label>
-          <input type="text" inputmode="numeric" maxlength="6" x-model="claveUniversal"
-            @input="claveUniversal = String($event.target.value || '').replace(/\D/g, '').slice(0, 6)"
+          <input type="text" inputmode="numeric" maxlength="8" x-model="claveUniversal"
+            @input="claveUniversal = String($event.target.value || '').replace(/\D/g, '').slice(0, 8)"
             placeholder="••••••"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono tracking-[0.35em]">
           <p class="text-[11px] text-txt-muted mt-1">Una sola clave para todos los admin. Abre cualquier pantalla bloqueada de App Cocina.</p>
@@ -365,7 +365,7 @@ tailwind.config = {
           <ul class="text-xs text-txt-secondary space-y-1">
             <li>• Usa el nombre real del usuario para facilitar identificación</li>
             <li>• El DNI será su contraseña por defecto para iniciar sesión</li>
-            <li>• La clave de 6 dígitos bloquea las pantallas táctiles de App Cocina</li>
+            <li>• La clave de 6, 7 u 8 dígitos bloquea las pantallas táctiles de App Cocina</li>
             <li>• La clave universal de admin abre todos los bloqueos y es la misma para todos los admin</li>
             <li>• Asigna el rol más restrictivo que necesite para su función</li>
           </ul>
@@ -977,7 +977,7 @@ function usuariosApp() {
         dni: m.dni || m.DNI?.toString() || '',
         telefono: m.telefono || m.phoneNumber?.toString() || '',
         email: m.email || '',
-        claveCocina: String(m.pinAcceso || '').replace(/\D/g, '').slice(0, 6),
+        claveCocina: String(m.pinAcceso || '').replace(/\D/g, '').slice(0, 8),
         roles: rolesUsuario,
         activo: m.activo !== false,
         foto: fotoServidor,
@@ -1054,13 +1054,13 @@ function usuariosApp() {
       }
 
       const claveCocina = String(this.formUsuario.claveCocina || '').replace(/\D/g, '');
-      if (claveCocina && !/^\d{6}$/.test(claveCocina)) {
-        this.showToast('La clave de App Cocina debe tener exactamente 6 dígitos', 'error');
+      if (claveCocina && !/^\d{6,8}$/.test(claveCocina)) {
+        this.showToast('La clave de App Cocina debe tener 6, 7 u 8 dígitos', 'error');
         return;
       }
       const claveUniversal = String(this.claveUniversal || '').replace(/\D/g, '');
-      if (this.puedeEditarClaveUniversal && claveUniversal && !/^\d{6}$/.test(claveUniversal)) {
-        this.showToast('La clave universal debe tener exactamente 6 dígitos', 'error');
+      if (this.puedeEditarClaveUniversal && claveUniversal && !/^\d{6,8}$/.test(claveUniversal)) {
+        this.showToast('La clave universal debe tener 6, 7 u 8 dígitos', 'error');
         return;
       }
       

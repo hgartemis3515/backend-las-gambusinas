@@ -134,7 +134,7 @@ const mozosSchema = new mongoose.Schema({
     direccion: { type: String, default: '' },
     contactoEmergenciaNombre: { type: String, default: '' },
     contactoEmergenciaTelefono: { type: String, default: '' },
-    /** PIN de 6 dígitos para bloquear/desbloquear pantallas táctiles de App Cocina */
+    /** PIN de 6, 7 u 8 dígitos para bloquear/desbloquear pantallas táctiles de App Cocina */
     pinAcceso: { type: String, default: '' },
     usuarioWeb: { type: String, default: '' },
     passwordWeb: { type: String, default: '' },

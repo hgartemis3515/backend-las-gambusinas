@@ -10,7 +10,7 @@ const { autenticarMozo, obtenerMozosPorId } = require('../repository/mozos.repos
 const rolesRepository = require('../repository/roles.repository');
 const { JWT_SECRET, adminAuth } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
-const { esPinCocinaValido, normalizarPinCocina, PIN_COCINA_LEN } = require('../utils/pinCocina');
+const { esPinCocinaValido, normalizarPinCocina, PIN_COCINA_MIN, PIN_COCINA_MAX } = require('../utils/pinCocina');
 const { resolverExpiryJwtMozos } = require('../utils/jwtMozosExpiry');
 
 function urlPublicaAppCocina() {
@@ -64,7 +64,7 @@ function emitirSesionCocina(mozoConRol, fallback = {}) {
         rol: rolUsuario,
         permisos,
         reglas,
-        hasPinCocina: /^\d{6}$/.test(String(mozoConRol.pinAcceso || '').trim()),
+        hasPinCocina: esPinCocinaValido(String(mozoConRol.pinAcceso || '').trim()),
     };
     return {
         token,
@@ -507,7 +507,7 @@ router.post('/admin/cocina/auth', async (req, res) => {
                 rol: rolUsuario,
                 permisos: permisos,
                 reglas: reglas,
-                hasPinCocina: /^\d{6}$/.test(String(mozo.pinAcceso || '').trim()),
+                hasPinCocina: esPinCocinaValido(String(mozo.pinAcceso || '').trim()),
             }
         });
         
@@ -801,7 +801,7 @@ router.post('/admin/cocina/auth/refresh', async (req, res) => {
 
 /**
  * POST /api/admin/cocina/desbloquear-pantalla
- * Valida la clave de 6 dígitos del usuario o la clave universal de admin.
+ * Valida la clave de 6, 7 u 8 dígitos del usuario o la clave universal de admin.
  */
 router.post('/admin/cocina/desbloquear-pantalla', adminAuth, async (req, res) => {
     try {
@@ -810,7 +810,7 @@ router.post('/admin/cocina/desbloquear-pantalla', adminAuth, async (req, res) =>
         }
         const pin = normalizarPinCocina(req.body?.pin);
         if (!esPinCocinaValido(pin)) {
-            return res.status(400).json({ error: `La clave debe tener ${PIN_COCINA_LEN} dígitos` });
+            return res.status(400).json({ error: `La clave debe tener entre ${PIN_COCINA_MIN} y ${PIN_COCINA_MAX} dígitos` });
         }
 
         const mozosModel = require('../database/models/mozos.model');
@@ -833,7 +833,7 @@ router.post('/admin/cocina/desbloquear-pantalla', adminAuth, async (req, res) =>
 
         if (!mio) {
             return res.status(400).json({
-                error: `Este usuario no tiene clave de ${PIN_COCINA_LEN} dígitos. Configúrala en Usuarios.`,
+                error: `Este usuario no tiene clave de ${PIN_COCINA_MIN} a ${PIN_COCINA_MAX} dígitos. Configúrala en Usuarios.`,
             });
         }
         return res.status(401).json({ error: 'Clave incorrecta' });
@@ -849,7 +849,7 @@ function esAdminToken(admin) {
 
 /**
  * GET /api/admin/cocina/clave-universal
- * Clave de 6 dígitos compartida por todos los admin (abre cualquier bloqueo).
+ * Clave de 6, 7 u 8 dígitos compartida por todos los admin (abre cualquier bloqueo).
  */
 router.get('/admin/cocina/clave-universal', adminAuth, async (req, res) => {
     try {
@@ -879,7 +879,7 @@ router.put('/admin/cocina/clave-universal', adminAuth, async (req, res) => {
         }
         const pin = normalizarPinCocina(req.body?.pin);
         if (pin && !esPinCocinaValido(pin)) {
-            return res.status(400).json({ error: `La clave universal debe tener ${PIN_COCINA_LEN} dígitos o quedar vacía` });
+            return res.status(400).json({ error: `La clave universal debe tener entre ${PIN_COCINA_MIN} y ${PIN_COCINA_MAX} dígitos o quedar vacía` });
         }
         const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
         const cfg = await ConfiguracionSistema.obtenerConfiguracion();

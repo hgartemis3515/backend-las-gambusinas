@@ -708,6 +708,16 @@ tailwind.config = {
               <input type="checkbox" x-model="config.autoImpresion" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
               <span class="text-sm text-txt-secondary">Auto impresión de comandas</span>
             </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.cocinaDetenerImpresionCocina" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Detener impresión de Cocina</span>
+            </label>
+            <p class="text-[10px] text-txt-muted pl-7">Desmarcado (recomendado): al enviar una orden y al eliminar un plato se imprime el ticket de cocina. Marcado: esa impresión automática no sale.</p>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.cocinaDetenerImpresionCaja" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Detener impresión de Caja</span>
+            </label>
+            <p class="text-[10px] text-txt-muted pl-7">Desmarcado (recomendado): también se imprime el ticket de mozo en caja. Marcado: esa impresión automática no sale. Cada una se detiene por separado.</p>
 
             <!-- PLAN OBLIGAR ORDEN ASIGNACION KDS SUPERVISOR -->
             <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
@@ -1996,6 +2006,8 @@ function configApp() {
       cocinaIgnorarFondoVistaMozo: false,
       cocinaOcultarAnularEnTablasKds: true,
       cocinaOcultarTablasKdsMenosSupervisor: true,
+      cocinaDetenerImpresionCocina: false,
+      cocinaDetenerImpresionCaja: false,
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -2454,6 +2466,8 @@ function configApp() {
             this.config.cocinaIgnorarFondoVistaMozo = cfg.cocina.ignorarFondoVistaMozo === true;
             this.config.cocinaOcultarAnularEnTablasKds = cfg.cocina.ocultarAnularEnTablasKds !== false;
             this.config.cocinaOcultarTablasKdsMenosSupervisor = cfg.cocina.ocultarTablasKdsMenosSupervisor !== false;
+            this.config.cocinaDetenerImpresionCocina = cfg.cocina.detenerImpresionCocina === true;
+            this.config.cocinaDetenerImpresionCaja = cfg.cocina.detenerImpresionCaja === true;
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
@@ -2480,6 +2494,8 @@ function configApp() {
             this.config.cocinaIgnorarFondoVistaMozo = false;
             this.config.cocinaOcultarAnularEnTablasKds = true;
             this.config.cocinaOcultarTablasKdsMenosSupervisor = true;
+            this.config.cocinaDetenerImpresionCocina = false;
+            this.config.cocinaDetenerImpresionCaja = false;
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
@@ -2679,6 +2695,8 @@ function configApp() {
             ignorarFondoVistaMozo: this.config.cocinaIgnorarFondoVistaMozo === true,
             ocultarAnularEnTablasKds: this.config.cocinaOcultarAnularEnTablasKds !== false,
             ocultarTablasKdsMenosSupervisor: this.config.cocinaOcultarTablasKdsMenosSupervisor !== false,
+            detenerImpresionCocina: this.config.cocinaDetenerImpresionCocina === true,
+            detenerImpresionCaja: this.config.cocinaDetenerImpresionCaja === true,
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,

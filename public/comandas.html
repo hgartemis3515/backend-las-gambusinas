@@ -194,7 +194,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 
  <!-- FILTROS -->
  <div class="flex gap-2 mb-5 flex-wrap items-center">
- <input type="text" x-model="filterMesa" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
+ <input type="text" x-model="filterMesa" @input="filterComandas()" list="dl-filtro-mesa" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
+ <datalist id="dl-filtro-mesa">
+  <template x-for="m in valoresFiltro('mesa')" :key="'fm-'+m"><option :value="m"></option></template>
+ </datalist>
  <select x-model="filterEstado" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
  <option value="">Estado: Todos</option>
  <option value="en_espera">En espera</option>
@@ -211,7 +214,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="w-px h-6 bg-txt-muted/30 mx-1"></div>
 
  <!-- Filtro ID Comanda -->
- <input type="text" x-model="filterIdComanda" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="# Comanda">
+ <input type="text" x-model="filterIdComanda" @input="filterComandas()" list="dl-filtro-comanda" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="# Comanda">
+ <datalist id="dl-filtro-comanda">
+  <template x-for="n in valoresFiltro('comanda')" :key="'fc-'+n"><option :value="n"></option></template>
+ </datalist>
 
  <label class="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-medium cursor-pointer select-none"
   :class="verIdHistorico ? 'bg-gold/20 border-gold text-gold' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
@@ -229,13 +235,16 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <!-- Filtro Mozo -->
  <select x-model="filterMozo" @change="filterMozoId = ''; filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
  <option value="">Mozo: Todos</option>
- <template x-for="mozo in mozosList" :key="mozo">
+ <template x-for="mozo in valoresFiltro('mozo')" :key="mozo">
  <option :value="mozo" x-text="mozo"></option>
  </template>
  </select>
 
  <!-- Filtro Cliente (NUEVO) -->
- <input type="text" x-model="filterCliente" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="Cliente/DNI">
+ <input type="text" x-model="filterCliente" @input="filterComandas()" list="dl-filtro-cliente" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="Cliente/DNI">
+ <datalist id="dl-filtro-cliente">
+  <template x-for="n in valoresFiltro('cliente')" :key="'fcl-'+n"><option :value="n"></option></template>
+ </datalist>
 
  <button type="button" @click="filterSoloDescuentos = !filterSoloDescuentos; filterComandas()"
   :class="filterSoloDescuentos ? 'bg-[#e74c3c]/20 border-[#e74c3c] text-[#e74c3c]' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
@@ -6094,22 +6103,42 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return ymd >= desde && ymd <= hasta;
  },
 
- comandaPasaFiltros(c) {
+ comandaPasaFiltros(c, salvo) {
  if (!c) return false;
+ const s = salvo || '';
  const mesaNum = c.mesa?.nummesa || c.mesaNumero || c.mesa;
- const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
- const matchEstado = this.matchFilterEstado(c.estado, c);
+ const matchMesa = s === 'mesa' || !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
+ const matchEstado = s === 'estado' || this.matchFilterEstado(c.estado, c);
  const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
  const comandaNum = [c.numComanda, c.numComandaHistorico].filter((n) => n != null && n !== '').join(' ');
- const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
- const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
+ const matchIdComanda = s === 'comanda' || !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
+ const matchMozo = s === 'mozo' || !this.filterMozo || c.mozo === this.filterMozo;
  const clienteNombre = c.clienteNombre || c.cliente?.nombre || '';
- const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
+ const matchCliente = s === 'cliente' || !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
  const matchFecha = this.matchFechaRango(c.createdAt);
  const matchAvanzado = this.matchFiltroAvanzado(c);
  const matchDesc = !this.filterSoloDescuentos || this.comandaTieneDescuentoFront(c);
  const matchG = this.pasaFiltroUsoG(c) && this.pasaFiltroMozoId(c);
  return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc && matchG;
+ },
+
+ valoresFiltro(campo) {
+  const set = new Set();
+  for (const c of (this.comandas || [])) {
+    if (!this.comandaPasaFiltros(c, campo)) continue;
+    if (campo === 'mesa') {
+      const n = c.mesa?.nummesa ?? c.mesaNumero;
+      if (n != null && n !== '') set.add(String(n));
+    } else if (campo === 'mozo') {
+      if (c.mozo && c.mozo !== 'Sin asignar') set.add(c.mozo);
+    } else if (campo === 'comanda') {
+      if (c.numComanda != null && c.numComanda !== '') set.add(String(c.numComanda));
+    } else if (campo === 'cliente') {
+      const n = c.clienteNombre || c.cliente?.nombre || '';
+      if (n) set.add(n);
+    }
+  }
+  return [...set].sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
  },
 
  filaIndividualDeComanda(c) {

@@ -235,15 +235,29 @@ export async function imprimirTicketsEposAutomatico(comandas) {
     descuentos: motivo ? [{ motivo }] : [],
     total: 0,
   };
-  const [imgCocina, imgCaja] = await Promise.all([
-    rasterizarHtmlTicket(generarHtmlTicketCocina({ datos, cocina: true }).htmlInner),
-    rasterizarHtmlTicket(generarHtmlTicketCocina({ datos, cocina: false }).htmlInner),
-  ]);
+  let detenerCocina = false;
+  let detenerCaja = false;
+  try {
+    const resCfg = await fetch('/api/configuracion');
+    const cfg = await resCfg.json();
+    detenerCocina = cfg?.configuracion?.cocina?.detenerImpresionCocina === true;
+    detenerCaja = cfg?.configuracion?.cocina?.detenerImpresionCaja === true;
+  } catch {
+    detenerCocina = false;
+    detenerCaja = false;
+  }
+  if (detenerCocina && detenerCaja) return;
+  const trabajos = [];
+  if (!detenerCocina) {
+    trabajos.push(rasterizarHtmlTicket(generarHtmlTicketCocina({ datos, cocina: true }).htmlInner)
+      .then((img) => postEpos(IP_COCINA, xmlImagenEpos(img), 'cocina')));
+  }
+  if (!detenerCaja) {
+    trabajos.push(rasterizarHtmlTicket(generarHtmlTicketCocina({ datos, cocina: false }).htmlInner)
+      .then((img) => postEpos(IP_CAJA, xmlImagenEpos(img), 'caja')));
+  }
   const fallos = [];
-  const jobs = await Promise.allSettled([
-    postEpos(IP_COCINA, xmlImagenEpos(imgCocina), 'cocina'),
-    postEpos(IP_CAJA, xmlImagenEpos(imgCaja), 'caja'),
-  ]);
+  const jobs = await Promise.allSettled(trabajos);
   jobs.forEach((j) => {
     if (j.status === 'rejected') fallos.push(j.reason?.message || 'Error de impresión');
   });

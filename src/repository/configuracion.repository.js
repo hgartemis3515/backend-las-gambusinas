@@ -256,6 +256,12 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             if (datosFiltrados.cocina.ocultarTablasKdsMenosSupervisor !== undefined) {
                 datosFiltrados.cocina.ocultarTablasKdsMenosSupervisor = datosFiltrados.cocina.ocultarTablasKdsMenosSupervisor === true;
             }
+            if (datosFiltrados.cocina.detenerImpresionCocina !== undefined) {
+                datosFiltrados.cocina.detenerImpresionCocina = datosFiltrados.cocina.detenerImpresionCocina === true;
+            }
+            if (datosFiltrados.cocina.detenerImpresionCaja !== undefined) {
+                datosFiltrados.cocina.detenerImpresionCaja = datosFiltrados.cocina.detenerImpresionCaja === true;
+            }
         }
 
         if (datosFiltrados.apariencia && typeof datosFiltrados.apariencia === 'object') {
