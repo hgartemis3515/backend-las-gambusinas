@@ -63,19 +63,18 @@ function formatComandasNumbersLabel(comandasNumbers) {
 }
 
 /**
- * 1ª revisión: a; 2ª: B; 3ª: C … Z; luego AA.
+ * 1ª revisión: b; 2ª: c; 3ª: d … z; luego aa.
  * @param {number} n
  * @returns {string}
  */
 function letraRevisionTicket(n) {
   const k = Math.floor(Number(n) || 0);
   if (k < 1) return '';
-  if (k === 1) return 'a';
-  let x = k;
+  let x = k + 1;
   let s = '';
   while (x > 0) {
     const r = (x - 1) % 26;
-    s = String.fromCharCode(65 + r) + s;
+    s = String.fromCharCode(97 + r) + s;
     x = Math.floor((x - 1) / 26);
   }
   return s;

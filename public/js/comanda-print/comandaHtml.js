@@ -701,7 +701,7 @@ export function etiquetaMozosLista(comandas) {
     const n = Number(c?.numeroComandaMozo);
     if (Number.isFinite(n) && n > 0) grupos.get(nombre).push(n);
   }
-  return [...grupos.entries()].map(([nombre, nums]) => (nums.length ? `${nums.join('+')} ${nombre}` : nombre)).join(' · ');
+  return [...grupos.entries()].map(([nombre, nums]) => (nums.length ? `${nombre} ${nums.join('+')}` : nombre)).join(' · ');
 }
 
 export function mapComandasATicket(comandas, boucherOpcional, config = {}) {

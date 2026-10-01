@@ -51,6 +51,7 @@ const {
 } = require('../utils/reglasComandaTomadaCocina');
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { destinosCambioEstadoPlato, pasosCadenaEntregaAbsoluta } = require('../utils/cadenaEntregaPlato');
+const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
 const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado, mesaIdEsValido } = require('../repository/ticketPagoAdelantado.repository');
@@ -1754,6 +1755,7 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
         // Nota: El total se calcula en el frontend, pero aquí podemos actualizar si existe
         
         comanda.version = (comanda.version || 1) + 1;
+        bumpRevisionTicketOnDoc(comanda);
         await comanda.save();
 
         try {
@@ -3480,6 +3482,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         const mesaId = comandaActualizar.mesas?._id || comandaActualizar.mesas;
         
         comandaActualizar.version = (comandaActualizar.version || 1) + 1;
+        bumpRevisionTicketOnDoc(comandaActualizar);
         await comandaActualizar.save();
 
         if (eliminaComandaCompleta) {
@@ -4129,6 +4132,7 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
         comanda.precioTotal = subtotalActual;
         comanda.version = (comanda.version || 1) + 1;
         comanda.updatedAt = require('moment-timezone')().tz("America/Lima").toDate();
+        bumpRevisionTicketOnDoc(comanda);
 
         await comanda.save();
 

@@ -23,7 +23,8 @@
  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
  <script src="https://cdn.tailwindcss.com"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
+ <script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
+ <script type="module" src="/js/comanda-print/imprimirTicketsEpos.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -4248,6 +4249,36 @@ formatearNombreMesa(mesa, mesaObj = null) {
    return apiGet(endpoint);
  },
 
+ idsComandasTicketTrasCambio(comandaId) {
+   const id = String(comandaId || '');
+   const grupo = this.editGrupo || this.selectedGrupo;
+   if (grupo?.comandas?.length > 1 && (!id || grupo.comandas.some((c) => String(c._id) === id))) {
+     return grupo.comandas.map((c) => c._id).filter(Boolean);
+   }
+   const row = (this.groupedRows || []).find((r) => r.tipo === 'grupo' && (r.comandas || []).some((c) => String(c._id) === id));
+   if (row?.comandas?.length > 1) return row.comandas.map((c) => c._id).filter(Boolean);
+   return id ? [comandaId] : [];
+ },
+
+ async imprimirEposTrasCambio(comandaIdOLista) {
+   if (typeof window.imprimirTicketsEposAutomatico !== 'function') return;
+   const ids = Array.isArray(comandaIdOLista)
+     ? comandaIdOLista.map((x) => x && (x._id || x)).filter(Boolean)
+     : this.idsComandasTicketTrasCambio(comandaIdOLista);
+   if (!ids.length) return;
+   const docs = [];
+   for (const id of ids) {
+     const d = await this.loadComandaDetalle(id);
+     if (d) docs.push(d);
+   }
+   if (!docs.length) return;
+   try {
+     await window.imprimirTicketsEposAutomatico(docs);
+   } catch (e) {
+     this.showToast(e.message || 'No se pudo imprimir el ticket', 'error');
+   }
+ },
+
  async imprimirPreviewComanda() {
    if (typeof window.imprimirComandaWeb !== 'function') {
      this.showToast('Módulo de impresión no disponible', 'error');
@@ -7493,7 +7524,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   const base = (c && c.mozo) ? c.mozo : 'Sin asignar';
   const n = Number(c && c.numeroComandaMozo);
   if (!c || base === 'Sin asignar' || !Number.isFinite(n) || n <= 0) return base;
-  return n + ' ' + base;
+  return base + ' ' + n;
  },
  labelComandasTicketBusqueda(ticket) {
   const nums = this.numerosDiaGrupo(ticket && ticket.comandas);
@@ -7515,29 +7546,28 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
       const n = Number(c.numeroComandaMozo);
       if (Number.isFinite(n) && n > 0) grupos.get(limpio).push(n);
     });
-    const et = [...grupos.entries()].map(([nombre, nums]) => (nums.length ? nums.join('+') + ' ' + nombre : nombre)).join(' · ');
+    const et = [...grupos.entries()].map(([nombre, nums]) => (nums.length ? nombre + ' ' + nums.join('+') : nombre)).join(' · ');
     if (et) return et;
   }
   const base = ticket.mozoNombre || ticket.nombreMozo || '—';
   const n = Number(ticket.numeroComandaMozo);
-  if (Number.isFinite(n) && n > 0 && base !== '—' && base !== 'N/A' && base !== 'Sin asignar') return n + ' ' + base;
+  if (Number.isFinite(n) && n > 0 && base !== '—' && base !== 'N/A' && base !== 'Sin asignar') return base + ' ' + n;
   return base;
  },
  etiquetaMozoEnGrupo(row, nombre) {
   const lista = ((row && row.comandas) || []).filter((c) => c && c.mozo === nombre);
   const orden = lista.slice().sort((a, b) => (Number(b.numComanda) || 0) - (Number(a.numComanda) || 0));
   const nums = orden.map((c) => Number(c.numeroComandaMozo)).filter((n) => Number.isFinite(n) && n > 0);
-  return nums.length ? nums.join('+') + ' ' + nombre : nombre;
+  return nums.length ? nombre + ' ' + nums.join('+') : nombre;
  },
  letraRevComanda(n) {
   const k = Math.floor(Number(n) || 0);
   if (k < 1) return '';
-  if (k === 1) return 'a';
-  let x = k;
+  let x = k + 1;
   let s = '';
   while (x > 0) {
     const r = (x - 1) % 26;
-    s = String.fromCharCode(65 + r) + s;
+    s = String.fromCharCode(97 + r) + s;
     x = Math.floor((x - 1) / 26);
   }
   return s;
@@ -7715,6 +7745,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  await this.loadComandas();
  const row = this.groupedRows.find(r => r.tipo === 'grupo' && r.id === this.editGrupo.id);
  if (row) this.editGrupo = row;
+ if (exitosos) await this.imprimirEposTrasCambio(targets);
  } catch (e) { this.showToast('Error: ' + e.message, 'error'); } finally { this.aplicandoDescuentoGrupo = false; }
  },
 
@@ -7733,6 +7764,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  await this.loadComandas();
  const row = this.groupedRows.find(r => r.tipo === 'grupo' && r.id === this.editGrupo.id);
  if (row) this.editGrupo = row;
+ await this.imprimirEposTrasCambio(this.editGrupo?.comandas || []);
  } catch (e) { this.showToast('Error: ' + e.message, 'error'); }
  },
 
@@ -7740,6 +7772,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (!this.editGrupo?.comandas?.length) return;
  this.guardandoGrupo = true;
  try {
+ let hayEliminadosGrupo = false;
  for (const comanda of this.editGrupo.comandas) {
  const items = comanda.items || [];
  const indicesEliminados = this.indicesPlatosPendientesEliminar(items);
@@ -7750,6 +7783,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  });
  if (indicesEliminados.length > 0) {
+ hayEliminadosGrupo = true;
  const resEliminar = await apiPut('/comanda/' + comanda._id + '/eliminar-platos', {
  platosAEliminar: indicesEliminados,
  motivo: 'Eliminado desde edición de grupo',
@@ -7778,6 +7812,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  }
  if (this.socket && this.socket.connected) this.editGrupo.comandas.forEach(c => this.socket.emit('comandaActualizada', { _id: c._id }));
+ if (hayEliminadosGrupo) await this.imprimirEposTrasCambio(this.editGrupo.comandas);
  await this.loadComandas();
  this.modal = null;
  this.showToast('Grupo actualizado correctamente');
@@ -7974,6 +8009,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.showToast(`✅ Descuento de S/. ${Number(this.editComanda.montoDescuento || 0).toFixed(2)} (${this.formatPctDescuento(this.editComanda.descuento)}%) aplicado`);
 
  await this.loadComandaTickets(this.editComanda._id);
+ await this.imprimirEposTrasCambio(this.editComanda._id);
 
  if (this.socket && this.socket.connected) {
  this.socket.emit('comandaActualizada', { _id: this.editComanda._id });
@@ -8039,6 +8075,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.showToast('✅ Descuento eliminado correctamente');
 
  await this.loadComandaTickets(this.editComanda._id);
+ await this.imprimirEposTrasCambio(this.editComanda._id);
 
  if (this.socket && this.socket.connected) {
  this.socket.emit('comandaActualizada', { _id: this.editComanda._id });
@@ -8210,6 +8247,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  await this.loadComandas();
  this.modal = null;
  this.showToast(`✅ Comanda actualizada - ${platosMantenidos.length} plato(s), ${indicesEliminados.length} eliminado(s)`);
+ if (indicesEliminados.length) await this.imprimirEposTrasCambio(this.editComanda._id);
  } else {
  throw new Error(res?.message || 'Error desconocido');
  }

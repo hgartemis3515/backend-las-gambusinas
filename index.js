@@ -55,6 +55,7 @@ const tiposPlatoRoutes = require('./src/controllers/tipoPlatoController')
 const pagoAdelantadoRoutes = require('./src/controllers/pagoAdelantadoController')
 // APROBACIÓN DE COMANDAS: Controller para bandeja de aprobación (comandas + PPA)
 const aprobacionRoutes = require('./src/controllers/aprobacionController')
+const impresionEposRoutes = require('./src/controllers/impresionEposController')
 // VISTA COCINA: Controller para Vistas de Cocina y Pantallas de cocina (monitores pasivos TV)
 const vistaCocinaRoutes = require('./src/controllers/vistaCocinaController')
 const sosCocinerasRoutes = require('./src/controllers/sosCocinerasController')
@@ -283,6 +284,7 @@ app.use('/api', complementosPlantillaRoutes);
 app.use('/api', tiposPlatoRoutes);
 app.use('/api', pagoAdelantadoRoutes);
 app.use('/api', aprobacionRoutes);
+app.use('/api', impresionEposRoutes);
 app.use('/api', vistaCocinaRoutes);
 app.use('/api', sosCocinerasRoutes);
 app.use('/api', asignacionAutomaticaRoutes);
