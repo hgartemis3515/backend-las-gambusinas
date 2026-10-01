@@ -900,6 +900,16 @@ tailwind.config = {
     <div class="p-4 border-b border-[rgba(212,175,55,0.15)] flex gap-2 flex-wrap">
       <input type="text" x-model="nombreGrupoSos" maxlength="40" placeholder="Nombre del grupo. Ej: Pachamanca" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm flex-1 min-w-[200px] focus:border-gold focus:outline-none">
       <input type="text" x-model="searchGrupoSos" placeholder="🔍 Buscar plato o tipo" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-56 focus:border-gold focus:outline-none">
+      <select x-model="filterCatGrupoSos" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+        <option value="">Cat: Todas</option>
+        <template x-for="cat in categorias" :key="'sos-cat-'+cat"><option :value="cat" x-text="cat"></option></template>
+      </select>
+      <select x-model="filterTipoGrupoSos" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+        <option value="">Tipo de carta: Todos</option>
+        <template x-for="t in tiposPlato" :key="'sos-tipo-'+t.slug">
+          <option :value="t.slug" x-text="(t.icono||'🍽️') + ' ' + t.nombre"></option>
+        </template>
+      </select>
     </div>
     <div class="flex-1 overflow-y-auto p-4 space-y-2">
       <template x-for="p in platosGrupoSosVisibles()" :key="p._id">
@@ -920,7 +930,7 @@ tailwind.config = {
           </div>
         </div>
       </template>
-      <p x-show="!platosGrupoSosVisibles().length" class="text-sm text-txt-muted">No hay platos con esa búsqueda.</p>
+      <p x-show="!platosGrupoSosVisibles().length" class="text-sm text-txt-muted">No hay platos con ese filtro.</p>
     </div>
     <div class="bg-bg-sidebar p-4 border-t border-[rgba(212,175,55,0.15)] flex justify-between items-center">
       <span class="text-[11px] text-txt-muted" x-text="Object.keys(idsGrupoSos).length + ' plato(s) en el grupo'"></span>
@@ -1574,6 +1584,8 @@ tailwind.config = {
     modalGestionComplementos: false,
     modalGrupoSos: false,
     searchGrupoSos: '',
+    filterCatGrupoSos: '',
+    filterTipoGrupoSos: '',
     nombreGrupoSos: '',
     grupoSosAbierto: '',
     idsGrupoSos: {},
@@ -2623,7 +2635,10 @@ tailwind.config = {
     async openModalGrupoSos() {
       this.modalGrupoSos = true;
       this.searchGrupoSos = '';
+      this.filterCatGrupoSos = '';
+      this.filterTipoGrupoSos = '';
       if (!this.platos.length) await this.loadPlatos();
+      if (!this.tiposPlato.length) await this.loadTiposPlato();
       if (!this.grupoSosAbierto) this.nuevoGrupoSos();
     },
 
@@ -2675,9 +2690,18 @@ tailwind.config = {
 
     platosGrupoSosVisibles() {
       const q = String(this.searchGrupoSos || '').trim().toLowerCase();
-      const list = this.platos || [];
-      if (!q) return list;
-      return list.filter((p) => {
+      const cat = this.filterCatGrupoSos;
+      const tipo = this.filterTipoGrupoSos;
+      const list = (this.platos || []).filter((p) => {
+        if (cat && !this.platoEsDeCategoria(p, cat)) return false;
+        if (tipo) {
+          const tipos = this.tiposDe(p);
+          const matchTipo = tipos.includes(tipo) ||
+            (tipo === 'Carta' && tipos.some((t) => t === 'Carta' || t === 'plato-carta normal')) ||
+            (tipo === 'Desayuno' && tipos.some((t) => t === 'Desayuno' || t === 'platos-desayuno'));
+          if (!matchTipo) return false;
+        }
+        if (!q) return true;
         const blob = [
           p.nombre,
           p.nombreCocina,
@@ -2687,6 +2711,7 @@ tailwind.config = {
         ].join(' ').toLowerCase();
         return blob.includes(q);
       });
+      return list.sort((a, b) => this.cmpOrdenPlato(a, b));
     },
 
     togglePlatoGrupoSos(id) {
