@@ -325,7 +325,7 @@ tailwind.config = {
             @input="claveUniversal = String($event.target.value || '').replace(/\D/g, '').slice(0, 8)"
             placeholder="••••••"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono tracking-[0.35em]">
-          <p class="text-[11px] text-txt-muted mt-1">Una sola clave para todos los admin. Abre cualquier pantalla bloqueada de App Cocina.</p>
+          <p class="text-[11px] text-txt-muted mt-1">6, 7 u 8 dígitos. Una sola clave para todos los admin. Abre la pantalla bloqueada de App Cocina y también entra como contraseña en el panel, App Cocina y App Mozos.</p>
         </div>
         <div x-show="puedeEditarClaveUniversal" class="space-y-3">
           <label class="text-xs text-txt-secondary block">Autorización de orden <span class="text-txt-muted">(4 combinaciones fijas de 3 dígitos)</span></label>
@@ -366,7 +366,7 @@ tailwind.config = {
             <li>• Usa el nombre real del usuario para facilitar identificación</li>
             <li>• El DNI será su contraseña por defecto para iniciar sesión</li>
             <li>• La clave de 6, 7 u 8 dígitos bloquea las pantallas táctiles de App Cocina</li>
-            <li>• La clave universal de admin abre todos los bloqueos y es la misma para todos los admin</li>
+            <li>• La clave universal (6, 7 u 8 dígitos) abre los bloqueos y también sirve de contraseña en el panel, cocina y mozos</li>
             <li>• Asigna el rol más restrictivo que necesite para su función</li>
           </ul>
         </div>
@@ -704,7 +704,7 @@ function usuariosApp() {
       try {
         const r = await apiGet('/admin/cocina/clave-universal');
         if (r && r.success) {
-          this.claveUniversal = String(r.pin || '').replace(/\D/g, '').slice(0, 6);
+          this.claveUniversal = String(r.pin || '').replace(/\D/g, '').slice(0, 8);
           this.claveUniversalOriginal = this.claveUniversal;
           this.puedeEditarClaveUniversal = true;
         }

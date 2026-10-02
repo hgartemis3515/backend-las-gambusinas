@@ -202,26 +202,13 @@ router.post('/mozos/auth', async (req, res) => {
       console.log('   - name:', name, 'tipo:', typeof name);
       console.log('   - DNI:', DNI, 'tipo:', typeof DNI);
       
-      // Convertir DNI a número
-      let dniNumber;
-      if (typeof DNI === 'string') {
-          dniNumber = parseInt(DNI.trim(), 10);
-      } else {
-          dniNumber = Number(DNI);
-      }
-      
-      // Validar que la conversión fue exitosa
-      if (isNaN(dniNumber) || dniNumber <= 0) {
-          console.log('❌ DNI inválido - recibido:', DNI, 'convertido:', dniNumber);
+      const passwordDigits = String(DNI).replace(/\D/g, '');
+      if (passwordDigits.length < 6) {
+          console.log('❌ Contraseña inválida - recibido:', DNI);
           return res.status(400).json({ message: 'Contraseña inválida' });
       }
-      
-      console.log('🔍 Intentando autenticar:');
-      console.log('   - Usuario:', name);
-      console.log('   - Contraseña (DNI):', dniNumber);
-      
-      // Verificar si el usuario existe con el name y DNI proporcionados
-      const mozo = await autenticarMozo(name, dniNumber);
+
+      const mozo = await autenticarMozo(name, passwordDigits);
       
       if (!mozo) {
           console.log('❌ Autenticación fallida - Usuario no encontrado');

@@ -85,15 +85,12 @@ router.post('/admin/auth', async (req, res) => {
             return res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
         }
         
-        // Convertir password a número (DNI)
-        const dniNumber = parseInt(password, 10);
-        
-        if (isNaN(dniNumber) || dniNumber <= 0) {
+        const passwordDigits = String(password).replace(/\D/g, '');
+        if (passwordDigits.length < 6) {
             return res.status(400).json({ error: 'Contraseña inválida' });
         }
-        
-        // Autenticar mozo
-        const mozo = await autenticarMozo(username, dniNumber);
+
+        const mozo = await autenticarMozo(username, passwordDigits);
         
         if (!mozo) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
@@ -331,11 +328,11 @@ router.post('/admin/mozos/auth', async (req, res) => {
         }
 
         const dniDigits = password.replace(/\D/g, '');
-        if (dniDigits.length < 8) {
-            return res.status(400).json({ error: 'El DNI debe tener 8 dígitos' });
+        if (dniDigits.length < 6) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 6 dígitos' });
         }
-        
-        const mozo = await autenticarMozo(username, password);
+
+        const mozo = await autenticarMozo(username, dniDigits);
         
         if (!mozo) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
@@ -416,15 +413,11 @@ router.post('/admin/cocina/auth', async (req, res) => {
         let mozo;
         
         if (username && password) {
-            // Formato nuevo: usuario + contraseña
-            dniNumber = parseInt(password, 10);
-            
-            if (isNaN(dniNumber) || dniNumber <= 0) {
+            const passwordDigits = String(password).replace(/\D/g, '');
+            if (passwordDigits.length < 6) {
                 return res.status(400).json({ error: 'Contraseña inválida' });
             }
-            
-            // Autenticar con nombre + DNI
-            mozo = await autenticarMozo(username, dniNumber);
+            mozo = await autenticarMozo(username, passwordDigits);
             
             if (!mozo) {
                 return res.status(401).json({ error: 'Credenciales incorrectas' });
