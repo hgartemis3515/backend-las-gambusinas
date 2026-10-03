@@ -29,7 +29,7 @@ const pedidoSchema = new mongoose.Schema({
     // Número de mesa desnormalizado para lectura rápida
     numMesa: {
         type: Number,
-        required: true
+        default: null
     },
     
     // Área de la mesa desnormalizada

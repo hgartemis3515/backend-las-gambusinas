@@ -150,7 +150,7 @@ async function obtenerTicketPorId(ticketId) {
   }
   const ticket = await ticketPagoAdelantadoModel.findById(ticketId)
     .populate('comandas', 'comandaNumber numeroComandaDia numeroComandaMozo mozoNombre revisionTicket status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
-    .populate('mesa', 'nummesa estado nombreCombinado')
+    .populate('mesa', 'nummesa estado nombreCombinado nombreMesa')
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('boucher')
     .populate('aprobadoPor', 'name')
@@ -179,7 +179,7 @@ async function obtenerTicketsPendientes(fecha) {
   await reconciliarComandasPpaParcial(ticketsCrudos.flatMap((t) => t.comandas || []));
 
   const tickets = await ticketPagoAdelantadoModel.find(filter)
-    .populate('mesa', 'nummesa estado nombreCombinado')
+    .populate('mesa', 'nummesa estado nombreCombinado nombreMesa')
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('comandas', COMANDA_TICKET_LIST_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
@@ -209,7 +209,7 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
   await reconciliarComandasPpaParcial(ticketsCrudos.flatMap((t) => t.comandas || []));
 
   const tickets = await ticketPagoAdelantadoModel.find(filtroFecha)
-    .populate('mesa', 'nummesa estado nombreCombinado')
+    .populate('mesa', 'nummesa estado nombreCombinado nombreMesa')
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('comandas', `${COMANDA_TICKET_LIST_SELECT} eliminada fechaEliminacion`)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
@@ -579,7 +579,7 @@ async function getComandasParaPagoAdelantado(mesaId, comandaIds) {
   const comandas = await comandaModel.find(query)
     .populate('platos.plato')
     .populate('mozos', 'name _id')
-    .populate('mesas', 'nummesa estado nombreCombinado')
+    .populate('mesas', 'nummesa estado nombreCombinado nombreMesa')
     .sort({ createdAt: -1 })
     .lean();
 

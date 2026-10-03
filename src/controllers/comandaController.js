@@ -632,7 +632,11 @@ router.post('/comanda', async (req, res) => {
         if (!req.body.createdBy && req.body.mozos) {
             req.body.createdBy = req.body.mozos;
         }
-        
+        const { identidadDesdeReq } = require('../utils/mesaEspecial');
+        const actorMesa = identidadDesdeReq(req);
+        if (actorMesa?.rol) req.body.rolActorJwt = actorMesa.rol;
+        if (actorMesa?.id) req.body.operadorId = actorMesa.id;
+
         const data = await agregarComanda(req.body);
         res.json(data);
         logger.info('Comanda creada exitosamente', {
@@ -912,6 +916,10 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
         }
 
         // ===== Delegar al repositorio (mismo pipeline que App Mozos) =====
+        const { identidadDesdeReq } = require('../utils/mesaEspecial');
+        const actorMesa = identidadDesdeReq(req);
+        if (actorMesa?.rol) payload.rolActorJwt = actorMesa.rol;
+        if (actorMesa?.id) payload.operadorId = actorMesa.id;
         const data = await agregarComanda(payload);
 
         // ===== Auditoría: creación desde dashboard =====
@@ -3996,6 +4004,17 @@ router.put('/comanda/:id/descuento', async (req, res) => {
             || rolBody === 'supervisor';
         if (!autorizadoDescuento) {
             return res.status(403).json({ message: 'No autorizado para aplicar descuentos' });
+        }
+
+        const { rechazoDescuentoAdmin, identidadDesdeReq } = require('../utils/mesaEspecial');
+        const actorDesc = identidadDesdeReq(req);
+        const rolDesc = actorDesc?.rol || '';
+        const mesaDesc = comandaAntes.mesas && typeof comandaAntes.mesas === 'object'
+            ? comandaAntes.mesas
+            : null;
+        const rechazoMesaDesc = rechazoDescuentoAdmin(mesaDesc, rolDesc);
+        if (rechazoMesaDesc) {
+            return res.status(rechazoMesaDesc.statusCode).json({ message: rechazoMesaDesc.message });
         }
 
         // Aplicar descuento

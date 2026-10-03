@@ -53,7 +53,9 @@ const auditoriaSchema = new mongoose.Schema({
       'RESERVA_ACTIVADA_ANTICIPADA',
       'DESCUENTO_COMANDA',
       'ELIMINAR_DESCUENTO_COMANDA',
-      'PAGO_FORZADO_CAJA'
+      'PAGO_FORZADO_CAJA',
+      'MESA_ESPECIAL_AUTORIZADA',
+      'MESA_ESPECIAL_BLOQUEADA'
     ],
     index: true
   },

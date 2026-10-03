@@ -155,7 +155,8 @@ tailwind.config = {
                 </div>
                 
                 <div class="flex items-center justify-between mb-2">
-                  <span class="font-bold text-lg" x-text="m.nombreCombinado || ('M' + m.numMesa)"></span>
+                  <span class="font-bold text-lg" x-text="etiquetaMesa(m)"></span>
+                  <span x-show="m.especial" class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-semibold align-middle">Especial</span>
                   <span x-show="!modoSeleccion" class="text-[10px] px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span>
                 </div>
                 
@@ -212,7 +213,8 @@ tailwind.config = {
                   </div>
                 </td>
                 <td class="px-4 py-3 font-medium">
-                  <span x-text="m.nombreCombinado || ('M' + m.numMesa)"></span>
+                  <span x-text="etiquetaMesa(m)"></span>
+                  <span x-show="m.especial" class="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-semibold">Especial</span>
                 </td>
                 <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-gold-20 text-gold" x-text="m.area?.nombre || m.area || '—'"></span></td>
                 <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span></td>
@@ -505,7 +507,7 @@ tailwind.config = {
     <div class="p-5 border-b border-[rgba(212,175,55,0.1)]">
       <div class="flex items-center justify-between">
         <div>
-          <h2 class="text-lg font-bold" x-text="selectedMesa ? (selectedMesa.nombreCombinado || 'Mesa ' + selectedMesa.numMesa) : ''"></h2>
+          <h2 class="text-lg font-bold" x-text="selectedMesa ? etiquetaMesa(selectedMesa) : ''"></h2>
           <!-- Badge de grupo si aplica -->
           <div x-show="selectedMesa && selectedMesa.esMesaPrincipal && selectedMesa.mesasUnidas && selectedMesa.mesasUnidas.length > 0" class="mt-1">
             <span class="text-[10px] bg-gold/20 text-gold px-2 py-0.5 rounded-full">
@@ -606,9 +608,9 @@ tailwind.config = {
       <div><h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Mesa' : 'Crear Nueva Mesa'"></h2><p class="text-xs text-txt-muted" x-text="isEditing ? 'Modifique los datos de la mesa' : 'Configure la mesa y asigne al área'"></p></div>
       <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
     </div>
-    <div class="p-6 space-y-4">
+    <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
       <div class="grid grid-cols-2 gap-4">
-        <div><label class="text-xs text-txt-secondary mb-1 block">Número de mesa <span class="text-st-pagado">*</span></label><input type="number" x-model="formMesa.numMesa" @input="aplicarAreaPorNumero()" placeholder="Ej: 21" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Número de mesa <span class="text-st-pagado" x-show="!formMesa.especial || !String(formMesa.nombreMesa || '').trim()">*</span></label><input type="number" x-model="formMesa.numMesa" @input="aplicarAreaPorNumero()" placeholder="Ej: 21" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
         <div><label class="text-xs text-txt-secondary mb-1 block">Área</label>
           <select x-model="formMesa.idArea" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             <option value="">Sin área</option>
@@ -630,6 +632,36 @@ tailwind.config = {
         </div>
       </div>
       <div><label class="text-xs text-txt-secondary mb-1 block">Notas</label><textarea x-model="formMesa.notas" placeholder="Ej: Mesa cerca a la ventana..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-16 resize-none focus:border-gold focus:outline-none"></textarea></div>
+      <label class="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" x-model="formMesa.especial" @change="alMarcarEspecial()" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+        <span class="text-txt-secondary">Mesa especial</span>
+      </label>
+      <div x-show="formMesa.especial" class="space-y-3 rounded-lg border border-[rgba(212,175,55,0.25)] p-3">
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Nombre de mesa <span class="text-txt-muted">(opcional, máx. 24)</span></label>
+          <input type="text" maxlength="24" x-model="formMesa.nombreMesa" placeholder="Ej: Familia López" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <p class="text-[10px] text-txt-muted">Si hay nombre, el número puede quedar vacío. Hace falta al menos uno de los dos.</p>
+        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" x-model="formMesa.soloAdmin" class="w-4 h-4 rounded bg-bg-sidebar text-gold"><span class="text-txt-secondary">Solo administradores pueden usarla</span></label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" x-model="formMesa.permiteDescuentoAdmin" class="w-4 h-4 rounded bg-bg-sidebar text-gold"><span class="text-txt-secondary">Recibe descuento de administrador</span></label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" x-model="formMesa.requiereAutorizacion" class="w-4 h-4 rounded bg-bg-sidebar text-gold"><span class="text-txt-secondary">Exige autorización para usarla</span></label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" x-model="formMesa.bloquearAlPagoTotal" class="w-4 h-4 rounded bg-bg-sidebar text-gold"><span class="text-txt-secondary">Se bloquea al pago total</span></label>
+        <div>
+          <p class="text-xs text-txt-secondary mb-2">Barra de dos colores</p>
+          <div class="flex h-3 rounded overflow-hidden border border-[rgba(212,175,55,0.25)] mb-3">
+            <div class="flex-1" :style="'background:' + (formMesa.colorBarraA || '#D4AF37')"></div>
+            <div class="flex-1" :style="'background:' + (formMesa.colorBarraB || '#7A1F2B')"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="text-xs text-txt-secondary">Color 1
+              <input type="color" x-model="formMesa.colorBarraA" class="mt-1 block w-full h-10 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded cursor-pointer">
+            </label>
+            <label class="text-xs text-txt-secondary">Color 2
+              <input type="color" x-model="formMesa.colorBarraB" class="mt-1 block w-full h-10 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded cursor-pointer">
+            </label>
+          </div>
+        </div>
+      </div>
       <label class="flex items-center gap-2 text-sm cursor-pointer">
         <input type="checkbox" x-model="formMesa.activa" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
         <span class="text-txt-secondary">Mesa activa</span>
@@ -664,7 +696,15 @@ tailwind.config = {
       capacidad: 4,
       estado: 'libre',
       notas: '',
-      activa: true
+      activa: true,
+      especial: false,
+      nombreMesa: '',
+      soloAdmin: false,
+      permiteDescuentoAdmin: false,
+      requiereAutorizacion: false,
+      bloquearAlPagoTotal: false,
+      colorBarraA: '#D4AF37',
+      colorBarraB: '#7A1F2B',
     },
     activeNav: 'mesas',
     pageTitle: 'Mesas',
@@ -1037,20 +1077,53 @@ tailwind.config = {
 
     openCreateModal() {
       this.isEditing = false;
-      this.formMesa = { _id: null, numMesa: '', idArea: '', capacidad: 4, estado: 'libre', notas: '', activa: true };
+      this.formMesa = {
+        _id: null, numMesa: '', idArea: '', capacidad: 4, estado: 'libre', notas: '', activa: true,
+        especial: false, nombreMesa: '', soloAdmin: false, permiteDescuentoAdmin: false,
+        requiereAutorizacion: false, bloquearAlPagoTotal: false,
+        colorBarraA: '#D4AF37', colorBarraB: '#7A1F2B',
+      };
       this.modal = 'crearMesa';
+    },
+
+    alMarcarEspecial() {
+      if (!this.formMesa.especial) return;
+      this.formMesa.soloAdmin = true;
+      this.formMesa.permiteDescuentoAdmin = true;
+      this.formMesa.requiereAutorizacion = true;
+      this.formMesa.bloquearAlPagoTotal = true;
+      if (!this.formMesa.colorBarraA) this.formMesa.colorBarraA = '#D4AF37';
+      if (!this.formMesa.colorBarraB) this.formMesa.colorBarraB = '#7A1F2B';
+    },
+
+    etiquetaMesa(m) {
+      if (!m) return '';
+      const nombre = String(m.nombreMesa || '').trim();
+      if (nombre) return nombre;
+      if (m.nombreCombinado) return m.nombreCombinado;
+      const n = m.numMesa ?? m.nummesa;
+      return n != null && n !== '' ? ('M' + n) : 'Mesa';
     },
     
     openEditModal(m) {
       this.isEditing = true;
+      const f = m.funcionesEspeciales || {};
       this.formMesa = {
         _id: m._id,
-        numMesa: m.numMesa || m.nummesa,
+        numMesa: m.numMesa || m.nummesa || '',
         idArea: m.area?._id || m.idArea || '',
         capacidad: m.capacidad || 4,
         estado: m.estado || 'libre',
         notas: m.notas || '',
-        activa: m.activa !== false
+        activa: m.activa !== false,
+        especial: m.especial === true,
+        nombreMesa: m.nombreMesa || '',
+        soloAdmin: f.soloAdmin === true,
+        permiteDescuentoAdmin: f.permiteDescuentoAdmin === true,
+        requiereAutorizacion: f.requiereAutorizacion === true,
+        bloquearAlPagoTotal: f.bloquearAlPagoTotal === true,
+        colorBarraA: (m.barraEspecial && m.barraEspecial.colorA) || '#D4AF37',
+        colorBarraB: (m.barraEspecial && m.barraEspecial.colorB) || '#7A1F2B',
       };
       this.aplicarAreaPorNumero();
       this.modal = 'editarMesa';
@@ -1071,41 +1144,79 @@ tailwind.config = {
     },
     
     async guardarMesa() {
-      if (!this.formMesa.numMesa) {
+      const especial = !!this.formMesa.especial;
+      const nombre = String(this.formMesa.nombreMesa || '').trim();
+      const numRaw = this.formMesa.numMesa;
+      const tieneNumero = numRaw !== '' && numRaw != null;
+
+      if (!especial && !tieneNumero) {
         this.showToast('El número de mesa es requerido', 'error');
         return;
       }
-
-      const numMesa = parseInt(this.formMesa.numMesa, 10);
-      if (Number.isNaN(numMesa)) {
-        this.showToast('El número de mesa no es válido', 'error');
+      if (especial && !nombre && !tieneNumero) {
+        this.showToast('Una mesa especial necesita nombre o número', 'error');
         return;
       }
-      
-      this.aplicarAreaPorNumero();
+      if (nombre.length > 24) {
+        this.showToast('El nombre admite hasta 24 caracteres', 'error');
+        return;
+      }
+      if (!this.formMesa.idArea) {
+        this.showToast('Elige un área', 'error');
+        return;
+      }
+
+      let numMesa = null;
+      if (tieneNumero) {
+        numMesa = parseInt(numRaw, 10);
+        if (Number.isNaN(numMesa)) {
+          this.showToast('El número de mesa no es válido', 'error');
+          return;
+        }
+      }
+
+      if (tieneNumero) this.aplicarAreaPorNumero();
 
       const isEdit = !!this.formMesa._id;
-      
-      // Número de mesa único en TODO el local (todas las áreas)
-      const numeroDuplicado = this.mesas.some(m => {
-        const numeroActual = parseInt(m.numMesa ?? m.nummesa, 10);
-        const mismoNumero = numeroActual === numMesa;
-        const otraMesa = isEdit ? (m._id?.toString() !== this.formMesa._id?.toString()) : true;
-        return mismoNumero && otraMesa;
-      });
 
-      if (numeroDuplicado) {
-        this.showToast(`Ya existe la mesa ${numMesa} en otra área`, 'error');
-        return;
+      if (tieneNumero) {
+        const numeroDuplicado = this.mesas.some(m => {
+          const numeroActual = parseInt(m.numMesa ?? m.nummesa, 10);
+          const mismoNumero = numeroActual === numMesa;
+          const otraMesa = isEdit ? (m._id?.toString() !== this.formMesa._id?.toString()) : true;
+          return mismoNumero && otraMesa;
+        });
+        if (numeroDuplicado) {
+          this.showToast(`Ya existe la mesa ${numMesa} en otra área`, 'error');
+          return;
+        }
       }
 
       const body = {
-        nummesa: numMesa,
         area: this.formMesa.idArea,
         estado: this.formMesa.estado,
         isActive: this.formMesa.activa,
-        notas: this.formMesa.notas
+        notas: this.formMesa.notas,
+        especial,
+        nombreMesa: nombre || null,
+        funcionesEspeciales: especial ? {
+          soloAdmin: !!this.formMesa.soloAdmin,
+          permiteDescuentoAdmin: !!this.formMesa.permiteDescuentoAdmin,
+          requiereAutorizacion: !!this.formMesa.requiereAutorizacion,
+          bloquearAlPagoTotal: !!this.formMesa.bloquearAlPagoTotal,
+        } : {
+          soloAdmin: false,
+          permiteDescuentoAdmin: false,
+          requiereAutorizacion: false,
+          bloquearAlPagoTotal: false,
+        },
+        barraEspecial: especial ? {
+          colorA: this.formMesa.colorBarraA || '#D4AF37',
+          colorB: this.formMesa.colorBarraB || '#7A1F2B',
+        } : undefined,
       };
+      if (tieneNumero) body.nummesa = numMesa;
+      else body.nummesa = null;
       
       const res = isEdit
         ? await apiPut('/mesas/' + this.formMesa._id, body)

@@ -70,10 +70,17 @@ function rechazoOtroMozo({ estadoMesa, origenCreacion, mozoSolicitante, comandas
   };
 }
 
+function mozoEstaEnComandas(comandas, mozoId) {
+  const yo = idMozo(mozoId);
+  if (!yo) return false;
+  return comandasVigentes(comandas).some((c) => idMozo(c.mozos) === yo);
+}
+
 module.exports = {
   ESTADOS_MESA_SOLO_DUENO,
   idMozo,
   mesaExigeDueno,
   comandaDuena,
+  mozoEstaEnComandas,
   rechazoOtroMozo,
 };

@@ -569,10 +569,11 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
   if (comandaOmiteTicketAlta(comanda)) return null;
 
   const mesaId = comanda.mesas?._id || comanda.mesas;
-  const numMesa = comanda.mesas?.nummesa ?? comanda.mesaNumero;
+  const numRaw = comanda.mesas?.nummesa ?? comanda.mesaNumero;
+  const numMesa = numRaw == null || numRaw === '' ? undefined : numRaw;
   const mozoId = comanda.mozos?._id || comanda.mozos;
   const nombreMozo = comanda.mozos?.name || comanda.mozoNombre || 'N/A';
-  const sinMesa = !mesaId || numMesa == null || numMesa === '';
+  const sinMesa = !mesaId;
   if (!mozoId) return null;
 
   const { platosSnapshot, subtotal, montoDescuento, totalSinDescuento, totalNeto } = armarSnapshotYTotales(comanda);
@@ -939,7 +940,7 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
   const mozoId = comanda.mozos?._id || comanda.mozos;
   const nombreMozo = comanda.mozos?.name || comanda.mozoNombre || 'N/A';
 
-  if (!mesaId || numMesa == null) {
+  if (!mesaId) {
     const err = new Error('La comanda no tiene mesa asignada');
     err.statusCode = 400;
     throw err;

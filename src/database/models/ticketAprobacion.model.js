@@ -60,7 +60,7 @@ const ticketAprobacionSchema = new mongoose.Schema({
   },
   numMesa: {
     type: Number,
-    required: function requiredNumMesa() { return this.sinMesa !== true; },
+    default: null,
   },
   sinMesa: {
     type: Boolean,

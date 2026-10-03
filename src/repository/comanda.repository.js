@@ -5,7 +5,8 @@ const HistorialComandas = require("../database/models/historialComandas.model");
 const pedidoModel = require("../database/models/pedido.model");
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorHandler');
-const { rechazoOtroMozo } = require('../utils/accesoMesaMozo');
+const { rechazoOtroMozo, comandaDuena, idMozo, mozoEstaEnComandas } = require('../utils/accesoMesaMozo');
+const { rechazoUsoMesaEspecial } = require('../utils/mesaEspecial');
 const { parseHexColor } = require('../utils/hexColor');
 const moment = require('moment-timezone');
 const fs = require('fs');
@@ -818,6 +819,10 @@ const obtenerDatosDesnormalizados = async (mesaId, mozoId) => {
 // ==================== FIN VALIDACIÓN BATCH FASE A1 ====================
 
 const agregarComanda = async (data) => {
+  const rolActorJwt = String(data.rolActorJwt || '').toLowerCase();
+  const operadorId = data.operadorId || null;
+  delete data.rolActorJwt;
+  delete data.operadorId;
   console.log('📤 Creando comanda con datos:', JSON.stringify(data, null, 2));
   
   // Validar que los datos estén en el formato correcto
@@ -885,6 +890,7 @@ const agregarComanda = async (data) => {
   }
 
   // Validar que el número de mesa sea único (ya está en el schema, pero verificamos)
+  if (mesa.nummesa != null && mesa.nummesa !== '') {
   const mesaConMismoNumero = await mesasModel.findOne({ 
     nummesa: mesa.nummesa, 
     _id: { $ne: mesa._id } 
@@ -893,6 +899,58 @@ const agregarComanda = async (data) => {
     const errorMsg = `Ya existe una mesa con el número ${mesa.nummesa}`;
     console.error(`❌ ${errorMsg}`);
     throw new Error(errorMsg);
+  }
+  }
+
+  let adminOperaMesaEspecial = false;
+  const nombreMesaNorm = String(mesa.nombreMesa || '').trim().toLowerCase();
+  if (mesa.especial || nombreMesaNorm === 'invitados') {
+    let rolOperador = rolActorJwt;
+    if (rolOperador !== 'admin' && operadorId) {
+      const mozoModel = require('../database/models/mozos.model');
+      const operador = await mozoModel.findById(operadorId).select('rol').lean();
+      if (operador?.rol) rolOperador = String(operador.rol).toLowerCase();
+    }
+    adminOperaMesaEspecial = rolOperador === 'admin';
+    let esDueno = false;
+    if (!adminOperaMesaEspecial && mesa.funcionesEspeciales?.soloAdmin && nombreMesaNorm !== 'invitados') {
+      const duenas = await comandaModel.find({
+        mesas: mesa._id,
+        eliminada: { $ne: true },
+        IsActive: { $ne: false },
+        status: { $nin: ['cancelado', 'anulado'] },
+      }).select('mozos status createdAt comandaNumber IsActive eliminada').lean();
+      const duena = comandaDuena(duenas);
+      const yo = idMozo(data.mozos) || idMozo(operadorId);
+      esDueno = mozoEstaEnComandas(duenas, yo) || !!(duena && idMozo(duena.mozos) && idMozo(duena.mozos) === yo);
+    }
+    let rolDb = '';
+    if (!adminOperaMesaEspecial && !esDueno && mesa.funcionesEspeciales?.soloAdmin && data.mozos) {
+      const mozoModel = require('../database/models/mozos.model');
+      const mozoActor = await mozoModel.findById(data.mozos).select('rol').lean();
+      rolDb = mozoActor?.rol || '';
+    }
+    const rechazoEsp = rechazoUsoMesaEspecial({
+      mesa,
+      rolJwt: rolOperador,
+      rolDb,
+      esDueno,
+    });
+    if (rechazoEsp) {
+      const error = new Error(rechazoEsp.message);
+      error.statusCode = rechazoEsp.statusCode;
+      throw error;
+    }
+  }
+
+  if ((mesa.especial || nombreMesaNorm === 'invitados') && Array.isArray(data.platos)) {
+    data.platos = data.platos.map((p) => {
+      const tipo = String(p?.tipoServicio || '').toLowerCase();
+      if (tipo === 'para_llevar' || tipo === 'extra_llevar') {
+        return { ...p, tipoServicio: 'mesa' };
+      }
+      return p;
+    });
   }
 
   // Validación de mesa: solo rechazar si está reservada. NO validar estado de comandas existentes.
@@ -997,13 +1055,16 @@ const agregarComanda = async (data) => {
   }
   // ========== FIN VALIDACION RESERVAS ==========
   // Mesa en servicio (pedido, pagado, pendiente_aprobar, …): solo el mozo de la comanda más antigua.
-  if (data.origenCreacion !== 'dashboard') {
+  if (data.origenCreacion !== 'dashboard' && !adminOperaMesaEspecial) {
     const existentes = await comandaModel.find({
       mesas: mesa._id,
       eliminada: { $ne: true },
       IsActive: { $ne: false },
       status: { $nin: ['cancelado', 'anulado'] },
     }).select('mozos mozoNombre status createdAt comandaNumber IsActive eliminada').sort({ createdAt: 1 }).lean();
+    const mesaEspecialUso = mesa.especial === true || nombreMesaNorm === 'invitados';
+    const mozoAsignado = mesaEspecialUso && mozoEstaEnComandas(existentes, data.mozos);
+    if (!mozoAsignado) {
     const rechazo = rechazoOtroMozo({
       estadoMesa,
       origenCreacion: data.origenCreacion,
@@ -1014,6 +1075,7 @@ const agregarComanda = async (data) => {
       const error = new Error(rechazo.message);
       error.statusCode = rechazo.statusCode;
       throw error;
+    }
     }
   }
   console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa})`);
@@ -1606,6 +1668,16 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
         }
       } catch (pedidoError) {
         console.error('⚠️ Error al recalcular pedido tras eliminar comanda:', pedidoError.message);
+      }
+    }
+
+    if (comandaSnapshot.mesas) {
+      try {
+        const { bloquearMesaEspecial } = require('../utils/mesaEspecial');
+        const mesaIdBloqueo = comandaSnapshot.mesas._id || comandaSnapshot.mesas;
+        await bloquearMesaEspecial(mesaIdBloqueo, 'comanda_eliminada');
+      } catch (bloqErr) {
+        console.error('No se pudo bloquear Invitados tras eliminar comanda', bloqErr.message);
       }
     }
 
@@ -4539,6 +4611,12 @@ async function cerrarComandaPpaTrasEntrega(comanda, platosActivos, statusActual)
     const hayOtras = await mesaTieneOtrasComandasActivas(mesaId, comandaId);
     if (!hayOtras) {
       await mesasModel.findByIdAndUpdate(mesaId, { estado: 'pagado' });
+      try {
+        const { bloquearMesaEspecial } = require('../utils/mesaEspecial');
+        await bloquearMesaEspecial(mesaId, 'pago_total');
+      } catch (bloqErr) {
+        logger.warn('No se pudo bloquear mesa especial tras pago', { error: bloqErr.message });
+      }
       try {
         const pedidoAbierto = await pedidoModel.findOne({ mesa: mesaId, estado: 'abierto', isActive: true });
         if (pedidoAbierto) {

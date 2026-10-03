@@ -232,7 +232,7 @@ async function obtenerTicketPorId(ticketId) {
   return ticketAprobacionModel
     .findById(ticketId)
     .populate('comandas', 'comandaNumber numeroComandaDia numeroComandaMozo mozoNombre revisionTicket status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
-    .populate({ path: 'mesa', select: 'nummesa estado nombreCombinado area', populate: { path: 'area', select: 'nombre' } })
+    .populate({ path: 'mesa', select: 'nummesa estado nombreCombinado nombreMesa area', populate: { path: 'area', select: 'nombre' } })
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('boucher')
     .populate('aprobadoPor', 'name')
@@ -259,7 +259,7 @@ async function obtenerTicketsPendientes(fecha) {
 
   return ticketAprobacionModel
     .find(filter)
-    .populate('mesa', 'nummesa estado nombreCombinado')
+    .populate('mesa', 'nummesa estado nombreCombinado nombreMesa')
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('comandas', COMANDA_TICKET_LIST_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
@@ -281,7 +281,7 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
       createdAt: { $gte: inicioDia, $lte: finDia },
       isActive: true,
     })
-    .populate('mesa', 'nummesa estado nombreCombinado')
+    .populate('mesa', 'nummesa estado nombreCombinado nombreMesa')
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('comandas', `${COMANDA_TICKET_LIST_SELECT} eliminada fechaEliminacion`)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
@@ -436,6 +436,12 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
       if (evaluacion.lista && mesaDoc.estado !== 'reportado') {
         await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pagado' });
         mesaEstadoFinal = 'pagado';
+        try {
+          const { bloquearMesaEspecial } = require('../utils/mesaEspecial');
+          await bloquearMesaEspecial(ticket.mesa, 'pago_total');
+        } catch (bloqErr) {
+          console.error('No se pudo bloquear mesa especial tras pago', bloqErr.message);
+        }
 
         try {
           const pedidoModel = mongoose.model('Pedido');

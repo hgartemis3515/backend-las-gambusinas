@@ -135,26 +135,30 @@ function calcularTotalesConDescuentos(comandasValidas, platosParaBoucher, config
   if (!esParcial) {
     const comandasConDescuento = comandasValidas.filter((c) => comandaTieneDescuento(c));
     if (comandasConDescuento.length > 0) {
-      const totalDesdeComandas = comandasValidas.reduce((sum, c) => {
-        if (comandaTieneDescuento(c) && c.totalCalculado != null) {
-          return sum + c.totalCalculado;
-        }
+      // BUG_MESA_ESPECIAL_PAGO_TOTAL: antes las comandas con descuento sumaban
+      // `totalCalculado` (bruto, SIN IGV) y las demás raw*(1+IGV). Esa mezcla
+      // dejaba el saldo por debajo del monto que envía la app (raw+IGV-desc)
+      // y el cobro TOTAL se registraba como abono: boucher sin ticket, comandas
+      // y mesa seguían 'entregado' y se podía pagar de nuevo.
+      // Convención única (misma que PagosScreen y descuentoComanda.js):
+      // todo bruto con IGV y el descuento fijo se resta del total con IGV.
+      const brutoDesdeComandas = comandasValidas.reduce((sum, c) => {
         return (
           sum +
           (c.platos || []).reduce((s, p, i) => {
-            if (!p.eliminado && (p.estado || '').toLowerCase() !== 'pagado') {
+            if (!p.eliminado && !p.anulado && (p.estado || '').toLowerCase() !== 'pagado') {
               // v3.0: usar precioUnitario snapshot (incluye extras) si está disponible
               const precio = p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || p.precio || 0);
               const cant = c.cantidades?.[i] || 1;
               return s + precio * cant;
             }
             return s;
-          }, 0) *
-            (1 + (configMoneda.igvPorcentaje || 18) / 100)
+          }, 0)
         );
-      }, 0);
-      totalConDescuento = Math.max(0, Number(totalDesdeComandas.toFixed(2)));
-      montoDescuento = Number((totalSinDescuento - totalConDescuento).toFixed(2));
+      }, 0) * (1 + (configMoneda.igvPorcentaje || 18) / 100);
+      const descuentoTotal = comandasConDescuento.reduce((sum, c) => sum + montoDescuentoDeComanda(c), 0);
+      totalConDescuento = Math.max(0, Number((brutoDesdeComandas - descuentoTotal).toFixed(2)));
+      montoDescuento = Number(descuentoTotal.toFixed(2));
     }
   } else {
     // Prorratear descuento por subtotal de platos seleccionados vs comanda completa
@@ -431,13 +435,35 @@ async function procesarPagoBoucher(params) {
   let esAbonoPorCantidad = false;
   let totalCuenta = null;
   if (cobroPorCantidadOn) {
-    const { decidirMontoCobro, sumaAbonosCobroPorCantidad } = require('../utils/cobroPorCantidad');
+    const { decidirMontoCobro, sumaAbonosCobroPorCantidad, round2 } = require('../utils/cobroPorCantidad');
     const ya = await sumaAbonosCobroPorCantidad(comandasIdsAfectadas);
-    const decision = decidirMontoCobro(montoCobro, Math.max(0, totales.total - ya));
-    esAbonoPorCantidad = decision.esAbono;
-    totalCuenta = decision.esAbono || ya > 0 ? Math.round((decision.saldo + ya) * 100) / 100 : null;
-    totales.total = decision.monto;
-    totales.totalConDescuento = decision.monto;
+    const saldo = round2(Math.max(0, totales.total - ya));
+    if (saldo <= 0.009) {
+      if (ya > 0.009) {
+        const err = new Error('Esta cuenta ya no tiene saldo por cobrar');
+        err.statusCode = 400;
+        throw err;
+      }
+      esAbonoPorCantidad = false;
+      totales.total = 0;
+      totales.totalConDescuento = 0;
+    } else {
+      const decision = decidirMontoCobro(montoCobro, saldo);
+      // BUG_MESA_ESPECIAL_PAGO_TOTAL: tolerancia de redondeo IGV/descuento.
+      // Si el monto cubre el saldo con menos de 5 centavos de diferencia es
+      // pago total (genera ticket y mesa pendiente_aprobar), no abono fantasma.
+      const margen = round2(saldo - (decision.monto || 0));
+      esAbonoPorCantidad = decision.esAbono && margen > 0.05;
+      if (esAbonoPorCantidad) {
+        totalCuenta = Math.round((decision.saldo + ya) * 100) / 100;
+        totales.total = decision.monto;
+        totales.totalConDescuento = decision.monto;
+      } else {
+        totalCuenta = ya > 0 ? Math.round((decision.saldo + ya) * 100) / 100 : null;
+        totales.total = saldo;
+        totales.totalConDescuento = saldo;
+      }
+    }
   }
 
   // 🔥 Calcular total en la moneda seleccionada para validar efectivo y vuelto
@@ -451,7 +477,10 @@ async function procesarPagoBoucher(params) {
   // 🔥 Validar y calcular datos de pago en efectivo
   let montoRecibidoFinal = null;
   let vueltoFinal = null;
-  if (metodoPago === 'efectivo') {
+  if (metodoPago === 'efectivo' && totalEnMonedaCobro <= 0.009) {
+    montoRecibidoFinal = 0;
+    vueltoFinal = 0;
+  } else if (metodoPago === 'efectivo') {
     const montoRecibidoNum = Number(montoRecibido);
     if (montoRecibido == null || Number.isNaN(montoRecibidoNum)) {
       const err = new Error('Para pago en efectivo debe indicar el monto recibido');
@@ -637,6 +666,11 @@ async function procesarPagoBoucher(params) {
         mesaDoc.estado = 'pendiente_aprobar';
         await mesaDoc.save();
         resumen.mesa.estado = 'pendiente_aprobar';
+        if (global.emitMesaActualizada) {
+          try { await global.emitMesaActualizada(mesaId); } catch (emitErr) {
+            console.error('No se pudo emitir mesa pendiente_aprobar', emitErr.message);
+          }
+        }
       }
     }
 

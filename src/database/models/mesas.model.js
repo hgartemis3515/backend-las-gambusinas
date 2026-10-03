@@ -3,7 +3,24 @@ const AutoIncrement = require('mongoose-sequence')(mongoose);
 
 const mesasSchema = new mongoose.Schema({
     mesasId: { type: Number, unique: true },
-    nummesa: { type: Number, required: true, min: 0 },
+    nummesa: { type: Number, required: false, min: 0 },
+    especial: { type: Boolean, default: false },
+    nombreMesa: { type: String, default: null, trim: true, maxlength: 24 },
+    funcionesEspeciales: {
+        soloAdmin: { type: Boolean, default: false },
+        permiteDescuentoAdmin: { type: Boolean, default: false },
+        requiereAutorizacion: { type: Boolean, default: false },
+        bloquearAlPagoTotal: { type: Boolean, default: false },
+    },
+    barraEspecial: {
+        colorA: { type: String, default: '#D4AF37', trim: true },
+        colorB: { type: String, default: '#7A1F2B', trim: true },
+    },
+    usoEspecial: {
+        bloqueada: { type: Boolean, default: false },
+        autorizadaPor: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
+        autorizadaEn: { type: Date, default: null },
+    },
     isActive: { type: Boolean, required: true},
     estado: {
         type: String,
@@ -77,8 +94,15 @@ const mesasSchema = new mongoose.Schema({
 });
 
 // ========== FASE A1: ÍNDICES OPTIMIZADOS ==========
-// Índice compuesto único existente para nummesa por área
-mesasSchema.index({ nummesa: 1, area: 1 }, { unique: true });
+// Número único por área solo cuando la mesa tiene número (las especiales pueden ir solo con nombre).
+mesasSchema.index(
+    { nummesa: 1, area: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { nummesa: { $type: 'number' } },
+        name: 'idx_mesa_num_area_parcial',
+    }
+);
 
 // ÍNDICE 1: Búsqueda por estado y área (mapa de mesas - endpoint frecuente)
 // Query: mesas por estado (libre, pedido, preparado, etc.)
@@ -127,6 +151,17 @@ async function ensureMesasIndexes() {
         if (legacyGlobalNumMesaIndex) {
             await collection.dropIndex(legacyGlobalNumMesaIndex.name);
             console.log(`🧹 Índice legacy eliminado: ${legacyGlobalNumMesaIndex.name}`);
+        }
+
+        const compuestoSinParcial = indexes.find((idx) =>
+            idx?.unique === true &&
+            idx?.key?.nummesa === 1 &&
+            idx?.key?.area === 1 &&
+            !idx.partialFilterExpression
+        );
+        if (compuestoSinParcial) {
+            await collection.dropIndex(compuestoSinParcial.name);
+            console.log(`🧹 Índice de número sin parcial eliminado: ${compuestoSinParcial.name}`);
         }
 
         await mesas.syncIndexes();

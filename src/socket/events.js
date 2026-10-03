@@ -1401,20 +1401,21 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
 
       // Emitir a mozos (todos los mozos conectados) - Datos completos populados
       // Validar que el namespace existe antes de emitir
+      const plain = typeof mesa.toObject === 'function' ? mesa.toObject() : mesa;
+
       if (mozosNamespace && mozosNamespace.sockets) {
         mozosNamespace.emit('mesa-actualizada', {
-          mesaId: mesaId,
-          mesa: mesa,
+          mesaId: String(mesaId),
+          mesa: plain,
           socketId: 'server',
           timestamp: timestamp
         });
       }
 
-      // También emitir a cocina para que sepan el estado de las mesas
       if (cocinaNamespace && cocinaNamespace.sockets) {
         cocinaNamespace.emit('mesa-actualizada', {
-          mesaId: mesaId,
-          mesa: mesa,
+          mesaId: String(mesaId),
+          mesa: plain,
           socketId: 'server',
           timestamp: timestamp
         });
@@ -1422,8 +1423,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
 
       if (adminNamespace && adminNamespace.sockets) {
         adminNamespace.emit('mesa-actualizada', {
-          mesaId: mesaId,
-          mesa: mesa,
+          mesaId: String(mesaId),
+          mesa: plain,
           socketId: 'server',
           timestamp: timestamp
         });

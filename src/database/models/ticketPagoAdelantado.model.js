@@ -41,7 +41,6 @@ const ticketPagoAdelantadoSchema = new mongoose.Schema({
   },
   numMesa: {
     type: Number,
-    required: function requiredNumMesa() { return this.sinMesa !== true; },
     default: null,
   },
   sinMesa: {

@@ -103,15 +103,25 @@ router.get('/pedidos/mesa/:mesaId', async (req, res) => {
 router.put('/pedidos/:id/descuento', async (req, res) => {
     try {
         const { id } = req.params;
-        const { descuento, motivo, usuarioId, usuarioRol } = req.body;
+        const { descuento, motivo, usuarioId } = req.body;
         
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'ID de pedido inválido' });
         }
         
-        // Validar permisos (solo admin/supervisor)
-        if (!['admin', 'supervisor'].includes(usuarioRol)) {
-            return res.status(403).json({ message: 'No tiene permisos para aplicar descuentos' });
+        // Validar permisos (solo admin, y solo en mesa especial)
+        const { rechazoDescuentoAdmin, identidadDesdeReq } = require('../utils/mesaEspecial');
+        const actorDesc = identidadDesdeReq(req);
+        const pedidoDoc = await mongoose.model('Pedido').findById(id).select('mesa').lean();
+        let mesaDesc = null;
+        if (pedidoDoc?.mesa) {
+            mesaDesc = await mongoose.model('mesas').findById(pedidoDoc.mesa)
+                .select('especial funcionesEspeciales')
+                .lean();
+        }
+        const rechazoMesaDesc = rechazoDescuentoAdmin(mesaDesc, actorDesc?.rol || '');
+        if (rechazoMesaDesc) {
+            return res.status(rechazoMesaDesc.statusCode).json({ message: rechazoMesaDesc.message });
         }
         
         const pedidoActualizado = await pedidoRepository.aplicarDescuentoAPedido(id, descuento, motivo, usuarioId);

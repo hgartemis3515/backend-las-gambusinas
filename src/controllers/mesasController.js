@@ -11,7 +11,8 @@ const {
     juntarMesas,
     separarMesas,
     obtenerMesasAgrupadas,
-    obtenerMesaConGrupo
+    obtenerMesaConGrupo,
+    autorizarUsoMesaEspecial
 } = require("../repository/mesas.repository");
 
 // Importar modelo de comandas para el resumen
@@ -20,7 +21,7 @@ const moment = require("moment-timezone");
 const logger = require('../utils/logger');
 
 // Importar middleware de autenticación
-const { adminAuth } = require('../middleware/adminAuth');
+const { adminAuth, checkRole } = require('../middleware/adminAuth');
 
 // Helper para verificar permisos
 const verificarPermiso = (req, permiso) => {
@@ -240,7 +241,7 @@ router.get('/mesas/mapa', async (req, res) => {
         }
         
         const mesasRaw = await mesasModel.find(filtro)
-            .select('nummesa estado area mesasId mapaConfig esMesaPrincipal mesaPrincipalId mesasUnidas nombreCombinado')
+            .select('nummesa estado area mesasId mapaConfig esMesaPrincipal mesaPrincipalId mesasUnidas nombreCombinado especial nombreMesa funcionesEspeciales usoEspecial barraEspecial')
             .populate('area', 'nombre mapaPublicado')
             .lean();
         
@@ -372,6 +373,19 @@ router.post('/mesas', async (req, res) => {
     }
 });
 
+router.post('/mesas/:id/autorizar-uso', adminAuth, checkRole('admin'), async (req, res) => {
+    try {
+        const mesa = await autorizarUsoMesaEspecial(req.params.id, req.admin?.id);
+        if (global.emitMesaActualizada) {
+            await global.emitMesaActualizada(mesa._id);
+        }
+        res.json({ success: true, mesa });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ error: error.message || 'No se pudo autorizar la mesa' });
+    }
+});
+
 // Endpoint para liberar todas las mesas a estado "libre" (Modo Libre Total)
 // IMPORTANTE: Esta ruta debe ir ANTES de /mesas/:id para evitar conflictos
 router.put('/mesas/liberar-todas', async (req, res) => {
@@ -405,6 +419,9 @@ router.put('/mesas/:id', async (req, res) => {
         // Emitir evento Socket.io de mesa actualizada
         if (global.emitMesaActualizada) {
             await global.emitMesaActualizada(idMesa);
+        }
+        if (global.emitCatalogoMesasAreasActualizado) {
+            await global.emitCatalogoMesasAreasActualizado({ razon: 'mesa-actualizada' });
         }
     } catch (error) {
         console.error("Error al actualizar la mesa:", error);

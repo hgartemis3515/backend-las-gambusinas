@@ -6,6 +6,11 @@ const { syncJsonFile } = require('../utils/jsonSync');
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
+const {
+    prepararDatosMesa,
+    aplicarBloqueoEnDocumento,
+    auditarMesaEspecial,
+} = require('../utils/mesaEspecial');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 
@@ -100,28 +105,31 @@ const obtenerMesaPorId = async (id) => {
 }
 
 const crearMesa = async (data) => {
-    // Validar que se proporcione un área
     if (!data.area) {
-        throw new Error('Debe proporcionarse un área para la mesa');
+        const e = new Error('Debe proporcionarse un área para la mesa');
+        e.statusCode = 400;
+        throw e;
     }
 
-    // Validar que el número de mesa sea único dentro del área
-    if (data.nummesa !== undefined) {
-        const mesaExistente = await mesas.findOne({ 
-            nummesa: data.nummesa,
-            area: data.area
+    const prep = prepararDatosMesa(data, null);
+    const doc = { ...data, ...prep.set };
+    delete doc.rolActorJwt;
+    if (prep.unset.includes('nummesa')) delete doc.nummesa;
+    if (!doc.estado) doc.estado = 'libre';
+
+    if (typeof doc.nummesa === 'number') {
+        const mesaExistente = await mesas.findOne({
+            nummesa: doc.nummesa,
+            area: doc.area
         });
         if (mesaExistente) {
-            throw new Error(`Ya existe una mesa con el número ${data.nummesa} en esta área`);
+            const e = new Error(`Ya existe una mesa con el número ${doc.nummesa} en esta área`);
+            e.statusCode = 400;
+            throw e;
         }
     }
-    
-    // Asegurar que el estado tenga un valor por defecto
-    if (!data.estado) {
-        data.estado = 'libre';
-    }
-    
-    await mesas.create(data);
+
+    await mesas.create(doc);
     const todaslasmesas = await listarMesas();
     await syncJsonFile('mesas.json', todaslasmesas);
     return todaslasmesas;
@@ -140,29 +148,54 @@ const actualizarMesa = async (id, newData) => {
         throw new Error('Mesa no encontrada');
     }
 
-    // Validar que el número de mesa sea único dentro del área si se está actualizando
-    if (newData.nummesa !== undefined || newData.area !== undefined) {
-        const numMesa = newData.nummesa !== undefined ? newData.nummesa : mesaActual.nummesa;
-        const area = newData.area !== undefined ? newData.area : mesaActual.area;
-        
-        if (mesaActual.nummesa !== numMesa || mesaActual.area?.toString() !== area?.toString()) {
-            const mesaExistente = await mesas.findOne({ 
+    const prep = prepararDatosMesa(newData, mesaActual);
+    const numMesa = prep.nummesa;
+    const area = newData.area !== undefined ? newData.area : mesaActual.area;
+    if (typeof numMesa === 'number') {
+        const cambioNumero = mesaActual.nummesa !== numMesa || mesaActual.area?.toString() !== area?.toString();
+        if (cambioNumero) {
+            const mesaExistente = await mesas.findOne({
                 nummesa: numMesa,
                 area: area,
                 _id: { $ne: mesaActual._id }
             });
             if (mesaExistente) {
-                throw new Error(`Ya existe una mesa con el número ${numMesa} en esta área`);
+                const e = new Error(`Ya existe una mesa con el número ${numMesa} en esta área`);
+                e.statusCode = 400;
+                throw e;
             }
         }
     }
-    
+
     const estadoAnterior = (mesaActual.estado || '').toLowerCase();
     const estadoNuevo = newData.estado != null ? String(newData.estado).toLowerCase() : null;
 
-    // Actualizar la mesa
-    Object.assign(mesaActual, newData);
+    const resto = { ...newData };
+    delete resto.nummesa;
+    delete resto.numMesa;
+    delete resto.especial;
+    delete resto.nombreMesa;
+    delete resto.funcionesEspeciales;
+    delete resto.barraEspecial;
+    delete resto.usoEspecial;
+    delete resto.rolActorJwt;
+    Object.assign(mesaActual, resto, prep.set);
+    if (prep.unset.includes('nummesa')) mesaActual.nummesa = undefined;
+    let bloqueoLiberacion = false;
+    if (estadoNuevo === 'libre' && estadoAnterior !== 'libre') {
+        bloqueoLiberacion = aplicarBloqueoEnDocumento(mesaActual);
+    }
     await mesaActual.save();
+    if (prep.unset.includes('nummesa')) {
+        await mesas.updateOne({ _id: mesaActual._id }, { $unset: { nummesa: '' } });
+    }
+    if (bloqueoLiberacion) {
+        await auditarMesaEspecial({
+            accion: 'MESA_ESPECIAL_BLOQUEADA',
+            mesaId: mesaActual._id,
+            motivo: 'liberacion',
+        });
+    }
 
     let comandasCerradas = [];
     if (estadoNuevo === 'libre' && estadoAnterior !== 'libre') {
@@ -263,8 +296,17 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
         throw error;
     }
 
-    // Actualizar el estado
     mesa.estado = estadoSolicitado;
+    if (estadoSolicitado === 'libre') {
+        const bloqueo = aplicarBloqueoEnDocumento(mesa);
+        if (bloqueo) {
+            await auditarMesaEspecial({
+                accion: 'MESA_ESPECIAL_BLOQUEADA',
+                mesaId: mesa._id,
+                motivo: 'liberacion',
+            });
+        }
+    }
     await mesa.save();
 
     let comandasCerradas = [];
@@ -365,6 +407,22 @@ const liberarTodasLasMesas = async () => {
             {},
             { $set: { estado: 'libre' } }
         );
+        await mesas.updateMany(
+            {
+                especial: true,
+                $or: [
+                    { 'funcionesEspeciales.requiereAutorizacion': true },
+                    { 'funcionesEspeciales.bloquearAlPagoTotal': true },
+                ],
+            },
+            {
+                $set: {
+                    'usoEspecial.bloqueada': true,
+                    'usoEspecial.autorizadaPor': null,
+                    'usoEspecial.autorizadaEn': null,
+                },
+            }
+        );
         
         console.log(`✅ Modo Libre Total activado: ${resultado.modifiedCount} mesas actualizadas a estado "libre"`);
         
@@ -424,6 +482,13 @@ const juntarMesas = async (mesasIds, mozoId, motivo = null) => {
             throw new Error('Una o más mesas no fueron encontradas');
         }
         
+        const especiales = mesasEncontradas.filter((m) => m.especial === true);
+        if (especiales.length > 0) {
+            const e = new Error('Una mesa especial no se puede juntar');
+            e.statusCode = 400;
+            throw e;
+        }
+
         // Verificar que todas están activas
         const mesasInactivas = mesasEncontradas.filter(m => !m.isActive);
         if (mesasInactivas.length > 0) {
@@ -755,6 +820,46 @@ const obtenerMesaConGrupo = async (mesaId) => {
 
 // ==================== FIN FUNCIONES JUNTAR/SEPARAR ====================
 
+const autorizarUsoMesaEspecial = async (id, adminId) => {
+    let mesa = null;
+    if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+        mesa = await mesas.findById(id);
+    }
+    if (!mesa) {
+        const n = parseInt(id, 10);
+        if (!Number.isNaN(n)) mesa = await mesas.findOne({ mesasId: n });
+    }
+    if (!mesa) {
+        const e = new Error('Mesa no encontrada');
+        e.statusCode = 404;
+        throw e;
+    }
+    if (!mesa.especial) {
+        const e = new Error('Esta mesa no es especial');
+        e.statusCode = 400;
+        throw e;
+    }
+    const f = mesa.funcionesEspeciales || {};
+    if (!f.requiereAutorizacion && !f.bloquearAlPagoTotal) {
+        const e = new Error('Esta mesa no exige autorización');
+        e.statusCode = 400;
+        throw e;
+    }
+    mesa.usoEspecial = {
+        bloqueada: false,
+        autorizadaPor: adminId || null,
+        autorizadaEn: new Date(),
+    };
+    await mesa.save();
+    await auditarMesaEspecial({
+        accion: 'MESA_ESPECIAL_AUTORIZADA',
+        mesaId: mesa._id,
+        usuarioId: adminId,
+        motivo: 'autorizacion',
+    });
+    return mesa;
+};
+
 module.exports = {
     listarMesas,
     crearMesa,
@@ -767,5 +872,6 @@ module.exports = {
     juntarMesas,
     separarMesas,
     obtenerMesasAgrupadas,
-    obtenerMesaConGrupo
+    obtenerMesaConGrupo,
+    autorizarUsoMesaEspecial,
 };
