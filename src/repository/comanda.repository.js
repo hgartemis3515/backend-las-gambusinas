@@ -398,44 +398,57 @@ const enrichComandasMozoNombre = async (comandas) => {
     return false;
   };
 
+  const idDe = (c) => {
+    const m = c.mozos;
+    if (m && mongoose.Types.ObjectId.isValid(String(m)) && String(m).length === 24 && typeof m !== 'object') {
+      return String(m);
+    }
+    if (m && typeof m === 'object' && m._id) {
+      const sid = String(m._id);
+      if (mongoose.Types.ObjectId.isValid(sid) && sid.length === 24) return sid;
+    }
+    if (typeof m === 'string' && mongoose.Types.ObjectId.isValid(m) && m.length === 24) return m;
+    return null;
+  };
+  const faltaColor = (c) => {
+    const m = c.mozos;
+    const color = (m && typeof m === 'object' && m.colorPerfil) || c.colorPerfilMozo;
+    return !color;
+  };
+
   const idsNeeded = new Set();
   for (const c of comandas) {
-    if (tieneNombreEnComanda(c)) continue;
-    const m = c.mozos;
-    if (m && mongoose.Types.ObjectId.isValid(String(m)) && String(m).length === 24) {
-      idsNeeded.add(String(m));
-    } else if (m && typeof m === 'object' && m._id && !(m.name || m.nombre)) {
-      const sid = String(m._id);
-      if (mongoose.Types.ObjectId.isValid(sid) && sid.length === 24) idsNeeded.add(sid);
-    }
+    if (tieneNombreEnComanda(c) && !faltaColor(c)) continue;
+    const id = idDe(c);
+    if (id) idsNeeded.add(id);
   }
   if (idsNeeded.size === 0) return comandas;
 
   const idArr = [...idsNeeded];
-  const docs = await mozosModel.find({ _id: { $in: idArr } }).select('name').lean();
+  const docs = await mozosModel.find({ _id: { $in: idArr } }).select('name colorPerfil colorLetraPerfil').lean();
   const byId = {};
   for (const doc of docs) {
-    byId[String(doc._id)] = doc.name || '';
+    byId[String(doc._id)] = doc;
   }
 
   for (const c of comandas) {
-    if (tieneNombreEnComanda(c)) continue;
-    let id = null;
-    const m = c.mozos;
-    if (m && mongoose.Types.ObjectId.isValid(String(m)) && String(m).length === 24) {
-      id = String(m);
-    } else if (m && typeof m === 'object' && m._id) {
-      const sid = String(m._id);
-      if (mongoose.Types.ObjectId.isValid(sid) && sid.length === 24) id = sid;
-    }
-    if (!id) continue;
-    const name = byId[id];
-    if (!name) continue;
-    if (!c.mozoNombre) c.mozoNombre = name;
+    const id = idDe(c);
+    if (!id || !byId[id]) continue;
+    const doc = byId[id];
+    const name = doc.name || '';
+    if (name && !c.mozoNombre) c.mozoNombre = name;
     if (!c.mozos || typeof c.mozos !== 'object') {
-      c.mozos = { _id: id, name };
-    } else if (!c.mozos.name) {
-      c.mozos.name = name;
+      c.mozos = { _id: id, name, colorPerfil: doc.colorPerfil || '', colorLetraPerfil: doc.colorLetraPerfil || '' };
+    } else {
+      if (name && !c.mozos.name) c.mozos.name = name;
+      if (!c.mozos.colorPerfil && doc.colorPerfil) c.mozos.colorPerfil = doc.colorPerfil;
+      if (!c.mozos.colorLetraPerfil && doc.colorLetraPerfil) c.mozos.colorLetraPerfil = doc.colorLetraPerfil;
+    }
+    if (!c.colorPerfilMozo && (c.mozos?.colorPerfil || doc.colorPerfil)) {
+      c.colorPerfilMozo = c.mozos.colorPerfil || doc.colorPerfil;
+    }
+    if (!c.colorLetraPerfilMozo && (c.mozos?.colorLetraPerfil || doc.colorLetraPerfil)) {
+      c.colorLetraPerfilMozo = c.mozos.colorLetraPerfil || doc.colorLetraPerfil;
     }
   }
   return comandas;
@@ -704,7 +717,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     
     const elapsedMs = Date.now() - startTime;
     console.log(`✅ [FASE A1] listarComanda: ${dataProcesada.length} comandas en ${elapsedMs}ms`);
-    
+    await enrichComandasMozoNombre(dataProcesada);
     return dataProcesada;
   } catch (error) {
     console.error("❌ Error al listar la comanda:", error);
@@ -1580,6 +1593,7 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
           eliminada: true,
           status: 'cancelado',
           version: nuevaVersion,
+          revisionTicket: Math.max(0, Math.floor(Number(comandaSnapshot.revisionTicket) || 0)) + 1,
           ...(precioTotalOriginal ? { precioTotalOriginal } : {}),
         },
         ...(historialEntries.length > 0

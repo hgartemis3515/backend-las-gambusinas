@@ -55,7 +55,7 @@ export function generarHtmlCierreTicket(datos) {
   const simbolo = 'S/.';
 
   let html = '';
-  html += `<div style="text-align:center;font-weight:700;font-size:${fontTitle}px;letter-spacing:0.4px;">CIERRE DE CAJA</div>`;
+  html += `<div style="text-align:center;font-weight:700;font-size:${fontTitle}px;letter-spacing:0.4px;">${escapeHtml(datos.titulo || 'CIERRE DE CAJA')}</div>`;
   html += `<div style="text-align:center;font-size:${fontSizeSm}px;margin-top:2px;">San Benito</div>`;
   html += divider(8);
   html += `<div style="font-size:${fontSizeSm}px;">`;
@@ -119,6 +119,15 @@ function abrirImpresion(html) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+export function imprimirTicketDesdeDatos(datos) {
+  if (!datos || !Array.isArray(datos.comandas) || !datos.comandas.length) {
+    throw new Error('No hay comandas para imprimir');
+  }
+  const html = generarHtmlCierreTicket(datos);
+  abrirImpresion(html);
+  return { ok: true };
+}
+
 export async function imprimirCierreTicket(cierreId, opts = {}) {
   if (!cierreId) throw new Error('Falta el id de cierre');
   const fetchJson = opts.fetchJson || (async (endpoint) => {
@@ -138,5 +147,6 @@ export async function imprimirCierreTicket(cierreId, opts = {}) {
 
 if (typeof window !== 'undefined') {
   window.imprimirCierreTicket = imprimirCierreTicket;
+  window.imprimirTicketDesdeDatos = imprimirTicketDesdeDatos;
   window.EPSON_TM_M30II_RECEIPT = window.EPSON_TM_M30II_RECEIPT || EPSON_TM_M30II_RECEIPT;
 }

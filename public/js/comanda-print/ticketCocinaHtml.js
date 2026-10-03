@@ -15,6 +15,24 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function htmlCambioGuarnicion(plato) {
+  const g = plato?.guarnicionesCambio;
+  const salieron = Array.isArray(g?.salieron) ? g.salieron : [];
+  const entraron = Array.isArray(g?.entraron) ? g.entraron : [];
+  const n = Math.max(salieron.length, entraron.length);
+  const partes = [];
+  for (let i = 0; i < n; i += 1) {
+    const salio = String(salieron[i]?.opcion || salieron[i]?.nombre || '').trim();
+    const entro = String(entraron[i]?.opcion || entraron[i]?.nombre || '').trim();
+    if (!salio && !entro) continue;
+    const izq = salio ? `<s>${escapeHtml(salio)}</s>` : '';
+    const der = entro ? escapeHtml(entro) : '';
+    partes.push(`${izq}${izq && der ? ' → ' : ''}${der}`);
+  }
+  if (!partes.length) return '';
+  return `<div style="font-size:10px;font-weight:700;line-height:1.2;padding-top:1px;">${partes.join('<br/>')}</div>`;
+}
+
 export function letraRevisionTicket(n) {
   const k = Math.floor(Number(n) || 0);
   if (k < 1) return '';
@@ -28,7 +46,8 @@ export function letraRevisionTicket(n) {
   return s;
 }
 
-export function tipoCuadroTicket(lineas, { sinMesa = false } = {}) {
+export function tipoCuadroTicket(lineas, { sinMesa = false, reserva = false } = {}) {
+  if (reserva) return 'Reserva';
   const tipos = (lineas || [])
     .filter((p) => p && p.eliminado !== true && p.anulado !== true)
     .map((p) => String(p.tipoServicio || 'mesa').toLowerCase());
@@ -99,6 +118,19 @@ function textoMesaTicket(mesa) {
   if (/^sin mesa$/i.test(s)) return s;
   if (/^m/i.test(s)) return s;
   return `M${s}`;
+}
+
+function celdaMozoTicket(mozo, cliente) {
+  const texto = String(mozo || '—').toLocaleUpperCase('es-PE');
+  const n = texto.length;
+  const size = n <= 4 ? 26 : n <= 9 ? 20 : n <= 16 ? 15 : 12;
+  const chico = cliente
+    ? `<div style="font-size:9px;font-weight:600;line-height:1.1;padding:1px 2px 0;">${escapeHtml(cliente)}</div>`
+    : '';
+  return `<td style="width:50%;padding:0;border:1px solid #000;vertical-align:middle;text-align:center;">
+    ${chico}
+    <div style="font-size:${size}px;font-weight:800;line-height:1;text-align:center;padding:1px 2px;word-break:break-word;">${escapeHtml(texto)}</div>
+  </td>`;
 }
 
 function celdaLlena(value) {
@@ -183,7 +215,7 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
       : '';
     filas += `<tr class="prod-item">${cuadro}
       <td style="padding:3px 2px;text-align:center;font-weight:700;width:22px;">${cant}</td>
-      <td style="padding:3px 2px;">${escapeHtml(nombreProducto(p))}</td>
+      <td style="padding:3px 2px;">${escapeHtml(nombreProducto(p))}${esCocina ? htmlCambioGuarnicion(p) : ''}</td>
       <td style="padding:3px 2px;text-align:right;white-space:nowrap;">${fmt(unit)}</td>
       <td style="padding:3px 2px;text-align:right;white-space:nowrap;font-weight:700;">${fmt(line)}</td>
     </tr>`;
@@ -196,10 +228,21 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
 
   let html = '';
   html += `<div style="text-align:left;font-size:14px;font-weight:800;letter-spacing:1px;line-height:1.1;">${esCocina ? 'COCINA' : 'CAJA'}</div>`;
+  const clienteTicket = String(d.clienteNombre || d.cliente?.nombre || '').trim();
+  const esReserva = d.reserva === true;
+  const tipoTicket = tipoCuadroTicket(d.productos, {
+    sinMesa: d.sinMesa === true || /^sin mesa$/i.test(String(d.mesa || '')),
+    reserva: esReserva,
+  });
+  const fechaLabel = esReserva && d.fechaAtencion ? 'Atención' : 'Fecha';
+  const fechaValor = esReserva && d.fechaAtencion ? d.fechaAtencion : fecha;
   html += `<div style="text-align:center;font-size:22px;font-weight:800;letter-spacing:0.5px;line-height:1.15;padding:4px 0 6px;">${escapeHtml(letrero)}</div>`;
+  if (d.anulacion) {
+    html += `<div style="text-align:center;font-size:13px;font-weight:700;line-height:1.35;padding:0 0 6px;">${escapeHtml(d.anulacion.usuario)}<br/>${escapeHtml(d.anulacion.hora)}<br/>${escapeHtml(d.anulacion.motivo)}</div>`;
+  }
   html += `<table style="width:100%;border-collapse:collapse;margin-bottom:6px;">
-    <tr>${celdaLlena(String(d.mozo || '—').toLocaleUpperCase('es-PE'))}${celdaLlena(textoMesaTicket(d.mesa).toLocaleUpperCase('es-PE'))}</tr>
-    <tr>${celdaMeta('Fecha', fecha)}${celdaMeta('Tipo', tipoCuadroTicket(d.productos, { sinMesa: d.sinMesa === true || /^sin mesa$/i.test(String(d.mesa || '')) }))}</tr>
+    <tr>${celdaMozoTicket(d.mozo, clienteTicket)}${celdaLlena(textoMesaTicket(d.mesa).toLocaleUpperCase('es-PE'))}</tr>
+    <tr>${celdaMeta(fechaLabel, fechaValor)}${celdaMeta('Tipo', tipoTicket)}</tr>
   </table>`;
   html += `<table style="width:100%;border-collapse:collapse;font-size:11px;">
     <thead>
@@ -219,6 +262,9 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     html += `<div style="text-align:right;padding:4px 0 0;font-size:11px;">Descuento${mot}: -${escapeHtml(simbolo)}${fmt(desc)}</div>`;
   }
   html += `<div style="text-align:right;font-size:14px;font-weight:800;padding:4px 0 2px;border-top:1px solid #000;margin-top:4px;">TOTAL ${escapeHtml(simbolo)}${fmt(neto)}</div>`;
+  if (d.anulacion) {
+    html += `<div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:1px;padding:10px 0 2px;">ANULADO X</div>`;
+  }
 
   const heightPx = 220 + productos.length * 28;
   const wrapOpts = { fontSizeBase: 11, lineHeightBase: 14, pageHeightPx: heightPx, title: 'Ticket cocina' };

@@ -481,7 +481,6 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
           }
           html += '</td></tr>';
         }
-
         // v3.0: fila de resumen agregado de complementos si el plato lo activa
         if (prod.mostrarResumenComplementos) {
           const flags = prod.resumenComplementosImpresion || {};
@@ -643,6 +642,7 @@ function mapLineaProductoImpresion(p, comanda, index) {
       cantidad: c.cantidad || 1,
       precio: c.precio || 0,
     })),
+    guarnicionesCambio: p.guarnicionesCambio || null,
     notaEspecial: p.notaEspecial || '',
     paraLlevar,
     mostrarResumenComplementos: !!p.mostrarResumenComplementos,

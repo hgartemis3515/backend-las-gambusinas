@@ -318,6 +318,7 @@ function mapearTicketADatos(ticket) {
         cantidad: c.cantidad || 1,
         precio: c.precio || 0,
       })),
+      guarnicionesCambio: p.guarnicionesCambio || null,
       notaEspecial: p.notaEspecial || '',
       paraLlevar: tipoServicio === 'para_llevar',
       mostrarResumenComplementos: !!p.mostrarResumenComplementos,

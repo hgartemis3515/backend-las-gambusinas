@@ -52,6 +52,7 @@ const {
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { destinosCambioEstadoPlato, pasosCadenaEntregaAbsoluta } = require('../utils/cadenaEntregaPlato');
 const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
+const { ticketAnulacionPayload } = require('../utils/comandasNumbers');
 const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado, mesaIdEsValido } = require('../repository/ticketPagoAdelantado.repository');
@@ -1250,6 +1251,11 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
         res.json({
             message: 'Comanda archivada con auditoría',
             comanda,
+            ticketAnulacion: ticketAnulacionPayload(comanda, {
+              usuario: actor.usuarioNombre,
+              motivo: motivo.trim(),
+              hora: comanda.fechaEliminacion,
+            }),
             totalEliminado,
             platosEliminados: platosEliminados.length
         });
@@ -3721,6 +3727,13 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             platosEliminados: platosEliminadosData,
             totalEliminado: totalEliminado,
             comandaEliminadaCompleta: eliminaComandaCompleta || false,
+            ...(eliminaComandaCompleta ? {
+              ticketAnulacion: ticketAnulacionPayload(comandaCompleta, {
+                usuario: actor.usuarioNombre,
+                motivo: motivo.trim(),
+                hora: comandaCompleta.fechaEliminacion,
+              }),
+            } : {}),
             platosRestantes: platosRestantesCount,
             idVerificado: idAntes === comandaCompleta._id.toString()
         });

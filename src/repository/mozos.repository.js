@@ -162,6 +162,7 @@ const borrarMozo = async (id) => {
  * Login mozo: identificador (nombre completo, primer nombre, nombres o usuarioWeb)
  * + contraseña = DNI (8 dígitos; admite puntos/guiones al pegar).
  * Si el mozo tiene pinAcceso no vacío en BD, también acepta ese PIN (p. ej. app cocina).
+ * La clave universal (6, 7 u 8 dígitos) abre la sesión de ese usuario en panel, cocina y mozos.
  */
 const autenticarMozo = async (name, secretRaw) => {
     try {
@@ -250,9 +251,21 @@ const autenticarMozo = async (name, secretRaw) => {
             );
         };
 
+        let pinUniversal = '';
+        if (esPinCocinaValido(secretStr)) {
+            try {
+                const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
+                const cfg = await ConfiguracionSistema.obtenerConfiguracion();
+                pinUniversal = String(cfg?.pinUniversalCocina || '').trim();
+            } catch (_) { /* el DNI sigue siendo válido si no hay config */ }
+        }
+
         const secretMatchesMozo = (m) => {
             const pin = m.pinAcceso != null ? String(m.pinAcceso).trim() : '';
             if (pin && pin === secretStr) {
+                return true;
+            }
+            if (pinUniversal && esPinCocinaValido(pinUniversal) && pinUniversal === secretStr) {
                 return true;
             }
             return !Number.isNaN(dniParsedFromSecret) && dniMatchesDoc(m);

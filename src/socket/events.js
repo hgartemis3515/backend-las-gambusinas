@@ -573,6 +573,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         logger.warn('Comanda no encontrada para emitir evento');
         return;
       }
+      try {
+        const { enrichComandasMozoNombre } = require('../repository/comanda.repository');
+        await enrichComandasMozoNombre([comandaCompleta]);
+      } catch (eMozo) {
+        logger.warn('No se pudo completar color de mozo en nueva-comanda', { error: eMozo.message });
+      }
 
       // IDs como string para comparaciones estables en clientes KDS
       if (comandaCompleta._id) {
@@ -674,6 +680,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         return;
       }
       if (comanda._id) comanda._id = String(comanda._id);
+      try {
+        const { enrichComandasMozoNombre } = require('../repository/comanda.repository');
+        await enrichComandasMozoNombre([comanda]);
+      } catch (eMozo) {
+        logger.warn('No se pudo completar color de mozo en comanda-actualizada', { error: eMozo.message });
+      }
 
       const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
       const fecha = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
