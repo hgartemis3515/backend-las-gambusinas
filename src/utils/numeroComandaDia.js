@@ -11,6 +11,7 @@ function seqDeResultado(raw) {
   return Number.isFinite(seq) && seq > 0 ? seq : null;
 }
 
+/** Siguiente número del día. Siempre sube: una eliminada no libera el hueco. */
 async function siguienteNumeroComandaDia(dia) {
   const col = mongoose.connection.collection(COLECCION);
   const raw = await col.findOneAndUpdate(

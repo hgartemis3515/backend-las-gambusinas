@@ -187,12 +187,13 @@ function mesaLabel(c) {
   return '—';
 }
 
-function productosDe(grupo) {
+function productosDe(grupo, incluirEliminados = false) {
   const out = [];
   for (const c of grupo) {
     const lineas = c.platos || c.items || [];
     lineas.forEach((linea, index) => {
-      if (!linea || linea.eliminado === true || linea.anulado === true) return;
+      if (!linea) return;
+      if (!incluirEliminados && (linea.eliminado === true || linea.anulado === true)) return;
       const nombre = linea.nombreCocinaPedido || linea.nombre || linea?.plato?.nombreCocina || linea?.plato?.nombre || 'Plato';
       const cant = Number(c.cantidades?.[index] || linea.cantidad) || 1;
       const unit = linea.precioUnitario != null
@@ -270,4 +271,57 @@ export async function imprimirTicketsEposAutomatico(comandas) {
   if (fallos.length) throw new Error(fallos.join('\n'));
 }
 
+function nombreClienteDe(c) {
+  return String(
+    c?.clienteNombre
+    || c?.clienteNombreParaLlevar
+    || (c?.cliente && typeof c.cliente === 'object' ? c.cliente.nombre : '')
+    || ''
+  ).trim();
+}
+
+async function imprimirTicketAnulacionEpos(comanda, ticketAnulacion) {
+  if (!comanda || !ticketAnulacion) return;
+  const datos = {
+    comandaNumeroDisplay: ticketAnulacion.letrero,
+    productos: productosDe([comanda], true),
+    mozo: etiquetaMozosLista([comanda]) || comanda.mozoNombre || (typeof comanda.mozo === 'string' ? comanda.mozo : comanda.mozo?.name) || comanda.mozos?.name || '',
+    clienteNombre: nombreClienteDe(comanda),
+    mesa: mesaLabel(comanda),
+    sinMesa: comanda.sinMesa === true,
+    fechaPedido: comanda.createdAt,
+    montoDescuento: 0,
+    total: 0,
+    anulacion: ticketAnulacion,
+  };
+  let detenerCocina = false;
+  let detenerCaja = false;
+  try {
+    const resCfg = await fetch('/api/configuracion/impresion-automatica');
+    const cfg = await resCfg.json();
+    detenerCocina = cfg?.detenerImpresionCocina === true;
+    detenerCaja = cfg?.detenerImpresionCaja === true;
+  } catch {
+    detenerCocina = false;
+    detenerCaja = false;
+  }
+  if (detenerCocina && detenerCaja) return;
+  const trabajos = [];
+  if (!detenerCocina) {
+    trabajos.push(rasterizarHtmlTicket(generarHtmlTicketCocina({ datos, cocina: true }).htmlInner)
+      .then((img) => postEpos(IP_COCINA, xmlImagenEpos(img), 'cocina')));
+  }
+  if (!detenerCaja) {
+    trabajos.push(rasterizarHtmlTicket(generarHtmlTicketCocina({ datos, cocina: false }).htmlInner)
+      .then((img) => postEpos(IP_CAJA, xmlImagenEpos(img), 'caja')));
+  }
+  const fallos = [];
+  const jobs = await Promise.allSettled(trabajos);
+  jobs.forEach((j) => {
+    if (j.status === 'rejected') fallos.push(j.reason?.message || 'Error de impresión');
+  });
+  if (fallos.length) throw new Error(fallos.join('\n'));
+}
+
 window.imprimirTicketsEposAutomatico = imprimirTicketsEposAutomatico;
+window.imprimirTicketAnulacionEpos = imprimirTicketAnulacionEpos;

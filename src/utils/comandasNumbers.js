@@ -125,6 +125,17 @@ function formatLetreroDesdeNumeros(comandasNumbers, comandas = []) {
   return all.map((n) => `#${n}${letraRevisionTicket(revByN.get(n) || 0)}`).join('+');
 }
 
+function ticketAnulacionPayload(comanda, extras = {}) {
+  const moment = require('moment-timezone');
+  const cuando = extras.hora || comanda?.fechaEliminacion || new Date();
+  return {
+    letrero: formatLetreroTicket([comanda]) || '#—',
+    usuario: extras.usuario || '—',
+    hora: moment(cuando).tz('America/Lima').format('DD/MM/YYYY HH:mm'),
+    motivo: extras.motivo || comanda?.motivoEliminacion || '',
+  };
+}
+
 module.exports = {
   normalizeObjectId,
   resolverComandasNumbers,
@@ -132,4 +143,5 @@ module.exports = {
   letraRevisionTicket,
   formatLetreroTicket,
   formatLetreroDesdeNumeros,
+  ticketAnulacionPayload,
 };

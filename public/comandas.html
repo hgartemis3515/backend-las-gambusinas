@@ -7933,6 +7933,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  forzarAdmin: true,
  sourceApp: 'dashboard'
  });
+ if (res?.ticketAnulacion && typeof window.imprimirTicketAnulacionEpos === 'function') {
+   try { await window.imprimirTicketAnulacionEpos(res.comanda, res.ticketAnulacion); }
+   catch (printErr) { this.showToast(printErr.message || 'No se imprimió la anulación', 'error'); }
+ }
  resultados.push({ id: comanda._id, success: !res?.error });
  } catch (err) {
  console.error('Error eliminando comanda del grupo:', err);
@@ -8323,7 +8327,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  console.log('📥 Respuesta eliminacion:', res);
 
  if (res?.ok && !res.error) {
- const comandaNum = res.comanda?.comandaNumber || this.comandaEliminar.numComanda || this.comandaEliminar._id.slice(-6);
+ const comandaNum = res.ticketAnulacion?.letrero || res.comanda?.comandaNumber || this.comandaEliminar.numComanda || this.comandaEliminar._id.slice(-6);
+ if (res.ticketAnulacion && typeof window.imprimirTicketAnulacionEpos === 'function') {
+   try { await window.imprimirTicketAnulacionEpos(res.comanda, res.ticketAnulacion); }
+   catch (printErr) { this.showToast(printErr.message || 'No se imprimió la anulación', 'error'); }
+ }
 
  if (this.socket && this.socket.connected) {
  this.socket.emit('comandaEliminada', { _id: this.comandaEliminar._id });
