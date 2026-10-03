@@ -204,6 +204,7 @@ function productosDe(grupo, incluirEliminados = false) {
         cantidad: cant,
         precio: unit,
         tipoServicio: linea.tipoServicio || 'mesa',
+        guarnicionesCambio: linea.guarnicionesCambio || null,
       });
     });
   }

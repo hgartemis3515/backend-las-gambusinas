@@ -215,7 +215,7 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
       : '';
     filas += `<tr class="prod-item">${cuadro}
       <td style="padding:3px 2px;text-align:center;font-weight:700;width:22px;">${cant}</td>
-      <td style="padding:3px 2px;">${escapeHtml(nombreProducto(p))}${htmlCambioGuarnicion(p)}</td>
+      <td style="padding:3px 2px;">${escapeHtml(nombreProducto(p))}${esCocina ? htmlCambioGuarnicion(p) : ''}</td>
       <td style="padding:3px 2px;text-align:right;white-space:nowrap;">${fmt(unit)}</td>
       <td style="padding:3px 2px;text-align:right;white-space:nowrap;font-weight:700;">${fmt(line)}</td>
     </tr>`;

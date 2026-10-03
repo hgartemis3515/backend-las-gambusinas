@@ -25,6 +25,7 @@
 <script src="/socket.io/socket.io.js"></script>
  <script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
  <script type="module" src="/js/comanda-print/imprimirTicketsEpos.js"></script>
+ <script type="module" src="/js/cierre-print/cierreTicketPrint.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -175,6 +176,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre">
  <span class="w-2 h-2 rounded-full bg-st-libre animate-pulse"></span> Conectado
  </span>
+ <button x-show="activeTab === 'tabla'" @click="imprimirComandasVisibles()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition inline-flex items-center gap-1.5">
+  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0H6.34m0 0H5.409c-.621 0-1.125-.504-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h14.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125H17.66z"/></svg>
+  Imprimir
+ </button>
  <button x-show="activeTab === 'tabla'" @click="recargarTabla()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
  <button x-show="activeTab === 'plantilla' && plantillaComandaModificada" @click="guardarPlantillaComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
  </div>
@@ -4946,6 +4951,64 @@ this.scheduleRefreshVentasTotales();
  this.filterComandas();
  this.loading = false;
  this.scheduleRefreshVentasTotales();
+ },
+
+ comandasVisiblesTabla() {
+  const out = [];
+  const seen = new Set();
+  for (const row of (this.filteredRows || [])) {
+    const lista = row.tipo === 'grupo' ? (row.comandas || []) : (row.comanda ? [row.comanda] : []);
+    for (const c of lista) {
+      if (!c) continue;
+      const id = String(c._id || '');
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
+      out.push(c);
+    }
+  }
+  return out;
+ },
+
+ imprimirComandasVisibles() {
+  const lista = this.comandasVisiblesTabla();
+  if (!lista.length) {
+    this.showToast('No hay comandas visibles para imprimir', 'error');
+    return;
+  }
+  if (typeof window.imprimirTicketDesdeDatos !== 'function') {
+    this.showToast('Módulo de impresión no cargado', 'error');
+    return;
+  }
+  const lineas = lista.map((c) => {
+    const neto = Number(this.totalNetoComanda(c)) || 0;
+    const desc = Number(this.montoDescuentoMostrar(c)) || 0;
+    const bruto = Number((neto + desc).toFixed(2));
+    return {
+      comandaNumber: c.numComanda ?? c.numeroComandaDia ?? '',
+      numeroComandaMozo: c.numeroComandaMozo || null,
+      mesa: this.formatearNombreMesa(c.mesa),
+      bruto,
+      subtotal: bruto,
+      descuento: desc,
+      total: Number(neto.toFixed(2)),
+    };
+  }).sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
+  const total = Number(lineas.reduce((s, l) => s + l.total, 0).toFixed(2));
+  const tiempos = lista
+    .map((c) => new Date(c.createdAt).getTime())
+    .filter((n) => Number.isFinite(n));
+  try {
+    window.imprimirTicketDesdeDatos({
+      titulo: 'COMANDAS',
+      fechaCierre: new Date(),
+      periodoInicio: tiempos.length ? new Date(Math.min(...tiempos)) : null,
+      periodoFin: tiempos.length ? new Date(Math.max(...tiempos)) : null,
+      comandas: lineas,
+      total,
+    });
+  } catch (e) {
+    this.showToast(e.message || 'No se pudo imprimir', 'error');
+  }
  },
 
  async recargarTabla() {

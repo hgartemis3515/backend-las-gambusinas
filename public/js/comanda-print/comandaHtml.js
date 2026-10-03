@@ -149,23 +149,6 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-function htmlCambioGuarnicion(plato) {
-  const g = plato?.guarnicionesCambio;
-  const salieron = Array.isArray(g?.salieron) ? g.salieron : [];
-  const entraron = Array.isArray(g?.entraron) ? g.entraron : [];
-  const n = Math.max(salieron.length, entraron.length);
-  const partes = [];
-  for (let i = 0; i < n; i += 1) {
-    const salio = String(salieron[i]?.opcion || salieron[i]?.nombre || '').trim();
-    const entro = String(entraron[i]?.opcion || entraron[i]?.nombre || '').trim();
-    if (!salio && !entro) continue;
-    const izq = salio ? `<s>${escapeHtml(salio)}</s>` : '';
-    const der = entro ? escapeHtml(entro) : '';
-    partes.push(`${izq}${izq && der ? ' → ' : ''}${der}`);
-  }
-  return partes.join('<br/>');
-}
-
 function divider(gap = 6) {
   return `<div style="border-top:1px dashed #333;margin:${gap}px 0;width:100%;"></div>`;
 }
@@ -498,12 +481,6 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
           }
           html += '</td></tr>';
         }
-        const cambioG = htmlCambioGuarnicion(prod);
-        if (cambioG) {
-          html += `<tr style="font-size:${fontSizeSm}px;color:#111;font-weight:700;">`;
-          html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:0 0 2px 8px;">${cambioG}</td></tr>`;
-        }
-
         // v3.0: fila de resumen agregado de complementos si el plato lo activa
         if (prod.mostrarResumenComplementos) {
           const flags = prod.resumenComplementosImpresion || {};
