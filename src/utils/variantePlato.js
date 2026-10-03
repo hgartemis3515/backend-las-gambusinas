@@ -290,6 +290,8 @@ function reescribirPedidoSiEsNombreComercial(existente, catalogo, linea) {
 }
 
 function snapshotNombreCocinaPedido(platoLinea, catalogo) {
+  const comercial = String(catalogo?.nombre || catalogo?.nombreCocina || '').trim();
+  if (comercial) platoLinea.nombre = comercial.slice(0, 160);
   const existente = String(platoLinea?.nombreCocinaPedido || '').trim();
   if (existente) {
     platoLinea.nombreCocinaPedido = reescribirPedidoSiEsNombreComercial(existente, catalogo, platoLinea);

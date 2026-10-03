@@ -187,6 +187,22 @@ function mesaLabel(c) {
   return '—';
 }
 
+function nombreLineaTicket(linea) {
+  const plato = linea?.plato && typeof linea.plato === 'object' ? linea.plato : {};
+  const candidatos = [
+    linea?.nombreCocinaPedido,
+    linea?.nombre,
+    plato.nombre,
+    plato.nombreCocina,
+    linea?.nombreOriginal,
+  ];
+  for (const c of candidatos) {
+    const s = String(c || '').trim();
+    if (s && s !== 'Plato' && s !== 'Plato desconocido' && s !== 'Sin nombre') return s;
+  }
+  return '';
+}
+
 function productosDe(grupo, incluirEliminados = false) {
   const out = [];
   for (const c of grupo) {
@@ -194,7 +210,7 @@ function productosDe(grupo, incluirEliminados = false) {
     lineas.forEach((linea, index) => {
       if (!linea) return;
       if (!incluirEliminados && (linea.eliminado === true || linea.anulado === true)) return;
-      const nombre = linea.nombreCocinaPedido || linea.nombre || linea?.plato?.nombreCocina || linea?.plato?.nombre || 'Plato';
+      const nombre = nombreLineaTicket(linea) || 'Plato';
       const cant = Number(c.cantidades?.[index] || linea.cantidad) || 1;
       const unit = linea.precioUnitario != null
         ? Number(linea.precioUnitario)

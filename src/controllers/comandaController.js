@@ -489,6 +489,10 @@ router.get('/comanda/historial-cocina', async (req, res) => {
             .select({
                 _id: 1,
                 comandaNumber: 1,
+                numeroComandaDia: 1,
+                revisionTicket: 1,
+                clienteNombre: 1,
+                clienteNombreParaLlevar: 1,
                 status: 1,
                 createdAt: 1,
                 updatedAt: 1,
@@ -527,10 +531,16 @@ router.get('/comanda/historial-cocina', async (req, res) => {
             );
             const status = String(c.status || '').toLowerCase();
             const elegiblePorStatus = statusComandaHistorial.includes(status);
+            const nDia = Number(c.numeroComandaDia);
+            const numeroDia = Number.isFinite(nDia) && c.numeroComandaDia != null && c.numeroComandaDia !== ''
+                ? nDia
+                : null;
+            const { comandaNumber, ...sinHistorico } = c;
             return {
-                ...c,
-                orden: c.comandaNumber,
-                numeroOrden: c.comandaNumber,
+                ...sinHistorico,
+                orden: numeroDia,
+                numeroOrden: numeroDia,
+                numeroComandaDia: numeroDia,
                 _entregadosCount: entregados.length,
                 _pendientesCount: pendientes.length,
                 _totalActivos: platosActivos.length,
@@ -550,7 +560,7 @@ router.get('/comanda/historial-cocina', async (req, res) => {
         if (q) {
             const ql = String(q).toLowerCase();
             data = data.filter(c => {
-                const orden = String(c.comandaNumber || c.orden || '').toLowerCase();
+                const orden = String(c.numeroComandaDia ?? c.orden ?? '').toLowerCase();
                 const mesaStr = String(c.mesaNumero || c.mesas?.nummesa || '').toLowerCase();
                 const mozo = String(c.mozoNombre || c.mozos?.name || '').toLowerCase();
                 const matchPlato = (c.platos || []).some(p => {

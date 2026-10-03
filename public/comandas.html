@@ -5092,7 +5092,7 @@ this.scheduleRefreshVentasTotales();
         platoId: platoIdNumerico,
         subdocumentoId: subdocumentoId,
         platoIndex: index,
- nombre: plato.nombre || item.nombre || 'Sin nombre',
+ nombre: item.nombreCocinaPedido || plato.nombre || plato.nombreCocina || item.nombre || 'Sin nombre',
  precio: Number(precio),
  precioBase,
  precioUnitario: Number(precio),

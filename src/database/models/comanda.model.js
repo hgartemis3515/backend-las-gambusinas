@@ -154,6 +154,13 @@ const comandaSchema = new mongoose.Schema({
             trim: true,
             lowercase: true
         },
+        // Nombre del plato al pedir. El ticket de para llevar no espera el populate.
+        nombre: {
+            type: String,
+            default: '',
+            trim: true,
+            maxlength: 160
+        },
         // Snapshot MIX / variación de nombre: lo que cocina debe ver.
         nombreCocinaPedido: {
             type: String,

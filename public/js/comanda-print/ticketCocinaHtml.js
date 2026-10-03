@@ -94,8 +94,20 @@ function fmt(n) {
   return Number(n || 0).toFixed(2);
 }
 
+function textoNombre(v) {
+  const s = String(v || '').trim();
+  if (!s || s === 'Plato' || s === 'Plato desconocido' || s === 'Sin nombre') return '';
+  return s;
+}
+
 function nombreProducto(p) {
-  return p?.nombre || p?.nombreComercial || p?.plato?.nombre || 'Plato';
+  const plato = p?.plato && typeof p.plato === 'object' ? p.plato : {};
+  return textoNombre(p?.nombreCocinaPedido)
+    || textoNombre(p?.nombre)
+    || textoNombre(p?.nombreComercial)
+    || textoNombre(plato.nombreCocina)
+    || textoNombre(plato.nombre)
+    || 'Plato';
 }
 
 function montoLinea(p) {
@@ -213,9 +225,15 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
         <span style="display:inline-block;width:${CUADRO_PX}px;height:${CUADRO_PX}px;border:1.6px solid #000;box-sizing:border-box;"></span>
       </td>`
       : '';
+    const marcaAnulado = d.anulacion
+      ? '<span style="font-weight:900;letter-spacing:0.4px;white-space:nowrap;">ANULADO</span>'
+      : '';
+    const nombreCelda = marcaAnulado
+      ? `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><span>${escapeHtml(nombreProducto(p))}${esCocina ? htmlCambioGuarnicion(p) : ''}</span>${marcaAnulado}</div>`
+      : `${escapeHtml(nombreProducto(p))}${esCocina ? htmlCambioGuarnicion(p) : ''}`;
     filas += `<tr class="prod-item">${cuadro}
       <td style="padding:3px 2px;text-align:center;font-weight:700;width:22px;">${cant}</td>
-      <td style="padding:3px 2px;">${escapeHtml(nombreProducto(p))}${esCocina ? htmlCambioGuarnicion(p) : ''}</td>
+      <td style="padding:3px 2px;">${nombreCelda}</td>
       <td style="padding:3px 2px;text-align:right;white-space:nowrap;">${fmt(unit)}</td>
       <td style="padding:3px 2px;text-align:right;white-space:nowrap;font-weight:700;">${fmt(line)}</td>
     </tr>`;
