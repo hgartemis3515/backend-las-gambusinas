@@ -52,6 +52,7 @@ const {
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { destinosCambioEstadoPlato, pasosCadenaEntregaAbsoluta } = require('../utils/cadenaEntregaPlato');
 const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
+const { planBajaLinea, mapaCantidadesAEliminar } = require('../utils/bajaCantidadPlato');
 const { ticketAnulacionPayload } = require('../utils/comandasNumbers');
 const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
@@ -3366,12 +3367,19 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         }
 
         const indicesNumEliminar = indicesValidos.map((idx) => parseInt(idx, 10)).filter((n) => !Number.isNaN(n));
+        const qtyAEliminar = mapaCantidadesAEliminar(req.body);
+        const planDeIndice = (index) => planBajaLinea({
+            cantidadLinea: comandaCheck.cantidades?.[index] || 1,
+            cantidadQuitar: qtyAEliminar.has(index) ? qtyAEliminar.get(index) : null,
+        });
         const activosParaEliminar = (comandaCheck.platos || [])
             .map((p, i) => ({ p, i }))
             .filter(({ p }) => p && p.eliminado !== true && p.anulado !== true)
             .map(({ i }) => i);
         const selEliminar = new Set(indicesNumEliminar);
-        const eliminaComanda = activosParaEliminar.length > 0 && activosParaEliminar.every((i) => selEliminar.has(i));
+        const eliminaComanda = activosParaEliminar.length > 0 && activosParaEliminar.every((i) => (
+            selEliminar.has(i) && planDeIndice(i).bajaTotal
+        ));
 
         if (sourceApp === 'cocina') {
             if (eliminaComanda) {
@@ -3442,16 +3450,19 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             const index = parseInt(idx, 10);
             const platoItem = comandaCheck.platos[index];
             const plato = platoItem.plato || platoItem;
-            const cantidad = comandaCheck.cantidades?.[index] || 1;
+            const plan = planDeIndice(index);
             const precio = plato?.precio || 0;
-            const subtotal = precio * cantidad;
+            const subtotal = precio * plan.quitar;
             totalEliminado += subtotal;
             
             platosEliminadosData.push({
                 index: index,
                 platoId: platoItem.platoId,
                 nombre: plato?.nombre || 'Plato desconocido',
-                cantidad: cantidad,
+                cantidad: plan.quitar,
+                cantidadOriginal: plan.total,
+                cantidadFinal: plan.restante,
+                bajaTotal: plan.bajaTotal,
                 precioUnit: precio,
                 subtotal: subtotal,
                 estado: platoItem.estado
@@ -3474,29 +3485,34 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         const idAntes = comandaActualizar._id.toString();
         const ahora = new Date();
         
-        // SOFT DELETE: marcar platos como eliminados (no splice)
+        // Línea completa: soft-delete. Cantidad menor: queda el resto y se reimprime el ticket.
         indicesAProcesar.forEach(idx => {
             const index = parseInt(idx, 10);
             const platoItem = comandaActualizar.platos[index];
-            if (!platoItem || platoItem.eliminado || platoItem.anulado) return;
+            const info = platosEliminadosData.find((p) => p.index === index);
+            if (!platoItem || platoItem.eliminado || platoItem.anulado || !info) return;
+            if (!info.bajaTotal) {
+                comandaActualizar.cantidades[index] = info.cantidadFinal;
+                return;
+            }
             const estado = (platoItem.estado || '').toLowerCase();
             platoItem.eliminado = true;
             platoItem.eliminadoPor = usuarioId;
             platoItem.eliminadoAt = ahora;
             platoItem.eliminadoRazon = motivo.trim();
             platoItem.estadoAlEliminar = platoItem.estado || null;
-            // Marcar como desperdicio si ya estaba en recoger o entregado
             platoItem.generoDesperdicio = estado === 'recoger' || estado === 'entregado';
         });
+        comandaActualizar.markModified('cantidades');
         
         if (comandaActualizar.historialPlatos && Array.isArray(comandaActualizar.historialPlatos)) {
             platosEliminadosData.forEach(platoData => {
                 comandaActualizar.historialPlatos.push({
                     platoId: platoData.platoId,
                     nombreOriginal: platoData.nombre,
-                    cantidadOriginal: platoData.cantidad,
-                    cantidadFinal: 0,
-                    estado: 'eliminado',
+                    cantidadOriginal: platoData.cantidadOriginal ?? platoData.cantidad,
+                    cantidadFinal: platoData.bajaTotal ? 0 : platoData.cantidadFinal,
+                    estado: platoData.bajaTotal ? 'eliminado' : 'modificado',
                     timestamp: ahora,
                     usuario: usuarioId,
             usuarioNombre: actor.usuarioNombre,
@@ -3655,12 +3671,14 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
                 const index = parseInt(idx, 10);
                 const platoItem = comandaCheck.platos[index];
                 const plato = platoItem.plato || platoItem;
+                const info = platosEliminadosData.find((p) => p.index === index);
+                const bajaTotal = info ? info.bajaTotal !== false : true;
                 return {
                     index: index,
                     nombre: plato?.nombre || 'Plato desconocido',
-                    cantidad: comandaCheck.cantidades?.[index] || 1,
+                    cantidad: bajaTotal ? 0 : (info?.cantidadFinal ?? 0),
                     estado: platoItem.estado,
-                    eliminado: true,
+                    eliminado: bajaTotal,
                     eliminadoRazon: motivo.trim(),
                     eliminadoAt: new Date()
                 };
