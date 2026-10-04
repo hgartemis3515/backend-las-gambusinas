@@ -148,7 +148,9 @@ tailwind.config = {
           :title="k.label === 'Descuentos' ? 'Ver comandas con descuento' : ''"
           @click="k.label === 'Descuentos' && irAComandasDescuentos()">
           <p class="text-[11px] text-txt-muted uppercase" x-text="k.label"></p>
-          <p class="text-xl font-bold mt-1" :class="k.highlightG ? 'inline-flex min-w-[2.5rem] px-2.5 py-0.5 rounded-md bg-[#ffd60a] text-black' : (k.color || 'text-white')" x-text="k.value"></p>
+          <p class="text-xl font-bold mt-1" :class="k.highlightG ? 'inline-flex min-w-[2.5rem] px-2.5 py-0.5 rounded-md bg-[#ffd60a] text-black' : (k.color || 'text-white')">
+            <span x-text="k.value"></span><span x-show="Number(k.eliminadas) > 0" class="text-[#ff4757]" x-text="' -' + k.eliminadas"></span>
+          </p>
           <span x-show="k.badge" class="text-[10px] font-semibold" :class="k.badge?.includes('+') ? 'text-st-preparado' : 'text-st-pagado'" x-text="k.badge"></span>
         </div>
       </template>
@@ -1327,10 +1329,12 @@ function reportesApp() {
       });
       
       try {
-        const [bouchers, desglose] = await Promise.all([
+        const [pack, desglose] = await Promise.all([
           cargarBouchersPorRango(q.fechaInicio, q.fechaFin),
           cargarDesgloseVentas(q.fechaInicio, q.fechaFin)
         ]);
+        const bouchers = Array.isArray(pack) ? pack : (pack.filas || []);
+        this.conteoComandas = (!Array.isArray(pack) && pack.conteo) ? pack.conteo : null;
         
         console.log('📦 Bouchers cargados:', bouchers.length);
         
@@ -1483,7 +1487,7 @@ function reportesApp() {
         { label: 'Ventas Pagadas', value: fmtSoles(aprobadas), color: 'text-[#2ecc71]', badge: '' },
         { label: 'Descuentos', value: '-S/. ' + totalDescuentos.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#e74c3c]', badge: '' },
         { label: 'Ventas Totales', value: fmtSoles(totalVentas), color: 'text-[#d4af37]', badge: this.dateFilter.tipo },
-        { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
+        { label: 'Tickets', value: (this.conteoComandas ? this.conteoComandas.creadas : totalTickets), eliminadas: this.conteoComandas ? this.conteoComandas.eliminadas : 0, color: 'text-white', badge: '' },
         { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '' }
       ];
       
@@ -2711,7 +2715,7 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
       const filas = payload.datos || payload.data || (Array.isArray(payload) ? payload : []);
       if (Array.isArray(filas)) {
         console.log('✅ Filas de comandas:', filas.length);
-        return filas;
+        return { filas, conteo: payload.meta?.conteoComandas || null };
       }
     }
   } catch (error) {
@@ -2746,12 +2750,15 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
   if (String(fechaInicio).includes('T')) {
     const t0 = new Date(fechaInicio).getTime();
     const t1 = new Date(fechaFin).getTime();
-    return bouchers.filter(b => {
-      const t = new Date(b.fechaPago || b.createdAt || 0).getTime();
-      return Number.isFinite(t) && t >= t0 && t <= t1;
-    });
+    return {
+      filas: bouchers.filter(b => {
+        const t = new Date(b.fechaPago || b.createdAt || 0).getTime();
+        return Number.isFinite(t) && t >= t0 && t <= t1;
+      }),
+      conteo: null
+    };
   }
-  return bouchers;
+  return { filas: bouchers, conteo: null };
 }
 
 async function cargarDesgloseVentas(fechaInicio, fechaFin) {

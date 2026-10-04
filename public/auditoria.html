@@ -89,16 +89,33 @@ tailwind.config = {
         </template>
       </select>
       
+      <div class="flex flex-wrap items-center gap-1">
+        <span class="text-[10px] uppercase text-txt-muted mr-1">Período</span>
+        <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('dia')"
+          class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+          :class="filtroPeriodo === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+        <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('noche')"
+          class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+          :class="filtroPeriodo === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
+        <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-5 bg-[rgba(212,175,55,0.35)] mx-1"></span>
+        <button type="button" @click="setFiltroPeriodo('hoy')"
+          class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+          :class="filtroPeriodo === 'hoy' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">Hoy</button>
+        <button type="button" @click="setFiltroPeriodo('ayer')"
+          class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+          :class="filtroPeriodo === 'ayer' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">Ayer</button>
+      </div>
+
       <!-- Filtro Fecha Desde -->
       <div class="flex items-center gap-1">
         <span class="text-xs text-txt-muted">Desde:</span>
-        <input type="date" x-model="filterFechaDesde" @change="filterRegistros()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+        <input type="date" x-model="filterFechaDesde" @change="setFiltroPeriodo('custom')" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
       </div>
       
       <!-- Filtro Fecha Hasta -->
       <div class="flex items-center gap-1">
         <span class="text-xs text-txt-muted">Hasta:</span>
-        <input type="date" x-model="filterFechaHasta" @change="filterRegistros()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+        <input type="date" x-model="filterFechaHasta" @change="setFiltroPeriodo('custom')" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
       </div>
       
       <!-- Botón limpiar filtros -->
@@ -145,7 +162,8 @@ tailwind.config = {
                   x-text="getAccionLabel(a.accion, a.metadata)"></span>
               </td>
               <td class="px-4 py-3 text-xs">
-                <span x-show="a.metadata?.comandaNumber" class="text-gold" x-text="'#' + a.metadata.comandaNumber"></span>
+                <span x-show="etiquetaComandaAuditoria(a)" class="text-gold" x-text="etiquetaComandaAuditoria(a)"></span>
+                <span x-show="idComandaAuditoria(a)" class="text-txt-muted font-mono block text-[10px]" x-text="idComandaAuditoria(a)"></span>
                 <span x-show="a.metadata?.platoNombre" class="text-txt-secondary" x-text="a.metadata.platoNombre"></span>
                 <span x-show="a.motivo" class="text-txt-muted block text-[10px]" x-text="a.motivo?.substring(0, 30) + (a.motivo?.length > 30 ? '...' : '')"></span>
                 <span x-show="a.metadata?.cronometro" class="text-[#9c88ff] block text-[10px] font-mono" x-text="'⏱ ' + a.metadata.cronometro"></span>
@@ -251,7 +269,8 @@ tailwind.config = {
             <template x-if="selectedRegistro?.accion !== 'ELIMINAR_TODAS_COMANDAS'">
               <div>
                 <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda #</p>
-                <p class="font-medium" x-text="selectedRegistro?.metadata?.comandaNumber || 'N/A'"></p>
+                <p class="font-medium" x-text="etiquetaComandaAuditoria(selectedRegistro) || 'N/A'"></p>
+                <p class="text-[10px] text-txt-muted font-mono" x-show="idComandaAuditoria(selectedRegistro)" x-text="idComandaAuditoria(selectedRegistro)"></p>
               </div>
             </template>
             <div>
@@ -282,7 +301,8 @@ tailwind.config = {
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda #</p>
-              <p class="font-medium text-gold" x-text="selectedRegistro?.metadata?.comandaNumber || 'N/A'"></p>
+              <p class="font-medium text-gold" x-text="etiquetaComandaAuditoria(selectedRegistro) || 'N/A'"></p>
+              <p class="text-[10px] text-txt-muted font-mono" x-show="idComandaAuditoria(selectedRegistro)" x-text="idComandaAuditoria(selectedRegistro)"></p>
             </div>
             <div>
               <p class="text-[10px] text-[#5a5a7a] mb-0.5">Tipo de Anulación</p>
@@ -316,7 +336,8 @@ tailwind.config = {
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda #</p>
-              <p class="font-medium text-gold" x-text="selectedRegistro?.metadata?.comandaNumber || 'N/A'"></p>
+              <p class="font-medium text-gold" x-text="etiquetaComandaAuditoria(selectedRegistro) || 'N/A'"></p>
+              <p class="text-[10px] text-txt-muted font-mono" x-show="idComandaAuditoria(selectedRegistro)" x-text="idComandaAuditoria(selectedRegistro)"></p>
             </div>
             <div>
               <p class="text-[10px] text-[#5a5a7a] mb-0.5">Estado Anterior</p>
@@ -350,7 +371,8 @@ tailwind.config = {
             </div>
             <div>
               <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda #</p>
-              <p class="font-medium text-gold" x-text="selectedRegistro?.metadata?.comandaNumber || 'N/A'"></p>
+              <p class="font-medium text-gold" x-text="etiquetaComandaAuditoria(selectedRegistro) || 'N/A'"></p>
+              <p class="text-[10px] text-txt-muted font-mono" x-show="idComandaAuditoria(selectedRegistro)" x-text="idComandaAuditoria(selectedRegistro)"></p>
             </div>
             <div>
               <p class="text-[10px] text-[#5a5a7a] mb-0.5">Mesa</p>
@@ -529,6 +551,7 @@ tailwind.config = {
 
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
+<script src="/assets/js/turnosDiaNoche.js"></script>
 <script>
 function auditoriaApp() {
   return {
@@ -544,7 +567,15 @@ function auditoriaApp() {
     filterUsuario: '',
     filterFechaDesde: '',
     filterFechaHasta: '',
+    filtroPeriodo: 'hoy',
+    showTurnoDiaNoche: false,
+    primerCierreHoyAt: null,
+    cierresHoyCount: 0,
+    turnosLimaYMD: '',
+    _turnosAutoNocheHecho: false,
+    _turnosPoll: null,
     usuariosList: [],
+    mapaNumeros: {},
 
     activeNav: 'auditoria',
     pageTitle: 'Auditoría',
@@ -559,7 +590,85 @@ function auditoriaApp() {
       // Verificar si hay parámetros de URL (desde notificación)
       this.checkUrlParams();
       
+      if (window.TurnosDiaNoche) {
+        await TurnosDiaNoche.refresh(this, this.optsTurnos(false));
+        TurnosDiaNoche.startPoll(this, this.optsTurnos(true));
+      }
       await this.loadAuditoria();
+    },
+
+    optsTurnos(recargar) {
+      return {
+        getPeriod: () => this.filtroPeriodo,
+        setPeriod: (v) => { this.filtroPeriodo = v; },
+        hoyValues: ['hoy'],
+        diaValue: 'dia',
+        nocheValue: 'noche',
+        autoNoche: true,
+        onChange: recargar ? () => this.loadAuditoria() : null
+      };
+    },
+
+    setFiltroPeriodo(id) {
+      this.filtroPeriodo = id;
+      this.loadAuditoria();
+    },
+
+    letraRevAuditoria(n) {
+      const k = Math.floor(Number(n) || 0);
+      if (k < 1) return '';
+      let x = k + 1;
+      let s = '';
+      while (x > 0) {
+        const r = (x - 1) % 26;
+        s = String.fromCharCode(97 + r) + s;
+        x = Math.floor((x - 1) / 26);
+      }
+      return s;
+    },
+
+    etiquetaDesdeComanda(c) {
+      if (!c) return '';
+      const n = c.numeroComandaDia != null && c.numeroComandaDia !== ''
+        ? c.numeroComandaDia
+        : (c.numComanda != null && c.numComanda !== '' ? c.numComanda : c.comandaNumber);
+      if (n == null || n === '') return '';
+      return '#' + n + this.letraRevAuditoria(c.revisionTicket);
+    },
+
+    etiquetaComandaAuditoria(a) {
+      const id = this.idComandaAuditoria(a);
+      if (id && this.mapaNumeros[id]) return this.mapaNumeros[id];
+      return a?.comandaVista?.etiqueta || '';
+    },
+
+    idComandaAuditoria(a) {
+      const id = a?.comandaVista?.id || a?.entidadId || a?.metadata?.comandaId;
+      return id ? String(id) : '';
+    },
+
+    matchPeriodo(r) {
+      const T = window.TurnosDiaNoche;
+      const fecha = r.createdAt || r.timestamp || r.hora;
+      if (!T) return true;
+      if (this.filtroPeriodo === 'custom') {
+        if (!fecha) return !this.filterFechaDesde && !this.filterFechaHasta;
+        const ymd = T.limaYMD(new Date(fecha));
+        if (this.filterFechaDesde && ymd < this.filterFechaDesde) return false;
+        if (this.filterFechaHasta && ymd > this.filterFechaHasta) return false;
+        return true;
+      }
+      if (!fecha) return false;
+      if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
+        const rango = T.rangoIso(this.filtroPeriodo, this.primerCierreHoyAt);
+        if (!rango) return false;
+        const t = new Date(fecha).getTime();
+        return t >= new Date(rango.desde).getTime() && t <= new Date(rango.hasta).getTime();
+      }
+      const ymd = T.limaYMD(new Date(fecha));
+      const hoy = T.limaYMD();
+      if (this.filtroPeriodo === 'ayer') return ymd === T.addDaysYMD(hoy, -1);
+      return ymd === hoy;
     },
     
     checkUrlParams() {
@@ -590,11 +699,34 @@ function auditoriaApp() {
       }
     },
 
+    queryPeriodoApi() {
+      const T = window.TurnosDiaNoche;
+      if (!T || this.filtroPeriodo === 'custom') {
+        if (this.filterFechaDesde || this.filterFechaHasta) {
+          return { desde: this.filterFechaDesde, hasta: this.filterFechaHasta || this.filterFechaDesde };
+        }
+        return null;
+      }
+      const hoy = T.limaYMD();
+      if (this.filtroPeriodo === 'ayer') {
+        const ayer = T.addDaysYMD(hoy, -1);
+        return { desde: ayer, hasta: hoy };
+      }
+      return { desde: hoy, hasta: T.addDaysYMD(hoy, 1) };
+    },
+
     async loadAuditoria() {
       this.loading = true;
 
-      // El endpoint correcto es /auditoria/reporte-completo o /auditoria/comandas
-      let data = await apiGet('/auditoria/reporte-completo');
+      const rango = this.queryPeriodoApi();
+      let url = '/auditoria/reporte-completo';
+      if (rango && rango.desde) {
+        const q = new URLSearchParams();
+        q.set('fechaInicio', rango.desde);
+        if (rango.hasta) q.set('fechaFin', rango.hasta);
+        url += '?' + q.toString();
+      }
+      let data = await apiGet(url);
 
       let raw = [];
       if (data && data.auditorias) raw = data.auditorias;
@@ -631,9 +763,28 @@ function auditoriaApp() {
 
       // Extraer usuarios unicos
       this.extraerUsuariosUnicos();
+      await this.hidratarNumerosComanda();
 
       this.filterRegistros();
       this.loading = false;
+    },
+
+    async hidratarNumerosComanda() {
+      const ids = [...new Set(this.registros.map((r) => this.idComandaAuditoria(r)).filter(Boolean))];
+      const faltan = ids.filter((id) => !this.mapaNumeros[id]);
+      const mapa = { ...this.mapaNumeros };
+      const lote = 8;
+      for (let i = 0; i < faltan.length; i += lote) {
+        const grupo = faltan.slice(i, i + lote);
+        await Promise.all(grupo.map(async (id) => {
+          try {
+            const c = await apiGet('/comanda/' + id);
+            const etq = this.etiquetaDesdeComanda(c);
+            if (etq) mapa[id] = etq;
+          } catch (e) { /* la comanda ya no está */ }
+        }));
+      }
+      this.mapaNumeros = mapa;
     },
 
     extraerUsuariosUnicos() {
@@ -671,22 +822,7 @@ function auditoriaApp() {
         const nombreUsuario = r.usuario?.nombre || r.usuario || '';
         const matchUsuario = !this.filterUsuario || nombreUsuario === this.filterUsuario;
 
-        // Filtro por fecha desde
-        let matchFechaDesde = true;
-        const fechaBase = r.createdAt || r.timestamp;
-        if (this.filterFechaDesde && fechaBase) {
-          const fechaRegistro = new Date(fechaBase).toISOString().split('T')[0];
-          matchFechaDesde = fechaRegistro >= this.filterFechaDesde;
-        }
-
-        // Filtro por fecha hasta
-        let matchFechaHasta = true;
-        if (this.filterFechaHasta && fechaBase) {
-          const fechaRegistro = new Date(fechaBase).toISOString().split('T')[0];
-          matchFechaHasta = fechaRegistro <= this.filterFechaHasta;
-        }
-
-        return matchAccion && matchUsuario && matchFechaDesde && matchFechaHasta;
+        return matchAccion && matchUsuario && this.matchPeriodo(r);
       });
     },
 
@@ -695,7 +831,8 @@ function auditoriaApp() {
       this.filterUsuario = '';
       this.filterFechaDesde = '';
       this.filterFechaHasta = '';
-      this.filterRegistros();
+      this.filtroPeriodo = 'hoy';
+      this.loadAuditoria();
     },
 
     openDetailModal(a) {
@@ -918,6 +1055,9 @@ function auditoriaApp() {
     },
 
     getComandasNumbers(reg) {
+      const etq = this.etiquetaComandaAuditoria(reg);
+      const id = this.idComandaAuditoria(reg);
+      if (etq || id) return [etq, id].filter(Boolean).join(' · ');
       if (!reg?.metadata) return 'N/A';
       const numbers = reg.metadata.comandasNumbers || [reg.metadata.comandaNumber].filter(Boolean);
       return numbers.length > 0 ? numbers.join(', ') : 'N/A';

@@ -4,7 +4,73 @@ const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const HistorialComandas = require('../database/models/historialComandas.model');
 const SesionesUsuarios = require('../database/models/sesionesUsuarios.model');
 const comandaModel = require('../database/models/comanda.model');
+const { letraRevisionTicket } = require('../utils/comandasNumbers');
 const moment = require('moment-timezone');
+
+function oidComanda(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'object') {
+    if (v._id) return oidComanda(v._id);
+    if (v.$oid) return oidComanda(v.$oid);
+  }
+  const s = String(v);
+  return /^[a-f0-9]{24}$/i.test(s) ? s : null;
+}
+
+function idsComandaAuditoria(a) {
+  const m = a?.metadata || {};
+  const ids = [];
+  const push = (v) => {
+    const id = oidComanda(v);
+    if (id && !ids.includes(id)) ids.push(id);
+  };
+  push(a?.entidadId);
+  push(m.comandaId);
+  if (Array.isArray(m.comandasIds)) m.comandasIds.forEach(push);
+  if (Array.isArray(m.comandas)) m.comandas.forEach((c) => push(c?._id || c));
+  return ids;
+}
+
+function etiquetaDia(doc) {
+  if (!doc) return '';
+  const n = doc.numeroComandaDia != null && doc.numeroComandaDia !== ''
+    ? doc.numeroComandaDia
+    : doc.comandaNumber;
+  if (n == null || n === '') return '';
+  return `#${n}${letraRevisionTicket(doc.revisionTicket)}`;
+}
+
+async function adjuntarComandaVista(auditorias) {
+  const lista = auditorias || [];
+  const ids = [];
+  lista.forEach((a) => idsComandaAuditoria(a).forEach((id) => {
+    if (!ids.includes(id)) ids.push(id);
+  }));
+  const mapa = new Map();
+  if (ids.length) {
+    const docs = await comandaModel.find({ _id: { $in: ids } })
+      .select('comandaNumber numeroComandaDia revisionTicket')
+      .lean();
+    docs.forEach((d) => mapa.set(String(d._id), d));
+  }
+  return lista.map((a) => {
+    const plain = typeof a.toObject === 'function' ? a.toObject() : a;
+    const idsDoc = idsComandaAuditoria(plain);
+    const docs = idsDoc.map((id) => mapa.get(id)).filter(Boolean);
+    const etiquetas = docs.map(etiquetaDia).filter(Boolean);
+    const fallback = plain.metadata?.numeroComandaDia != null
+      ? `#${plain.metadata.numeroComandaDia}`
+      : (plain.metadata?.comandaNumber != null ? `#${plain.metadata.comandaNumber}` : '');
+    return {
+      ...plain,
+      comandaVista: {
+        id: idsDoc[0] || null,
+        ids: idsDoc,
+        etiqueta: etiquetas.length ? etiquetas.join(' ') : fallback
+      }
+    };
+  });
+}
 
 /**
  * GET /auditoria/comandas
@@ -309,6 +375,8 @@ router.get('/auditoria/reporte-completo', async (req, res) => {
       } : {})
     });
     
+    const tope = (fechaInicio || fechaFin) ? 500 : 100;
+    const pagina = await adjuntarComandaVista(auditorias.slice(0, tope));
     res.json({
       periodo: {
         fechaInicio: fechaInicio || 'No especificada',
@@ -320,7 +388,7 @@ router.get('/auditoria/reporte-completo', async (req, res) => {
         resumenPorAccion: resumenPorAccion,
         resumenPorUsuario: resumenPorUsuario
       },
-      auditorias: auditorias.slice(0, 100) // Limitar a 100 para no sobrecargar
+      auditorias: pagina
     });
   } catch (error) {
     console.error('❌ Error al generar reporte completo:', error);

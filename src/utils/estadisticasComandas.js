@@ -686,6 +686,23 @@ function filasARowsHorario(filas) {
     });
 }
 
+/** Creadas en el período, incluidas las eliminadas. `eliminadas` es el subconjunto borrado. */
+async function contarComandasCreadas(inicio, fin) {
+    const Comanda = getComandaModel();
+    const rango = { createdAt: { $gte: inicio, $lte: fin } };
+    const [creadas, eliminadas] = await Promise.all([
+        Comanda.countDocuments(rango),
+        Comanda.countDocuments({
+            ...rango,
+            $or: [
+                { eliminada: true },
+                { fechaEliminacion: { $type: 'date' } }
+            ]
+        })
+    ]);
+    return { creadas, eliminadas };
+}
+
 async function listarFilasEstadisticas(inicio, fin) {
     const cfg = await cargarConfigMonedaEstadisticas();
     const Comanda = getComandaModel();
@@ -814,6 +831,7 @@ module.exports = {
     agregarHorariosComandas,
     mapearFilaReporte,
     listarFilasEstadisticas,
+    contarComandasCreadas,
     setConfigMonedaEstadisticas,
     getConfigMonedaEstadisticas,
     cargarConfigMonedaEstadisticas,

@@ -111,7 +111,10 @@ router.get('/reportes/filas', adminAuth, async (req, res) => {
             });
         }
 
-        const datos = await reportesRepository.getFilasOperacion(fechaInicio, fechaFin);
+        const [datos, conteoComandas] = await Promise.all([
+            reportesRepository.getFilasOperacion(fechaInicio, fechaFin),
+            reportesRepository.contarComandasCreadasPeriodo(fechaInicio, fechaFin)
+        ]);
 
         res.json({
             success: true,
@@ -120,6 +123,7 @@ router.get('/reportes/filas', adminAuth, async (req, res) => {
                 fechaInicio,
                 fechaFin,
                 fuente: datos[0]?._fuente || (datos.length ? 'boucher' : 'vacio'),
+                conteoComandas,
                 generadoEn: moment().tz('America/Lima').toISOString()
             }
         });

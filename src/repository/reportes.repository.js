@@ -16,6 +16,7 @@ const {
     exprFechaComanda,
     exprPrecioPlatoUnwind,
     listarFilasEstadisticas,
+    contarComandasCreadas,
     cargarConfigMonedaEstadisticas,
     etiquetasComplemento
 } = require('../utils/estadisticasComandas');
@@ -1098,6 +1099,11 @@ async function getDesgloseVentasTickets(fechaInicio, fechaFin) {
     return desgloseVentasPorAprobacion(inicio, fin);
 }
 
+async function contarComandasCreadasPeriodo(fechaInicio, fechaFin) {
+    const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
+    return contarComandasCreadas(inicio, fin);
+}
+
 async function getFilasOperacion(fechaInicio, fechaFin) {
     const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
     const filas = await listarFilasEstadisticas(inicio, fin);
@@ -1218,6 +1224,7 @@ module.exports = {
     getVentas,
     getPlatosTop,
     getFilasOperacion,
+    contarComandasCreadasPeriodo,
     getDesgloseVentasTickets,
     getUsoGMozos
 };
