@@ -7892,7 +7892,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const body = {
  motivo: motivoFinal,
  usuarioId: 'admin',
- usuarioRol: this.userRole
+ usuarioRol: this.userRole,
+ sourceApp: 'dashboard'
  };
  if (montos) {
    if (!(montos[i] > 0)) continue;
@@ -8147,7 +8148,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const body = {
  motivo: motivoFinal,
  usuarioId: 'admin',
- usuarioRol: this.userRole
+ usuarioRol: this.userRole,
+ sourceApp: 'dashboard'
  };
  if (montoNum > 0) {
    body.monto = Number(montoNum.toFixed(2));

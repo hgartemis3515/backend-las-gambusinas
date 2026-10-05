@@ -4071,15 +4071,19 @@ router.put('/comanda/:id/descuento', async (req, res) => {
             return res.status(403).json({ message: 'No autorizado para aplicar descuentos' });
         }
 
-        const { rechazoDescuentoAdmin, identidadDesdeReq } = require('../utils/mesaEspecial');
-        const actorDesc = identidadDesdeReq(req);
-        const rolDesc = actorDesc?.rol || '';
-        const mesaDesc = comandaAntes.mesas && typeof comandaAntes.mesas === 'object'
-            ? comandaAntes.mesas
-            : null;
-        const rechazoMesaDesc = rechazoDescuentoAdmin(mesaDesc, rolDesc);
-        if (rechazoMesaDesc) {
-            return res.status(rechazoMesaDesc.statusCode).json({ message: rechazoMesaDesc.message });
+        // comandas.html descuenta cualquier mesa e imprime caja + ticket.
+        // La mesa especial solo limita el descuento que manda la app de mozos.
+        if (String(sourceApp).toLowerCase() === 'mozos') {
+            const { rechazoDescuentoAdmin, identidadDesdeReq } = require('../utils/mesaEspecial');
+            const actorDesc = identidadDesdeReq(req);
+            const rolDesc = actorDesc?.rol || '';
+            const mesaDesc = comandaAntes.mesas && typeof comandaAntes.mesas === 'object'
+                ? comandaAntes.mesas
+                : null;
+            const rechazoMesaDesc = rechazoDescuentoAdmin(mesaDesc, rolDesc);
+            if (rechazoMesaDesc) {
+                return res.status(rechazoMesaDesc.statusCode).json({ message: rechazoMesaDesc.message });
+            }
         }
 
         // Aplicar descuento
