@@ -233,6 +233,9 @@ const platoSchema = new mongoose.Schema({
         // Selección fija: el mozo no elige; al pedir el plato se aplican las opciones
         // marcadas en Órdenes (o todas, si ninguna está marcada) con su cantidad.
         seleccionFija: { type: Boolean, default: false },
+        // Con Fijo: en Ver cocina completo la opción va a la tabla de platos
+        // (nombre del plato + guarnición), no a la de complementos.
+        visualEnTablaPlatos: { type: Boolean, default: false },
         // ===== FIN NUEVOS CAMPOS =====
         // v3.0: opciones puede ser array de strings (legacy) o de objetos { nombre, precio }
         // La normalización a objetos se hace en pre('save').
