@@ -176,6 +176,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre">
  <span class="w-2 h-2 rounded-full bg-st-libre animate-pulse"></span> Conectado
  </span>
+ <button x-show="activeTab === 'tabla'" @click="vistaPreviaComandasVisibles()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Vista previa</button>
  <button x-show="activeTab === 'tabla'" @click="imprimirComandasVisibles()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition inline-flex items-center gap-1.5">
   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0H6.34m0 0H5.409c-.621 0-1.125-.504-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h14.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125H17.66z"/></svg>
   Imprimir
@@ -183,6 +184,14 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <button x-show="activeTab === 'tabla'" @click="recargarTabla()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
  <button x-show="activeTab === 'plantilla' && plantillaComandaModificada" @click="guardarPlantillaComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
  </div>
+ </div>
+
+ <div x-show="vistaPreviaAbierta" x-cloak class="fixed top-0 right-0 z-[80] h-full w-[420px] max-w-full bg-bg-card border-l border-[rgba(212,175,55,0.25)] shadow-2xl flex flex-col">
+  <div class="flex items-center justify-between px-4 py-3 border-b border-[rgba(212,175,55,0.15)]">
+   <p class="text-sm font-semibold text-gold">Vista previa</p>
+   <button type="button" @click="vistaPreviaAbierta = false" class="text-txt-secondary hover:text-white text-sm">Cerrar</button>
+  </div>
+  <iframe class="flex-1 w-full bg-white" title="Vista previa de impresión" :srcdoc="vistaPreviaHtml"></iframe>
  </div>
 
  <!-- TABS -->
@@ -402,7 +411,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 <template x-if="row.tipo === 'individual'">
 <div class="flex items-center gap-1.5 whitespace-nowrap">
   <span class="font-medium text-sm" :class="row.comanda?.eliminada ? 'line-through text-txt-muted' : ''" x-text="etiquetaNumeroTabla(row.comanda)"></span>
-  <span x-show="row.comanda?.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" title="Soft-delete. No cuenta en cierre ni reportes.">ELIMINADA</span>
+  <span x-show="row.comanda?.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none">ANULADO</span>
   <span x-show="row.comanda?.omitirPago" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
   <span x-show="esComandaReserva(row.comanda)"
    class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
@@ -564,7 +573,8 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <td class="px-3 py-2 pl-8">
  <div class="flex items-center gap-1.5 whitespace-nowrap">
  <span class="text-txt-muted text-xs">↳</span>
- <span class="text-txt-secondary text-sm" x-text="etiquetaNumeroTabla(comanda)"></span>
+ <span class="text-txt-secondary text-sm" :class="comanda.eliminada ? 'line-through' : ''" x-text="etiquetaNumeroTabla(comanda)"></span>
+ <span x-show="comanda.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none">ANULADO</span>
  <span x-show="esComandaReserva(comanda)"
   class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
   :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comanda) || '—')">
@@ -3415,6 +3425,8 @@ function comandasApp() {
  filterSoloCambioG: false,
  verIdHistorico: false,
  verEliminadas: false,
+ vistaPreviaAbierta: false,
+ vistaPreviaHtml: '',
  filtroPeriodo: 'hoy',
  customFechaDesde: '',
  customFechaHasta: '',
@@ -4955,9 +4967,7 @@ this.scheduleRefreshVentasTotales();
  this.loading = true;
 
  const rango = this.rangoFiltroFechas;
- let qs = this.verEliminadas
-  ? '/comanda?incluirPagadas=true&incluirEliminadas=true'
-  : '/comanda?incluirPagadas=true';
+ let qs = '/comanda?incluirPagadas=true&incluirEliminadas=true';
  if (rango && rango.desde && rango.hasta) {
   qs += '&desde=' + encodeURIComponent(rango.desde) + '&hasta=' + encodeURIComponent(rango.hasta);
  }
@@ -4997,9 +5007,71 @@ this.scheduleRefreshVentasTotales();
   return out;
  },
 
- imprimirComandasVisibles() {
+ datosTicketComandasVisibles() {
   const lista = this.comandasVisiblesTabla();
-  if (!lista.length) {
+  if (!lista.length) return null;
+  const lineas = lista.map((c) => {
+    const anulada = this.comandaEsEliminada(c);
+    const num = c.numeroComandaDia != null && c.numeroComandaDia !== ''
+      ? c.numeroComandaDia
+      : (c.numComanda ?? '');
+    if (anulada) {
+      return {
+        comandaNumber: num,
+        mesa: this.formatearNombreMesa(c.mesa),
+        anulada: true,
+        bruto: 0,
+        subtotal: 0,
+        descuento: 0,
+        total: 0,
+      };
+    }
+    const neto = Number(this.totalNetoComanda(c)) || 0;
+    const desc = Number(this.montoDescuentoMostrar(c)) || 0;
+    const bruto = Number((neto + desc).toFixed(2));
+    return {
+      comandaNumber: num,
+      numeroComandaMozo: c.numeroComandaMozo || null,
+      mesa: this.formatearNombreMesa(c.mesa),
+      anulada: false,
+      bruto,
+      subtotal: bruto,
+      descuento: desc,
+      total: Number(neto.toFixed(2)),
+    };
+  }).sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
+  const cobradas = lineas.filter((l) => !l.anulada);
+  const total = Number(cobradas.reduce((s, l) => s + l.total, 0).toFixed(2));
+  const tiempos = lista
+    .map((c) => new Date(c.createdAt).getTime())
+    .filter((n) => Number.isFinite(n));
+  return {
+    titulo: 'COMANDAS',
+    fechaCierre: new Date(),
+    periodoInicio: tiempos.length ? new Date(Math.min(...tiempos)) : null,
+    periodoFin: tiempos.length ? new Date(Math.max(...tiempos)) : null,
+    comandas: lineas,
+    total,
+  };
+ },
+
+ vistaPreviaComandasVisibles() {
+  const datos = this.datosTicketComandasVisibles();
+  if (!datos) {
+    this.showToast('No hay comandas visibles para la vista previa', 'error');
+    return;
+  }
+  if (typeof window.generarHtmlCierreTicket !== 'function') {
+    this.showToast('Módulo de impresión no cargado', 'error');
+    return;
+  }
+  this.vistaPreviaHtml = window.generarHtmlCierreTicket(datos);
+  this.vistaPreviaAbierta = true;
+ },
+
+ imprimirComandasVisibles() {
+  const datos = this.datosTicketComandasVisibles();
+  if (!datos) {
     this.showToast('No hay comandas visibles para imprimir', 'error');
     return;
   }
@@ -5007,33 +5079,8 @@ this.scheduleRefreshVentasTotales();
     this.showToast('Módulo de impresión no cargado', 'error');
     return;
   }
-  const lineas = lista.map((c) => {
-    const neto = Number(this.totalNetoComanda(c)) || 0;
-    const desc = Number(this.montoDescuentoMostrar(c)) || 0;
-    const bruto = Number((neto + desc).toFixed(2));
-    return {
-      comandaNumber: c.numComanda ?? c.numeroComandaDia ?? '',
-      numeroComandaMozo: c.numeroComandaMozo || null,
-      mesa: this.formatearNombreMesa(c.mesa),
-      bruto,
-      subtotal: bruto,
-      descuento: desc,
-      total: Number(neto.toFixed(2)),
-    };
-  }).sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
-  const total = Number(lineas.reduce((s, l) => s + l.total, 0).toFixed(2));
-  const tiempos = lista
-    .map((c) => new Date(c.createdAt).getTime())
-    .filter((n) => Number.isFinite(n));
   try {
-    window.imprimirTicketDesdeDatos({
-      titulo: 'COMANDAS',
-      fechaCierre: new Date(),
-      periodoInicio: tiempos.length ? new Date(Math.min(...tiempos)) : null,
-      periodoFin: tiempos.length ? new Date(Math.max(...tiempos)) : null,
-      comandas: lineas,
-      total,
-    });
+    window.imprimirTicketDesdeDatos(datos);
   } catch (e) {
     this.showToast(e.message || 'No se pudo imprimir', 'error');
   }
@@ -5960,7 +6007,7 @@ mesaNum: grupo.mesaNum,
 mesaObj: grupo.mesaObj, // Objeto mesa completo para nombreCombinado
 comandas: grupo.comandas,
 numComandas: grupo.comandas.length,
-totalAgrupado: grupo.comandas.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
+totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
 totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
 estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
 mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
@@ -6200,7 +6247,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const mesaNum = c.mesa?.nummesa || c.mesaNumero || c.mesa;
  const matchMesa = s === 'mesa' || !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
  const matchEstado = s === 'estado' || this.matchFilterEstado(c.estado, c);
- const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
+ const matchElim = true;
  const comandaNum = [c.numComanda, c.numComandaHistorico].filter((n) => n != null && n !== '').join(' ');
  const matchIdComanda = s === 'comanda' || !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
  const matchMozo = s === 'mozo' || !this.filterMozo || c.mozo === this.filterMozo;
@@ -6254,7 +6301,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  mesaObj: row.mesaObj || primera?.mesa || null,
  comandas: list,
  numComandas: list.length,
- totalAgrupado: list.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
+ totalAgrupado: list.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
  totalPlatos: list.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
  estadoGrupo: this.calcularEstadoGrupo(list),
  mozosUnicos: [...new Set(list.map(c => c.mozo))],
@@ -6322,7 +6369,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   let s = 0;
   for (const row of (this.filteredRows || [])) {
     if (row.tipo === 'grupo') s += Number(row.totalAgrupado) || 0;
-    else s += this.totalNetoComanda(row.comanda);
+    else if (!this.comandaEsEliminada(row.comanda)) s += this.totalNetoComanda(row.comanda);
   }
   return Number(s.toFixed(2));
  },
@@ -7344,7 +7391,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    ...grupo,
    comandas,
    numComandas: comandas.length,
-   totalAgrupado: comandas.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
+   totalAgrupado: comandas.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
    totalPlatos: comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
    estadoGrupo: this.calcularEstadoGrupo(comandas),
    mozosUnicos: [...new Set(comandas.map(c => c.mozo).filter(Boolean))],

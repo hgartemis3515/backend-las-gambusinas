@@ -79,6 +79,16 @@ export function generarHtmlCierreTicket(datos) {
   </tr></thead><tbody>`;
 
   for (const c of lineas) {
+    if (c.anulada) {
+      html += `<tr>
+        <td style="padding:1px 0;vertical-align:top;"><s>#${escapeHtml(c.comandaNumber ?? '')}</s></td>
+        <td style="padding:1px 2px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
+        <td style="${tdNum}font-weight:700;">ANULADO</td>
+        <td style="${tdNum}">—</td>
+        <td style="${tdNum}font-weight:700;">ANULADO</td>
+      </tr>`;
+      continue;
+    }
     const subt = Number(c.bruto ?? c.subtotal) || 0;
     const desc = Number(c.descuento) || 0;
     const tot = Number(c.total) || 0;
@@ -146,6 +156,7 @@ export async function imprimirCierreTicket(cierreId, opts = {}) {
 }
 
 if (typeof window !== 'undefined') {
+  window.generarHtmlCierreTicket = generarHtmlCierreTicket;
   window.imprimirCierreTicket = imprimirCierreTicket;
   window.imprimirTicketDesdeDatos = imprimirTicketDesdeDatos;
   window.EPSON_TM_M30II_RECEIPT = window.EPSON_TM_M30II_RECEIPT || EPSON_TM_M30II_RECEIPT;

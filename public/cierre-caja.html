@@ -199,7 +199,7 @@ tailwind.config = {
                   <span class="text-txt-secondary text-xs" x-text="formatPeriodo(c.periodoInicio, c.periodoFin)"></span>
                 </td>
                 <td class="px-5 py-3 text-right">
-                  <span class="text-white font-semibold text-xs" x-text="c.resumenFinanciero?.totalComandas || 0"></span>
+                  <span class="text-white font-semibold text-xs" x-text="c.resumenFinanciero?.totalComandas || 0"></span><span x-show="(c.resumenFinanciero?.comandasEliminadas || 0) > 0" class="text-[#ff4757] font-semibold text-xs" x-text="' -' + c.resumenFinanciero.comandasEliminadas"></span>
                 </td>
                 <td class="px-5 py-3 text-right">
                   <span class="text-gold font-bold text-xs" x-text="'S/. ' + (c.resumenFinanciero?.montoTotalVendido || 0).toFixed(2)"></span>
@@ -1197,7 +1197,7 @@ function cierreApp() {
               <div class="flex justify-between"><span class="text-txt-muted text-xs">Período</span><span class="text-white text-xs font-medium">${cierre.periodoInicio ? new Date(cierre.periodoInicio).toLocaleDateString('es-PE') : 'N/A'} - ${cierre.periodoFin ? new Date(cierre.periodoFin).toLocaleDateString('es-PE') : 'N/A'}</span></div>
               <div class="flex justify-between"><span class="text-txt-muted text-xs">Total vendido</span><span class="text-gold text-sm font-bold">S/. ${(resumen.montoTotalVendido || 0).toFixed(2)}</span></div>
               ${(resumen.totalDescuentos || 0) > 0 ? `<div class="flex justify-between"><span class="text-txt-muted text-xs">Descuentos</span><span class="text-st-pagado text-xs font-bold">-S/. ${Number(resumen.totalDescuentos).toFixed(2)}</span></div>` : ''}
-              <div class="flex justify-between"><span class="text-txt-muted text-xs">Comandas procesadas</span><span class="text-white text-xs font-bold">${resumen.totalComandas || 0}</span></div>
+              <div class="flex justify-between"><span class="text-txt-muted text-xs">Comandas procesadas</span><span class="text-white text-xs font-bold">${resumen.totalComandas || 0}${(resumen.comandasEliminadas || 0) > 0 ? `<span style="color:#ff4757"> -${resumen.comandasEliminadas}</span>` : ''}</span></div>
               <div class="flex justify-between"><span class="text-txt-muted text-xs">Ticket promedio</span><span class="text-white text-xs font-medium">S/. ${(resumen.ticketPromedio || 0).toFixed(2)}</span></div>
             </div>
             <div class="flex gap-3">
@@ -1294,7 +1294,7 @@ function cierreApp() {
               </div>
               <div class="metric-card rounded-xl p-4 border border-gold/10">
                 <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Total Comandas</p>
-                <p class="text-xl font-bold text-white">${res.totalComandas || 0}</p>
+                <p class="text-xl font-bold text-white">${res.totalComandas || 0}${(res.comandasEliminadas || 0) > 0 ? `<span class="text-[#ff4757]"> -${res.comandasEliminadas}</span>` : ''}</p>
               </div>
               <div class="metric-card rounded-xl p-4 border border-gold/10">
                 <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Ticket Promedio</p>

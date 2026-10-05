@@ -28,6 +28,7 @@ const {
   cantidadPlatoNum,
   matchComandaVigente,
   matchComandasCierrePendiente,
+  matchComandasEliminadasPeriodo,
   matchIncluidoEnEsteCierre,
   matchComandasPeriodoDeCierre,
   esComandaVendida,
@@ -97,6 +98,10 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     // Paso 5–6: misma base que reportes (platos activos + config IGV)
     await cargarConfigMonedaEstadisticas();
     const resumenFinanciero = calcularResumenFinanciero(comandas, periodoInicio, periodoFin);
+    const eliminadasPeriodo = await Comanda.find(matchComandasEliminadasPeriodo(periodoInicio, periodoFin))
+      .select('_id')
+      .lean();
+    resumenFinanciero.comandasEliminadas = eliminadasPeriodo.length;
     const productos = await analizarProductos(vendidas);
     const guarniciones = analizarGuarniciones(vendidas);
     
@@ -1470,7 +1475,7 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
   };
 }
 
-const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt';
+const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion';
 
 function numMesaComanda(c) {
   const m = c?.mesas;
@@ -1566,26 +1571,55 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       ).catch((err) => logger.warn('No se pudieron guardar comandasIds del ticket de cierre', { error: err.message }));
     }
 
-    const lineas = comandas.map((c) => {
+    const lineaDe = (c, anulada) => {
+      const num = c.numeroComandaDia != null && c.numeroComandaDia !== '' ? c.numeroComandaDia : '';
+      if (anulada) {
+        return {
+          comandaNumber: num,
+          numeroComandaMozo: null,
+          mesa: numMesaComanda(c),
+          mozo: c.mozos?.name || '',
+          anulada: true,
+          bruto: 0,
+          subtotal: 0,
+          descuento: 0,
+          total: 0,
+        };
+      }
       const total = montoFilaReporte(c);
       const desc = montoDescuentoComandaNum(c);
       const brutoRaw = Number(c.totalSinDescuento);
       const bruto = Number.isFinite(brutoRaw) && brutoRaw > 0 ? brutoRaw : total + desc;
       return {
-        comandaNumber: c.numeroComandaDia ?? c.comandaNumber,
+        comandaNumber: num !== '' ? num : (c.comandaNumber ?? ''),
         numeroComandaMozo: c.numeroComandaMozo ?? null,
         mesa: numMesaComanda(c),
         mozo: c.mozos?.name || '',
+        anulada: false,
         bruto: Number(bruto.toFixed(2)),
         subtotal: Number(bruto.toFixed(2)),
         descuento: Number(desc.toFixed(2)),
-        total: Number(total.toFixed(2))
+        total: Number(total.toFixed(2)),
       };
-    });
+    };
 
-    const subtotal = Number(lineas.reduce((s, l) => s + l.bruto, 0).toFixed(2));
-    const descuento = Number(lineas.reduce((s, l) => s + l.descuento, 0).toFixed(2));
-    const total = Number(lineas.reduce((s, l) => s + l.total, 0).toFixed(2));
+    const eliminadas = (cierre.periodoInicio && cierre.periodoFin)
+      ? await Comanda.find(matchComandasEliminadasPeriodo(cierre.periodoInicio, cierre.periodoFin))
+        .select(SELECT_COMANDA_TICKET_CIERRE)
+        .populate('mesas', 'nummesa')
+        .populate('mozos', 'name')
+        .lean()
+      : [];
+    const idsVigentes = new Set(comandas.map((c) => String(c._id)));
+    const lineas = [
+      ...comandas.map((c) => lineaDe(c, false)),
+      ...eliminadas.filter((c) => !idsVigentes.has(String(c._id))).map((c) => lineaDe(c, true)),
+    ].sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
+
+    const cobradas = lineas.filter((l) => !l.anulada);
+    const subtotal = Number(cobradas.reduce((s, l) => s + l.bruto, 0).toFixed(2));
+    const descuento = Number(cobradas.reduce((s, l) => s + l.descuento, 0).toFixed(2));
+    const total = Number(cobradas.reduce((s, l) => s + l.total, 0).toFixed(2));
 
     res.json({
       success: true,

@@ -440,6 +440,16 @@ function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
  * aún sin `incluidoEnCierre`.
  * Usa $and para no pisar el filtro de fechas con el de incluidoEnCierre.
  */
+/** Eliminadas del mismo período de caja. No entran al dinero; sí al ticket y al conteo. */
+function matchComandasEliminadasPeriodo(periodoInicio, periodoFin) {
+    return {
+        $and: [
+            matchFechaPeriodoCaja(periodoInicio, periodoFin),
+            { $or: [{ eliminada: true }, { fechaEliminacion: { $ne: null } }] }
+        ]
+    };
+}
+
 function matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas = false } = {}) {
     const clauses = [
         matchComandaVigente(),
@@ -820,6 +830,7 @@ module.exports = {
     ticketSigueVigenteParaCierre,
     matchComandasEstadisticas,
     matchComandasCierrePendiente,
+    matchComandasEliminadasPeriodo,
     matchIncluidoEnEsteCierre,
     matchComandasPeriodoDeCierre,
     filtroNoIncluidoEnCierreComanda,
