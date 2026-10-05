@@ -244,7 +244,8 @@ router.get('/auditoria/platos-eliminados', async (req, res) => {
   try {
     const { fecha, comandaId, usuario } = req.query;
     
-    const query = { eliminada: true };
+    const { historialCuentaComoEliminacion, unidadesEliminadasHistorial } = require('../utils/bajaCantidadPlato');
+    const query = {};
     
     if (comandaId) {
       query._id = comandaId;
@@ -253,7 +254,15 @@ router.get('/auditoria/platos-eliminados', async (req, res) => {
     if (fecha) {
       const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
       const fechaFin = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
-      query.fechaEliminacion = { $gte: fechaInicio, $lte: fechaFin };
+      query.$or = [
+        { fechaEliminacion: { $gte: fechaInicio, $lte: fechaFin } },
+        { 'historialPlatos.timestamp': { $gte: fechaInicio, $lte: fechaFin } }
+      ];
+    } else if (!comandaId) {
+      query.$or = [
+        { eliminada: true },
+        { 'historialPlatos.estado': { $in: ['eliminado', 'eliminado-completo', 'modificado'] } }
+      ];
     }
     
     const comandas = await comandaModel.find(query)
@@ -267,20 +276,28 @@ router.get('/auditoria/platos-eliminados', async (req, res) => {
     comandas.forEach(comanda => {
       if (comanda.historialPlatos && comanda.historialPlatos.length > 0) {
         comanda.historialPlatos.forEach(plato => {
-          if (plato.estado === 'eliminado' || plato.estado === 'eliminado-completo') {
-            platosEliminados.push({
-              comandaNumber: comanda.comandaNumber,
-              comandaId: comanda._id,
-              mesa: comanda.mesas?.nummesa || 'N/A',
-              platoId: plato.platoId,
-              nombreOriginal: plato.nombreOriginal,
-              cantidadOriginal: plato.cantidadOriginal,
-              estado: plato.estado,
-              motivo: plato.motivo || comanda.motivoEliminacion,
-              timestamp: plato.timestamp,
-              usuario: comanda.eliminadaPor
-            });
+          if (!historialCuentaComoEliminacion(plato)) return;
+          if (fecha) {
+            const ts = plato.timestamp ? new Date(plato.timestamp).getTime() : 0;
+            const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').valueOf();
+            const fechaFin = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").endOf('day').valueOf();
+            if (!ts || ts < fechaInicio || ts > fechaFin) return;
           }
+          platosEliminados.push({
+            comandaNumber: comanda.comandaNumber,
+            comandaId: comanda._id,
+            mesa: comanda.mesas?.nummesa || 'N/A',
+            platoId: plato.platoId,
+            nombreOriginal: plato.nombreOriginal,
+            cantidadOriginal: plato.cantidadOriginal,
+            cantidadFinal: plato.cantidadFinal ?? 0,
+            cantidadEliminada: unidadesEliminadasHistorial(plato),
+            estado: 'eliminado',
+            bajaParcial: Number(plato.cantidadFinal) > 0,
+            motivo: plato.motivo || comanda.motivoEliminacion,
+            timestamp: plato.timestamp,
+            usuario: plato.usuario || comanda.eliminadaPor
+          });
         });
       }
     });

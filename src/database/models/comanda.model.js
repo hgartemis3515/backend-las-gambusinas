@@ -526,6 +526,8 @@ const comandaSchema = new mongoose.Schema({
         nombreOriginal: { type: String },
         cantidadOriginal: { type: Number },
         cantidadFinal: { type: Number },
+        /** Unidades dadas de baja. En una baja parcial (5 → 3) es 2, no la línea entera. */
+        cantidadEliminada: { type: Number, default: null },
         estado: { 
             type: String,
             enum: ['activo', 'eliminado', 'modificado', 'eliminado-completo', 'anulado'],

@@ -415,8 +415,11 @@ tailwind.config = {
             <tbody>
               <template x-for="(plato, idx) in getPlatosEliminados(selectedRegistro)" :key="idx">
                 <tr class="border-b border-[rgba(255,71,87,0.1)] bg-[rgba(255,71,87,0.03)]">
-                  <td class="px-4 py-2.5" x-text="plato.cantidad || 1"></td>
-                  <td class="px-4 py-2.5 text-[#ff4757] line-through">
+                  <td class="px-4 py-2.5">
+                    <span x-text="plato.cantidad || 1"></span>
+                    <span x-show="plato.bajaTotal === false" class="block text-[10px] text-[#a0a0b8] normal-case" x-text="'había ' + (plato.cantidadOriginal || 0) + ', quedan ' + (plato.cantidadFinal || 0)"></span>
+                  </td>
+                  <td class="px-4 py-2.5 text-[#ff4757]" :class="plato.bajaTotal === false ? '' : 'line-through'">
                     <span x-text="plato.nombre || 'Plato desconocido'"></span>
                     <template x-if="plato.tipoServicio === 'para_llevar'">
                       <span class="ml-1 inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
@@ -1067,7 +1070,10 @@ function auditoriaApp() {
       if (!reg?.metadata?.platosEliminados) return [];
       return reg.metadata.platosEliminados.map(p => ({
         nombre: p.nombre || 'Plato desconocido',
-        cantidad: p.cantidad || 1,
+        cantidad: p.cantidad || p.cantidadEliminada || 1,
+        cantidadOriginal: p.cantidadOriginal,
+        cantidadFinal: p.cantidadFinal,
+        bajaTotal: p.bajaTotal !== false && !(Number(p.cantidadFinal) > 0 && Number(p.cantidadOriginal) > Number(p.cantidadFinal)),
         precioUnit: p.precioUnit || p.precio || 0,
         subtotal: p.subtotal || ((p.precioUnit || p.precio || 0) * (p.cantidad || 1)),
         tipoServicio: p.tipoServicio || 'mesa'

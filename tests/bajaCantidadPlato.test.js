@@ -1,4 +1,4 @@
-const { planBajaLinea, mapaCantidadesAEliminar } = require('../src/utils/bajaCantidadPlato');
+const { planBajaLinea, mapaCantidadesAEliminar, historialCuentaComoEliminacion, unidadesEliminadasHistorial } = require('../src/utils/bajaCantidadPlato');
 
 describe('baja por cantidad', () => {
   test('5 menos 3 deja 2', () => {
@@ -23,5 +23,18 @@ describe('baja por cantidad', () => {
     expect(map.get(0)).toBe(3);
     expect(map.has(1)).toBe(false);
     expect(map.has(2)).toBe(false);
+  });
+
+  test('baja parcial cuenta como platos eliminados', () => {
+    const parcial = { estado: 'modificado', cantidadOriginal: 5, cantidadFinal: 3 };
+    expect(historialCuentaComoEliminacion(parcial)).toBe(true);
+    expect(unidadesEliminadasHistorial(parcial)).toBe(2);
+    expect(unidadesEliminadasHistorial({
+      estado: 'eliminado',
+      cantidadOriginal: 5,
+      cantidadFinal: 3,
+      cantidadEliminada: 2,
+    })).toBe(2);
+    expect(unidadesEliminadasHistorial({ estado: 'eliminado', cantidadOriginal: 5, cantidadFinal: 0 })).toBe(5);
   });
 });

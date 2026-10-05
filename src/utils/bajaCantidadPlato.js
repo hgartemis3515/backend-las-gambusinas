@@ -37,4 +37,33 @@ function mapaCantidadesAEliminar(body) {
   return map;
 }
 
-module.exports = { planBajaLinea, mapaCantidadesAEliminar };
+/** Una baja parcial (5 → 3) también es eliminación de platos, no una edición. */
+function historialCuentaComoEliminacion(h) {
+  if (!h) return false;
+  const estado = String(h.estado || '');
+  if (estado === 'eliminado' || estado === 'eliminado-completo') return true;
+  const original = Number(h.cantidadOriginal);
+  const final = Number(h.cantidadFinal);
+  return estado === 'modificado' && Number.isFinite(original) && Number.isFinite(final) && original > final;
+}
+
+/** Unidades dadas de baja. 5 → 3 devuelve 2. Línea entera devuelve la cantidad original. */
+function unidadesEliminadasHistorial(h) {
+  const explicita = Number(h?.cantidadEliminada);
+  if (Number.isFinite(explicita) && explicita > 0) return explicita;
+  const original = Number(h?.cantidadOriginal);
+  const final = h?.cantidadFinal;
+  if (Number.isFinite(original) && final != null && final !== '' && original > Number(final)) {
+    return original - Number(final);
+  }
+  if (Number.isFinite(original) && original > 0) return original;
+  const cantidad = Number(h?.cantidad);
+  return Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 1;
+}
+
+module.exports = {
+  planBajaLinea,
+  mapaCantidadesAEliminar,
+  historialCuentaComoEliminacion,
+  unidadesEliminadasHistorial,
+};

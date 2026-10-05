@@ -52,7 +52,7 @@ const {
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { destinosCambioEstadoPlato, pasosCadenaEntregaAbsoluta } = require('../utils/cadenaEntregaPlato');
 const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
-const { planBajaLinea, mapaCantidadesAEliminar } = require('../utils/bajaCantidadPlato');
+const { planBajaLinea, mapaCantidadesAEliminar, historialCuentaComoEliminacion, unidadesEliminadasHistorial } = require('../utils/bajaCantidadPlato');
 const { ticketAnulacionPayload } = require('../utils/comandasNumbers');
 const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
@@ -2222,7 +2222,7 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
             const platosEliminadosHistorial = [];
             if (comandaCompleta.historialPlatos && comandaCompleta.historialPlatos.length > 0) {
                 for (const h of comandaCompleta.historialPlatos) {
-                    if (h.estado === 'eliminado') {
+                    if (historialCuentaComoEliminacion(h)) {
                         let nombrePlato = h.nombreOriginal;
                         // Si no tiene nombre, buscarlo
                         if (!nombrePlato || nombrePlato === 'Plato desconocido' || nombrePlato === 'Sin nombre') {
@@ -2233,7 +2233,8 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
                         }
                         platosEliminadosHistorial.push({
                             ...h,
-                            nombreOriginal: nombrePlato
+                            nombreOriginal: nombrePlato,
+                            cantidad: unidadesEliminadasHistorial(h)
                         });
                     }
                 }
@@ -3504,22 +3505,30 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             platoItem.generoDesperdicio = estado === 'recoger' || estado === 'entregado';
         });
         comandaActualizar.markModified('cantidades');
-        
-        if (comandaActualizar.historialPlatos && Array.isArray(comandaActualizar.historialPlatos)) {
-            platosEliminadosData.forEach(platoData => {
-                comandaActualizar.historialPlatos.push({
-                    platoId: platoData.platoId,
-                    nombreOriginal: platoData.nombre,
-                    cantidadOriginal: platoData.cantidadOriginal ?? platoData.cantidad,
-                    cantidadFinal: platoData.bajaTotal ? 0 : platoData.cantidadFinal,
-                    estado: platoData.bajaTotal ? 'eliminado' : 'modificado',
-                    timestamp: ahora,
-                    usuario: usuarioId,
-            usuarioNombre: actor.usuarioNombre,
-                    motivo: motivo.trim()
-                });
-            });
+
+        if (!Array.isArray(comandaActualizar.historialPlatos)) {
+            comandaActualizar.historialPlatos = [];
         }
+        platosEliminadosData.forEach(platoData => {
+            const original = platoData.cantidadOriginal ?? platoData.cantidad;
+            const final = platoData.bajaTotal ? 0 : platoData.cantidadFinal;
+            const quitadas = platoData.cantidad;
+            const detalleBaja = platoData.bajaTotal
+                ? `Se eliminaron ${quitadas} ${platoData.nombre}.`
+                : `Se eliminaron ${quitadas} ${platoData.nombre} (había ${original}, quedan ${final}).`;
+            comandaActualizar.historialPlatos.push({
+                platoId: platoData.platoId,
+                nombreOriginal: platoData.nombre,
+                cantidadOriginal: original,
+                cantidadFinal: final,
+                cantidadEliminada: quitadas,
+                estado: 'eliminado',
+                timestamp: ahora,
+                usuario: usuarioId,
+                usuarioNombre: actor.usuarioNombre,
+                motivo: `${detalleBaja} ${motivo.trim()}`
+            });
+        });
         
         const platosActivosRestantes = comandaActualizar.platos.filter(p => p.eliminado !== true);
         const todosPlatosEliminados = platosActivosRestantes.length === 0;
@@ -3677,21 +3686,36 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
                     index: index,
                     nombre: plato?.nombre || 'Plato desconocido',
                     cantidad: bajaTotal ? 0 : (info?.cantidadFinal ?? 0),
+                    cantidadEliminada: info?.cantidad ?? 0,
+                    cantidadOriginal: info?.cantidadOriginal ?? null,
                     estado: platoItem.estado,
-                    eliminado: bajaTotal,
+                    eliminado: true,
+                    bajaParcial: !bajaTotal,
                     eliminadoRazon: motivo.trim(),
                     eliminadoAt: new Date()
                 };
             })
         };
+
+        const detalleEliminacion = platosEliminadosData.map((p) => (
+            p.bajaTotal
+                ? `Se eliminaron ${p.cantidad} ${p.nombre}`
+                : `Se eliminaron ${p.cantidad} ${p.nombre} (había ${p.cantidadOriginal}, quedan ${p.cantidadFinal})`
+        )).join('. ');
+        const motivoAuditoria = `${detalleEliminacion}. Motivo: ${motivo.trim()}`;
         
         // Registrar auditoría (registrarAuditoria ya guarda en auditoriaAcciones, no duplicar)
-        // Asegurar que los datos de platos eliminados estén en el formato correcto para el frontend
+        // La baja parcial (5 → 3) también es eliminación de platos: cantidad = unidades quitadas.
         req.auditoria.platosEliminados = platosEliminadosData;
         req.auditoria.totalEliminado = totalEliminado;
-        req.auditoria.cantidadPlatos = platosEliminadosData.length;
+        req.auditoria.cantidadPlatos = platosEliminadosData.reduce((s, p) => s + (Number(p.cantidad) || 0), 0);
+        req.auditoria.motivo = motivoAuditoria;
+        metadataAdicional.cantidadPlatos = req.auditoria.cantidadPlatos;
+        metadataAdicional.motivo = motivoAuditoria;
+        metadataAdicional.bajaParcial = platosEliminadosData.some((p) => p.bajaTotal === false);
+        req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
         
-        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo.trim());
+        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivoAuditoria);
         
         // 12. Emitir eventos Socket.io
         if (global.emitComandaActualizada) {
