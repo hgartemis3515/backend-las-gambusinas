@@ -11,8 +11,8 @@
  * Regla: por cada comanda se cuenta solo el ticket más reciente (createdAt,
  * luego ticketNumber). Un ticket que cubre varias comandas se cuenta una vez.
  *
- * Pendiente = último ticket en pendiente_aprobacion.
- * Pagadas   = último ticket en aprobado (campo API: ventasAprobadas).
+ * Pendiente = la comanda sigue en la tabla Pendientes (ticket pendiente_aprobacion, o entregada sin cobro).
+ * Pagadas   = cobrada o pago forzado por caja (ticket aprobado, o status pagado/completado). Entregar no paga.
  */
 
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
@@ -130,21 +130,17 @@ function lastTicketByComandaId(tickets) {
   return byComanda;
 }
 
-function filaEsVentaPagada(fila, lastTicket, opts) {
-  const tablaTickets = !!(opts && opts.tablaTickets);
-  if (tablaTickets) {
-    // En la tabla de tickets, pagada = cobro de caja ya cerrado (status pagado).
-    // Entregado, pendiente de aprobar y lo cubierto solo por pago adelantado siguen pendientes.
-    if (fila && fila.soloPagoAdelantado) return false;
-    const st = String(fila && fila.status || '').toLowerCase();
-    return st === 'pagado' || st === 'completado';
-  }
-  const st = String(fila && fila.status || '').toLowerCase();
-  const cobrada = ['pagado', 'entregado', 'completado', 'pendiente_aprobar'].includes(st)
-    || !!(fila && fila.tiempoPagado);
+function filaEsVentaPagada(fila, lastTicket) {
+  // Igual que la tabla de tickets: Pendientes = pendiente_aprobacion.
+  // Pagadas = cobrado o pago forzado por caja (aprobado / status pagado).
+  // Entregar no cobra.
+  if (fila && fila.soloPagoAdelantado) return false;
   const est = lastTicket && lastTicket.estado;
-  if (est === 'pendiente_aprobacion' && !cobrada) return false;
-  return cobrada || est === 'aprobado';
+  if (est === 'pendiente_aprobacion') return false;
+  if (est === 'aprobado') return true;
+  if (fila && fila.pagoForzado === true) return true;
+  const st = String(fila && fila.status || '').toLowerCase();
+  return st === 'pagado' || st === 'completado';
 }
 
 /**

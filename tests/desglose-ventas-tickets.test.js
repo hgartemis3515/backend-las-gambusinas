@@ -135,8 +135,8 @@ describe('acumularDesgloseDesdeFilas', () => {
         { _id: 't912', comandas: ['912'], total: 151, estado: 'aprobado', createdAt: '2026-09-06T16:00:00.000Z' },
       ]
     );
-    expect(out.ventasAprobadas).toBe(216);
-    expect(out.ventasPendientes).toBe(0);
+    expect(out.ventasAprobadas).toBe(151);
+    expect(out.ventasPendientes).toBe(65);
   });
 
   test('suma 7776.50 si las filas vigentes suman eso', () => {
@@ -147,8 +147,10 @@ describe('acumularDesgloseDesdeFilas', () => {
       ],
       [{ _id: 'orphan', comandas: ['dead'], total: 151, estado: 'aprobado', createdAt: '2026-09-06T10:00:00.000Z' }]
     );
-    expect(out.ventasAprobadas).toBe(7776.5);
-    expect(out.porMozo.get('x').ventasAprobadas).toBe(7776.5);
+    expect(out.ventasAprobadas).toBe(7711.5);
+    expect(out.ventasPendientes).toBe(65);
+    expect(out.porMozo.get('x').ventasAprobadas).toBe(7711.5);
+    expect(out.porMozo.get('x').ventasPendientes).toBe(65);
   });
 
   test('tabla de tickets: entregado y solo pago adelantado quedan pendientes', () => {
