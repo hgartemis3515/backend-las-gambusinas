@@ -212,7 +212,7 @@ router.get('/aprobacion/desglose-ventas', async (req, res) => {
     const { rangoLima } = require('../utils/estadisticasComandas');
     const { desgloseVentasPorAprobacion } = require('../utils/desgloseVentasTickets');
     const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
-    const d = await desgloseVentasPorAprobacion(inicio, fin);
+    const d = await desgloseVentasPorAprobacion(inicio, fin, { tablaTickets: true });
     const ventasPendientes = Number(d.ventasPendientes) || 0;
     const ventasAprobadas = Number(d.ventasAprobadas) || 0;
     res.json({

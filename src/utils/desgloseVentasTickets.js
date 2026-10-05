@@ -130,7 +130,15 @@ function lastTicketByComandaId(tickets) {
   return byComanda;
 }
 
-function filaEsVentaPagada(fila, lastTicket) {
+function filaEsVentaPagada(fila, lastTicket, opts) {
+  const tablaTickets = !!(opts && opts.tablaTickets);
+  if (tablaTickets) {
+    // En la tabla de tickets, pagada = cobro de caja ya cerrado (status pagado).
+    // Entregado, pendiente de aprobar y lo cubierto solo por pago adelantado siguen pendientes.
+    if (fila && fila.soloPagoAdelantado) return false;
+    const st = String(fila && fila.status || '').toLowerCase();
+    return st === 'pagado' || st === 'completado';
+  }
   const st = String(fila && fila.status || '').toLowerCase();
   const cobrada = ['pagado', 'entregado', 'completado', 'pendiente_aprobar'].includes(st)
     || !!(fila && fila.tiempoPagado);
@@ -143,7 +151,7 @@ function filaEsVentaPagada(fila, lastTicket) {
  * Totales = suma de comandas vigentes (misma cifra que reportes / cierre).
  * No usa ticket.total: un PPA de comanda borrada o un ticket editado inflaba pagadas.
  */
-function acumularDesgloseDesdeFilas(filas, tickets) {
+function acumularDesgloseDesdeFilas(filas, tickets, opts) {
   const lastByCmd = lastTicketByComandaId(tickets);
   const out = { ventasPendientes: 0, ventasAprobadas: 0, porMozo: new Map() };
   for (const f of filas || []) {
@@ -151,7 +159,7 @@ function acumularDesgloseDesdeFilas(filas, tickets) {
     const amount = Number(f.total) || 0;
     if (!(amount > 0) && amount !== 0) continue;
     const last = lastByCmd.get(String(f._id));
-    const pagada = filaEsVentaPagada(f, last);
+    const pagada = filaEsVentaPagada(f, last, opts);
     if (pagada) out.ventasAprobadas += amount;
     else out.ventasPendientes += amount;
     const mozoId = f.mozo != null ? String(f.mozo) : '';
@@ -176,7 +184,7 @@ function acumularDesgloseDesdeFilas(filas, tickets) {
 
 const CAMPOS_DESGLOSE = 'estado total mozo comandas createdAt ticketNumber';
 
-async function desgloseVentasPorAprobacion(inicio, fin) {
+async function desgloseVentasPorAprobacion(inicio, fin, opts) {
   const { listarFilasEstadisticas } = require('./estadisticasComandas');
   const match = matchRango(inicio, fin);
   const [filas, ticketsComanda, ticketsPpa] = await Promise.all([
@@ -184,7 +192,7 @@ async function desgloseVentasPorAprobacion(inicio, fin) {
     ticketAprobacionModel.find(match).select(CAMPOS_DESGLOSE).lean(),
     ticketPagoAdelantadoModel.find(match).select(CAMPOS_DESGLOSE).lean()
   ]);
-  return acumularDesgloseDesdeFilas(filas, [...(ticketsComanda || []), ...(ticketsPpa || [])]);
+  return acumularDesgloseDesdeFilas(filas, [...(ticketsComanda || []), ...(ticketsPpa || [])], opts);
 }
 
 module.exports = {

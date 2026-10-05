@@ -150,4 +150,25 @@ describe('acumularDesgloseDesdeFilas', () => {
     expect(out.ventasAprobadas).toBe(7776.5);
     expect(out.porMozo.get('x').ventasAprobadas).toBe(7776.5);
   });
+
+  test('tabla de tickets: entregado y solo pago adelantado quedan pendientes', () => {
+    const opts = { tablaTickets: true };
+    const out = acumularDesgloseDesdeFilas(
+      [
+        { _id: 'caja', total: 179, status: 'pagado', mozo: 'a' },
+        { _id: 'adelanto', total: 70, status: 'pagado', soloPagoAdelantado: true, mozo: 'a' },
+        { _id: 'entregada', total: 171, status: 'entregado', mozo: 'b' },
+        { _id: 'porAprobar', total: 326, status: 'pendiente_aprobar', tiempoPagado: '2026-10-05T18:00:00.000Z', mozo: 'b' },
+      ],
+      [
+        { _id: 't1', comandas: ['caja'], estado: 'aprobado', createdAt: '2026-10-05T18:00:00.000Z' },
+        { _id: 't2', comandas: ['adelanto'], estado: 'aprobado', createdAt: '2026-10-05T18:00:00.000Z' },
+        { _id: 't3', comandas: ['entregada'], estado: 'pendiente_aprobacion', createdAt: '2026-10-05T18:00:00.000Z' },
+        { _id: 't4', comandas: ['porAprobar'], estado: 'pendiente_aprobacion', createdAt: '2026-10-05T18:00:00.000Z' },
+      ],
+      opts
+    );
+    expect(out.ventasAprobadas).toBe(179);
+    expect(out.ventasPendientes).toBe(567);
+  });
 });

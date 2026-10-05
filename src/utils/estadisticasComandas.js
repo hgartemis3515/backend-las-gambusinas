@@ -570,6 +570,15 @@ async function adjuntarMetodosPagoDesdeBouchers(filas) {
     }
 }
 
+function comandaCubiertaSoloPorAdelanto(c) {
+    const activas = (c?.platos || []).filter((p) => p && p.eliminado !== true && p.anulado !== true);
+    if (!activas.length) return false;
+    return activas.every((p) => {
+        if (p.pagoAdelantado?.cobrado === true) return true;
+        return String(p.pagoAdelantado?.estadoTicket || '').toLowerCase() === 'aprobado';
+    });
+}
+
 function mapearFilaReporte(c, config) {
     const cfg = config || getConfigMonedaEstadisticas();
     const factor = factorNetoComanda(c, cfg);
@@ -629,6 +638,7 @@ function mapearFilaReporte(c, config) {
         _fuente: 'comanda',
         comandaNumber: c.comandaNumber,
         status: c.status,
+        soloPagoAdelantado: comandaCubiertaSoloPorAdelanto(c),
         descuento: Number(c.descuento) || 0,
         montoDescuento: montoDescuentoComandaNum(c),
         motivoDescuento: c.motivoDescuento || null,
