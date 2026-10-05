@@ -25,7 +25,7 @@ const {
 } = require('../src/utils/estadisticasComandas');
 const {
   desgloseVentasPorAprobacion,
-  filaEsVentaPagada,
+  partirTotalFila,
 } = require('../src/utils/desgloseVentasTickets');
 
 const TZ = 'America/Lima';
@@ -167,17 +167,19 @@ async function main() {
   let sumaFilaPag = 0;
   for (const f of filas) {
     const last = lastBy.get(String(f._id));
-    const pagada = filaEsVentaPagada(f, last);
+    const partes = partirTotalFila(f, tickets);
     const amount = round2(f.total);
-    if (pagada) sumaFilaPag += amount;
-    else sumaFilaPend += amount;
+    sumaFilaPag += partes.pagada;
+    sumaFilaPend += partes.pendiente;
     const html = cmdById.get(String(f._id));
     const netoHtml = html ? totalNetoComanda(html) : null;
     const st = String(f.status || '');
     const ticketEst = last ? last.estado : '(sin ticket en el día)';
     const esperaPend = st === 'pendiente_aprobar' || st === 'entregado' || f.soloPagoAdelantado;
     const esperaPag = st === 'pagado' || st === 'completado';
-    const clase = pagada ? 'pagada' : 'pendiente';
+    const clase = partes.pagada > 0.009 && partes.pendiente > 0.009
+      ? 'parcial'
+      : (partes.pagada > 0.009 ? 'pagada' : 'pendiente');
     const claseHtml = st === 'pendiente_aprobar' ? 'pendiente' : (st === 'pagado' || st === 'completado' ? 'pagada' : st);
     if (clase !== claseHtml || (netoHtml != null && Math.abs(netoHtml - amount) > 0.009) || !last) {
       clasifDistinta.push({

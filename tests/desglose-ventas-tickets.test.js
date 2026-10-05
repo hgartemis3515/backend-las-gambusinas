@@ -153,8 +153,7 @@ describe('acumularDesgloseDesdeFilas', () => {
     expect(out.porMozo.get('x').ventasPendientes).toBe(65);
   });
 
-  test('tabla de tickets: entregado y solo pago adelantado quedan pendientes', () => {
-    const opts = { tablaTickets: true };
+  test('adelanto aprobado va a pagadas; entregado y por aprobar siguen pendientes', () => {
     const out = acumularDesgloseDesdeFilas(
       [
         { _id: 'caja', total: 179, status: 'pagado', mozo: 'a' },
@@ -163,14 +162,125 @@ describe('acumularDesgloseDesdeFilas', () => {
         { _id: 'porAprobar', total: 326, status: 'pendiente_aprobar', tiempoPagado: '2026-10-05T18:00:00.000Z', mozo: 'b' },
       ],
       [
-        { _id: 't1', comandas: ['caja'], estado: 'aprobado', createdAt: '2026-10-05T18:00:00.000Z' },
-        { _id: 't2', comandas: ['adelanto'], estado: 'aprobado', createdAt: '2026-10-05T18:00:00.000Z' },
-        { _id: 't3', comandas: ['entregada'], estado: 'pendiente_aprobacion', createdAt: '2026-10-05T18:00:00.000Z' },
-        { _id: 't4', comandas: ['porAprobar'], estado: 'pendiente_aprobacion', createdAt: '2026-10-05T18:00:00.000Z' },
-      ],
-      opts
+        { _id: 't1', comandas: ['caja'], estado: 'aprobado', total: 179, createdAt: '2026-10-05T18:00:00.000Z' },
+        { _id: 't2', comandas: ['adelanto'], estado: 'aprobado', total: 70, createdAt: '2026-10-05T18:00:00.000Z' },
+        { _id: 't3', comandas: ['entregada'], estado: 'pendiente_aprobacion', total: 171, createdAt: '2026-10-05T18:00:00.000Z' },
+        { _id: 't4', comandas: ['porAprobar'], estado: 'pendiente_aprobacion', total: 326, createdAt: '2026-10-05T18:00:00.000Z' },
+      ]
     );
-    expect(out.ventasAprobadas).toBe(179);
-    expect(out.ventasPendientes).toBe(567);
+    expect(out.ventasAprobadas).toBe(249);
+    expect(out.ventasPendientes).toBe(497);
+    expect(out.porMozo.get('a')).toEqual({ ventasPendientes: 0, ventasAprobadas: 249 });
+    expect(out.porMozo.get('b')).toEqual({ ventasPendientes: 497, ventasAprobadas: 0 });
+  });
+
+  test('adelanto parcial reparte el total de la fila', () => {
+    const out = acumularDesgloseDesdeFilas(
+      [{
+        _id: 'p',
+        total: 100,
+        status: 'en_espera',
+        mozo: 'a',
+        platos: [
+          { lineaId: 'l1', subtotal: 30 },
+          { lineaId: 'l2', subtotal: 70 },
+        ],
+      }],
+      [{
+        _id: 't',
+        comandas: ['p'],
+        estado: 'aprobado',
+        tipo: 'pago_adelantado',
+        total: 30,
+        platos: [{ platoLineaId: 'l1', comandaId: 'p', subtotal: 30 }],
+      }]
+    );
+    expect(out.ventasAprobadas).toBe(30);
+    expect(out.ventasPendientes).toBe(70);
+  });
+
+  test('abono aprobado cuenta su monto y el resto queda pendiente', () => {
+    const out = acumularDesgloseDesdeFilas(
+      [{ _id: 'ab', total: 80, status: 'en_espera', mozo: 'a' }],
+      [{
+        _id: 't',
+        comandas: ['ab'],
+        estado: 'aprobado',
+        tipo: 'pago_parcial',
+        cobroPorCantidad: true,
+        total: 20,
+      }]
+    );
+    expect(out.ventasAprobadas).toBe(20);
+    expect(out.ventasPendientes).toBe(60);
+  });
+
+  test('reserva y para llevar aprobados van a pagadas aunque no estén pagado', () => {
+    const out = acumularDesgloseDesdeFilas(
+      [
+        { _id: 'res', total: 90, status: 'en_espera', programadaPorReserva: true, mozo: 'a' },
+        { _id: 'llevar', total: 33, status: 'pedido', mozo: 'a' },
+        { _id: 'llevarPend', total: 12, status: 'pedido', mozo: 'b' },
+        { _id: 'extra', total: 40, status: 'en_espera', programadaPorReserva: true, mozo: 'b' },
+      ],
+      [
+        { _id: 'tr', comandas: ['res'], estado: 'aprobado', total: 90, origen: 'reserva' },
+        { _id: 'tl', comandas: ['llevar'], estado: 'aprobado', total: 33, tipo: 'pago_adelantado' },
+        { _id: 'tp', comandas: ['llevarPend'], estado: 'pendiente_aprobacion', total: 12, tipo: 'pago_adelantado' },
+      ]
+    );
+    expect(out.ventasAprobadas).toBe(123);
+    expect(out.ventasPendientes).toBe(52);
+  });
+
+  test('ticket rechazado o inactivo no suma; la comanda cerrada sin ticket activo queda pagada', () => {
+    const out = acumularDesgloseDesdeFilas(
+      [
+        { _id: 'rej', total: 40, status: 'en_espera', mozo: 'a' },
+        { _id: 'vieja', total: 104, status: 'pagado', mozo: 'a' },
+      ],
+      [
+        { _id: 'tr', comandas: ['rej'], estado: 'rechazado', total: 40 },
+        { _id: 'ti', comandas: ['vieja'], estado: 'pendiente_aprobacion', total: 104, isActive: false },
+      ]
+    );
+    expect(out.ventasAprobadas).toBe(104);
+    expect(out.ventasPendientes).toBe(40);
+  });
+
+  test('adelanto y comanda completa aprobados no duplican el total', () => {
+    const out = acumularDesgloseDesdeFilas(
+      [{
+        _id: 'c',
+        total: 80,
+        status: 'en_espera',
+        mozo: 'a',
+        platos: [
+          { lineaId: 'l1', subtotal: 30 },
+          { lineaId: 'l2', subtotal: 50 },
+        ],
+      }],
+      [
+        {
+          _id: 'ppa',
+          comandas: ['c'],
+          estado: 'aprobado',
+          total: 30,
+          platos: [{ platoLineaId: 'l1', subtotal: 30 }],
+        },
+        {
+          _id: 'full',
+          comandas: ['c'],
+          estado: 'aprobado',
+          total: 80,
+          platos: [
+            { platoLineaId: 'l1', subtotal: 30 },
+            { platoLineaId: 'l2', subtotal: 50 },
+          ],
+        },
+      ]
+    );
+    expect(out.ventasAprobadas).toBe(80);
+    expect(out.ventasPendientes).toBe(0);
   });
 });

@@ -591,6 +591,7 @@ function mapearFilaReporte(c, config) {
             const precioBase = precioPlatoNum(p);
             const precio = Math.round(precioBase * factor * 100) / 100;
             return {
+                lineaId: p._id || null,
                 nombre: p.nombre || p.platoNombre || p.plato?.nombre || 'Plato',
                 cantidad,
                 precio,
