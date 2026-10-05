@@ -3456,6 +3456,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       // Cocina: actualizar bandeja y KDS
       if (cocinaNamespace && cocinaNamespace.sockets) {
         cocinaNamespace.to(`fecha-${fecha}`).emit('comanda-aprobada', eventData);
+        cocinaNamespace.emit('comanda-aprobada', eventData);
       }
 
       // Mozos: room de mesa + namespace (ComandaDetalle puede no estar en el room)

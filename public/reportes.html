@@ -1315,6 +1315,19 @@ function reportesApp() {
           console.log('📊 Evento reportes:plato-listo recibido:', data);
           this.scheduleDataRefresh('plato-listo');
         });
+
+        this.socket.on('ticket-aprobacion-nuevo', () => {
+          this.scheduleDataRefresh('ticket-nuevo');
+        });
+        this.socket.on('comanda-aprobada', () => {
+          this.scheduleDataRefresh('comanda-aprobada');
+        });
+        this.socket.on('ticket-ppa-nuevo', () => {
+          this.scheduleDataRefresh('ticket-ppa-nuevo');
+        });
+        this.socket.on('ticket-ppa-aprobado', () => {
+          this.scheduleDataRefresh('ticket-ppa-aprobado');
+        });
         
         // Evento: Estado del socket
         this.socket.on('socket-status', (data) => {
