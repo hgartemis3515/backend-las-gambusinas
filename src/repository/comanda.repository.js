@@ -620,6 +620,8 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         descuentoMontoFijo: 1,
         montoDescuento: 1,
         motivoDescuento: 1,
+        descuentoAplicadoPor: 1,
+        descuentoAplicadoAt: 1,
         prioridadOrden: 1,
         createdAt: 1,
         updatedAt: 1,
@@ -694,6 +696,11 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     });
     dbQuery = dbQuery.populate({
       path: "eliminadaPor",
+      select: "name",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "descuentoAplicadoPor",
       select: "name",
       options: { lean: true }
     });

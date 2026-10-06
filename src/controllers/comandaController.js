@@ -604,6 +604,7 @@ router.get('/comanda/:id', async (req, res) => {
             .populate('cliente', 'nombre dni telefono tipo')
             .populate('platos.plato', 'nombre precio categoria codigo nombreCocina')
             .populate('eliminadaPor', 'name')
+            .populate('descuentoAplicadoPor', 'name')
             .populate('platos.eliminadoPor', 'name')
             .populate('historialPlatos.usuario', 'name')
             .populate({
