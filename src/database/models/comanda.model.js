@@ -539,6 +539,7 @@ const comandaSchema = new mongoose.Schema({
             ref: 'mozos',
             default: null
         },
+        usuarioNombre: { type: String, default: null },
         motivo: { type: String, default: null },
         // Campos específicos para anulación desde cocina
         anuladoPor: { 

@@ -77,7 +77,7 @@ export function resolveLogoUrl(logo, serverOrigin) {
  * Optimizado para Epson TM-m30II Receipt (Windows): @page con alto explícito en mm
  * (nunca "auto"), ancho 80mm para ocupar el papel térmico (antes 226px se veía más pequeño).
  */
-export function envolverHtmlBoucherTicket(html, { fontSizeBase, lineHeightBase, pageHeightPx }) {
+export function envolverHtmlBoucherTicket(html, { fontSizeBase, lineHeightBase, pageHeightPx, autoPrint = true, zoom = 1 }) {
   const h = Math.ceil(pageHeightPx || ALTURA_BASE_PX);
   const heightMm = Math.max(
     EPSON_TM_M30II_RECEIPT.minPageHeightMm,
@@ -85,13 +85,16 @@ export function envolverHtmlBoucherTicket(html, { fontSizeBase, lineHeightBase, 
   );
   const pageSize = `${BOUCHER_PAPER_MM}mm ${heightMm}mm`;
   const bodyHeight = `${h}px`;
+  const vista = autoPrint === false;
+  const overflow = vista ? 'auto' : 'hidden';
+  const zoomCss = vista && Number(zoom) > 1 ? `zoom:${Number(zoom)};` : '';
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>COMANDA</title>
 <style>
 @page{size:${pageSize};margin:0;}
 *{box-sizing:border-box;}
-html{width:80mm;max-width:80mm;margin:0 auto;padding:0;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{margin:0;padding:10px 12px;width:100%;box-sizing:border-box;min-height:${bodyHeight};max-width:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;font-size:${fontSizeBase}px;line-height:${lineHeightBase}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+html{width:${vista ? 'auto' : '80mm'};max-width:${vista ? 'none' : '80mm'};margin:0 auto;padding:0;overflow:${overflow};-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{margin:0;padding:10px 12px;width:${vista ? '80mm' : '100%'};box-sizing:border-box;min-height:${vista ? '0' : bodyHeight};max-width:100%;overflow:${overflow};${zoomCss}font-family:Arial,Helvetica,sans-serif;font-size:${fontSizeBase}px;line-height:${lineHeightBase}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 .ticket{width:100%;margin:0 auto;}
 table{width:100%;}
 #ticket-root{width:100%;}
@@ -116,7 +119,7 @@ table{width:100%;}
   .no-print{display:none !important;}
   .prod-item{page-break-inside:avoid;break-inside:avoid;}
 }
-</style></head><body><div id="ticket-root" class="ticket-block"><div class="ticket">${html}</div></div>${THERMAL_PRINT_SCRIPT}</body></html>`;
+</style></head><body><div id="ticket-root" class="ticket-block"><div class="ticket">${html}</div></div>${vista ? '' : THERMAL_PRINT_SCRIPT}</body></html>`;
 }
 
 // ─── Labels ───────────────────────────────────────────────────────────

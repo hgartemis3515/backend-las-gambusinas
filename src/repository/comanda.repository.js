@@ -629,6 +629,8 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         eliminada: 1,
         fechaEliminacion: 1,
         motivoEliminacion: 1,
+        eliminadaPor: 1,
+        historialPlatos: 1,
         // Campos desnormalizados
         mozoNombre: 1,
         mesaNumero: 1,
@@ -688,6 +690,21 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     dbQuery = dbQuery.populate({
       path: "platos.plato",
       select: "nombre precio categoria codigo nombreCocina",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "eliminadaPor",
+      select: "name",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "platos.eliminadoPor",
+      select: "name",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "historialPlatos.usuario",
+      select: "name",
       options: { lean: true }
     });
     

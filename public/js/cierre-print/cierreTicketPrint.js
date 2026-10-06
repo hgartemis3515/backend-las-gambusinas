@@ -47,10 +47,15 @@ function money(n) {
   return Number(n || 0).toFixed(2);
 }
 
-export function generarHtmlCierreTicket(datos) {
-  const fontSize = 11;
-  const fontSizeSm = 10;
-  const fontTitle = 14;
+function px(n) {
+  return Math.round(n * 1.2);
+}
+
+export function generarHtmlCierreTicket(datos, opts = {}) {
+  const vistaPrevia = opts.vistaPrevia === true;
+  const fontSize = px(11);
+  const fontSizeSm = px(10);
+  const fontTitle = px(14);
   const lineas = Array.isArray(datos?.comandas) ? datos.comandas : [];
   const simbolo = 'S/.';
 
@@ -69,7 +74,7 @@ export function generarHtmlCierreTicket(datos) {
 
   const thNum = 'text-align:right;padding:0 0 3px 2px;font-weight:700;';
   const tdNum = 'padding:1px 0 1px 2px;text-align:right;vertical-align:top;white-space:nowrap;';
-  html += `<table style="width:100%;border-collapse:collapse;font-size:9px;table-layout:fixed;">`;
+  html += `<table style="width:100%;border-collapse:collapse;font-size:${px(9)}px;table-layout:fixed;">`;
   html += `<thead><tr>
     <th style="text-align:left;padding:0 0 3px 0;width:16%;">Cmd</th>
     <th style="text-align:left;padding:0 0 3px 2px;width:16%;">Mesa</th>
@@ -81,7 +86,7 @@ export function generarHtmlCierreTicket(datos) {
   for (const c of lineas) {
     if (c.anulada) {
       html += `<tr>
-        <td style="padding:1px 0;vertical-align:top;"><s>#${escapeHtml(c.comandaNumber ?? '')}</s></td>
+        <td style="padding:1px 0;vertical-align:top;"><s>${escapeHtml(c.comandaNumber ?? '')}</s></td>
         <td style="padding:1px 2px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
         <td style="${tdNum}font-weight:700;">ANULADO</td>
         <td style="${tdNum}">—</td>
@@ -93,7 +98,7 @@ export function generarHtmlCierreTicket(datos) {
     const desc = Number(c.descuento) || 0;
     const tot = Number(c.total) || 0;
     html += `<tr>
-      <td style="padding:1px 0;vertical-align:top;">#${escapeHtml(c.comandaNumber ?? '')}${c.numeroComandaMozo ? ' · ' + escapeHtml(c.numeroComandaMozo) : ''}</td>
+      <td style="padding:1px 0;vertical-align:top;">${escapeHtml(c.comandaNumber ?? '')}</td>
       <td style="padding:1px 2px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
       <td style="${tdNum}">${money(subt)}</td>
       <td style="${tdNum}">${desc > 0 ? '-' + money(desc) : '—'}</td>
@@ -106,15 +111,17 @@ export function generarHtmlCierreTicket(datos) {
   const total = Number(datos.total) || 0;
 
   html += `<div style="text-align:right;font-size:${fontSize}px;">`;
-  html += `<div style="font-size:13px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">TOTAL: ${simbolo}${money(total)}</div>`;
+  html += `<div style="font-size:${px(13)}px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">TOTAL: ${simbolo}${money(total)}</div>`;
   html += `</div>`;
-  html += `<div style="text-align:center;font-size:9px;margin-top:8px;">${lineas.length} comanda${lineas.length === 1 ? '' : 's'}</div>`;
+  html += `<div style="text-align:center;font-size:${px(9)}px;margin-top:8px;">${lineas.length} comanda${lineas.length === 1 ? '' : 's'}</div>`;
 
-  const pageHeightPx = 280 + lineas.length * 18 + 80;
+  const pageHeightPx = px(280 + lineas.length * 18 + 80);
   return envolverHtmlBoucherTicket(html, {
     fontSizeBase: fontSize,
-    lineHeightBase: 14,
+    lineHeightBase: px(14),
     pageHeightPx,
+    autoPrint: !vistaPrevia,
+    zoom: vistaPrevia ? 1.5 : 1,
   });
 }
 

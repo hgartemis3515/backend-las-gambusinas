@@ -603,6 +603,9 @@ router.get('/comanda/:id', async (req, res) => {
             .populate('mesas', 'nummesa estado area nombreCombinado')
             .populate('cliente', 'nombre dni telefono tipo')
             .populate('platos.plato', 'nombre precio categoria codigo nombreCocina')
+            .populate('eliminadaPor', 'name')
+            .populate('platos.eliminadoPor', 'name')
+            .populate('historialPlatos.usuario', 'name')
             .populate({
                 path: 'origenReserva',
                 select: 'fechaReserva fechaCocina creadoEn clienteNombre clienteTelefono numPersonas tiempoEspera estado metodoPago notas pagoAdelantado cocineroEncargado',
