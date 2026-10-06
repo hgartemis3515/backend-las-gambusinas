@@ -1328,6 +1328,18 @@ function reportesApp() {
         this.socket.on('ticket-ppa-aprobado', () => {
           this.scheduleDataRefresh('ticket-ppa-aprobado');
         });
+        this.socket.on('ticket-ppa-actualizado', () => {
+          this.scheduleDataRefresh('ticket-ppa-actualizado');
+        });
+        this.socket.on('ticket-reportado', () => {
+          this.scheduleDataRefresh('ticket-reportado');
+        });
+        this.socket.on('ticket-actualizado', () => {
+          this.scheduleDataRefresh('ticket-actualizado');
+        });
+        this.socket.on('ticket-eliminado', () => {
+          this.scheduleDataRefresh('ticket-eliminado');
+        });
         
         // Evento: Estado del socket
         this.socket.on('socket-status', (data) => {

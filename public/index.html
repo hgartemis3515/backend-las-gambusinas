@@ -1043,9 +1043,9 @@ function dashApp() {
             text: 'Comanda #' + (data.comandaNumber || comanda.comandaNumber || '—') + ' eliminada (solo auditoría)',
             dotClass: 'bg-st-pagado'
           });
-          this.refreshVentasChart();
+          this.scheduleRefreshVentas();
         });
-        this.socket.on('reportes:comanda-eliminada', () => this.refreshVentasChart());
+        this.socket.on('reportes:comanda-eliminada', () => this.scheduleRefreshVentas());
 
         // Reportes: nueva comanda
         this.socket.on('reportes:comanda-nueva', (data) => {
@@ -1055,6 +1055,7 @@ function dashApp() {
             const currentTickets = parseInt(this.kpiTicketsHoy) || 0;
             this.kpiTicketsHoy = String(currentTickets + 1);
           }
+          this.scheduleRefreshVentas();
         });
 
         // Plato listo
@@ -1067,8 +1068,18 @@ function dashApp() {
           const monto = data.monto || data.total || 0;
           const mesaNum = data.numMesa || data.mesa?.numMesa || '—';
           this.addActivity({ text: 'Pago procesado — S/. ' + monto.toLocaleString('es-PE') + ' (Mesa ' + mesaNum + ')', dotClass: 'bg-st-pagado' });
-          this.refreshVentasChart();
+          this.scheduleRefreshVentas();
         });
+
+        const refrescarVentasTicket = () => this.scheduleRefreshVentas();
+        this.socket.on('ticket-aprobacion-nuevo', refrescarVentasTicket);
+        this.socket.on('comanda-aprobada', refrescarVentasTicket);
+        this.socket.on('ticket-ppa-nuevo', refrescarVentasTicket);
+        this.socket.on('ticket-ppa-aprobado', refrescarVentasTicket);
+        this.socket.on('ticket-ppa-actualizado', refrescarVentasTicket);
+        this.socket.on('ticket-reportado', refrescarVentasTicket);
+        this.socket.on('ticket-actualizado', refrescarVentasTicket);
+        this.socket.on('ticket-eliminado', refrescarVentasTicket);
 
         this.socket.on('plato-menu-actualizado', () => {});
         this.socket.on('socket-status', (data) => { 
@@ -1153,6 +1164,14 @@ function dashApp() {
       this.kpiVentasAprobadas = this.fmtSolesKpi(resumen && resumen.ventasAprobadas);
       const desc = Number(resumen && resumen.descuentos) || 0;
       this.kpiDescuentos = (desc > 0 ? '-' : '') + this.fmtSolesKpi(desc);
+    },
+
+    scheduleRefreshVentas() {
+      if (this._ventasRefreshTimer) clearTimeout(this._ventasRefreshTimer);
+      this._ventasRefreshTimer = setTimeout(() => {
+        this._ventasRefreshTimer = null;
+        this.refreshVentasChart();
+      }, 400);
     },
 
     async refreshVentasChart() {

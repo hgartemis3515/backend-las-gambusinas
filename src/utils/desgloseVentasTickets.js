@@ -276,7 +276,7 @@ async function desgloseVentasPorAprobacion(inicio, fin) {
     ticketAprobacionModel.find(match).select(CAMPOS_DESGLOSE).lean(),
     ticketPagoAdelantadoModel.find(match).select(CAMPOS_DESGLOSE).lean()
   ]);
-  return acumularDesgloseDesdeFilas(filas, [...(ticketsComanda || []), ...(ticketsPpa || [])], opts);
+  return acumularDesgloseDesdeFilas(filas, [...(ticketsComanda || []), ...(ticketsPpa || [])]);
 }
 
 module.exports = {
