@@ -88,7 +88,7 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
       html += `<tr>
         <td style="padding:1px 0;vertical-align:top;"><s>${escapeHtml(c.comandaNumber ?? '')}</s></td>
         <td style="padding:1px 2px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
-        <td style="${tdNum}font-weight:700;">ANULADO</td>
+        <td style="${tdNum}font-weight:700;white-space:normal;">${escapeHtml(c.eliminadoPorNombre || '—')}</td>
         <td style="${tdNum}">—</td>
         <td style="${tdNum}font-weight:700;">ANULADO</td>
       </tr>`;

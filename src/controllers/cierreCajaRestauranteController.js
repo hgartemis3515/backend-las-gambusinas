@@ -1475,7 +1475,7 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
   };
 }
 
-const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion';
+const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion eliminadaPor';
 
 function numMesaComanda(c) {
   const m = c?.mesas;
@@ -1579,6 +1579,7 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
           numeroComandaMozo: null,
           mesa: numMesaComanda(c),
           mozo: c.mozos?.name || '',
+          eliminadoPorNombre: c.eliminadaPor?.name || '',
           anulada: true,
           bruto: 0,
           subtotal: 0,
@@ -1608,6 +1609,7 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
         .select(SELECT_COMANDA_TICKET_CIERRE)
         .populate('mesas', 'nummesa')
         .populate('mozos', 'name')
+        .populate('eliminadaPor', 'name')
         .lean()
       : [];
     const idsVigentes = new Set(comandas.map((c) => String(c._id)));
