@@ -185,6 +185,38 @@ router.get('/reportes/desglose-ventas', adminAuth, async (req, res) => {
 // ============================================================
 
 /**
+ * GET /api/reportes/contador-platos
+ * Pollos, carnes, platos sueltos y guarniciones por nombre del período.
+ */
+router.get('/reportes/contador-platos', adminAuth, async (req, res) => {
+    try {
+        const { fechaInicio, fechaFin } = req.query;
+        if (!fechaInicio || !fechaFin) {
+            return res.status(400).json({
+                success: false,
+                error: 'fechaInicio y fechaFin son requeridos'
+            });
+        }
+        if (!fechaQueryValida(fechaInicio) || !fechaQueryValida(fechaFin)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD o ISO'
+            });
+        }
+        const contador = await reportesRepository.getContadorPlatos(fechaInicio, fechaFin);
+        res.json({ success: true, ...contador });
+    } catch (error) {
+        logger.error('[ReportesController] Error en GET /contador-platos', {
+            error: error.message
+        });
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Error al armar el contador de platos'
+        });
+    }
+});
+
+/**
  * GET /api/reportes/platos-top
  * Obtiene los platos más vendidos en un rango de fechas
  * 
