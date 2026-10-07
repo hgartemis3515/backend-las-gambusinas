@@ -8522,7 +8522,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  platosAEliminar: indicesQuitar,
  motivo: bajasCantidad.length ? motivoBaja : 'Eliminado desde panel admin',
  mozoId: null,
- forzarAdmin: true
+ forzarAdmin: true,
+ sourceApp: 'dashboard'
  };
  if (bajasCantidad.length) {
  bodyEliminar.cantidadesAEliminar = bajasCantidad.map((b) => ({ index: b.index, cantidad: b.quitar }));
