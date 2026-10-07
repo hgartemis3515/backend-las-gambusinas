@@ -58,14 +58,40 @@ function claveLineaTicket(p) {
   return `fb:${comandaId}|${comanda}|${nombre}|${precio}`;
 }
 
+function mismaComandaLinea(a, b) {
+  const ida = idLinea(a && a.comandaId);
+  const idb = idLinea(b && b.comandaId);
+  if (ida && idb) return ida === idb;
+  const na = a && a.comandaNumber != null ? String(a.comandaNumber) : '';
+  const nb = b && b.comandaNumber != null ? String(b.comandaNumber) : '';
+  return na !== '' && na === nb;
+}
+
+function mismoProductoLinea(a, b) {
+  const na = String((a && a.nombre) || '').trim().toLowerCase();
+  const nb = String((b && b.nombre) || '').trim().toLowerCase();
+  if (!na || na !== nb) return false;
+  const pa = round2(a && (a.precio != null ? a.precio : a.precioUnitario));
+  const pb = round2(b && (b.precio != null ? b.precio : b.precioUnitario));
+  return pa === pb;
+}
+
 /**
  * Quita del ticket de alta las unidades que entraron en un cobro parcial o PPA.
+ * Si cocina partió una línea (cantidad 2 → dos ids), el alta sigue con el id
+ * viejo y cantidad 2. El cobro trae 1 en el id viejo y 1 en el id nuevo: esa
+ * unidad nueva descuenta el resto del mismo plato, si el id viejo ya coincidió.
  * Si no queda nada, el alta se apaga. Si queda saldo, el ticket sigue visible.
  */
 function recortarPlatosAlta(platosAlta, platosCobrados) {
+  const idsAlta = new Set(
+    (platosAlta || []).map((p) => idLinea(p && p.platoLineaId)).filter(Boolean)
+  );
   const bolsa = (platosCobrados || []).map((p) => ({
     clave: claveLineaTicket(p),
     cantidad: Math.max(0, Number(p && p.cantidad) || 1),
+    lineaId: idLinea(p && p.platoLineaId),
+    src: p,
   })).filter((p) => p.cantidad > 0);
 
   let cubrioAlgo = false;
@@ -81,12 +107,59 @@ function recortarPlatosAlta(platosAlta, platosCobrados) {
       b.cantidad -= n;
       queda -= n;
     }
+    if (queda > 0 && queda < inicio) {
+      for (const b of bolsa) {
+        if (queda <= 0) break;
+        if (b.cantidad <= 0) continue;
+        if (b.lineaId && idsAlta.has(b.lineaId)) continue;
+        if (!mismoProductoLinea(linea, b.src) || !mismaComandaLinea(linea, b.src)) continue;
+        const n = Math.min(queda, b.cantidad);
+        b.cantidad -= n;
+        queda -= n;
+      }
+    }
     if (queda < inicio) cubrioAlgo = true;
     if (queda <= 0) continue;
     const precio = Number(linea.precio) || 0;
     platos.push({ ...linea, cantidad: queda, subtotal: round2(precio * queda) });
   }
   return { platos, cubrioAlgo, vacio: platos.length === 0 };
+}
+
+/**
+ * Reparte una línea del snapshot cuando cocina separa unidades en otro id.
+ * El total del ticket no cambia: baja la cantidad del id viejo y nace la línea nueva.
+ */
+function partirSnapshotTicketAlta(platos, { lineaViejaId, lineaNuevaId, cantidadMovida } = {}) {
+  const vieja = idLinea(lineaViejaId);
+  const nueva = idLinea(lineaNuevaId);
+  const mover = Math.floor(Number(cantidadMovida) || 0);
+  if (!vieja || !nueva || vieja === nueva || mover < 1) {
+    return { platos: platos || [], changed: false };
+  }
+  const next = [];
+  let changed = false;
+  for (const linea of platos || []) {
+    if (idLinea(linea && linea.platoLineaId) !== vieja) {
+      next.push(linea);
+      continue;
+    }
+    const cant = Math.max(0, Number(linea && linea.cantidad) || 1);
+    const precio = Number(linea && linea.precio) || 0;
+    const n = Math.min(mover, cant);
+    const queda = cant - n;
+    if (queda > 0) {
+      next.push({ ...linea, cantidad: queda, subtotal: round2(precio * queda) });
+    }
+    const copia = { ...linea };
+    delete copia._id;
+    copia.platoLineaId = nueva;
+    copia.cantidad = n;
+    copia.subtotal = round2(precio * n);
+    next.push(copia);
+    changed = true;
+  }
+  return { platos: next, changed };
 }
 
 function totalesRestanteAlta(platos, ticket) {
@@ -159,6 +232,40 @@ async function desactivarTicketsAltaPendientes(comandaIds, motivo, platosCobrado
     modifiedCount += 1;
   }
   return { modifiedCount, recortados };
+}
+
+/**
+ * Cocina entregó solo una parte de la línea y el backend creó otro id.
+ * El ticket pendiente de alta tiene que partirse igual, si no al cobrar
+ * el id nuevo no descuenta la cantidad que seguía en el id viejo.
+ */
+async function sincronizarParticionTicketsAlta(comandaId, partida = {}) {
+  if (!comandaId) return 0;
+  const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
+  const tickets = await ticketAprobacionModel.find({
+    comandas: comandaId,
+    estado: 'pendiente_aprobacion',
+    origen: { $in: ['alta_comanda', 'alta'] },
+    isActive: true,
+    boucher: null,
+  });
+  let n = 0;
+  for (const t of tickets) {
+    const plain = (t.platos || []).map((p) => (typeof p.toObject === 'function' ? p.toObject() : { ...p }));
+    const partido = partirSnapshotTicketAlta(plain, partida);
+    if (!partido.changed) continue;
+    const tot = totalesRestanteAlta(partido.platos, t);
+    t.platos = partido.platos;
+    t.subtotal = tot.subtotal;
+    t.igv = tot.igv;
+    t.total = tot.total;
+    t.totalSinDescuento = tot.totalSinDescuento;
+    t.montoDescuento = tot.montoDescuento;
+    t.markModified('platos');
+    await t.save();
+    n += 1;
+  }
+  return n;
 }
 
 /**
@@ -261,8 +368,10 @@ module.exports = {
   ticketPuedeForzarPago,
   esTicketComandaTipo,
   recortarPlatosAlta,
+  partirSnapshotTicketAlta,
   totalesRestanteAlta,
   desactivarTicketsAltaPendientes,
+  sincronizarParticionTicketsAlta,
   actualizarTicketsForzadosConPpaMozo,
   matchFechaRangoTicket,
 };

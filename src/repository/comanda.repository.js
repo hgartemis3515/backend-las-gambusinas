@@ -5672,6 +5672,19 @@ const separarCantidadLineaPlato = async (comandaId, platoId, cantidadEntregar) =
   const saved = await comandaModel.findById(comandaId);
   const indexEntregar = saved.platos.length - 1;
   const platoEntregarId = saved.platos[indexEntregar]._id;
+  try {
+    const { sincronizarParticionTicketsAlta } = require('../utils/ticketAltaComanda');
+    await sincronizarParticionTicketsAlta(comandaId, {
+      lineaViejaId: String(saved.platos[platoIndex]._id),
+      lineaNuevaId: String(platoEntregarId),
+      cantidadMovida: r.cantidadEntregar,
+    });
+  } catch (syncErr) {
+    logger.warn('No se pudo partir el ticket de alta tras separar la línea', {
+      comandaId: String(comandaId),
+      error: syncErr.message,
+    });
+  }
   return {
     didSplit: true,
     platoEntregarId: String(platoEntregarId),
