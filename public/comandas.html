@@ -531,10 +531,20 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-show="contarEstadosPlatosFila(row).length === 0 && !(row.tipo === 'individual' && row.comanda?.eliminada)" class="text-[10px] text-txt-muted">—</span>
  </div>
  <p x-show="row.tipo === 'individual' && row.comanda?.eliminada" class="mt-1 text-[10px] leading-snug text-[#ff6b6b] text-left" x-text="textoAuditoriaComanda(row.comanda)"></p>
+ <template x-if="row.tipo === 'individual'">
+  <template x-for="(linea, li) in textosPlatosEliminados(row.comanda)" :key="'pe'+li">
+   <p class="mt-1 text-[10px] leading-snug text-[#ff6b6b] text-left" x-text="linea"></p>
+  </template>
+ </template>
  <template x-if="row.tipo === 'grupo'">
   <div class="mt-1 space-y-0.5 text-left">
    <template x-for="c in (row.comandas || []).filter(x => x && x.eliminada)" :key="'an'+c._id">
     <p class="text-[10px] leading-snug text-[#ff6b6b]" x-text="etiquetaNumeroTabla(c) + ' · ' + textoAuditoriaComanda(c)"></p>
+   </template>
+   <template x-for="c in (row.comandas || []).filter(Boolean)" :key="'peg'+c._id">
+    <template x-for="(linea, li) in textosPlatosEliminados(c)" :key="'pel'+c._id+'-'+li">
+     <p class="text-[10px] leading-snug text-[#ff6b6b]" x-text="etiquetaNumeroTabla(c) + ' · ' + linea"></p>
+    </template>
    </template>
   </div>
  </template>
@@ -653,6 +663,9 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-show="contarEstadosPlatosComanda(comanda).length === 0 && !comanda.eliminada" class="text-[10px] text-txt-muted">—</span>
  </div>
  <p x-show="comanda.eliminada" class="mt-1 text-[10px] leading-snug text-[#ff6b6b] text-left" x-text="textoAuditoriaComanda(comanda)"></p>
+ <template x-for="(linea, li) in textosPlatosEliminados(comanda)" :key="'pec'+li">
+  <p class="mt-1 text-[10px] leading-snug text-[#ff6b6b] text-left" x-text="linea"></p>
+ </template>
  </td>
  <!-- Fecha / Hora -->
  <td class="px-3 py-2 text-xs text-txt-muted text-center">
@@ -7790,14 +7803,33 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   const motivo = c.motivoEliminacion || 'Sin motivo';
   return 'Eliminó ' + quien + ' · ' + motivo;
  },
+ textoPlatoEliminado(quien, motivo) {
+  return 'Plato eliminado por ' + (quien || 'Sin registro') + ', motivo: ' + (motivo || 'Sin motivo');
+ },
+ textosPlatosEliminados(c) {
+  if (!c || c.eliminada) return [];
+  const out = [];
+  const cubiertos = new Set();
+  for (const h of c.historialBajas || []) {
+    const nombre = String(h.nombre || '').trim();
+    if (nombre) cubiertos.add(nombre.toLowerCase());
+    const prefijo = nombre ? (nombre + ': ') : '';
+    out.push(prefijo + this.textoPlatoEliminado(h.quien, h.motivo));
+  }
+  for (const item of (c.items || c.platos || [])) {
+    if (!item || !item.eliminado) continue;
+    const nombre = String(item.nombre || '').trim();
+    if (nombre && cubiertos.has(nombre.toLowerCase())) continue;
+    const prefijo = nombre ? (nombre + ': ') : '';
+    out.push(prefijo + this.textoPlatoEliminado(item.eliminadoPorNombre, item.eliminadoRazon));
+  }
+  return out;
+ },
  lineasAuditoriaPlato(comanda, item) {
   if (!item) return [];
   const out = [];
   if (item.eliminado) {
-    const quien = item.eliminadoPorNombre || 'Sin registro';
-    const motivo = item.eliminadoRazon || 'Sin motivo';
-    const hora = this.horaCorta(item.eliminadoAt);
-    out.push([quien, motivo, hora && hora !== '—' ? hora : ''].filter(Boolean).join(' · '));
+    out.push(this.textoPlatoEliminado(item.eliminadoPorNombre, item.eliminadoRazon));
   }
   const pid = item.platoId != null && item.platoId !== '' ? Number(item.platoId) : null;
   const nombre = String(item.nombre || '').trim().toLowerCase();
@@ -7807,8 +7839,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     const mismoId = pid != null && h.platoId != null && Number(h.platoId) === pid;
     const mismoNombre = nombre && String(h.nombre || '').trim().toLowerCase() === nombre;
     if (!mismoId && !mismoNombre) continue;
-    const hora = this.horaCorta(h.cuando);
-    out.push(['Se quitaron ' + quitadas, h.quien || 'Sin registro', h.motivo || 'Sin motivo', hora && hora !== '—' ? hora : ''].filter(Boolean).join(' · '));
+    out.push(this.textoPlatoEliminado(h.quien, h.motivo));
   }
   return out;
  },
