@@ -170,6 +170,13 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
    <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Total visto</p>
    <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="fmtSolesKpi(totalVistoTabla)"></p>
   </div>
+  <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
+  <div>
+   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets</p>
+   <p class="text-sm font-extrabold text-white tabular-nums leading-tight">
+    <span x-text="kpiTicketsCreadas"></span><span x-show="kpiTicketsEliminadas > 0" class="text-[#ff4757]" x-text="' -' + kpiTicketsEliminadas"></span>
+   </p>
+  </div>
  </div>
  </div>
  <div class="flex items-center gap-3">
@@ -3542,6 +3549,8 @@ function comandasApp() {
  _turnosAutoNocheHecho: false,
  _turnosPoll: null,
  kpiVentasTotales: 0,
+ kpiTicketsCreadas: 0,
+ kpiTicketsEliminadas: 0,
  presetsPeriodo: [
   { id: 'hoy', label: 'Hoy' },
   { id: 'ayer', label: 'Ayer' },
@@ -6466,6 +6475,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     } else {
       this.kpiVentasTotales = Number(reporteHoy && reporteHoy.resumen && reporteHoy.resumen.totalVentas) || 0;
     }
+    const conteo = reporteHoy && reporteHoy.meta && reporteHoy.meta.conteoComandas;
+    this.kpiTicketsCreadas = Number(conteo && conteo.creadas) || 0;
+    this.kpiTicketsEliminadas = Number(conteo && conteo.eliminadas) || 0;
   } catch (e) {
     console.warn('Ventas totales:', e);
   }
@@ -8884,7 +8896,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
      return 'bg-st-pagado/10 border-l-4 border-st-pagado';
    }
    if (this.esFilaSoloParaLlevar(row)) {
-     return 'bg-red-600/25 border-l-4 border-red-500';
+     return 'bg-sky-300/25 border-l-4 border-sky-300';
    }
    if (row?.tipo === 'grupo') return 'bg-gold/5';
    if (row?.tipo === 'individual' && this.esComandaReserva(row.comanda)) {
@@ -8894,7 +8906,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
  claseColorFilaHija(comanda) {
    if (this.esComandaSoloParaLlevar(comanda)) {
-     return 'bg-red-600/25 border-l-4 border-red-500';
+     return 'bg-sky-300/25 border-l-4 border-sky-300';
    }
    return 'bg-bg-sidebar/50';
  },

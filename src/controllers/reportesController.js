@@ -58,7 +58,10 @@ router.get('/reportes/ventas', adminAuth, async (req, res) => {
             adminId: req.admin?.id
         });
 
-        const resultado = await reportesRepository.getVentas(fechaInicio, fechaFin, agruparPor);
+        const [resultado, conteoComandas] = await Promise.all([
+            reportesRepository.getVentas(fechaInicio, fechaFin, agruparPor),
+            reportesRepository.contarComandasCreadasPeriodo(fechaInicio, fechaFin)
+        ]);
 
         res.json({
             success: true,
@@ -68,6 +71,7 @@ router.get('/reportes/ventas', adminAuth, async (req, res) => {
                 fechaInicio,
                 fechaFin,
                 agruparPor,
+                conteoComandas,
                 generadoEn: moment().tz('America/Lima').toISOString()
             }
         });
