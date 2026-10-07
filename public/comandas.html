@@ -2824,6 +2824,41 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
 </div>
 
+<!-- MODAL: ELIMINAR CANTIDAD DE PLATO (no la línea entera) -->
+<div x-show="modal==='eliminarCantidadPlato'" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80">
+ <div class="bg-bg-card border border-st-pagado/40 rounded-2xl w-[440px] shadow-2xl" @click.stop>
+ <div class="p-6">
+ <div class="w-16 h-16 rounded-full bg-st-pagado/20 flex items-center justify-center mx-auto mb-4">
+ <span class="text-3xl">🗑️</span>
+ </div>
+ <h3 class="text-lg font-bold mb-2 text-center">Eliminar plato</h3>
+ <p class="text-txt-secondary text-sm mb-2 text-center">Se elimina la cantidad, no el plato entero. La comanda pasará a <span class="text-gold font-bold" x-text="letraTrasBaja(editComanda)"></span> y se imprime el ticket en cocina y caja.</p>
+ <div class="mb-3 space-y-1">
+  <template x-for="b in bajasCantidadPendientes" :key="b.index">
+   <p class="text-xs text-white text-center" x-text="b.quitar + ' × ' + b.nombre + ' (había ' + b.original + ', quedan ' + b.quedan + ')'"></p>
+  </template>
+ </div>
+ <p class="text-xs text-txt-muted mb-3 text-center">Elige un motivo. El texto extra es opcional.</p>
+ <div class="grid grid-cols-2 gap-2 mb-2">
+  <template x-for="m in motivosRapidosCocina" :key="'baja-'+m.id">
+   <button type="button" @click="guardarEdicionComanda(combinarMotivoRapido(m.label, motivoBajaCantidad))" :disabled="guardando"
+    class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-white text-xs font-semibold min-h-[84px] hover:border-st-pagado hover:bg-st-pagado/10 transition disabled:opacity-50">
+    <span class="text-lg" x-text="m.icon"></span>
+    <span x-text="m.label"></span>
+   </button>
+  </template>
+ </div>
+ <textarea x-model="motivoBajaCantidad" rows="2" placeholder="Motivo extra (opcional)"
+  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm resize-none focus:border-st-pagado focus:outline-none text-white mt-2"></textarea>
+ </div>
+ <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
+ <button type="button" @click="modal='editarComanda'; motivoBajaCantidad=''" :disabled="guardando" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-gold hover:text-gold transition">Cancelar</button>
+ <button type="button" @click="guardarEdicionComanda(motivoBajaCantidad)" :disabled="guardando || !String(motivoBajaCantidad || '').trim()"
+  class="px-4 py-2 rounded-lg text-sm font-semibold bg-st-pagado text-white disabled:opacity-40">Eliminar cantidad</button>
+ </div>
+ </div>
+</div>
+
 <!-- MODAL: EDITAR TICKET -->
 <div x-show="modal==='editarTicket'" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80" @click.self="modal='editarComanda'">
  <div class="bg-bg-card border border-gold/30 rounded-2xl w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
@@ -3450,6 +3485,8 @@ function comandasApp() {
 
  comandaEliminar: null,
  motivoEliminacion: '',
+ bajasCantidadPendientes: [],
+ motivoBajaCantidad: '',
  motivosRapidosCocina: [
   { id: 'cliente_no_desea', label: 'Cliente no desea', icon: '🚫' },
   { id: 'equivocacion_mozo', label: 'Equivocación de mozo', icon: '🧑‍🍳' },
@@ -7412,6 +7449,30 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return out;
  },
 
+ lineasBajaCantidad() {
+  const out = [];
+  (this.editPlatos || []).forEach((p, idx) => {
+    if (!p || p.eliminado) return;
+    const original = Math.max(1, Math.floor(Number(p.cantidadOriginal) || 1));
+    const actual = Math.floor(Number(p.cantidad));
+    if (!Number.isFinite(actual) || actual < 1 || actual >= original) return;
+    out.push({
+      index: this.indicePlatoReal(p, idx),
+      nombre: p.nombre || 'Plato',
+      original,
+      quedan: actual,
+      quitar: original - actual,
+    });
+  });
+  return out;
+ },
+
+ letraTrasBaja(c) {
+  const n = c && c.numComanda != null && c.numComanda !== '' ? c.numComanda : (c && c.numeroComandaDia != null ? c.numeroComandaDia : '—');
+  const rev = Math.max(0, Math.floor(Number(c && c.revisionTicket) || 0)) + 1;
+  return '#' + n + this.letraRevComanda(rev);
+ },
+
  platosTipoServicioCambios(items) {
   const out = [];
   (items || []).forEach((p, idx) => {
@@ -8408,8 +8469,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return Number(Math.max(0, bruto - md).toFixed(2));
  },
 
- async guardarEdicionComanda() {
- if (!this.editComanda._id) return;
+ async guardarEdicionComanda(motivoBajaCantidad) {
+ if (!this.editComanda._id || this.guardando) return;
 
  const errores = [];
  this.editPlatos.forEach((p, idx) => {
@@ -8420,6 +8481,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  if (errores.length > 0) {
  alert('Errores de validacion:\n' + errores.join('\n'));
+ return;
+ }
+
+ const bajasCantidad = this.lineasBajaCantidad();
+ const motivoBaja = typeof motivoBajaCantidad === 'string' ? motivoBajaCantidad.trim() : '';
+ if (bajasCantidad.length && motivoBaja.length < 2) {
+ this.bajasCantidadPendientes = bajasCantidad;
+ this.motivoBajaCantidad = '';
+ this.modal = 'eliminarCantidadPlato';
  return;
  }
 
@@ -8436,20 +8506,28 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
 
  const indicesEliminados = this.indicesPlatosPendientesEliminar(this.editPlatos);
+ const indicesBaja = bajasCantidad.map((b) => b.index);
+ const indicesQuitar = [...new Set([...indicesEliminados, ...indicesBaja])];
 
  console.log('📤 Guardando cambios comanda:', {
  comandaId: this.editComanda._id,
  platosMantenidos: platosMantenidos.length,
- indicesEliminados: indicesEliminados
+ indicesEliminados: indicesEliminados,
+ bajasCantidad: indicesBaja
  });
 
- if (indicesEliminados.length > 0) {
- const resEliminar = await apiPut('/comanda/' + this.editComanda._id + '/eliminar-platos', {
- platosAEliminar: indicesEliminados,
- motivo: 'Eliminado desde panel admin',
+ let resEliminar = null;
+ if (indicesQuitar.length > 0) {
+ const bodyEliminar = {
+ platosAEliminar: indicesQuitar,
+ motivo: bajasCantidad.length ? motivoBaja : 'Eliminado desde panel admin',
  mozoId: null,
  forzarAdmin: true
- });
+ };
+ if (bajasCantidad.length) {
+ bodyEliminar.cantidadesAEliminar = bajasCantidad.map((b) => ({ index: b.index, cantidad: b.quitar }));
+ }
+ resEliminar = await apiPut('/comanda/' + this.editComanda._id + '/eliminar-platos', bodyEliminar);
 
  console.log('📥 Respuesta eliminar-platos:', resEliminar);
 
@@ -8458,6 +8536,17 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  ? resEliminar.detalles.join('\n')
  : (resEliminar.message || 'Error al eliminar platos');
  throw new Error(errorMsg);
+ }
+ if (bajasCantidad.length) {
+ const tocados = new Set(indicesBaja);
+ this.editPlatos.forEach((p, idx) => {
+ if (tocados.has(this.indicePlatoReal(p, idx))) {
+ p.cantidadOriginal = Math.max(1, Math.floor(Number(p.cantidad) || 1));
+ }
+ });
+ if (resEliminar.comanda && resEliminar.comanda.revisionTicket != null) {
+ this.editComanda.revisionTicket = resEliminar.comanda.revisionTicket;
+ }
  }
  }
 
@@ -8525,8 +8614,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  await this.loadComandas();
  this.modal = null;
- this.showToast(`✅ Comanda actualizada - ${platosMantenidos.length} plato(s), ${indicesEliminados.length} eliminado(s)`);
- if (indicesEliminados.length) await this.imprimirEposTrasCambio(this.editComanda._id);
+ this.motivoBajaCantidad = '';
+ this.bajasCantidadPendientes = [];
+ const letreroBaja = bajasCantidad.length
+  ? ('#' + (this.editComanda.numComanda ?? '') + this.letraRevComanda(this.editComanda.revisionTicket))
+  : '';
+ this.showToast(letreroBaja
+  ? ('✅ Comanda ' + letreroBaja + ' — cantidad eliminada. Ticket a cocina y caja')
+  : ('✅ Comanda actualizada - ' + platosMantenidos.length + ' plato(s), ' + indicesEliminados.length + ' eliminado(s)'));
+ if (indicesQuitar.length) await this.imprimirEposTrasCambio(this.editComanda._id);
  } else {
  throw new Error(res?.message || 'Error desconocido');
  }
