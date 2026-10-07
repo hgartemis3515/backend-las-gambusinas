@@ -95,6 +95,8 @@ const PROYECCION_COCINA = {
     mesaNumero: 1,
     areaNombre: 1,
     clienteNombre: 1,
+    clienteNombreParaLlevar: 1,
+    numeroTicketCliente: 1,
     // Origen dashboard (badge/borde verde en KDS) / reserva (header morado)
     origenCreacion: 1,
     origenReserva: 1,

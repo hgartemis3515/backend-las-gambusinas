@@ -132,16 +132,25 @@ function textoMesaTicket(mesa) {
   return `M${s}`;
 }
 
-function celdaMozoTicket(mozo, cliente) {
+function celdaMozoTicket(mozo) {
   const texto = String(mozo || '—').toLocaleUpperCase('es-PE');
   const n = texto.length;
   const size = n <= 4 ? 26 : n <= 9 ? 20 : n <= 16 ? 15 : 12;
-  const chico = cliente
-    ? `<div style="font-size:9px;font-weight:600;line-height:1.1;padding:1px 2px 0;">${escapeHtml(cliente)}</div>`
-    : '';
   return `<td style="width:50%;padding:0;border:1px solid #000;vertical-align:middle;text-align:center;">
-    ${chico}
     <div style="font-size:${size}px;font-weight:800;line-height:1;text-align:center;padding:1px 2px;word-break:break-word;">${escapeHtml(texto)}</div>
+  </td>`;
+}
+
+/** Nombre del cliente encima del tipo. 9px × 1.2 = 10.8px. */
+function celdaTipoTicket(tipo, cliente) {
+  const nombre = String(cliente || '').trim();
+  const linea = nombre
+    ? `<div style="font-size:10.8px;font-weight:700;line-height:1.15;padding-bottom:1px;">${escapeHtml(nombre)}</div>`
+    : '';
+  return `<td style="width:50%;padding:2px 3px;border:1px solid #000;vertical-align:top;">
+    ${linea}
+    <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.3px;">Tipo</div>
+    <div style="font-size:12px;font-weight:700;line-height:1.2;">${escapeHtml(tipo || '—')}</div>
   </td>`;
 }
 
@@ -259,8 +268,8 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     html += `<div style="text-align:center;font-size:13px;font-weight:700;line-height:1.35;padding:0 0 6px;">${escapeHtml(d.anulacion.usuario)}<br/>${escapeHtml(d.anulacion.hora)}<br/>${escapeHtml(d.anulacion.motivo)}</div>`;
   }
   html += `<table style="width:100%;border-collapse:collapse;margin-bottom:6px;">
-    <tr>${celdaMozoTicket(d.mozo, clienteTicket)}${celdaLlena(textoMesaTicket(d.mesa).toLocaleUpperCase('es-PE'))}</tr>
-    <tr>${celdaMeta(fechaLabel, fechaValor)}${celdaMeta('Tipo', tipoTicket)}</tr>
+    <tr>${celdaMozoTicket(d.mozo)}${celdaLlena(textoMesaTicket(d.mesa).toLocaleUpperCase('es-PE'))}</tr>
+    <tr>${celdaMeta(fechaLabel, fechaValor)}${celdaTipoTicket(tipoTicket, clienteTicket)}</tr>
   </table>`;
   html += `<table style="width:100%;border-collapse:collapse;font-size:11px;">
     <thead>
