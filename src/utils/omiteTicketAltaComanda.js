@@ -73,9 +73,12 @@ function comandaEsCostoCeroAlta(comanda) {
 
 /**
  * No generar ticket de alta: pago omitido, total 0, o todos los platos son DCH.
+ * Excepción PLAN_METODO_PRUEBA_ADMIN: las comandas PRUEBA SÍ generan su ticket
+ * (etiqueta PRUEBA + monto 0 en la tabla de tickets y pagos adelantados).
  */
 function comandaOmiteTicketAlta(comanda) {
   if (!comanda) return true;
+  if (comanda.esPrueba === true) return false;
   if (comanda.omitirPago === true) return true;
   if (comandaEsSoloDch(comanda)) return true;
   if (comandaEsCostoCeroAlta(comanda)) return true;

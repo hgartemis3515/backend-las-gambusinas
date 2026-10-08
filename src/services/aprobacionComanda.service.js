@@ -131,7 +131,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
     omitirPago: { $ne: true },
     status: { $in: ESTADOS_POR_COBRAR },
   })
-    .select('numeroComandaDia numeroComandaMozo comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
+    .select('numeroComandaDia numeroComandaMozo comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago esPrueba tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
     .populate({ path: 'mesas', select: 'nummesa numero nombreCombinado estado', options: { lean: true } })
     .populate({ path: 'platos.plato', select: 'nombre nombreCocina precio', options: { lean: true } })
     .sort({ createdAt: -1, comandaNumber: -1 })
@@ -328,8 +328,9 @@ async function aprobarTicketUnificado(ticketId, tipo, usuarioId, usuarioNombre) 
   const { tipo: tipoReal } = await detectarTipoReal(ticketId, tipoNormalizado);
 
   if (tipoReal === 'COMANDA') {
-    const ticketDoc = await ticketAprobacionModel.findById(ticketId).select('boucher origen estado').lean();
-    if (ticketDoc && ticketDoc.estado === 'pendiente_aprobacion' && !ticketDoc.boucher) {
+    const ticketDoc = await ticketAprobacionModel.findById(ticketId).select('boucher origen estado esPrueba').lean();
+    // PLAN_METODO_PRUEBA_ADMIN: los tickets PRUEBA (monto 0) se aprueban sin boucher.
+    if (ticketDoc && ticketDoc.estado === 'pendiente_aprobacion' && !ticketDoc.boucher && ticketDoc.esPrueba !== true) {
       const err = new Error('Este ticket aún no tiene cobro. Use Forzar pago o espere la solicitud del mozo.');
       err.statusCode = 400;
       throw err;
@@ -583,6 +584,7 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
     tipo: 'comanda_completa',
     estado: 'pendiente_aprobacion',
     origen: 'alta_comanda',
+    esPrueba: comanda.esPrueba === true,
     comandas: [comanda._id],
     comandasNumbers: resolverComandasNumbers({
       comandasNumbers: [comanda.comandaNumber],

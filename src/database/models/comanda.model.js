@@ -691,6 +691,13 @@ const comandaSchema = new mongoose.Schema({
         default: false,
         index: true
     },
+    // PLAN_METODO_PRUEBA_ADMIN: comanda de prueba del admin. Platos con precio 0,
+    // sin cobro (omitirPago) y etiqueta PRUEBA en KDS, tickets y panel.
+    esPrueba: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
     // Omitir orden de entrega (KDS): permite finalizar platos sin respetar cola #1..#N
     // ni pedir "Solicitar Orden". Pensado para comandas creadas desde dashboard.
     omitirOrdenEntrega: {

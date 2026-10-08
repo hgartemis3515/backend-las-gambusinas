@@ -387,6 +387,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
     <span class="inline-block mr-1" x-text="'#' + n"></span>
    </template>
    <span x-show="numerosDiaGrupo(row.comandas).length === 0" class="inline-block ml-1" x-text="row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj)"></span>
+   <span x-show="esFilaPrueba(row)" class="inline-block ml-1 text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
   </span>
   <span x-show="esGrupoReserva(row)"
    class="inline-flex flex-col items-start leading-tight text-[#e879f9]"
@@ -402,6 +403,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 <template x-if="row.tipo === 'individual'">
 <div class="flex items-center gap-1.5 whitespace-nowrap">
   <span class="font-medium text-sm" :class="row.comanda?.eliminada ? 'line-through text-txt-muted' : ''" x-text="'#' + (row.comanda.numComanda || row.comanda._id?.slice(-4) || '—')"></span>
+  <span x-show="esComandaPrueba(row.comanda)" class="text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none" title="Comanda de prueba (monto 0)">PRUEBA</span>
   <span x-show="row.comanda?.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" title="Soft-delete. No cuenta en cierre ni reportes.">ELIMINADA</span>
   <span x-show="row.comanda?.omitirPago" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
   <span x-show="esComandaReserva(row.comanda)"
@@ -562,9 +564,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  @click="openDetailModal(comanda)">
  <!-- ID con indentación -->
  <td class="px-3 py-2 pl-8">
- <div class="flex items-center gap-1.5 whitespace-nowrap">
- <span class="text-txt-muted text-xs">↳</span>
+<div class="flex items-center gap-1.5 whitespace-nowrap">
+   <span class="text-txt-muted text-xs">↳</span>
  <span class="text-txt-secondary text-sm" x-text="'#' + (comanda.numComanda || comanda._id?.slice(-4))"></span>
+ <span x-show="esComandaPrueba(comanda)" class="text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none" title="Comanda de prueba (monto 0)">PRUEBA</span>
  <span x-show="esComandaReserva(comanda)"
   class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
   :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comanda) || '—')">
@@ -4579,6 +4582,17 @@ this.socket.on('reportes:comanda-eliminada', () => this.scheduleRefreshVentasTot
   const idx = this.comandas.findIndex(c => this.normalizeObjectId(c._id) === idN);
   if (idx !== -1) {
     const prev = this.comandas[idx];
+    // PLAN_METODO_PRUEBA_ADMIN: la marca de prueba es PERMANENTE. Los payloads
+    // parciales del socket no pueden borrarla (aquí se borraba y por eso el
+    // rótulo desaparecía al rato).
+    if (prev) {
+      if (normalizada.esPrueba !== true && prev.esPrueba === true) {
+        normalizada.esPrueba = true;
+      }
+      if ((!normalizada.pagoOmitido || !normalizada.pagoOmitido.motivo) && prev.pagoOmitido?.motivo) {
+        normalizada.pagoOmitido = prev.pagoOmitido;
+      }
+    }
     if (!(normalizada.items || []).length && (prev.items || []).length) {
       normalizada.items = prev.items;
     } else {
@@ -5234,6 +5248,7 @@ this.scheduleRefreshVentasTotales();
    ? Number(raw.tiempoArmadoAcumuladoSegundos) : null,
  createdByDashboard: raw.createdByDashboard || null,
  omitirPago: !!raw.omitirPago,
+ esPrueba: !!raw.esPrueba,
  omitirOrdenEntrega: !!raw.omitirOrdenEntrega,
  pagoOmitido: raw.pagoOmitido || null,
  eliminada: raw.eliminada === true || !!raw.fechaEliminacion,
@@ -8549,6 +8564,20 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
  comandaTieneExtraLlevar(c) {
    return this.platosActivosFilaComanda(c).some((i) => this.tipoServicioPlatoFila(i) === 'extra_llevar');
+ },
+ // PLAN_METODO_PRUEBA_ADMIN: comanda de prueba del admin (monto 0).
+ // Reforzado: también reconoce el motivo del pago omitido, por si la comanda
+ // se creó con una versión anterior sin el campo esPrueba. La marca queda en la
+ // base de datos y sobrevive reinicios del sistema.
+ esComandaPrueba(c) {
+   if (!c) return false;
+   if (c.esPrueba === true) return true;
+   return String(c.pagoOmitido?.motivo || '').trim().toLowerCase() === 'prueba';
+ },
+ esFilaPrueba(row) {
+   if (!row) return false;
+   if (row.tipo === 'grupo') return (row.comandas || []).some((c) => this.esComandaPrueba(c));
+   return this.esComandaPrueba(row.comanda);
  },
  esFilaSoloParaLlevar(row) {
    if (!row) return false;

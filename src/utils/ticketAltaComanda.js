@@ -26,11 +26,17 @@ function ticketEsAltaSinPago(ticket) {
 }
 
 function ticketPuedeAprobarse(ticket) {
-  return ticket && ticket.estado === 'pendiente_aprobacion' && !!ticket.boucher;
+  if (!ticket || ticket.estado !== 'pendiente_aprobacion') return false;
+  // PLAN_METODO_PRUEBA_ADMIN: los tickets PRUEBA (monto 0) se aprueban sin boucher.
+  if (ticket.esPrueba === true) return true;
+  return !!ticket.boucher;
 }
 
 function ticketPuedeForzarPago(ticket) {
-  return ticket && ticket.estado === 'pendiente_aprobacion' && esTicketComandaTipo(ticket);
+  if (!ticket || ticket.estado !== 'pendiente_aprobacion') return false;
+  // PLAN_METODO_PRUEBA_ADMIN: una prueba no se fuerza (ya es aprobable sin cobro).
+  if (ticket.esPrueba === true) return false;
+  return esTicketComandaTipo(ticket);
 }
 
 function esTicketComandaTipo(ticket) {

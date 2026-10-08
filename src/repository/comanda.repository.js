@@ -100,6 +100,8 @@ const PROYECCION_COCINA = {
     origenReserva: 1,
     createdByDashboard: 1,
     omitirPago: 1,
+    // PLAN_METODO_PRUEBA_ADMIN: etiqueta PRUEBA en las tarjetas KDS
+    esPrueba: 1,
     omitirOrdenEntrega: 1,
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: flag de comanda programada por reserva
     programadaPorReserva: 1,
@@ -641,6 +643,11 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         origenReserva: 1,
         createdByDashboard: 1,
         omitirPago: 1,
+        // PLAN_METODO_PRUEBA_ADMIN: la marca de prueba y el motivo del pago omitido
+        // deben viajar en el listado; sin esto el rótulo PRUEBA desaparecía al
+        // refrescar la pantalla del panel.
+        esPrueba: 1,
+        pagoOmitido: 1,
         omitirOrdenEntrega: 1,
         // Referencias mínimas
         mozos: 1,
@@ -1217,7 +1224,37 @@ const agregarComanda = async (data) => {
 
     console.log(`✅ Plato ${index}: ${platoCompleto.nombre} (id=${platoCompleto.id}, tipoServicio=${plato.tipoServicio}, precioUnitario=${plato.precioUnitario})`);
   }
-  
+
+  // ========== PLAN_METODO_PRUEBA_ADMIN: comanda de prueba del admin ==========
+  // Solo un admin puede marcarla; los platos quedan con precio 0 (todo monto
+  // derivado sale 0) y omitirPago la cierra sola como 'pagado' al entregar.
+  const esPruebaSolicitada = data.esPrueba === true;
+  delete data.esPrueba;
+  if (esPruebaSolicitada) {
+    if (rolActorJwt !== 'admin') {
+      const err = new Error('Solo un administrador puede crear comandas de prueba');
+      err.statusCode = 403;
+      throw err;
+    }
+    for (const p of data.platos) {
+      p.precioBase = 0;
+      p.extraComplementos = 0;
+      p.totalUnidadesComplementos = 0;
+      p.precioUnitario = 0;
+      p.precio = 0;
+      if (Array.isArray(p.complementosSeleccionados)) {
+        p.complementosSeleccionados = p.complementosSeleccionados.map((c) => ({ ...c, precio: 0 }));
+      }
+    }
+    data.omitirPago = true;
+    data.pagoOmitido = {
+      motivo: 'PRUEBA',
+      usuarioId: data.createdBy || data.mozos || null,
+      fechaActivacion: ahora,
+    };
+  }
+  data.esPrueba = esPruebaSolicitada;
+
   // ========== OBTENER DATOS DESNORMALIZADOS ==========
   // Obtener mozoNombre, mesaNumero, areaNombre para guardar en el documento
   const datosDesnormalizados = await obtenerDatosDesnormalizados(data.mesas, data.mozos);
@@ -1316,6 +1353,28 @@ const agregarComanda = async (data) => {
     mesaId: nuevaComanda.mesas,
     mozoId: nuevaComanda.mozos
   });
+
+  // PLAN_METODO_PRUEBA_ADMIN: auditoría de comandas de prueba
+  if (nuevaComanda.esPrueba === true) {
+    try {
+      const AuditoriaAcciones = mongoose.model('AuditoriaAcciones');
+      await AuditoriaAcciones.create({
+        accion: 'COMANDA_PRUEBA_CREADA',
+        entidadId: nuevaComanda._id,
+        entidadTipo: 'comanda',
+        usuario: data.createdBy || data.mozos || null,
+        motivo: 'PRUEBA',
+        metadata: {
+          comandaNumber: nuevaComanda.comandaNumber,
+          mesaId: nuevaComanda.mesas || null,
+          mozoId: nuevaComanda.mozos || null,
+          total: 0,
+        },
+      });
+    } catch (pruebaAuditErr) {
+      logger.warn('No se pudo auditar COMANDA_PRUEBA_CREADA (no crítico)', { error: pruebaAuditErr.message });
+    }
+  }
 
   // ========== ASOCIAR COMANDA AL PEDIDO ==========
   // Mozos: reutiliza pedido abierto de la mesa (agrupa comandas del mismo servicio).
@@ -2342,6 +2401,19 @@ const actualizarComanda = async (comandaId, newData) => {
         }
       }
       const mapCats = new Map();
+      // PLAN_METODO_PRUEBA_ADMIN: editar una comanda de prueba mantiene montos 0
+      if (comanda?.esPrueba === true) {
+        for (const p of newData.platos) {
+          p.precioBase = 0;
+          p.extraComplementos = 0;
+          p.totalUnidadesComplementos = 0;
+          p.precioUnitario = 0;
+          p.precio = 0;
+          if (Array.isArray(p.complementosSeleccionados)) {
+            p.complementosSeleccionados = p.complementosSeleccionados.map((c) => ({ ...c, precio: 0 }));
+          }
+        }
+      }
       for (const plato of newData.platos) {
         try {
           const cat = await platoModel.findById(plato.plato).lean();

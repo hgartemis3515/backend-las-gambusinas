@@ -210,6 +210,7 @@ async function crearTicketAprobacion(data) {
     origen: data.origen || 'pago',
     pagoForzado: data.pagoForzado === true,
     cobroPorCantidad: data.cobroPorCantidad === true,
+    esPrueba: data.esPrueba === true,
     totalCuenta: data.totalCuenta ?? null,
   });
 
@@ -436,11 +437,14 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
       if (evaluacion.lista && mesaDoc.estado !== 'reportado') {
         await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pagado' });
         mesaEstadoFinal = 'pagado';
-        try {
-          const { bloquearMesaEspecial } = require('../utils/mesaEspecial');
-          await bloquearMesaEspecial(ticket.mesa, 'pago_total');
-        } catch (bloqErr) {
-          console.error('No se pudo bloquear mesa especial tras pago', bloqErr.message);
+        // PLAN_METODO_PRUEBA_ADMIN: una comanda de prueba no bloquea la mesa especial.
+        if (ticket.esPrueba !== true) {
+          try {
+            const { bloquearMesaEspecial } = require('../utils/mesaEspecial');
+            await bloquearMesaEspecial(ticket.mesa, 'pago_total');
+          } catch (bloqErr) {
+            console.error('No se pudo bloquear mesa especial tras pago', bloqErr.message);
+          }
         }
 
         try {

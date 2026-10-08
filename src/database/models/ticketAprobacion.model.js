@@ -33,6 +33,11 @@ const ticketAprobacionSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  /** PLAN_METODO_PRUEBA_ADMIN: ticket de una comanda PRUEBA (monto 0, se aprueba sin boucher). */
+  esPrueba: {
+    type: Boolean,
+    default: false,
+  },
   /** Cuenta neta de la visita cuando el cobro se parte en abonos. */
   totalCuenta: {
     type: Number,
