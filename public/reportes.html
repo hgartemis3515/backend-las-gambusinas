@@ -127,7 +127,7 @@ tailwind.config = {
     }
     body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-resumen {
       display: grid !important;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
       margin: 0 0 12px;
       padding: 0 !important;
@@ -874,7 +874,7 @@ tailwind.config = {
       <h1 style="font-size:18px;font-weight:700;margin:0;">Contador de platos</h1>
       <p style="font-size:12px;margin:4px 0 0;" x-text="textoPeriodoImpresionPlatos()"></p>
     </div>
-    <div class="tabla-platos-resumen px-5 py-3 border-b border-[rgba(212,175,55,0.1)] grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+    <div class="tabla-platos-resumen px-5 py-3 border-b border-[rgba(212,175,55,0.1)] grid grid-cols-3 gap-2 shrink-0">
       <div class="bg-bg-sidebar rounded-lg px-3 py-2">
         <p class="text-[10px] uppercase text-txt-muted">Pollos</p>
         <p class="text-lg font-bold text-[#ffa502]" x-text="resumenImpresionPlatos().pollos"></p>
@@ -886,10 +886,6 @@ tailwind.config = {
       <div class="bg-bg-sidebar rounded-lg px-3 py-2">
         <p class="text-[10px] uppercase text-txt-muted">Platos</p>
         <p class="text-lg font-bold text-white" x-text="resumenImpresionPlatos().platos"></p>
-      </div>
-      <div class="bg-bg-sidebar rounded-lg px-3 py-2">
-        <p class="text-[10px] uppercase text-txt-muted">Total</p>
-        <p class="text-lg font-bold text-[#d4af37]" x-text="'S/. ' + resumenImpresionPlatos().soles"></p>
       </div>
     </div>
     <div class="tabla-platos-scroll flex-1 overflow-auto">
