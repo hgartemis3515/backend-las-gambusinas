@@ -16,6 +16,7 @@ const {
     exprFechaComanda,
     exprPrecioPlatoUnwind,
     listarFilasEstadisticas,
+    contarComandasCreadas,
     cargarConfigMonedaEstadisticas,
     etiquetasComplemento
 } = require('../utils/estadisticasComandas');
@@ -1098,6 +1099,50 @@ async function getDesgloseVentasTickets(fechaInicio, fechaFin) {
     return desgloseVentasPorAprobacion(inicio, fin);
 }
 
+/**
+ * Contador lógico de platos y guarniciones del período.
+ * Lee la comanda (ahí está la cantidad de cada sabor) y la ficha del catálogo.
+ */
+async function getContadorPlatos(fechaInicio, fechaFin) {
+    const { armarContadorPlatos } = require('../utils/contadorPlatosReporte');
+    const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
+    const [comandas, catalogo] = await Promise.all([
+        Comanda.find(matchComandasEstadisticas(inicio, fin))
+            .select('platos cantidades')
+            .populate('platos.plato', 'nombre nombreCocina categoria complementos complementosUnidosAlPlato precio')
+            .lean(),
+        Plato.find({ isActive: { $ne: false } })
+            .select('nombre nombreCocina categoria complementos complementosUnidosAlPlato')
+            .lean(),
+    ]);
+    const lineas = [];
+    for (const c of comandas || []) {
+        (c.platos || []).forEach((p, i) => {
+            if (!p || p.eliminado || p.anulado) return;
+            const ref = p.plato && typeof p.plato === 'object' ? p.plato : null;
+            const cant = Number(p.cantidad) > 0 ? Number(p.cantidad) : (Number(c.cantidades?.[i]) || 1);
+            let soles = Number(p.subtotal);
+            if (!(soles > 0)) {
+                const precio = Number(p.precioUnitario ?? p.precio ?? ref?.precio) || 0;
+                soles = Math.round(precio * cant * 100) / 100;
+            }
+            lineas.push({
+                platoId: ref ? ref._id : p.plato,
+                nombre: p.nombre || ref?.nombre || 'Sin nombre',
+                cantidad: cant,
+                soles,
+                complementos: p.complementosSeleccionados || [],
+            });
+        });
+    }
+    return armarContadorPlatos(lineas, catalogo);
+}
+
+async function contarComandasCreadasPeriodo(fechaInicio, fechaFin) {
+    const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
+    return contarComandasCreadas(inicio, fin);
+}
+
 async function getFilasOperacion(fechaInicio, fechaFin) {
     const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
     const filas = await listarFilasEstadisticas(inicio, fin);
@@ -1218,6 +1263,8 @@ module.exports = {
     getVentas,
     getPlatosTop,
     getFilasOperacion,
+    contarComandasCreadasPeriodo,
     getDesgloseVentasTickets,
+    getContadorPlatos,
     getUsoGMozos
 };

@@ -440,6 +440,16 @@ function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
  * aún sin `incluidoEnCierre`.
  * Usa $and para no pisar el filtro de fechas con el de incluidoEnCierre.
  */
+/** Eliminadas del mismo período de caja. No entran al dinero; sí al ticket y al conteo. */
+function matchComandasEliminadasPeriodo(periodoInicio, periodoFin) {
+    return {
+        $and: [
+            matchFechaPeriodoCaja(periodoInicio, periodoFin),
+            { $or: [{ eliminada: true }, { fechaEliminacion: { $ne: null } }] }
+        ]
+    };
+}
+
 function matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas = false } = {}) {
     const clauses = [
         matchComandaVigente(),
@@ -560,6 +570,15 @@ async function adjuntarMetodosPagoDesdeBouchers(filas) {
     }
 }
 
+function comandaCubiertaSoloPorAdelanto(c) {
+    const activas = (c?.platos || []).filter((p) => p && p.eliminado !== true && p.anulado !== true);
+    if (!activas.length) return false;
+    return activas.every((p) => {
+        if (p.pagoAdelantado?.cobrado === true) return true;
+        return String(p.pagoAdelantado?.estadoTicket || '').toLowerCase() === 'aprobado';
+    });
+}
+
 function mapearFilaReporte(c, config) {
     const cfg = config || getConfigMonedaEstadisticas();
     const factor = factorNetoComanda(c, cfg);
@@ -572,6 +591,7 @@ function mapearFilaReporte(c, config) {
             const precioBase = precioPlatoNum(p);
             const precio = Math.round(precioBase * factor * 100) / 100;
             return {
+                lineaId: p._id || null,
                 nombre: p.nombre || p.platoNombre || p.plato?.nombre || 'Plato',
                 cantidad,
                 precio,
@@ -619,6 +639,7 @@ function mapearFilaReporte(c, config) {
         _fuente: 'comanda',
         comandaNumber: c.comandaNumber,
         status: c.status,
+        soloPagoAdelantado: comandaCubiertaSoloPorAdelanto(c),
         descuento: Number(c.descuento) || 0,
         montoDescuento: montoDescuentoComandaNum(c),
         motivoDescuento: c.motivoDescuento || null,
@@ -684,6 +705,63 @@ function filasARowsHorario(filas) {
             diaSemana: d.isValid() ? d.day() + 1 : 1
         };
     });
+}
+
+/** Creadas en el período, incluidas las eliminadas. `eliminadas` es el subconjunto borrado.
+ *  Llevar: sin mesa, o todos los platos son para llevar (la reserva entra por ese tipo). */
+async function contarComandasCreadas(inicio, fin) {
+    const Comanda = getComandaModel();
+    const rango = { createdAt: { $gte: inicio, $lte: fin } };
+    const [eliminadas, agrupado] = await Promise.all([
+        Comanda.countDocuments({
+            ...rango,
+            $or: [
+                { eliminada: true },
+                { fechaEliminacion: { $type: 'date' } }
+            ]
+        }),
+        Comanda.aggregate([
+            { $match: rango },
+            {
+                $project: {
+                    llevar: {
+                        $or: [
+                            { $eq: ['$sinMesa', true] },
+                            {
+                                $and: [
+                                    { $gt: [{ $size: { $ifNull: ['$platos', []] } }, 0] },
+                                    {
+                                        $allElementsTrue: {
+                                            $map: {
+                                                input: { $ifNull: ['$platos', []] },
+                                                as: 'p',
+                                                in: { $eq: ['$$p.tipoServicio', 'para_llevar'] }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    creadas: { $sum: 1 },
+                    llevar: { $sum: { $cond: ['$llevar', 1, 0] } }
+                }
+            }
+        ])
+    ]);
+    const creadas = agrupado[0]?.creadas || 0;
+    const llevar = agrupado[0]?.llevar || 0;
+    return {
+        creadas,
+        eliminadas,
+        llevar,
+        mesa: Math.max(0, creadas - llevar)
+    };
 }
 
 async function listarFilasEstadisticas(inicio, fin) {
@@ -803,6 +881,7 @@ module.exports = {
     ticketSigueVigenteParaCierre,
     matchComandasEstadisticas,
     matchComandasCierrePendiente,
+    matchComandasEliminadasPeriodo,
     matchIncluidoEnEsteCierre,
     matchComandasPeriodoDeCierre,
     filtroNoIncluidoEnCierreComanda,
@@ -814,6 +893,7 @@ module.exports = {
     agregarHorariosComandas,
     mapearFilaReporte,
     listarFilasEstadisticas,
+    contarComandasCreadas,
     setConfigMonedaEstadisticas,
     getConfigMonedaEstadisticas,
     cargarConfigMonedaEstadisticas,

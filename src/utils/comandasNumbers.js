@@ -80,6 +80,16 @@ function letraRevisionTicket(n) {
   return s;
 }
 
+function numerosDiaDeComandas(comandas) {
+  const set = new Set();
+  for (const c of comandas || []) {
+    if (!c || c.numeroComandaDia == null || c.numeroComandaDia === '') continue;
+    const n = Number(c.numeroComandaDia);
+    if (Number.isFinite(n)) set.add(n);
+  }
+  return [...set];
+}
+
 function numeroVisibleComanda(c) {
   if (!c) return null;
   const dia = c.numeroComandaDia;
@@ -111,8 +121,10 @@ function formatLetreroTicket(comandas) {
 
 /** Une números del grupo con las letras de las comandas que sí están cargadas. */
 function formatLetreroDesdeNumeros(comandasNumbers, comandas = []) {
-  const nums = resolverComandasNumbers({ comandasNumbers });
   const docs = Array.isArray(comandas) ? comandas : [];
+  const conDia = docs.filter((c) => c && c.numeroComandaDia != null && c.numeroComandaDia !== '' && Number.isFinite(Number(c.numeroComandaDia)));
+  if (conDia.length) return formatLetreroTicket(conDia);
+  const nums = resolverComandasNumbers({ comandasNumbers });
   const revByN = new Map();
   for (const c of docs) {
     const n = numeroVisibleComanda(c);
@@ -143,5 +155,6 @@ module.exports = {
   letraRevisionTicket,
   formatLetreroTicket,
   formatLetreroDesdeNumeros,
+  numerosDiaDeComandas,
   ticketAnulacionPayload,
 };

@@ -20,6 +20,7 @@ const {
   resolverComandasNumbers,
   formatComandasNumbersLabel,
   formatLetreroDesdeNumeros,
+  numerosDiaDeComandas,
 } = require('../utils/comandasNumbers');
 const { filtroTicketsVinculadosAComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
 const configuracionRepository = require('./configuracion.repository');
@@ -765,10 +766,13 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
   } catch (_) { /* default ON */ }
   productos = aplicarOpcionesImpresionProductos(productos, { soloNombreComercial: solo });
 
-  const comandasNumbers = resolverComandasNumbers({
-    comandasNumbers: ticket.comandasNumbers,
-    platos: ticket.platos,
-  });
+  const dias = numerosDiaDeComandas(ticket.comandas);
+  const comandasNumbers = dias.length
+    ? dias
+    : resolverComandasNumbers({
+      comandasNumbers: ticket.comandasNumbers,
+      platos: ticket.platos,
+    });
   const letreroGrupo = formatLetreroDesdeNumeros(comandasNumbers, ticket.comandas);
   const comandaNumeroDisplay = letreroGrupo
     || formatComandasNumbersLabel(comandasNumbers)

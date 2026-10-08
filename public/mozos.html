@@ -4934,6 +4934,16 @@ function mozosExecutiveApp() {
         this._socketAdmin.on('propina-eliminada', (p) => this.scheduleSocketRefresh(p?.mozoId));
         this._socketAdmin.on('comanda-eliminada', () => this.refreshAll());
         this._socketAdmin.on('reportes:comanda-eliminada', () => this.refreshAll());
+        this._socketAdmin.on('reportes:comanda-nueva', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('reportes:boucher-nuevo', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('ticket-aprobacion-nuevo', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('comanda-aprobada', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('ticket-ppa-nuevo', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('ticket-ppa-aprobado', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('ticket-ppa-actualizado', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('ticket-reportado', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('ticket-actualizado', () => this.scheduleSocketRefresh());
+        this._socketAdmin.on('ticket-eliminado', () => this.scheduleSocketRefresh());
         this._socketAdmin.on('mozos-conectados', (payload) => {
           this.mozosConectados = payload?.conectados ?? payload?.mozos?.length ?? 0;
           this.pulseKpi('presencia');

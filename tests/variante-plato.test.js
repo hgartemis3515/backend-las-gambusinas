@@ -260,4 +260,12 @@ describe('snapshotNombreCocinaPedido', () => {
     const cat = { nombre: 'MIX', nombreCocina: 'MIX' };
     expect(snapshotNombreCocinaPedido(linea, cat)).toBe('TÉ');
   });
+
+  test('sin variante guarda el nombre de carta para el ticket', () => {
+    const linea = { nombreCocinaPedido: '' };
+    const cat = { nombre: 'Lomo saltado', nombreCocina: 'LOMO' };
+    snapshotNombreCocinaPedido(linea, cat);
+    expect(linea.nombre).toBe('Lomo saltado');
+    expect(linea.nombreCocinaPedido).toBeFalsy();
+  });
 });

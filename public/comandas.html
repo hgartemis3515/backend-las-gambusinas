@@ -25,7 +25,7 @@
 <script src="/socket.io/socket.io.js"></script>
  <script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
  <script type="module" src="/js/comanda-print/imprimirTicketsEpos.js"></script>
- <script type="module" src="/js/cierre-print/cierreTicketPrint.js"></script>
+ <script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261006b"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -170,12 +170,29 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
    <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Total visto</p>
    <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="fmtSolesKpi(totalVistoTabla)"></p>
   </div>
+  <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
+  <div>
+   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets</p>
+   <p class="text-sm font-extrabold text-white tabular-nums leading-tight">
+    <span x-text="kpiTicketsCreadas"></span><span x-show="kpiTicketsEliminadas > 0" class="text-[#ff4757]" x-text="' -' + kpiTicketsEliminadas"></span>
+   </p>
+  </div>
+  <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
+  <div>
+   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets mesa</p>
+   <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="kpiTicketsMesa"></p>
+  </div>
+  <div>
+   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets llevar</p>
+   <p class="text-sm font-extrabold text-[#3b82f6] tabular-nums leading-tight" x-text="kpiTicketsLlevar"></p>
+  </div>
  </div>
  </div>
  <div class="flex items-center gap-3">
  <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre">
  <span class="w-2 h-2 rounded-full bg-st-libre animate-pulse"></span> Conectado
  </span>
+ <button x-show="activeTab === 'tabla'" @click="vistaPreviaComandasVisibles()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Vista previa</button>
  <button x-show="activeTab === 'tabla'" @click="imprimirComandasVisibles()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition inline-flex items-center gap-1.5">
   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0H6.34m0 0H5.409c-.621 0-1.125-.504-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h14.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125H17.66z"/></svg>
   Imprimir
@@ -183,6 +200,14 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <button x-show="activeTab === 'tabla'" @click="recargarTabla()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
  <button x-show="activeTab === 'plantilla' && plantillaComandaModificada" @click="guardarPlantillaComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
  </div>
+ </div>
+
+ <div x-show="vistaPreviaAbierta" x-cloak class="fixed top-0 right-0 z-[80] h-full w-[630px] max-w-full bg-bg-card border-l border-[rgba(212,175,55,0.25)] shadow-2xl flex flex-col">
+  <div class="flex items-center justify-between px-4 py-3 border-b border-[rgba(212,175,55,0.15)] shrink-0">
+   <p class="text-sm font-semibold text-gold">Vista previa</p>
+   <button type="button" @click="vistaPreviaAbierta = false" class="text-txt-secondary hover:text-white text-sm">Cerrar</button>
+  </div>
+  <iframe class="flex-1 w-full min-h-0 bg-white" title="Vista previa de impresión" :srcdoc="vistaPreviaHtml"></iframe>
  </div>
 
  <!-- TABS -->
@@ -383,10 +408,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span class="min-w-0 flex flex-col gap-0.5">
   <span class="text-gold font-bold text-sm leading-snug break-words">
    <span>GRUPO</span>
-   <template x-for="n in numerosDiaGrupo(row.comandas)" :key="'g' + row.id + '-' + n">
-    <span class="inline-block mr-1" x-text="'#' + n"></span>
+   <template x-for="etq in etiquetasGrupoTabla(row.comandas)" :key="'g' + row.id + '-' + etq">
+    <span class="inline-block mr-1" x-text="etq"></span>
    </template>
-   <span x-show="numerosDiaGrupo(row.comandas).length === 0" class="inline-block ml-1" x-text="row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj)"></span>
+   <span x-show="etiquetasGrupoTabla(row.comandas).length === 0" class="inline-block ml-1" x-text="row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj)"></span>
    <span x-show="esFilaPrueba(row)" class="inline-block ml-1 text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
   </span>
   <span x-show="esGrupoReserva(row)"
@@ -402,9 +427,9 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </template>
 <template x-if="row.tipo === 'individual'">
 <div class="flex items-center gap-1.5 whitespace-nowrap">
-  <span class="font-medium text-sm" :class="row.comanda?.eliminada ? 'line-through text-txt-muted' : ''" x-text="'#' + (row.comanda.numComanda || row.comanda._id?.slice(-4) || '—')"></span>
+  <span class="font-medium text-sm" :class="row.comanda?.eliminada ? 'line-through text-txt-muted' : ''" x-text="etiquetaNumeroTabla(row.comanda)"></span>
   <span x-show="esComandaPrueba(row.comanda)" class="text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none" title="Comanda de prueba (monto 0)">PRUEBA</span>
-  <span x-show="row.comanda?.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" title="Soft-delete. No cuenta en cierre ni reportes.">ELIMINADA</span>
+  <span x-show="row.comanda?.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none">ANULADO</span>
   <span x-show="row.comanda?.omitirPago" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
   <span x-show="esComandaReserva(row.comanda)"
    class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
@@ -521,8 +546,26 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  :class="claseEstadoPlatoChip(chip.estado)"
  x-text="chip.label + ' ×' + chip.cantidad"></span>
  </template>
- <span x-show="contarEstadosPlatosFila(row).length === 0" class="text-[10px] text-txt-muted">—</span>
+ <span x-show="contarEstadosPlatosFila(row).length === 0 && !(row.tipo === 'individual' && row.comanda?.eliminada)" class="text-[10px] text-txt-muted">—</span>
  </div>
+ <p x-show="row.tipo === 'individual' && row.comanda?.eliminada" class="mt-1 text-[10px] leading-snug text-[#ff6b6b] text-left" x-text="textoAuditoriaComanda(row.comanda)"></p>
+ <template x-if="row.tipo === 'individual'">
+  <template x-for="(linea, li) in textosPlatosEliminados(row.comanda)" :key="'pe'+li">
+   <p class="mt-1 text-[10px] leading-snug text-[#ff6b6b] text-left" x-text="linea"></p>
+  </template>
+ </template>
+ <template x-if="row.tipo === 'grupo'">
+  <div class="mt-1 space-y-0.5 text-left">
+   <template x-for="c in (row.comandas || []).filter(x => x && x.eliminada)" :key="'an'+c._id">
+    <p class="text-[10px] leading-snug text-[#ff6b6b]" x-text="etiquetaNumeroTabla(c) + ' · ' + textoAuditoriaComanda(c)"></p>
+   </template>
+   <template x-for="c in (row.comandas || []).filter(Boolean)" :key="'peg'+c._id">
+    <template x-for="(linea, li) in textosPlatosEliminados(c)" :key="'pel'+c._id+'-'+li">
+     <p class="text-[10px] leading-snug text-[#ff6b6b]" x-text="etiquetaNumeroTabla(c) + ' · ' + linea"></p>
+    </template>
+   </template>
+  </div>
+ </template>
  </td>
  
  <!-- Fecha / Hora -->
@@ -564,10 +607,11 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  @click="openDetailModal(comanda)">
  <!-- ID con indentación -->
  <td class="px-3 py-2 pl-8">
-<div class="flex items-center gap-1.5 whitespace-nowrap">
-   <span class="text-txt-muted text-xs">↳</span>
- <span class="text-txt-secondary text-sm" x-text="'#' + (comanda.numComanda || comanda._id?.slice(-4))"></span>
+ <div class="flex items-center gap-1.5 whitespace-nowrap">
+ <span class="text-txt-muted text-xs">↳</span>
+ <span class="text-txt-secondary text-sm" :class="comanda.eliminada ? 'line-through' : ''" x-text="etiquetaNumeroTabla(comanda)"></span>
  <span x-show="esComandaPrueba(comanda)" class="text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none" title="Comanda de prueba (monto 0)">PRUEBA</span>
+ <span x-show="comanda.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none">ANULADO</span>
  <span x-show="esComandaReserva(comanda)"
   class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
   :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comanda) || '—')">
@@ -635,8 +679,12 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  :class="claseEstadoPlatoChip(chip.estado)"
  x-text="chip.label + ' ×' + chip.cantidad"></span>
  </template>
- <span x-show="contarEstadosPlatosComanda(comanda).length === 0" class="text-[10px] text-txt-muted">—</span>
+ <span x-show="contarEstadosPlatosComanda(comanda).length === 0 && !comanda.eliminada" class="text-[10px] text-txt-muted">—</span>
  </div>
+ <p x-show="comanda.eliminada" class="mt-1 text-[10px] leading-snug text-[#ff6b6b] text-left" x-text="textoAuditoriaComanda(comanda)"></p>
+ <template x-for="(linea, li) in textosPlatosEliminados(comanda)" :key="'pec'+li">
+  <p class="mt-1 text-[10px] leading-snug text-[#ff6b6b] text-left" x-text="linea"></p>
+ </template>
  </td>
  <!-- Fecha / Hora -->
  <td class="px-3 py-2 text-xs text-txt-muted text-center">
@@ -876,7 +924,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center justify-between">
  <div>
  <div class="flex items-center gap-3">
- <h2 class="text-lg font-bold" x-text="'Comanda #' + (selectedComanda?.numComanda || selectedComanda?.comandaNumber || selectedComanda?._id?.slice(-4) || '—')"></h2>
+ <h2 class="text-lg font-bold" x-text="'Comanda ' + etiquetaNumeroTabla(selectedComanda)"></h2>
  <span x-show="selectedComanda?.eliminada" class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-st-pagado/20 text-st-pagado">ELIMINADA</span>
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
  :class="{
@@ -917,6 +965,12 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <button @click="cerrarModalVerComanda()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
  </div>
  </div>
+ </div>
+
+ <div x-show="!loadingDetalle && selectedComanda?.eliminada" class="mx-6 mt-4 rounded-lg border border-[#ff4757]/40 bg-[#ff4757]/10 px-3 py-2 text-xs text-[#ffb4b4] space-y-0.5">
+  <p x-text="'Eliminó: ' + (selectedComanda.eliminadaPorNombre || 'Sin registro')"></p>
+  <p x-text="'Motivo: ' + (selectedComanda.motivoEliminacion || 'Sin motivo')"></p>
+  <p x-text="'Hora: ' + horaCorta(selectedComanda.fechaEliminacion)"></p>
  </div>
 
  <!-- LOADING DETALLE -->
@@ -973,11 +1027,25 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
        <td class="text-right tabular-nums" x-text="Number(item.precio || item.precioUnitario || 0).toFixed(2)"></td>
        <td class="text-center tabular-nums" x-text="item.cantidad || 1"></td>
        <td class="text-right tabular-nums" x-text="totalLineaBasica(item).toFixed(2)"></td>
-       <td x-text="labelEstadoPlatoChip(item.estado, selectedComanda, item)"></td>
+       <td>
+        <div x-text="item.eliminado ? 'Eliminado' : labelEstadoPlatoChip(item.estado, selectedComanda, item)"></div>
+        <template x-for="(linea, li) in lineasAuditoriaPlato(selectedComanda, item)" :key="'vb'+idx+'-'+li">
+         <p class="text-[0.8rem] leading-snug text-[#ff6b6b] mt-0.5" x-text="linea"></p>
+        </template>
+       </td>
       </tr>
      </template>
     </tbody>
    </table>
+   <div x-show="comandaTieneDescuentoFront(selectedComanda)" class="mt-4 pt-3 border-t border-white/20 text-base font-bold text-white space-y-1">
+    <div class="flex justify-between items-center">
+     <span class="uppercase">Descuento</span>
+     <span class="tabular-nums" x-text="'-S/ ' + montoDescuentoMostrar(selectedComanda).toFixed(2)"></span>
+    </div>
+    <p x-text="'Motivo: ' + (selectedComanda?.motivoDescuento || 'Sin motivo')"></p>
+    <p x-text="'Lo puso: ' + (selectedComanda?.descuentoAplicadoPorNombre || 'Sin registro')"></p>
+    <p x-text="'Hora: ' + horaCorta(selectedComanda?.descuentoAplicadoAt)"></p>
+   </div>
    <div class="vb-total flex justify-between items-center">
     <span class="text-lg uppercase">Total</span>
     <span class="inline-flex items-center gap-2">
@@ -1034,7 +1102,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
    <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Nº comanda</p>
-       <p class="font-medium font-mono text-[#c39bd3]" x-text="(selectedComanda?.numComanda || selectedComanda?.comandaNumber) ? ('#' + (selectedComanda?.numComanda || selectedComanda?.comandaNumber)) : '—'"></p>
+       <p class="font-medium font-mono text-[#c39bd3]" x-text="etiquetaNumeroTabla(selectedComanda)"></p>
      </div>
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Reserva creada</p>
@@ -1233,7 +1301,6 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
  <td class="px-4 py-3">
  <p class="font-medium" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
- <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="item.eliminado && item.eliminadoRazon" x-text="'Motivo: ' + item.eliminadoRazon"></p>
  <!-- NUEVO: Badge Para llevar -->
  <template x-if="item.tipoServicio === 'para_llevar'">
  <span class="inline-flex items-center gap-1 mt-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
@@ -1303,7 +1370,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <td class="px-3 py-3 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
  :class="claseChipEstadoPlato(item)"
- x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, selectedComanda, item)"></span>
+ x-text="item.eliminado ? 'Eliminado' : labelEstadoPlatoChip(item.estado, selectedComanda, item)"></span>
+ <template x-for="(linea, li) in lineasAuditoriaPlato(selectedComanda, item)" :key="'va'+idx+'-'+li">
+  <p class="text-[10px] leading-snug text-[#ff6b6b] mt-0.5" x-text="linea"></p>
+ </template>
  </td>
  </tr>
  </template>
@@ -1578,7 +1648,12 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
         <td class="text-right tabular-nums" x-text="Number(item.precio || item.precioUnitario || 0).toFixed(2)"></td>
         <td class="text-center tabular-nums" x-text="item.cantidad || 1"></td>
         <td class="text-right tabular-nums" x-text="totalLineaBasica(item).toFixed(2)"></td>
-        <td x-text="labelEstadoPlatoChip(item.estado, comanda, item)"></td>
+        <td>
+         <div x-text="item.eliminado ? 'Eliminado' : labelEstadoPlatoChip(item.estado, comanda, item)"></div>
+         <template x-for="(linea, li) in lineasAuditoriaPlato(comanda, item)" :key="'vgb'+idx+'-'+li">
+          <p class="text-[0.8rem] leading-snug text-[#ff6b6b] mt-0.5" x-text="linea"></p>
+         </template>
+        </td>
        </tr>
       </template>
      </tbody>
@@ -1725,8 +1800,9 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center gap-3 flex-wrap">
  <span class="text-lg">📋</span>
  <div class="flex items-center gap-2 flex-wrap">
- <span class="font-bold text-white" x-text="'#' + (comanda.numComanda || comanda._id?.slice(-4))"></span>
+ <span class="font-bold text-white" x-text="etiquetaNumeroTabla(comanda)"></span>
  <span x-show="comanda.eliminada" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-st-pagado/20 text-st-pagado">ELIMINADA</span>
+ <span x-show="comanda.eliminada" class="text-[10px] text-[#ffb4b4]" x-text="textoAuditoriaComanda(comanda) + ' · ' + horaCorta(comanda.fechaEliminacion)"></span>
  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
  :class="{
  'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': comanda.estado === 'pendiente_aprobar',
@@ -1969,7 +2045,6 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
  <td class="px-4 py-3">
  <p class="font-medium" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
- <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="item.eliminado && item.eliminadoRazon" x-text="'Motivo: ' + item.eliminadoRazon"></p>
  <template x-if="item.tipoServicio === 'para_llevar'">
  <span class="inline-flex items-center gap-1 mt-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
  </template>
@@ -2035,7 +2110,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <td class="px-3 py-3 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
  :class="claseChipEstadoPlato(item)"
- x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, comanda, item)"></span>
+ x-text="item.eliminado ? 'Eliminado' : labelEstadoPlatoChip(item.estado, comanda, item)"></span>
+ <template x-for="(linea, li) in lineasAuditoriaPlato(comanda, item)" :key="'vga'+cIdx+'-'+idx+'-'+li">
+  <p class="text-[10px] leading-snug text-[#ff6b6b] mt-0.5" x-text="linea"></p>
+ </template>
  </td>
  </tr>
  </template>
@@ -2235,7 +2313,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center justify-between">
  <div>
  <div class="flex items-center gap-3">
- <h2 class="text-lg font-bold" x-text="'Editar Comanda #' + (editComanda?.numComanda || '—')"></h2>
+ <h2 class="text-lg font-bold" x-text="'Editar Comanda ' + etiquetaNumeroTabla(editComanda)"></h2>
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
  :class="{
  'bg-[#2ecc71]/20 text-[#2ecc71]': editComanda?.estado === 'recoger' || editComanda?.estado === 'preparado',
@@ -2270,12 +2348,18 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  </div>
 
+ <div x-show="!loadingDetalle && editComanda?.eliminada" class="mx-5 mt-4 rounded-lg border border-[#ff4757]/40 bg-[#ff4757]/10 px-3 py-2 text-xs text-[#ffb4b4] space-y-0.5">
+  <p x-text="'Eliminó: ' + (editComanda.eliminadaPorNombre || 'Sin registro')"></p>
+  <p x-text="'Motivo: ' + (editComanda.motivoEliminacion || 'Sin motivo')"></p>
+  <p x-text="'Hora: ' + horaCorta(editComanda.fechaEliminacion)"></p>
+ </div>
+
  <div x-show="!loadingDetalle" class="p-5 space-y-4">
 
  <!-- INFO GENERAL -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <p class="text-[10px] text-[#5a5a7a] uppercase mb-1 font-semibold tracking-wider text-center">Número de comanda</p>
- <p class="text-center text-5xl font-black text-gold tabular-nums leading-none mb-4" x-text="'#' + (editComanda?.numComanda || '—')"></p>
+ <p class="text-center text-5xl font-black text-gold tabular-nums leading-none mb-4" x-text="etiquetaNumeroTabla(editComanda)"></p>
  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Creada</p>
@@ -2337,7 +2421,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
    <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Nº comanda</p>
-       <p class="font-medium font-mono text-[#c39bd3]" x-text="(editComanda?.numComanda || editComanda?.comandaNumber) ? ('#' + (editComanda.numComanda || editComanda.comandaNumber)) : '—'"></p>
+       <p class="font-medium font-mono text-[#c39bd3]" x-text="etiquetaNumeroTabla(editComanda)"></p>
      </div>
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Reserva creada</p>
@@ -2418,7 +2502,9 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="plato.eliminado ? 'opacity-40 bg-[#ff4757]/5' : ''">
  <td class="px-4 py-3">
  <p class="font-medium" :class="plato.eliminado ? 'line-through text-txt-muted' : ''" x-text="plato.nombre || '—'"></p>
- <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="plato.eliminado && plato.eliminadoRazon" x-text="'Motivo: ' + plato.eliminadoRazon"></p>
+ <template x-for="(linea, li) in lineasAuditoriaPlato(editComanda, plato)" :key="'ep'+idx+'-'+li">
+  <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-text="linea"></p>
+ </template>
  <p class="text-[10px] text-[#5a5a7a]" x-show="plato.notaEspecial" x-text="'📝 ' + plato.notaEspecial"></p>
  </td>
  <td class="px-3 py-3 text-center">
@@ -2770,6 +2856,41 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
 </div>
 
+<!-- MODAL: ELIMINAR CANTIDAD DE PLATO (no la línea entera) -->
+<div x-show="modal==='eliminarCantidadPlato'" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80">
+ <div class="bg-bg-card border border-st-pagado/40 rounded-2xl w-[440px] shadow-2xl" @click.stop>
+ <div class="p-6">
+ <div class="w-16 h-16 rounded-full bg-st-pagado/20 flex items-center justify-center mx-auto mb-4">
+ <span class="text-3xl">🗑️</span>
+ </div>
+ <h3 class="text-lg font-bold mb-2 text-center">Eliminar plato</h3>
+ <p class="text-txt-secondary text-sm mb-2 text-center">Se elimina la cantidad, no el plato entero. La comanda pasará a <span class="text-gold font-bold" x-text="letraTrasBaja(editComanda)"></span> y se imprime el ticket en cocina y caja.</p>
+ <div class="mb-3 space-y-1">
+  <template x-for="b in bajasCantidadPendientes" :key="b.index">
+   <p class="text-xs text-white text-center" x-text="b.quitar + ' × ' + b.nombre + ' (había ' + b.original + ', quedan ' + b.quedan + ')'"></p>
+  </template>
+ </div>
+ <p class="text-xs text-txt-muted mb-3 text-center">Elige un motivo. El texto extra es opcional.</p>
+ <div class="grid grid-cols-2 gap-2 mb-2">
+  <template x-for="m in motivosRapidosCocina" :key="'baja-'+m.id">
+   <button type="button" @click="guardarEdicionComanda(combinarMotivoRapido(m.label, motivoBajaCantidad))" :disabled="guardando"
+    class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-white text-xs font-semibold min-h-[84px] hover:border-st-pagado hover:bg-st-pagado/10 transition disabled:opacity-50">
+    <span class="text-lg" x-text="m.icon"></span>
+    <span x-text="m.label"></span>
+   </button>
+  </template>
+ </div>
+ <textarea x-model="motivoBajaCantidad" rows="2" placeholder="Motivo extra (opcional)"
+  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm resize-none focus:border-st-pagado focus:outline-none text-white mt-2"></textarea>
+ </div>
+ <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
+ <button type="button" @click="modal='editarComanda'; motivoBajaCantidad=''" :disabled="guardando" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-gold hover:text-gold transition">Cancelar</button>
+ <button type="button" @click="guardarEdicionComanda(motivoBajaCantidad)" :disabled="guardando || !String(motivoBajaCantidad || '').trim()"
+  class="px-4 py-2 rounded-lg text-sm font-semibold bg-st-pagado text-white disabled:opacity-40">Eliminar cantidad</button>
+ </div>
+ </div>
+</div>
+
 <!-- MODAL: EDITAR TICKET -->
 <div x-show="modal==='editarTicket'" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80" @click.self="modal='editarComanda'">
  <div class="bg-bg-card border border-gold/30 rounded-2xl w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
@@ -3065,7 +3186,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center gap-3">
  <span class="text-lg">📋</span>
  <div>
- <span class="font-bold text-white" x-text="'#' + (comanda.numComanda || comanda._id?.slice(-4))"></span>
+ <span class="font-bold text-white" x-text="etiquetaNumeroTabla(comanda)"></span>
  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ml-2"
  :class="{
  'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': comanda.estado === 'pendiente_aprobar',
@@ -3076,6 +3197,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  'bg-st-completado/20 text-st-completado': comanda.estado === 'completado'
  }"
  x-text="estadoLabel(comanda.estado)"></span>
+ <p x-show="comanda.eliminada" class="text-[10px] text-[#ffb4b4] mt-0.5" x-text="textoAuditoriaComanda(comanda) + ' · ' + horaCorta(comanda.fechaEliminacion)"></p>
  </div>
  </div>
  <div class="flex items-center gap-3">
@@ -3110,7 +3232,9 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <tr class="border-b border-[rgba(212,175,55,0.05)]" :class="item.eliminado ? 'opacity-40 bg-[#ff4757]/5' : ''">
  <td class="px-4 py-2">
  <p class="font-medium text-sm" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
- <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="item.eliminado && item.eliminadoRazon" x-text="'Motivo: ' + item.eliminadoRazon"></p>
+ <template x-for="(linea, li) in lineasAuditoriaPlato(comanda, item)" :key="'eg'+cIdx+'-'+idx+'-'+li">
+  <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-text="linea"></p>
+ </template>
  <p class="text-[10px] text-[#5a5a7a]" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
  </td>
  <td class="px-3 py-2 text-center font-semibold text-sm" x-text="item.cantidad || 1"></td>
@@ -3393,6 +3517,8 @@ function comandasApp() {
 
  comandaEliminar: null,
  motivoEliminacion: '',
+ bajasCantidadPendientes: [],
+ motivoBajaCantidad: '',
  motivosRapidosCocina: [
   { id: 'cliente_no_desea', label: 'Cliente no desea', icon: '🚫' },
   { id: 'equivocacion_mozo', label: 'Equivocación de mozo', icon: '🧑‍🍳' },
@@ -3418,6 +3544,8 @@ function comandasApp() {
  filterSoloCambioG: false,
  verIdHistorico: false,
  verEliminadas: false,
+ vistaPreviaAbierta: false,
+ vistaPreviaHtml: '',
  filtroPeriodo: 'hoy',
  customFechaDesde: '',
  customFechaHasta: '',
@@ -3433,6 +3561,10 @@ function comandasApp() {
  _turnosAutoNocheHecho: false,
  _turnosPoll: null,
  kpiVentasTotales: 0,
+ kpiTicketsCreadas: 0,
+ kpiTicketsEliminadas: 0,
+ kpiTicketsMesa: 0,
+ kpiTicketsLlevar: 0,
  presetsPeriodo: [
   { id: 'hoy', label: 'Hoy' },
   { id: 'ayer', label: 'Ayer' },
@@ -3943,6 +4075,34 @@ numerosDiaGrupo(comandas) {
   if (nums.length <= 1) return nums;
   const max = Math.max(...nums);
   return [max, ...nums.filter((n) => n !== max).sort((a, b) => b - a)];
+},
+
+/** #1b. Sin revisión no lleva letra. */
+etiquetaNumeroTabla(c) {
+  if (!c) return '#—';
+  const n = c.numComanda != null && c.numComanda !== ''
+    ? c.numComanda
+    : (c.numeroComandaDia != null && c.numeroComandaDia !== '' ? c.numeroComandaDia : null);
+  if (n == null || n === '') return '#' + (c._id ? String(c._id).slice(-4) : '—');
+  return '#' + n + this.letraRevComanda(c.revisionTicket);
+},
+
+/** Grupo de la tabla: #4c+#3b */
+etiquetasGrupoTabla(comandas) {
+  const byN = new Map();
+  (comandas || []).forEach((c) => {
+    const raw = c && c.numeroComandaDia != null && c.numeroComandaDia !== '' ? c.numeroComandaDia : c && c.numComanda;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return;
+    const rev = Math.max(0, Math.floor(Number(c.revisionTicket) || 0));
+    const prev = byN.get(n);
+    if (prev == null || rev > prev) byN.set(n, rev);
+  });
+  const nums = [...byN.keys()];
+  if (!nums.length) return [];
+  const max = Math.max(...nums);
+  const orden = nums.length === 1 ? nums : [max, ...nums.filter((x) => x !== max).sort((a, b) => b - a)];
+  return orden.map((n) => '#' + n + this.letraRevComanda(byN.get(n)));
 },
 
 /** Etiqueta agrupada de comandas: #82+#81 */
@@ -4941,9 +5101,7 @@ this.scheduleRefreshVentasTotales();
  this.loading = true;
 
  const rango = this.rangoFiltroFechas;
- let qs = this.verEliminadas
-  ? '/comanda?incluirPagadas=true&incluirEliminadas=true'
-  : '/comanda?incluirPagadas=true';
+ let qs = '/comanda?incluirPagadas=true&incluirEliminadas=true';
  if (rango && rango.desde && rango.hasta) {
   qs += '&desde=' + encodeURIComponent(rango.desde) + '&hasta=' + encodeURIComponent(rango.hasta);
  }
@@ -4983,9 +5141,72 @@ this.scheduleRefreshVentasTotales();
   return out;
  },
 
- imprimirComandasVisibles() {
+ datosTicketComandasVisibles() {
   const lista = this.comandasVisiblesTabla();
-  if (!lista.length) {
+  if (!lista.length) return null;
+  const lineas = lista.map((c) => {
+    const anulada = this.comandaEsEliminada(c);
+    const num = c.numeroComandaDia != null && c.numeroComandaDia !== ''
+      ? c.numeroComandaDia
+      : (c.numComanda ?? '');
+    if (anulada) {
+      return {
+        comandaNumber: num,
+        mesa: this.formatearNombreMesa(c.mesa),
+        eliminadoPorNombre: c.eliminadaPorNombre || '',
+        anulada: true,
+        bruto: 0,
+        subtotal: 0,
+        descuento: 0,
+        total: 0,
+      };
+    }
+    const neto = Number(this.totalNetoComanda(c)) || 0;
+    const desc = Number(this.montoDescuentoMostrar(c)) || 0;
+    const bruto = Number((neto + desc).toFixed(2));
+    return {
+      comandaNumber: num,
+      numeroComandaMozo: c.numeroComandaMozo || null,
+      mesa: this.formatearNombreMesa(c.mesa),
+      anulada: false,
+      bruto,
+      subtotal: bruto,
+      descuento: desc,
+      total: Number(neto.toFixed(2)),
+    };
+  }).sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
+  const cobradas = lineas.filter((l) => !l.anulada);
+  const total = Number(cobradas.reduce((s, l) => s + l.total, 0).toFixed(2));
+  const tiempos = lista
+    .map((c) => new Date(c.createdAt).getTime())
+    .filter((n) => Number.isFinite(n));
+  return {
+    titulo: 'COMANDAS',
+    fechaCierre: new Date(),
+    periodoInicio: tiempos.length ? new Date(Math.min(...tiempos)) : null,
+    periodoFin: tiempos.length ? new Date(Math.max(...tiempos)) : null,
+    comandas: lineas,
+    total,
+  };
+ },
+
+ vistaPreviaComandasVisibles() {
+  const datos = this.datosTicketComandasVisibles();
+  if (!datos) {
+    this.showToast('No hay comandas visibles para la vista previa', 'error');
+    return;
+  }
+  if (typeof window.generarHtmlCierreTicket !== 'function') {
+    this.showToast('Módulo de impresión no cargado', 'error');
+    return;
+  }
+  this.vistaPreviaHtml = window.generarHtmlCierreTicket(datos, { vistaPrevia: true });
+  this.vistaPreviaAbierta = true;
+ },
+
+ imprimirComandasVisibles() {
+  const datos = this.datosTicketComandasVisibles();
+  if (!datos) {
     this.showToast('No hay comandas visibles para imprimir', 'error');
     return;
   }
@@ -4993,33 +5214,8 @@ this.scheduleRefreshVentasTotales();
     this.showToast('Módulo de impresión no cargado', 'error');
     return;
   }
-  const lineas = lista.map((c) => {
-    const neto = Number(this.totalNetoComanda(c)) || 0;
-    const desc = Number(this.montoDescuentoMostrar(c)) || 0;
-    const bruto = Number((neto + desc).toFixed(2));
-    return {
-      comandaNumber: c.numComanda ?? c.numeroComandaDia ?? '',
-      numeroComandaMozo: c.numeroComandaMozo || null,
-      mesa: this.formatearNombreMesa(c.mesa),
-      bruto,
-      subtotal: bruto,
-      descuento: desc,
-      total: Number(neto.toFixed(2)),
-    };
-  }).sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
-  const total = Number(lineas.reduce((s, l) => s + l.total, 0).toFixed(2));
-  const tiempos = lista
-    .map((c) => new Date(c.createdAt).getTime())
-    .filter((n) => Number.isFinite(n));
   try {
-    window.imprimirTicketDesdeDatos({
-      titulo: 'COMANDAS',
-      fechaCierre: new Date(),
-      periodoInicio: tiempos.length ? new Date(Math.min(...tiempos)) : null,
-      periodoFin: tiempos.length ? new Date(Math.max(...tiempos)) : null,
-      comandas: lineas,
-      total,
-    });
+    window.imprimirTicketDesdeDatos(datos);
   } catch (e) {
     this.showToast(e.message || 'No se pudo imprimir', 'error');
   }
@@ -5106,7 +5302,7 @@ this.scheduleRefreshVentasTotales();
         platoId: platoIdNumerico,
         subdocumentoId: subdocumentoId,
         platoIndex: index,
- nombre: plato.nombre || item.nombre || 'Sin nombre',
+ nombre: item.nombreCocinaPedido || plato.nombre || plato.nombreCocina || item.nombre || 'Sin nombre',
  precio: Number(precio),
  precioBase,
  precioUnitario: Number(precio),
@@ -5114,8 +5310,10 @@ this.scheduleRefreshVentasTotales();
  cantidad: Number(cantidad),
  subtotal: Number(subtotal),
  estado: item.estado || 'en_espera',
- eliminado: item.eliminado || false,
- eliminadoRazon: item.eliminadoRazon || null,
+        eliminado: item.eliminado || false,
+        eliminadoRazon: item.eliminadoRazon || null,
+        eliminadoPorNombre: this.nombrePersona(item.eliminadoPor),
+        eliminadoAt: item.eliminadoAt || null,
  notaEspecial: item.notaEspecial || '',
  complementosSeleccionados: item.complementosSeleccionados || [],
  cambioGuarnicionPreseleccion: !!item.cambioGuarnicionPreseleccion,
@@ -5233,6 +5431,7 @@ this.scheduleRefreshVentasTotales();
  descuento: raw.descuento || 0,
  motivoDescuento: raw.motivoDescuento || null,
  descuentoAplicadoPor: raw.descuentoAplicadoPor || null,
+ descuentoAplicadoPorNombre: this.nombrePersona(raw.descuentoAplicadoPor),
  descuentoAplicadoAt: raw.descuentoAplicadoAt || null,
  montoDescuento: (hayEliminados && ptValido && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
    ? Number(Math.max(0, Number(brutoMostrar || 0) - Number(totalNeto || 0)).toFixed(2))
@@ -5254,6 +5453,8 @@ this.scheduleRefreshVentasTotales();
  eliminada: raw.eliminada === true || !!raw.fechaEliminacion,
  fechaEliminacion: raw.fechaEliminacion || null,
  motivoEliminacion: raw.motivoEliminacion || null,
+ eliminadaPorNombre: this.nombrePersona(raw.eliminadaPor),
+ historialBajas: this.normalizarHistorialBajas(raw.historialPlatos),
  origenReserva: raw.origenReserva?._id || raw.origenReserva || null,
  programadaPorReserva: !!raw.programadaPorReserva,
  fechaCocinaProgramada: raw.fechaCocinaProgramada || null,
@@ -5947,7 +6148,7 @@ mesaNum: grupo.mesaNum,
 mesaObj: grupo.mesaObj, // Objeto mesa completo para nombreCombinado
 comandas: grupo.comandas,
 numComandas: grupo.comandas.length,
-totalAgrupado: grupo.comandas.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
+totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
 totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
 estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
 mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
@@ -6187,7 +6388,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const mesaNum = c.mesa?.nummesa || c.mesaNumero || c.mesa;
  const matchMesa = s === 'mesa' || !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
  const matchEstado = s === 'estado' || this.matchFilterEstado(c.estado, c);
- const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
+ const matchElim = true;
  const comandaNum = [c.numComanda, c.numComandaHistorico].filter((n) => n != null && n !== '').join(' ');
  const matchIdComanda = s === 'comanda' || !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
  const matchMozo = s === 'mozo' || !this.filterMozo || c.mozo === this.filterMozo;
@@ -6241,7 +6442,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  mesaObj: row.mesaObj || primera?.mesa || null,
  comandas: list,
  numComandas: list.length,
- totalAgrupado: list.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
+ totalAgrupado: list.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
  totalPlatos: list.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
  estadoGrupo: this.calcularEstadoGrupo(list),
  mozosUnicos: [...new Set(list.map(c => c.mozo))],
@@ -6300,6 +6501,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     } else {
       this.kpiVentasTotales = Number(reporteHoy && reporteHoy.resumen && reporteHoy.resumen.totalVentas) || 0;
     }
+    const conteo = reporteHoy && reporteHoy.meta && reporteHoy.meta.conteoComandas;
+    this.kpiTicketsCreadas = Number(conteo && conteo.creadas) || 0;
+    this.kpiTicketsEliminadas = Number(conteo && conteo.eliminadas) || 0;
+    this.kpiTicketsMesa = Number(conteo && conteo.mesa) || 0;
+    this.kpiTicketsLlevar = Number(conteo && conteo.llevar) || 0;
   } catch (e) {
     console.warn('Ventas totales:', e);
   }
@@ -6309,7 +6515,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   let s = 0;
   for (const row of (this.filteredRows || [])) {
     if (row.tipo === 'grupo') s += Number(row.totalAgrupado) || 0;
-    else s += this.totalNetoComanda(row.comanda);
+    else if (!this.comandaEsEliminada(row.comanda)) s += this.totalNetoComanda(row.comanda);
   }
   return Number(s.toFixed(2));
  },
@@ -7204,6 +7410,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  estado: detalle.estado,
  observaciones: detalle.observaciones || '',
  numComanda: detalle.numComanda,
+ numeroComandaDia: detalle.numeroComandaDia,
+ revisionTicket: detalle.revisionTicket,
  mesa: detalle.mesa,
  mozo: detalle.mozo,
  version: detalle.version,
@@ -7236,6 +7444,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  estado: this.selectedComanda.estado,
  observaciones: this.selectedComanda.observaciones || '',
  numComanda: this.selectedComanda.numComanda,
+ numeroComandaDia: this.selectedComanda.numeroComandaDia,
+ revisionTicket: this.selectedComanda.revisionTicket,
  mesa: this.selectedComanda.mesa,
  mozo: this.selectedComanda.mozo,
  version: this.selectedComanda.version,
@@ -7292,6 +7502,30 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return out;
  },
 
+ lineasBajaCantidad() {
+  const out = [];
+  (this.editPlatos || []).forEach((p, idx) => {
+    if (!p || p.eliminado) return;
+    const original = Math.max(1, Math.floor(Number(p.cantidadOriginal) || 1));
+    const actual = Math.floor(Number(p.cantidad));
+    if (!Number.isFinite(actual) || actual < 1 || actual >= original) return;
+    out.push({
+      index: this.indicePlatoReal(p, idx),
+      nombre: p.nombre || 'Plato',
+      original,
+      quedan: actual,
+      quitar: original - actual,
+    });
+  });
+  return out;
+ },
+
+ letraTrasBaja(c) {
+  const n = c && c.numComanda != null && c.numComanda !== '' ? c.numComanda : (c && c.numeroComandaDia != null ? c.numeroComandaDia : '—');
+  const rev = Math.max(0, Math.floor(Number(c && c.revisionTicket) || 0)) + 1;
+  return '#' + n + this.letraRevComanda(rev);
+ },
+
  platosTipoServicioCambios(items) {
   const out = [];
   (items || []).forEach((p, idx) => {
@@ -7327,7 +7561,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    ...grupo,
    comandas,
    numComandas: comandas.length,
-   totalAgrupado: comandas.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
+   totalAgrupado: comandas.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
    totalPlatos: comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
    estadoGrupo: this.calcularEstadoGrupo(comandas),
    mozosUnicos: [...new Set(comandas.map(c => c.mozo).filter(Boolean))],
@@ -7584,7 +7818,70 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   try { localStorage.setItem('comandas_vistaComanda', this.vistaComanda); } catch (e) {}
  },
  platosVisiblesBasicos(comanda) {
-  return (comanda?.items || comanda?.platos || []).filter((p) => p && !p.eliminado && !p.anulado);
+  return (comanda?.items || comanda?.platos || []).filter((p) => p && !p.anulado);
+ },
+ nombrePersona(v) {
+  if (!v) return '';
+  if (typeof v === 'string') return '';
+  return String(v.name || v.nombres || v.usuarioNombre || '').trim();
+ },
+ normalizarHistorialBajas(lista) {
+  return (lista || []).filter((h) => h && (h.estado === 'eliminado' || h.estado === 'eliminado-completo' || Number(h.cantidadEliminada) > 0)).map((h) => ({
+    platoId: h.platoId ?? null,
+    nombre: h.nombreOriginal || '',
+    cantidadOriginal: Number(h.cantidadOriginal) || 0,
+    cantidadFinal: Number(h.cantidadFinal) || 0,
+    cantidadEliminada: Number(h.cantidadEliminada) || 0,
+    motivo: h.motivo || '',
+    cuando: h.timestamp || null,
+    quien: h.usuarioNombre || this.nombrePersona(h.usuario) || '',
+  }));
+ },
+ textoAuditoriaComanda(c) {
+  if (!c || !c.eliminada) return '';
+  const quien = c.eliminadaPorNombre || 'Sin registro';
+  const motivo = c.motivoEliminacion || 'Sin motivo';
+  return 'Eliminó ' + quien + ' · ' + motivo;
+ },
+ textoPlatoEliminado(quien, motivo) {
+  return 'Plato eliminado por ' + (quien || 'Sin registro') + ', motivo: ' + (motivo || 'Sin motivo');
+ },
+ textosPlatosEliminados(c) {
+  if (!c || c.eliminada) return [];
+  const out = [];
+  const cubiertos = new Set();
+  for (const h of c.historialBajas || []) {
+    const nombre = String(h.nombre || '').trim();
+    if (nombre) cubiertos.add(nombre.toLowerCase());
+    const prefijo = nombre ? (nombre + ': ') : '';
+    out.push(prefijo + this.textoPlatoEliminado(h.quien, h.motivo));
+  }
+  for (const item of (c.items || c.platos || [])) {
+    if (!item || !item.eliminado) continue;
+    const nombre = String(item.nombre || '').trim();
+    if (nombre && cubiertos.has(nombre.toLowerCase())) continue;
+    const prefijo = nombre ? (nombre + ': ') : '';
+    out.push(prefijo + this.textoPlatoEliminado(item.eliminadoPorNombre, item.eliminadoRazon));
+  }
+  return out;
+ },
+ lineasAuditoriaPlato(comanda, item) {
+  if (!item) return [];
+  const out = [];
+  if (item.eliminado) {
+    out.push(this.textoPlatoEliminado(item.eliminadoPorNombre, item.eliminadoRazon));
+  }
+  const pid = item.platoId != null && item.platoId !== '' ? Number(item.platoId) : null;
+  const nombre = String(item.nombre || '').trim().toLowerCase();
+  for (const h of (comanda && comanda.historialBajas) || []) {
+    const quitadas = h.cantidadEliminada || Math.max(0, h.cantidadOriginal - h.cantidadFinal);
+    if (!(h.cantidadFinal > 0) || !(quitadas > 0)) continue;
+    const mismoId = pid != null && h.platoId != null && Number(h.platoId) === pid;
+    const mismoNombre = nombre && String(h.nombre || '').trim().toLowerCase() === nombre;
+    if (!mismoId && !mismoNombre) continue;
+    out.push(this.textoPlatoEliminado(h.quien, h.motivo));
+  }
+  return out;
  },
  nombreGuarnicionBasico(comp, nPlatos) {
   if (!comp) return '';
@@ -7619,7 +7916,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
  },
  numeroComandaBasica(comanda) {
-  return comanda?.numComanda || comanda?.numeroComandaDia || comanda?.comandaNumber || '—';
+  const etq = this.etiquetaNumeroTabla(comanda);
+  return etq && etq !== '#—' ? etq.replace(/^#/, '') : '—';
  },
  totalGeneralBasico(comandas) {
   return (comandas || []).reduce((s, c) => s + Number(this.totalNetoComanda(c) || 0), 0);
@@ -7827,7 +8125,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const body = {
  motivo: motivoFinal,
  usuarioId: 'admin',
- usuarioRol: this.userRole
+ usuarioRol: this.userRole,
+ sourceApp: 'dashboard'
  };
  if (montos) {
    if (!(montos[i] > 0)) continue;
@@ -8082,7 +8381,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const body = {
  motivo: motivoFinal,
  usuarioId: 'admin',
- usuarioRol: this.userRole
+ usuarioRol: this.userRole,
+ sourceApp: 'dashboard'
  };
  if (montoNum > 0) {
    body.monto = Number(montoNum.toFixed(2));
@@ -8240,8 +8540,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return Number(Math.max(0, bruto - md).toFixed(2));
  },
 
- async guardarEdicionComanda() {
- if (!this.editComanda._id) return;
+ async guardarEdicionComanda(motivoBajaCantidad) {
+ if (!this.editComanda._id || this.guardando) return;
 
  const errores = [];
  this.editPlatos.forEach((p, idx) => {
@@ -8252,6 +8552,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  if (errores.length > 0) {
  alert('Errores de validacion:\n' + errores.join('\n'));
+ return;
+ }
+
+ const bajasCantidad = this.lineasBajaCantidad();
+ const motivoBaja = typeof motivoBajaCantidad === 'string' ? motivoBajaCantidad.trim() : '';
+ if (bajasCantidad.length && motivoBaja.length < 2) {
+ this.bajasCantidadPendientes = bajasCantidad;
+ this.motivoBajaCantidad = '';
+ this.modal = 'eliminarCantidadPlato';
  return;
  }
 
@@ -8268,20 +8577,29 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
 
  const indicesEliminados = this.indicesPlatosPendientesEliminar(this.editPlatos);
+ const indicesBaja = bajasCantidad.map((b) => b.index);
+ const indicesQuitar = [...new Set([...indicesEliminados, ...indicesBaja])];
 
  console.log('📤 Guardando cambios comanda:', {
  comandaId: this.editComanda._id,
  platosMantenidos: platosMantenidos.length,
- indicesEliminados: indicesEliminados
+ indicesEliminados: indicesEliminados,
+ bajasCantidad: indicesBaja
  });
 
- if (indicesEliminados.length > 0) {
- const resEliminar = await apiPut('/comanda/' + this.editComanda._id + '/eliminar-platos', {
- platosAEliminar: indicesEliminados,
- motivo: 'Eliminado desde panel admin',
+ let resEliminar = null;
+ if (indicesQuitar.length > 0) {
+ const bodyEliminar = {
+ platosAEliminar: indicesQuitar,
+ motivo: bajasCantidad.length ? motivoBaja : 'Eliminado desde panel admin',
  mozoId: null,
- forzarAdmin: true
- });
+ forzarAdmin: true,
+ sourceApp: 'dashboard'
+ };
+ if (bajasCantidad.length) {
+ bodyEliminar.cantidadesAEliminar = bajasCantidad.map((b) => ({ index: b.index, cantidad: b.quitar }));
+ }
+ resEliminar = await apiPut('/comanda/' + this.editComanda._id + '/eliminar-platos', bodyEliminar);
 
  console.log('📥 Respuesta eliminar-platos:', resEliminar);
 
@@ -8290,6 +8608,17 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  ? resEliminar.detalles.join('\n')
  : (resEliminar.message || 'Error al eliminar platos');
  throw new Error(errorMsg);
+ }
+ if (bajasCantidad.length) {
+ const tocados = new Set(indicesBaja);
+ this.editPlatos.forEach((p, idx) => {
+ if (tocados.has(this.indicePlatoReal(p, idx))) {
+ p.cantidadOriginal = Math.max(1, Math.floor(Number(p.cantidad) || 1));
+ }
+ });
+ if (resEliminar.comanda && resEliminar.comanda.revisionTicket != null) {
+ this.editComanda.revisionTicket = resEliminar.comanda.revisionTicket;
+ }
  }
  }
 
@@ -8357,8 +8686,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  await this.loadComandas();
  this.modal = null;
- this.showToast(`✅ Comanda actualizada - ${platosMantenidos.length} plato(s), ${indicesEliminados.length} eliminado(s)`);
- if (indicesEliminados.length) await this.imprimirEposTrasCambio(this.editComanda._id);
+ this.motivoBajaCantidad = '';
+ this.bajasCantidadPendientes = [];
+ const letreroBaja = bajasCantidad.length
+  ? ('#' + (this.editComanda.numComanda ?? '') + this.letraRevComanda(this.editComanda.revisionTicket))
+  : '';
+ this.showToast(letreroBaja
+  ? ('✅ Comanda ' + letreroBaja + ' — cantidad eliminada. Ticket a cocina y caja')
+  : ('✅ Comanda actualizada - ' + platosMantenidos.length + ' plato(s), ' + indicesEliminados.length + ' eliminado(s)'));
+ if (indicesQuitar.length) await this.imprimirEposTrasCambio(this.editComanda._id);
  } else {
  throw new Error(res?.message || 'Error desconocido');
  }
@@ -8602,7 +8938,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
      return 'bg-st-pagado/10 border-l-4 border-st-pagado';
    }
    if (this.esFilaSoloParaLlevar(row)) {
-     return 'bg-red-600/25 border-l-4 border-red-500';
+     return 'bg-[#0a3a8c] border-l-4 border-[#3b82f6] hover:!bg-[#0a3a8c]';
    }
    if (row?.tipo === 'grupo') return 'bg-gold/5';
    if (row?.tipo === 'individual' && this.esComandaReserva(row.comanda)) {
@@ -8612,7 +8948,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
  claseColorFilaHija(comanda) {
    if (this.esComandaSoloParaLlevar(comanda)) {
-     return 'bg-red-600/25 border-l-4 border-red-500';
+     return 'bg-[#0a3a8c] border-l-4 border-[#3b82f6] hover:!bg-[#0a3a8c]';
    }
    return 'bg-bg-sidebar/50';
  },

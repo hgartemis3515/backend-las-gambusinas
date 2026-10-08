@@ -29,6 +29,7 @@ const {
   resolverComandasNumbers,
   formatComandasNumbersLabel,
   formatLetreroDesdeNumeros,
+  numerosDiaDeComandas,
 } = require('../utils/comandasNumbers');
 const { resolverTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
 const { totalesConDescuentoImpresion } = require('../utils/descuentoTicketSnapshot');
@@ -211,7 +212,7 @@ router.get('/aprobacion/desglose-ventas', async (req, res) => {
     const { rangoLima } = require('../utils/estadisticasComandas');
     const { desgloseVentasPorAprobacion } = require('../utils/desgloseVentasTickets');
     const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
-    const d = await desgloseVentasPorAprobacion(inicio, fin);
+    const d = await desgloseVentasPorAprobacion(inicio, fin, { tablaTickets: true });
     const ventasPendientes = Number(d.ventasPendientes) || 0;
     const ventasAprobadas = Number(d.ventasAprobadas) || 0;
     res.json({
@@ -872,7 +873,7 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
       _id: id,
       isActive: true,
     })
-      .populate('comandas', 'comandaNumber descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
+      .populate('comandas', 'comandaNumber numeroComandaDia revisionTicket descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
       .populate('boucher', 'moneda montoRecibido vuelto metodoPago voucherId montoDescuento descuentos totalSinDescuento')
       .lean();
 
@@ -880,11 +881,15 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
       const boucherPPA = ticketPPA.boucher || null;
       const totalesPPA = resolverTotalesPedidoPPA(ticketPPA);
       const descPPA = totalesConDescuentoImpresion(ticketPPA, totalesPPA);
-      const ppaComandasNumbers = resolverComandasNumbers({
-        comandasNumbers: ticketPPA.comandasNumbers,
-        platos: ticketPPA.platos,
-      });
-      const ppaDisplay = formatComandasNumbersLabel(ppaComandasNumbers)
+      const diasPpa = numerosDiaDeComandas(ticketPPA.comandas);
+      const ppaComandasNumbers = diasPpa.length
+        ? diasPpa
+        : resolverComandasNumbers({
+          comandasNumbers: ticketPPA.comandasNumbers,
+          platos: ticketPPA.platos,
+        });
+      const ppaDisplay = formatLetreroDesdeNumeros(ppaComandasNumbers, ticketPPA.comandas)
+        || formatComandasNumbersLabel(ppaComandasNumbers)
         || (ppaComandasNumbers[0] != null ? `#${ppaComandasNumbers[0]}` : '');
       return res.json({
         success: true,
@@ -974,18 +979,22 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       comandas: id,
       isActive: true,
     })
-      .populate('comandas', 'comandaNumber descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
+      .populate('comandas', 'comandaNumber numeroComandaDia revisionTicket descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
       .sort({ createdAt: -1 })
       .lean();
 
     if (ticketPPA) {
       const totalesPPA = resolverTotalesPedidoPPA(ticketPPA);
       const descPPA = totalesConDescuentoImpresion(ticketPPA, totalesPPA);
-      const ppaComandasNumbers = resolverComandasNumbers({
-        comandasNumbers: ticketPPA.comandasNumbers,
-        platos: ticketPPA.platos,
-      });
-      const ppaDisplay = formatComandasNumbersLabel(ppaComandasNumbers)
+      const diasPpa = numerosDiaDeComandas(ticketPPA.comandas);
+      const ppaComandasNumbers = diasPpa.length
+        ? diasPpa
+        : resolverComandasNumbers({
+          comandasNumbers: ticketPPA.comandasNumbers,
+          platos: ticketPPA.platos,
+        });
+      const ppaDisplay = formatLetreroDesdeNumeros(ppaComandasNumbers, ticketPPA.comandas)
+        || formatComandasNumbersLabel(ppaComandasNumbers)
         || (ppaComandasNumbers[0] != null ? `#${ppaComandasNumbers[0]}` : '');
       return res.json({
         success: true,
@@ -1035,12 +1044,14 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       isActive: { $ne: false },
     }).sort({ createdAt: -1 }).lean();
 
-    // Resolver comandasNumbers: boucher > pedido > platos snapshot > sola
-    let comandasNumbers = boucher?.comandasNumbers?.length
-      ? resolverComandasNumbers({ comandasNumbers: boucher.comandasNumbers })
-      : [comanda.comandaNumber];
+    const dias = numerosDiaDeComandas([comanda]);
+    let comandasNumbers = dias.length
+      ? dias
+      : (boucher?.comandasNumbers?.length
+        ? resolverComandasNumbers({ comandasNumbers: boucher.comandasNumbers })
+        : [comanda.comandaNumber]);
 
-    if (!boucher?.comandasNumbers?.length && comanda.pedido) {
+    if (!dias.length && !boucher?.comandasNumbers?.length && comanda.pedido) {
       try {
         const pedido = await mongoose.model('Pedido').findById(comanda.pedido).lean();
         if (pedido?.comandasNumbers?.length) {

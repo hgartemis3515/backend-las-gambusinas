@@ -36,6 +36,7 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
   // Bloque 2: Resumen financiero comandas
   resumenFinanciero: {
     totalComandas: { type: Number, default: 0 },
+    comandasEliminadas: { type: Number, default: 0 },
     montoTotalVendido: { type: Number, default: 0 },
     totalDescuentos: { type: Number, default: 0 },
     ticketPromedio: { type: Number, default: 0 },

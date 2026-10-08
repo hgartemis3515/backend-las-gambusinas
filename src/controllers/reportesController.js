@@ -58,7 +58,10 @@ router.get('/reportes/ventas', adminAuth, async (req, res) => {
             adminId: req.admin?.id
         });
 
-        const resultado = await reportesRepository.getVentas(fechaInicio, fechaFin, agruparPor);
+        const [resultado, conteoComandas] = await Promise.all([
+            reportesRepository.getVentas(fechaInicio, fechaFin, agruparPor),
+            reportesRepository.contarComandasCreadasPeriodo(fechaInicio, fechaFin)
+        ]);
 
         res.json({
             success: true,
@@ -68,6 +71,7 @@ router.get('/reportes/ventas', adminAuth, async (req, res) => {
                 fechaInicio,
                 fechaFin,
                 agruparPor,
+                conteoComandas,
                 generadoEn: moment().tz('America/Lima').toISOString()
             }
         });
@@ -111,7 +115,10 @@ router.get('/reportes/filas', adminAuth, async (req, res) => {
             });
         }
 
-        const datos = await reportesRepository.getFilasOperacion(fechaInicio, fechaFin);
+        const [datos, conteoComandas] = await Promise.all([
+            reportesRepository.getFilasOperacion(fechaInicio, fechaFin),
+            reportesRepository.contarComandasCreadasPeriodo(fechaInicio, fechaFin)
+        ]);
 
         res.json({
             success: true,
@@ -120,6 +127,7 @@ router.get('/reportes/filas', adminAuth, async (req, res) => {
                 fechaInicio,
                 fechaFin,
                 fuente: datos[0]?._fuente || (datos.length ? 'boucher' : 'vacio'),
+                conteoComandas,
                 generadoEn: moment().tz('America/Lima').toISOString()
             }
         });
@@ -179,6 +187,38 @@ router.get('/reportes/desglose-ventas', adminAuth, async (req, res) => {
 // ============================================================
 // PLATOS TOP
 // ============================================================
+
+/**
+ * GET /api/reportes/contador-platos
+ * Pollos, carnes, platos sueltos y guarniciones por nombre del período.
+ */
+router.get('/reportes/contador-platos', adminAuth, async (req, res) => {
+    try {
+        const { fechaInicio, fechaFin } = req.query;
+        if (!fechaInicio || !fechaFin) {
+            return res.status(400).json({
+                success: false,
+                error: 'fechaInicio y fechaFin son requeridos'
+            });
+        }
+        if (!fechaQueryValida(fechaInicio) || !fechaQueryValida(fechaFin)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD o ISO'
+            });
+        }
+        const contador = await reportesRepository.getContadorPlatos(fechaInicio, fechaFin);
+        res.json({ success: true, ...contador });
+    } catch (error) {
+        logger.error('[ReportesController] Error en GET /contador-platos', {
+            error: error.message
+        });
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Error al armar el contador de platos'
+        });
+    }
+});
 
 /**
  * GET /api/reportes/platos-top

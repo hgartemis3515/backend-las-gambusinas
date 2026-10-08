@@ -34,6 +34,121 @@ tailwind.config = {
 <link rel="stylesheet" href="/assets/css/page-transitions.css">
 <!-- Cosmos Search Bar - Glassmorphism Style -->
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
+<style>
+  .tabla-platos-print-only { display: none; }
+  #modal-tabla-platos tr.fila-contorno-rojo td {
+    border-top: 2px solid #e74c3c;
+    border-bottom: 2px solid #e74c3c;
+  }
+  #modal-tabla-platos tr.fila-contorno-rojo td:first-child { border-left: 2px solid #e74c3c; }
+  #modal-tabla-platos tr.fila-contorno-rojo td:last-child { border-right: 2px solid #e74c3c; }
+  @media print {
+    @page { size: landscape; margin: 10mm; }
+    body.imprimiendo-tabla-platos { background: #fff !important; }
+    body.imprimiendo-tabla-platos * { visibility: hidden; }
+    body.imprimiendo-tabla-platos #modal-tabla-platos,
+    body.imprimiendo-tabla-platos #modal-tabla-platos * { visibility: visible; }
+    body.imprimiendo-tabla-platos #modal-tabla-platos {
+      position: absolute !important;
+      inset: auto !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      background: #fff !important;
+      display: block !important;
+      overflow: visible !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-panel {
+      width: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      height: auto !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: #fff !important;
+      color: #111 !important;
+      overflow: visible !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-scroll {
+      overflow: visible !important;
+      max-height: none !important;
+      height: auto !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos .no-print { display: none !important; }
+    body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-print-only { display: block !important; }
+    body.imprimiendo-tabla-platos #modal-tabla-platos,
+    body.imprimiendo-tabla-platos #modal-tabla-platos * {
+      color: #111 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos thead {
+      display: table-header-group;
+      position: static !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tfoot { display: table-footer-group; }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tr { break-inside: avoid; }
+    body.imprimiendo-tabla-platos #modal-tabla-platos table {
+      min-width: 0 !important;
+      width: 100% !important;
+      font-size: 11px !important;
+      border-collapse: collapse;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos th,
+    body.imprimiendo-tabla-platos #modal-tabla-platos td {
+      background: #fff !important;
+      border-color: #ccc !important;
+      border-bottom: 1px solid #ddd !important;
+      padding: 4px 8px !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos thead th { background: #f2f2f2 !important; }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tfoot td { background: #f7f7f7 !important; font-weight: 700; }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tr.fila-seccion td {
+      background: #ececec !important;
+      font-weight: 700 !important;
+      border-top: 1.5px solid #888 !important;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tr.fila-contorno-rojo td {
+      border-top: 2px solid #e74c3c !important;
+      border-bottom: 2px solid #e74c3c !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tr.fila-contorno-rojo td:first-child {
+      border-left: 2px solid #e74c3c !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tr.fila-contorno-rojo td:last-child {
+      border-right: 2px solid #e74c3c !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-resumen {
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 0 0 12px;
+      padding: 0 !important;
+      border: none !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-resumen > div {
+      background: #f7f7f7 !important;
+      border: 1px solid #ccc !important;
+      border-radius: 0 !important;
+      padding: 6px 8px !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-print-only h1 {
+      font-size: 18px !important;
+      margin: 0 0 2px !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-print-only p {
+      font-size: 11px !important;
+      margin: 0 0 8px !important;
+    }
+  }
+</style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="reportesApp()" x-cloak>
 
@@ -52,6 +167,19 @@ tailwind.config = {
         </span>
       </div>
       <div class="flex gap-2">
+        <button
+          type="button"
+          x-show="repTab === 'Platos'"
+          x-cloak
+          @click="abrirModalTablaPlatos()"
+          title="Tabla de plato"
+          class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20 transition inline-flex items-center gap-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-3.5 h-3.5" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+            <path d="M3 9h18M3 14h18M9 9v11M15 9v11"></path>
+          </svg>
+          Tabla de plato
+        </button>
         <button 
           @click="refreshAllData()" 
           :disabled="loading"
@@ -148,7 +276,9 @@ tailwind.config = {
           :title="k.label === 'Descuentos' ? 'Ver comandas con descuento' : ''"
           @click="k.label === 'Descuentos' && irAComandasDescuentos()">
           <p class="text-[11px] text-txt-muted uppercase" x-text="k.label"></p>
-          <p class="text-xl font-bold mt-1" :class="k.highlightG ? 'inline-flex min-w-[2.5rem] px-2.5 py-0.5 rounded-md bg-[#ffd60a] text-black' : (k.color || 'text-white')" x-text="k.value"></p>
+          <p class="text-xl font-bold mt-1" :class="k.highlightG ? 'inline-flex min-w-[2.5rem] px-2.5 py-0.5 rounded-md bg-[#ffd60a] text-black' : (k.color || 'text-white')">
+            <span x-text="k.value"></span><span x-show="Number(k.eliminadas) > 0" class="text-[#ff4757]" x-text="' -' + k.eliminadas"></span>
+          </p>
           <span x-show="k.badge" class="text-[10px] font-semibold" :class="k.badge?.includes('+') ? 'text-st-preparado' : 'text-st-pagado'" x-text="k.badge"></span>
         </div>
       </template>
@@ -173,8 +303,8 @@ tailwind.config = {
       <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 340px;">
         <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="{
           'General':'💳 Distribución de Pagos',
-          'Platos':'🍽️ Platos por Categoría',
-          'Guarniciones':'🥗 Guarniciones por grupo',
+          'Platos':'🥗 Guarniciones vendidas',
+          'Guarniciones':'🥗 Guarniciones por nombre',
           'Mozos':'📊 Participación por Mozo',
           'Cocineros':'⏱️ Cumplimiento SLA',
           'Mesas':'🏷️ Estado Actual de Mesas',
@@ -255,7 +385,7 @@ tailwind.config = {
               <th class="text-right px-3 py-2.5 font-semibold">P. Unit. (IGV incl.)</th>
               <th class="text-right px-3 py-2.5 font-semibold">Total (IGV incl.)</th>
               <th class="text-right px-3 py-2.5 font-semibold">% Total</th>
-              <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Detalle</th>
             </tr>
           </thead>
           <tbody>
@@ -296,7 +426,7 @@ tailwind.config = {
     <div x-show="!loading && repTab === 'Guarniciones'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
       <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] flex justify-between items-center">
         <h3 class="font-semibold text-sm">📋 Desglose de Guarniciones</h3>
-        <span class="text-[10px] text-txt-muted" x-text="(tablaData.guarniciones?.length || 0) + ' guarniciones'"></span>
+        <span class="text-[10px] text-txt-muted" x-text="(tablaData.guarniciones?.length || 0) + ' nombres'"></span>
       </div>
       <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
         <table class="w-full text-sm">
@@ -304,7 +434,7 @@ tailwind.config = {
             <tr class="text-[10px] uppercase text-txt-secondary">
               <th class="text-left px-4 py-2.5 font-semibold">#</th>
               <th class="text-left px-4 py-2.5 font-semibold">Guarnición</th>
-              <th class="text-left px-4 py-2.5 font-semibold">Grupo</th>
+              <th class="text-left px-4 py-2.5 font-semibold">Grupos</th>
               <th class="text-right px-3 py-2.5 font-semibold">Cant.</th>
               <th class="text-right px-3 py-2.5 font-semibold">% Cant.</th>
               <th class="text-left px-3 py-2.5 font-semibold">En platos</th>
@@ -696,6 +826,104 @@ tailwind.config = {
   </main>
 </div>
 
+<!-- MODAL: tabla de platos (desglose imprimible) -->
+<div
+  id="modal-tabla-platos"
+  x-show="modalTablaPlatos"
+  x-cloak
+  x-transition.opacity
+  class="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5 bg-black/75"
+  @click.self="cerrarModalTablaPlatos()"
+  @keydown.escape.window="modalTablaPlatos && cerrarModalTablaPlatos()">
+  <div class="tabla-platos-panel bg-bg-card border border-[rgba(212,175,55,0.28)] rounded-2xl w-[min(1280px,96vw)] h-[min(900px,92vh)] shadow-2xl flex flex-col overflow-hidden" @click.stop>
+    <div class="bg-bg-sidebar px-5 py-4 border-b border-[rgba(212,175,55,0.15)] flex items-start justify-between gap-3 shrink-0 no-print">
+      <div class="min-w-0">
+        <h2 class="text-lg font-bold">Contador de platos</h2>
+        <p class="text-[11px] text-txt-muted mt-1">
+          <span x-text="getCurrentRangeText()"></span>
+          <span> · </span>
+          <span x-text="(dateFilter.fechaInicio || '') + (dateFilter.fechaFin ? ' → ' + dateFilter.fechaFin : '')"></span>
+          <span> · </span>
+          <span x-text="textoConteoTablaPlatos()"></span>
+        </p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0 no-print">
+        <button
+          type="button"
+          @click="imprimirTablaPlatos()"
+          class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-xs font-semibold hover:opacity-90">
+          Imprimir
+        </button>
+        <button type="button" class="text-txt-muted hover:text-white px-2 py-1 text-lg leading-none" @click="cerrarModalTablaPlatos()" aria-label="Cerrar">✕</button>
+      </div>
+    </div>
+    <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] no-print shrink-0">
+      <label class="relative block">
+        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted text-sm">⌕</span>
+        <input
+          x-ref="buscaPlatoModal"
+          type="search"
+          x-model="busquedaTablaPlatos"
+          placeholder="Buscar plato por nombre"
+          autocomplete="off"
+          class="w-full bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder:text-txt-muted focus:border-gold focus:outline-none"
+        >
+      </label>
+    </div>
+    <div class="tabla-platos-print-only px-1 pt-1 pb-2">
+      <h1 style="font-size:18px;font-weight:700;margin:0;">Contador de platos</h1>
+      <p style="font-size:12px;margin:4px 0 0;" x-text="textoPeriodoImpresionPlatos()"></p>
+    </div>
+    <div class="tabla-platos-resumen px-5 py-3 border-b border-[rgba(212,175,55,0.1)] grid grid-cols-3 gap-2 shrink-0">
+      <div class="bg-bg-sidebar rounded-lg px-3 py-2">
+        <p class="text-[10px] uppercase text-txt-muted">Pollos</p>
+        <p class="text-lg font-bold text-[#ffa502]" x-text="resumenImpresionPlatos().pollos"></p>
+      </div>
+      <div class="bg-bg-sidebar rounded-lg px-3 py-2">
+        <p class="text-[10px] uppercase text-txt-muted">Carnes</p>
+        <p class="text-lg font-bold text-[#e74c3c]" x-text="resumenImpresionPlatos().carnes"></p>
+      </div>
+      <div class="bg-bg-sidebar rounded-lg px-3 py-2">
+        <p class="text-[10px] uppercase text-txt-muted">Platos</p>
+        <p class="text-lg font-bold text-white" x-text="resumenImpresionPlatos().platos"></p>
+      </div>
+    </div>
+    <div class="tabla-platos-scroll flex-1 overflow-auto">
+      <table class="w-full text-sm min-w-[860px]">
+        <thead class="bg-bg-sidebar sticky top-0 z-10">
+          <tr class="text-[10px] uppercase text-txt-secondary">
+            <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+            <th class="text-right px-3 py-2.5 font-semibold">Cant.</th>
+            <th class="text-right px-3 py-2.5 font-semibold">% Total</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-if="!filasModalPlatos().length">
+            <tr><td colspan="4" class="px-4 py-10 text-center text-txt-muted text-xs">No hay platos para el período o la búsqueda</td></tr>
+          </template>
+          <template x-for="(fila, idx) in filasModalPlatos()" :key="'modal-' + idx + '-' + (fila.titulo || fila.nombre)">
+            <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="claseFilaModalPlatos(fila)">
+              <td class="px-4 py-2.5" :class="fila.tipo === 'seccion' ? 'font-bold uppercase text-[11px] tracking-wide' : 'font-medium'" x-text="fila.tipo === 'seccion' ? fila.titulo : fila.nombre"></td>
+              <td class="px-3 py-2.5 text-right font-semibold tabular-nums" x-text="fila.cantidad || 0"></td>
+              <td class="px-3 py-2.5 text-right text-txt-muted tabular-nums" x-text="fila.tipo === 'seccion' ? '' : ((fila.porcentaje || 0) + '%')"></td>
+              <td class="px-3 py-2.5 text-xs text-txt-secondary" x-text="fila.tipo === 'seccion' ? '' : (fila.detalle || '—')"></td>
+            </tr>
+          </template>
+        </tbody>
+        <tfoot class="bg-bg-sidebar">
+          <tr class="fila-contorno-rojo font-bold text-xs">
+            <td class="px-4 py-3 uppercase">Total</td>
+            <td class="px-3 py-3 text-right tabular-nums" x-text="filasModalPlatos().filter(f => f.tipo === 'fila').reduce((s, p) => s + (p.cantidad || 0), 0)"></td>
+            <td class="px-3 py-3 text-right" x-text="busquedaTablaPlatos.trim() ? '' : '100%'"></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: detalle cocinero -->
 <div x-show="modalCocinero" x-cloak x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarDetalleCocinero()" @keydown.escape.window="cerrarModalesDetalle()">
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[960px] max-w-[96vw] max-h-[92vh] overflow-hidden shadow-2xl flex flex-col" @click.stop>
@@ -1023,6 +1251,9 @@ function reportesApp() {
     
     // Cache de datos de cocineros desde API
     cocinerosApiData: null,
+    modalTablaPlatos: false,
+    busquedaTablaPlatos: '',
+    contadorPlatos: null,
     modalCocinero: false,
     detalleCocinero: null,
     detalleCocineroLoading: false,
@@ -1138,6 +1369,31 @@ function reportesApp() {
         this.socket.on('reportes:plato-listo', (data) => {
           console.log('📊 Evento reportes:plato-listo recibido:', data);
           this.scheduleDataRefresh('plato-listo');
+        });
+
+        this.socket.on('ticket-aprobacion-nuevo', () => {
+          this.scheduleDataRefresh('ticket-nuevo');
+        });
+        this.socket.on('comanda-aprobada', () => {
+          this.scheduleDataRefresh('comanda-aprobada');
+        });
+        this.socket.on('ticket-ppa-nuevo', () => {
+          this.scheduleDataRefresh('ticket-ppa-nuevo');
+        });
+        this.socket.on('ticket-ppa-aprobado', () => {
+          this.scheduleDataRefresh('ticket-ppa-aprobado');
+        });
+        this.socket.on('ticket-ppa-actualizado', () => {
+          this.scheduleDataRefresh('ticket-ppa-actualizado');
+        });
+        this.socket.on('ticket-reportado', () => {
+          this.scheduleDataRefresh('ticket-reportado');
+        });
+        this.socket.on('ticket-actualizado', () => {
+          this.scheduleDataRefresh('ticket-actualizado');
+        });
+        this.socket.on('ticket-eliminado', () => {
+          this.scheduleDataRefresh('ticket-eliminado');
         });
         
         // Evento: Estado del socket
@@ -1327,16 +1583,20 @@ function reportesApp() {
       });
       
       try {
-        const [bouchers, desglose] = await Promise.all([
+        const [pack, desglose, contador] = await Promise.all([
           cargarBouchersPorRango(q.fechaInicio, q.fechaFin),
-          cargarDesgloseVentas(q.fechaInicio, q.fechaFin)
+          cargarDesgloseVentas(q.fechaInicio, q.fechaFin),
+          cargarContadorPlatos(q.fechaInicio, q.fechaFin)
         ]);
+        const bouchers = Array.isArray(pack) ? pack : (pack.filas || []);
+        this.conteoComandas = (!Array.isArray(pack) && pack.conteo) ? pack.conteo : null;
         
         console.log('📦 Bouchers cargados:', bouchers.length);
         
         // Guardar como cache
         this.cachedBouchers = bouchers;
         this.desgloseVentas = desglose;
+        this.contadorPlatos = contador;
         
         // Procesar y renderizar según la pestaña
         await this.processAndRender(bouchers);
@@ -1483,7 +1743,7 @@ function reportesApp() {
         { label: 'Ventas Pagadas', value: fmtSoles(aprobadas), color: 'text-[#2ecc71]', badge: '' },
         { label: 'Descuentos', value: '-S/. ' + totalDescuentos.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#e74c3c]', badge: '' },
         { label: 'Ventas Totales', value: fmtSoles(totalVentas), color: 'text-[#d4af37]', badge: this.dateFilter.tipo },
-        { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
+        { label: 'Tickets', value: (this.conteoComandas ? this.conteoComandas.creadas : totalTickets), eliminadas: this.conteoComandas ? this.conteoComandas.eliminadas : 0, color: 'text-white', badge: '' },
         { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '' }
       ];
       
@@ -1573,12 +1833,47 @@ function reportesApp() {
       montoMesa = Number(montoMesa.toFixed(2));
       montoParaLlevar = Number(montoParaLlevar.toFixed(2));
 
+      const contador = this.contadorPlatos;
+      const colores = [this._c.gold, this._c.blue, this._c.teal, this._c.amber, this._c.purple, this._c.red, '#00bcd4', '#ff9800'];
+      if (contador && (contador.pollos || contador.carnes || contador.platos)) {
+        const bloqueDe = (b) => b === 'pollos' ? 'Pollos' : b === 'carnes' ? 'Carnes' : 'Platos';
+        const filas = [...(contador.pollos || []), ...(contador.carnes || []), ...(contador.platos || [])];
+        const top = (contador.graficoPlatos && contador.graficoPlatos.length)
+          ? contador.graficoPlatos
+          : [...filas].sort((a, b) => b.cantidad - a.cantidad).slice(0, 10);
+        const gua = {};
+        (contador.graficoGuarniciones || contador.guarniciones || []).forEach((g) => {
+          gua[g.nombre] = g.cantidad;
+        });
+        const soles = Number(contador.resumen && contador.resumen.soles) || filas.reduce((s, r) => s + (Number(r.soles) || 0), 0);
+        this.kpis = [
+          { label: 'Pollos', value: contador.resumen?.pollos || 0, color: 'text-[#ffa502]', badge: '' },
+          { label: 'Carnes', value: contador.resumen?.carnes || 0, color: 'text-[#e74c3c]', badge: '' },
+          { label: 'Platos', value: contador.resumen?.platos || 0, color: 'text-white', badge: '' },
+          { label: 'Ingresos', value: 'S/. ' + soles.toLocaleString('es-PE', { minimumFractionDigits: 2 }), color: 'text-white', badge: '' }
+        ];
+        this.tablaData.platos = filas.map((r) => ({
+          nombre: r.nombre,
+          categoria: bloqueDe(r.bloque),
+          cantidad: r.cantidad,
+          precioUnitario: r.cantidad ? Number(r.soles || 0) / r.cantidad : 0,
+          subtotal: r.soles,
+          porcentaje: r.porcentaje,
+          complementos: r.detalle ? [r.detalle] : []
+        }));
+        this.chartData1 = {
+          type: 'bar',
+          labels: top.map((p) => String(p.nombre || '').substring(0, 22)),
+          vals: top.map((p) => p.cantidad),
+          colors: colores
+        };
+        this.chartData2 = { type: 'pie', data: gua };
+      } else {
       const platosArray = Object.values(platosMap).sort((a, b) => b.cantidad - a.cantidad);
       const topPlatos = platosArray.slice(0, 8);
 
       const labels = topPlatos.map(p => p.nombre.substring(0, 22));
       const vals = topPlatos.map(p => p.cantidad);
-      const colors = [this._c.gold, this._c.blue, this._c.teal, this._c.amber, this._c.purple, this._c.red, '#00bcd4', '#ff9800'];
 
       this.kpis = [
         { label: 'Platos Vendidos', value: totalVendidos, color: 'text-[#d4af37]', badge: '' },
@@ -1597,8 +1892,9 @@ function reportesApp() {
         complementos: p.compSet ? Array.from(p.compSet) : []
       }));
 
-      this.chartData1 = { type: 'bar', labels, vals, colors };
+      this.chartData1 = { type: 'bar', labels, vals, colors: colores };
       this.chartData2 = { type: 'pie', data: this.calculateCategories(platosArray) };
+      }
 
       this.tablaServicio = {
         mesa: servMesa,
@@ -1630,6 +1926,41 @@ function reportesApp() {
      * Procesa datos para la pestaña Guarniciones (complementos vendidos)
      */
     processGuarniciones(bouchers) {
+      const contador = this.contadorPlatos;
+      if (contador && Array.isArray(contador.guarniciones)) {
+        const arr = contador.guarniciones.map((g) => ({
+          clave: g.nombre,
+          nombre: g.nombre,
+          grupo: (g.grupos || []).join(', ') || '—',
+          cantidad: g.cantidad,
+          porcentaje: g.porcentaje,
+          platos: g.platos || []
+        }));
+        const top = (contador.graficoGuarniciones && contador.graficoGuarniciones.length)
+          ? contador.graficoGuarniciones
+          : arr.slice(0, 10);
+        const colors = [this._c.gold, this._c.teal, this._c.blue, this._c.amber, this._c.purple, this._c.green, this._c.red, '#00bcd4', '#ff9800', '#9b59b6'];
+        const porNombre = {};
+        top.forEach((g) => { porNombre[g.nombre] = g.cantidad; });
+        const total = contador.resumen?.guarniciones || arr.reduce((s, g) => s + (g.cantidad || 0), 0);
+        const grupos = new Set();
+        arr.forEach((g) => String(g.grupo || '').split(', ').forEach((x) => { if (x && x !== '—') grupos.add(x); }));
+        this.kpis = [
+          { label: 'Guarniciones', value: total, color: 'text-[#d4af37]', badge: '' },
+          { label: 'Top', value: (top[0]?.nombre || '—').substring(0, 18), color: 'text-white', badge: top[0] ? String(top[0].cantidad) : '' },
+          { label: 'Nombres', value: arr.length, color: 'text-white', badge: '' },
+          { label: 'Grupos', value: grupos.size, color: 'text-[#5a5a7a]', badge: '' }
+        ];
+        this.tablaData.guarniciones = arr;
+        this.chartData1 = {
+          type: 'bar',
+          labels: top.map((g) => String(g.nombre || '').substring(0, 22)),
+          vals: top.map((g) => g.cantidad),
+          colors
+        };
+        this.chartData2 = { type: 'pie', data: porNombre };
+        return;
+      }
       const map = {};
       let total = 0;
       (bouchers || []).forEach(b => {
@@ -2052,7 +2383,101 @@ function reportesApp() {
       this.detalleComandaLoading = false;
     },
 
+    abrirModalTablaPlatos() {
+      this.busquedaTablaPlatos = '';
+      this.modalTablaPlatos = true;
+      this.$nextTick(() => this.$refs.buscaPlatoModal?.focus());
+    },
+
+    cerrarModalTablaPlatos() {
+      this.modalTablaPlatos = false;
+      this.busquedaTablaPlatos = '';
+    },
+
+    textoBusquedaPlato(valor) {
+      return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    },
+
+    platosTablaModal() {
+      const lista = this.tablaData?.platos || [];
+      const q = this.textoBusquedaPlato(this.busquedaTablaPlatos);
+      if (!q) return lista;
+      return lista.filter((p) => this.textoBusquedaPlato(p?.nombre || p?._id || '').includes(q));
+    },
+
+    textoConteoTablaPlatos() {
+      const r = this.contadorPlatos?.resumen;
+      if (r) return `${r.pollos || 0} pollos · ${r.carnes || 0} carnes · ${r.platos || 0} platos`;
+      const total = (this.tablaData?.platos || []).length;
+      return `${total} platos`;
+    },
+
+    textoPeriodoImpresionPlatos() {
+      const rango = (this.dateFilter.fechaInicio || '') + (this.dateFilter.fechaFin ? ' → ' + this.dateFilter.fechaFin : '');
+      const busca = this.busquedaTablaPlatos.trim();
+      return [this.getCurrentRangeText(), rango, busca ? 'Búsqueda: ' + busca : ''].filter(Boolean).join(' · ');
+    },
+
+    resumenImpresionPlatos() {
+      const filas = this.filasModalPlatos();
+      const de = (titulo) => filas.find((f) => f.tipo === 'seccion' && f.titulo === titulo);
+      const soles = filas.filter((f) => f.tipo === 'fila').reduce((s, p) => s + (Number(p.soles) || 0), 0);
+      const fmt = soles.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return {
+        pollos: de('Pollos')?.cantidad || 0,
+        carnes: de('Carnes')?.cantidad || 0,
+        platos: de('Platos')?.cantidad || 0,
+        soles: fmt,
+      };
+    },
+
+    claseFilaModalPlatos(fila) {
+      const seccion = fila && fila.tipo === 'seccion';
+      const marca = seccion && (fila.titulo === 'Pollos' || fila.titulo === 'Carnes');
+      if (marca) return 'fila-seccion fila-contorno-rojo bg-bg-sidebar';
+      if (seccion) return 'fila-seccion bg-bg-sidebar';
+      return 'hover:bg-[rgba(212,175,55,0.03)]';
+    },
+
+    filasModalPlatos() {
+      const c = this.contadorPlatos || {};
+      const q = this.textoBusquedaPlato(this.busquedaTablaPlatos);
+      const pasa = (row) => !q || this.textoBusquedaPlato(`${row.nombre || ''} ${row.detalle || ''}`).includes(q);
+      const bloques = [
+        ['Pollos', c.pollos || []],
+        ['Carnes', c.carnes || []],
+        ['Platos', c.platos || []],
+      ];
+      const out = [];
+      for (const [titulo, rows] of bloques) {
+        const visibles = rows.filter(pasa);
+        if (!visibles.length) continue;
+        out.push({
+          tipo: 'seccion',
+          titulo,
+          cantidad: visibles.reduce((s, r) => s + (r.cantidad || 0), 0),
+          soles: visibles.reduce((s, r) => s + (Number(r.soles) || 0), 0),
+        });
+        visibles.forEach((r) => out.push({ tipo: 'fila', ...r }));
+      }
+      return out;
+    },
+
+    imprimirTablaPlatos() {
+      document.body.classList.add('imprimiendo-tabla-platos');
+      const limpiar = () => {
+        document.body.classList.remove('imprimiendo-tabla-platos');
+        window.removeEventListener('afterprint', limpiar);
+      };
+      window.addEventListener('afterprint', limpiar);
+      setTimeout(() => window.print(), 40);
+    },
+
     cerrarModalesDetalle() {
+      if (this.modalTablaPlatos) {
+        this.cerrarModalTablaPlatos();
+        return;
+      }
       if (this.modalComanda) {
         this.cerrarDetalleComanda();
         return;
@@ -2711,7 +3136,7 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
       const filas = payload.datos || payload.data || (Array.isArray(payload) ? payload : []);
       if (Array.isArray(filas)) {
         console.log('✅ Filas de comandas:', filas.length);
-        return filas;
+        return { filas, conteo: payload.meta?.conteoComandas || null };
       }
     }
   } catch (error) {
@@ -2746,12 +3171,15 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
   if (String(fechaInicio).includes('T')) {
     const t0 = new Date(fechaInicio).getTime();
     const t1 = new Date(fechaFin).getTime();
-    return bouchers.filter(b => {
-      const t = new Date(b.fechaPago || b.createdAt || 0).getTime();
-      return Number.isFinite(t) && t >= t0 && t <= t1;
-    });
+    return {
+      filas: bouchers.filter(b => {
+        const t = new Date(b.fechaPago || b.createdAt || 0).getTime();
+        return Number.isFinite(t) && t >= t0 && t <= t1;
+      }),
+      conteo: null
+    };
   }
-  return bouchers;
+  return { filas: bouchers, conteo: null };
 }
 
 async function cargarDesgloseVentas(fechaInicio, fechaFin) {
@@ -2773,6 +3201,24 @@ async function cargarDesgloseVentas(fechaInicio, fechaFin) {
     console.warn('⚠️ /reportes/desglose-ventas no disponible:', error);
   }
   return { ventasPendientes: 0, ventasAprobadas: 0 };
+}
+
+async function cargarContadorPlatos(fechaInicio, fechaFin) {
+  const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const headers = { 'Authorization': 'Bearer ' + token };
+  try {
+    const response = await fetch(
+      `${API_BASE}/reportes/contador-platos?fechaInicio=${encodeURIComponent(fechaInicio)}&fechaFin=${encodeURIComponent(fechaFin)}`,
+      { headers }
+    );
+    if (response.ok) {
+      const payload = await response.json();
+      if (payload && payload.success !== false && (payload.pollos || payload.carnes || payload.platos)) return payload;
+    }
+  } catch (error) {
+    console.warn('⚠️ /reportes/contador-platos no disponible:', error);
+  }
+  return null;
 }
 </script>
 <!-- Page Transitions JS -->

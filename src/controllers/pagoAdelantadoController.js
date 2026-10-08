@@ -504,6 +504,7 @@ router.post('/pago-adelantado', authMozoOpcional, async (req, res) => {
           message: `Ticket PPA #${ticket.ticketNumber} aprobado (cobro directo caja)`,
         };
         io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-aprobado', payloadAprobado);
+        io.of('/cocina').emit('ticket-ppa-aprobado', payloadAprobado);
         io.of('/mozos').emit('ticket-ppa-aprobado', payloadAprobado);
         io.of('/admin').emit('ticket-ppa-aprobado', payloadAprobado);
       } else {

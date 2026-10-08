@@ -52,6 +52,7 @@ const {
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { destinosCambioEstadoPlato, pasosCadenaEntregaAbsoluta } = require('../utils/cadenaEntregaPlato');
 const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
+const { planBajaLinea, mapaCantidadesAEliminar, historialCuentaComoEliminacion, unidadesEliminadasHistorial } = require('../utils/bajaCantidadPlato');
 const { ticketAnulacionPayload } = require('../utils/comandasNumbers');
 const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
@@ -489,6 +490,10 @@ router.get('/comanda/historial-cocina', async (req, res) => {
             .select({
                 _id: 1,
                 comandaNumber: 1,
+                numeroComandaDia: 1,
+                revisionTicket: 1,
+                clienteNombre: 1,
+                clienteNombreParaLlevar: 1,
                 status: 1,
                 createdAt: 1,
                 updatedAt: 1,
@@ -527,10 +532,16 @@ router.get('/comanda/historial-cocina', async (req, res) => {
             );
             const status = String(c.status || '').toLowerCase();
             const elegiblePorStatus = statusComandaHistorial.includes(status);
+            const nDia = Number(c.numeroComandaDia);
+            const numeroDia = Number.isFinite(nDia) && c.numeroComandaDia != null && c.numeroComandaDia !== ''
+                ? nDia
+                : null;
+            const { comandaNumber, ...sinHistorico } = c;
             return {
-                ...c,
-                orden: c.comandaNumber,
-                numeroOrden: c.comandaNumber,
+                ...sinHistorico,
+                orden: numeroDia,
+                numeroOrden: numeroDia,
+                numeroComandaDia: numeroDia,
                 _entregadosCount: entregados.length,
                 _pendientesCount: pendientes.length,
                 _totalActivos: platosActivos.length,
@@ -550,7 +561,7 @@ router.get('/comanda/historial-cocina', async (req, res) => {
         if (q) {
             const ql = String(q).toLowerCase();
             data = data.filter(c => {
-                const orden = String(c.comandaNumber || c.orden || '').toLowerCase();
+                const orden = String(c.numeroComandaDia ?? c.orden ?? '').toLowerCase();
                 const mesaStr = String(c.mesaNumero || c.mesas?.nummesa || '').toLowerCase();
                 const mozo = String(c.mozoNombre || c.mozos?.name || '').toLowerCase();
                 const matchPlato = (c.platos || []).some(p => {
@@ -592,6 +603,10 @@ router.get('/comanda/:id', async (req, res) => {
             .populate('mesas', 'nummesa estado area nombreCombinado')
             .populate('cliente', 'nombre dni telefono tipo')
             .populate('platos.plato', 'nombre precio categoria codigo nombreCocina')
+            .populate('eliminadaPor', 'name')
+            .populate('descuentoAplicadoPor', 'name')
+            .populate('platos.eliminadoPor', 'name')
+            .populate('historialPlatos.usuario', 'name')
             .populate({
                 path: 'origenReserva',
                 select: 'fechaReserva fechaCocina creadoEn clienteNombre clienteTelefono numPersonas tiempoEspera estado metodoPago notas pagoAdelantado cocineroEncargado',
@@ -2211,7 +2226,7 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
             const platosEliminadosHistorial = [];
             if (comandaCompleta.historialPlatos && comandaCompleta.historialPlatos.length > 0) {
                 for (const h of comandaCompleta.historialPlatos) {
-                    if (h.estado === 'eliminado') {
+                    if (historialCuentaComoEliminacion(h)) {
                         let nombrePlato = h.nombreOriginal;
                         // Si no tiene nombre, buscarlo
                         if (!nombrePlato || nombrePlato === 'Plato desconocido' || nombrePlato === 'Sin nombre') {
@@ -2222,7 +2237,8 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
                         }
                         platosEliminadosHistorial.push({
                             ...h,
-                            nombreOriginal: nombrePlato
+                            nombreOriginal: nombrePlato,
+                            cantidad: unidadesEliminadasHistorial(h)
                         });
                     }
                 }
@@ -3356,12 +3372,19 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         }
 
         const indicesNumEliminar = indicesValidos.map((idx) => parseInt(idx, 10)).filter((n) => !Number.isNaN(n));
+        const qtyAEliminar = mapaCantidadesAEliminar(req.body);
+        const planDeIndice = (index) => planBajaLinea({
+            cantidadLinea: comandaCheck.cantidades?.[index] || 1,
+            cantidadQuitar: qtyAEliminar.has(index) ? qtyAEliminar.get(index) : null,
+        });
         const activosParaEliminar = (comandaCheck.platos || [])
             .map((p, i) => ({ p, i }))
             .filter(({ p }) => p && p.eliminado !== true && p.anulado !== true)
             .map(({ i }) => i);
         const selEliminar = new Set(indicesNumEliminar);
-        const eliminaComanda = activosParaEliminar.length > 0 && activosParaEliminar.every((i) => selEliminar.has(i));
+        const eliminaComanda = activosParaEliminar.length > 0 && activosParaEliminar.every((i) => (
+            selEliminar.has(i) && planDeIndice(i).bajaTotal
+        ));
 
         if (sourceApp === 'cocina') {
             if (eliminaComanda) {
@@ -3432,16 +3455,19 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             const index = parseInt(idx, 10);
             const platoItem = comandaCheck.platos[index];
             const plato = platoItem.plato || platoItem;
-            const cantidad = comandaCheck.cantidades?.[index] || 1;
+            const plan = planDeIndice(index);
             const precio = plato?.precio || 0;
-            const subtotal = precio * cantidad;
+            const subtotal = precio * plan.quitar;
             totalEliminado += subtotal;
             
             platosEliminadosData.push({
                 index: index,
                 platoId: platoItem.platoId,
                 nombre: plato?.nombre || 'Plato desconocido',
-                cantidad: cantidad,
+                cantidad: plan.quitar,
+                cantidadOriginal: plan.total,
+                cantidadFinal: plan.restante,
+                bajaTotal: plan.bajaTotal,
                 precioUnit: precio,
                 subtotal: subtotal,
                 estado: platoItem.estado
@@ -3464,36 +3490,49 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         const idAntes = comandaActualizar._id.toString();
         const ahora = new Date();
         
-        // SOFT DELETE: marcar platos como eliminados (no splice)
+        // Línea completa: soft-delete. Cantidad menor: queda el resto y se reimprime el ticket.
         indicesAProcesar.forEach(idx => {
             const index = parseInt(idx, 10);
             const platoItem = comandaActualizar.platos[index];
-            if (!platoItem || platoItem.eliminado || platoItem.anulado) return;
+            const info = platosEliminadosData.find((p) => p.index === index);
+            if (!platoItem || platoItem.eliminado || platoItem.anulado || !info) return;
+            if (!info.bajaTotal) {
+                comandaActualizar.cantidades[index] = info.cantidadFinal;
+                return;
+            }
             const estado = (platoItem.estado || '').toLowerCase();
             platoItem.eliminado = true;
             platoItem.eliminadoPor = usuarioId;
             platoItem.eliminadoAt = ahora;
             platoItem.eliminadoRazon = motivo.trim();
             platoItem.estadoAlEliminar = platoItem.estado || null;
-            // Marcar como desperdicio si ya estaba en recoger o entregado
             platoItem.generoDesperdicio = estado === 'recoger' || estado === 'entregado';
         });
-        
-        if (comandaActualizar.historialPlatos && Array.isArray(comandaActualizar.historialPlatos)) {
-            platosEliminadosData.forEach(platoData => {
-                comandaActualizar.historialPlatos.push({
-                    platoId: platoData.platoId,
-                    nombreOriginal: platoData.nombre,
-                    cantidadOriginal: platoData.cantidad,
-                    cantidadFinal: 0,
-                    estado: 'eliminado',
-                    timestamp: ahora,
-                    usuario: usuarioId,
-            usuarioNombre: actor.usuarioNombre,
-                    motivo: motivo.trim()
-                });
-            });
+        comandaActualizar.markModified('cantidades');
+
+        if (!Array.isArray(comandaActualizar.historialPlatos)) {
+            comandaActualizar.historialPlatos = [];
         }
+        platosEliminadosData.forEach(platoData => {
+            const original = platoData.cantidadOriginal ?? platoData.cantidad;
+            const final = platoData.bajaTotal ? 0 : platoData.cantidadFinal;
+            const quitadas = platoData.cantidad;
+            const detalleBaja = platoData.bajaTotal
+                ? `Se eliminaron ${quitadas} ${platoData.nombre}.`
+                : `Se eliminaron ${quitadas} ${platoData.nombre} (había ${original}, quedan ${final}).`;
+            comandaActualizar.historialPlatos.push({
+                platoId: platoData.platoId,
+                nombreOriginal: platoData.nombre,
+                cantidadOriginal: original,
+                cantidadFinal: final,
+                cantidadEliminada: quitadas,
+                estado: 'eliminado',
+                timestamp: ahora,
+                usuario: usuarioId,
+                usuarioNombre: actor.usuarioNombre,
+                motivo: `${detalleBaja} ${motivo.trim()}`
+            });
+        });
         
         const platosActivosRestantes = comandaActualizar.platos.filter(p => p.eliminado !== true);
         const todosPlatosEliminados = platosActivosRestantes.length === 0;
@@ -3645,25 +3684,42 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
                 const index = parseInt(idx, 10);
                 const platoItem = comandaCheck.platos[index];
                 const plato = platoItem.plato || platoItem;
+                const info = platosEliminadosData.find((p) => p.index === index);
+                const bajaTotal = info ? info.bajaTotal !== false : true;
                 return {
                     index: index,
                     nombre: plato?.nombre || 'Plato desconocido',
-                    cantidad: comandaCheck.cantidades?.[index] || 1,
+                    cantidad: bajaTotal ? 0 : (info?.cantidadFinal ?? 0),
+                    cantidadEliminada: info?.cantidad ?? 0,
+                    cantidadOriginal: info?.cantidadOriginal ?? null,
                     estado: platoItem.estado,
                     eliminado: true,
+                    bajaParcial: !bajaTotal,
                     eliminadoRazon: motivo.trim(),
                     eliminadoAt: new Date()
                 };
             })
         };
+
+        const detalleEliminacion = platosEliminadosData.map((p) => (
+            p.bajaTotal
+                ? `Se eliminaron ${p.cantidad} ${p.nombre}`
+                : `Se eliminaron ${p.cantidad} ${p.nombre} (había ${p.cantidadOriginal}, quedan ${p.cantidadFinal})`
+        )).join('. ');
+        const motivoAuditoria = `${detalleEliminacion}. Motivo: ${motivo.trim()}`;
         
         // Registrar auditoría (registrarAuditoria ya guarda en auditoriaAcciones, no duplicar)
-        // Asegurar que los datos de platos eliminados estén en el formato correcto para el frontend
+        // La baja parcial (5 → 3) también es eliminación de platos: cantidad = unidades quitadas.
         req.auditoria.platosEliminados = platosEliminadosData;
         req.auditoria.totalEliminado = totalEliminado;
-        req.auditoria.cantidadPlatos = platosEliminadosData.length;
+        req.auditoria.cantidadPlatos = platosEliminadosData.reduce((s, p) => s + (Number(p.cantidad) || 0), 0);
+        req.auditoria.motivo = motivoAuditoria;
+        metadataAdicional.cantidadPlatos = req.auditoria.cantidadPlatos;
+        metadataAdicional.motivo = motivoAuditoria;
+        metadataAdicional.bajaParcial = platosEliminadosData.some((p) => p.bajaTotal === false);
+        req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
         
-        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo.trim());
+        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivoAuditoria);
         
         // 12. Emitir eventos Socket.io
         if (global.emitComandaActualizada) {
@@ -4019,15 +4075,19 @@ router.put('/comanda/:id/descuento', async (req, res) => {
             return res.status(403).json({ message: 'No autorizado para aplicar descuentos' });
         }
 
-        const { rechazoDescuentoAdmin, identidadDesdeReq } = require('../utils/mesaEspecial');
-        const actorDesc = identidadDesdeReq(req);
-        const rolDesc = actorDesc?.rol || '';
-        const mesaDesc = comandaAntes.mesas && typeof comandaAntes.mesas === 'object'
-            ? comandaAntes.mesas
-            : null;
-        const rechazoMesaDesc = rechazoDescuentoAdmin(mesaDesc, rolDesc);
-        if (rechazoMesaDesc) {
-            return res.status(rechazoMesaDesc.statusCode).json({ message: rechazoMesaDesc.message });
+        // comandas.html descuenta cualquier mesa e imprime caja + ticket.
+        // La mesa especial solo limita el descuento que manda la app de mozos.
+        if (String(sourceApp).toLowerCase() === 'mozos') {
+            const { rechazoDescuentoAdmin, identidadDesdeReq } = require('../utils/mesaEspecial');
+            const actorDesc = identidadDesdeReq(req);
+            const rolDesc = actorDesc?.rol || '';
+            const mesaDesc = comandaAntes.mesas && typeof comandaAntes.mesas === 'object'
+                ? comandaAntes.mesas
+                : null;
+            const rechazoMesaDesc = rechazoDescuentoAdmin(mesaDesc, rolDesc);
+            if (rechazoMesaDesc) {
+                return res.status(rechazoMesaDesc.statusCode).json({ message: rechazoMesaDesc.message });
+            }
         }
 
         // Aplicar descuento

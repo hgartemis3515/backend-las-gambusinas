@@ -95,6 +95,8 @@ const PROYECCION_COCINA = {
     mesaNumero: 1,
     areaNombre: 1,
     clienteNombre: 1,
+    clienteNombreParaLlevar: 1,
+    numeroTicketCliente: 1,
     // Origen dashboard (badge/borde verde en KDS) / reserva (header morado)
     origenCreacion: 1,
     origenReserva: 1,
@@ -622,6 +624,8 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         descuentoMontoFijo: 1,
         montoDescuento: 1,
         motivoDescuento: 1,
+        descuentoAplicadoPor: 1,
+        descuentoAplicadoAt: 1,
         prioridadOrden: 1,
         createdAt: 1,
         updatedAt: 1,
@@ -631,6 +635,8 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         eliminada: 1,
         fechaEliminacion: 1,
         motivoEliminacion: 1,
+        eliminadaPor: 1,
+        historialPlatos: 1,
         // Campos desnormalizados
         mozoNombre: 1,
         mesaNumero: 1,
@@ -695,6 +701,26 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     dbQuery = dbQuery.populate({
       path: "platos.plato",
       select: "nombre precio categoria codigo nombreCocina",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "eliminadaPor",
+      select: "name",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "descuentoAplicadoPor",
+      select: "name",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "platos.eliminadoPor",
+      select: "name",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "historialPlatos.usuario",
+      select: "name",
       options: { lean: true }
     });
     
@@ -1561,6 +1587,21 @@ const agregarComanda = async (data) => {
   return { comanda: comandaCreada };
 };
 
+function nombreLineaComanda(linea) {
+  const plato = linea?.plato && typeof linea.plato === 'object' ? linea.plato : {};
+  const candidatos = [
+    linea?.nombreCocinaPedido,
+    linea?.nombre,
+    plato.nombre,
+    plato.nombreCocina,
+  ];
+  for (const c of candidatos) {
+    const s = String(c || '').trim();
+    if (s && s !== 'Plato' && s !== 'Plato desconocido' && s !== 'Sin nombre') return s;
+  }
+  return '';
+}
+
 /**
  * Eliminar comanda lógicamente (soft-delete) con auditoría completa
  * @param {String} comandaId - ID de la comanda
@@ -1586,7 +1627,9 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
       motivo = 'Eliminación sin motivo especificado (legacy)';
     }
     
-    const comandaSnapshot = await comandaModel.findById(comandaId).lean();
+    const comandaSnapshot = await comandaModel.findById(comandaId)
+      .populate('platos.plato', 'nombre precio codigo nombreCocina')
+      .lean();
     if (!comandaSnapshot) {
       const error = new Error('Comanda no encontrada');
       error.statusCode = 404;
@@ -1620,16 +1663,20 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
           precioTotalOriginal += Number(platoItem.precioUnitario) * cantidad;
           continue;
         }
-        const plato = await platoModel.findById(platoItem.plato).select('precio').lean();
-        if (plato?.precio) {
-          precioTotalOriginal += plato.precio * cantidad;
+        const ref = platoItem.plato;
+        const precioYa = ref && typeof ref === 'object' ? Number(ref.precio) : 0;
+        if (precioYa > 0) {
+          precioTotalOriginal += precioYa * cantidad;
+        } else {
+          const plato = await platoModel.findById(ref?._id || ref).select('precio').lean();
+          if (plato?.precio) precioTotalOriginal += plato.precio * cantidad;
         }
       }
     }
 
     const historialEntries = (comandaSnapshot.platos || []).map((platoItem, index) => ({
       platoId: platoItem.platoId,
-      nombreOriginal: platoItem.plato?.nombre || 'Plato desconocido',
+      nombreOriginal: nombreLineaComanda(platoItem) || 'Plato desconocido',
       cantidadOriginal: comandaSnapshot.cantidades?.[index] || 1,
       cantidadFinal: 0,
       estado: 'eliminado-completo',
@@ -1678,11 +1725,11 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
         version: nuevaVersion,
         status: normalizarStatusHistorial(comandaSnapshot.status),
         platos: (comandaSnapshot.platos || []).map((p, idx) => ({
-          plato: p.plato,
+          plato: (p.plato && typeof p.plato === 'object') ? (p.plato._id || p.plato) : p.plato,
           platoId: p.platoId,
           estado: p.estado,
           cantidad: comandaSnapshot.cantidades?.[idx] || 1,
-          nombre: p.plato?.nombre || 'Plato desconocido',
+          nombre: nombreLineaComanda(p) || 'Plato desconocido',
           precio: p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || 0),
         })),
         cantidades: comandaSnapshot.cantidades || [],
@@ -1754,7 +1801,12 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
       }
     }
 
-    return comanda;
+    const poblada = await comandaModel.findById(comandaId)
+      .populate('platos.plato', 'nombre precio codigo nombreCocina')
+      .populate('mesas', 'nummesa nombreCombinado nombreMesa estado')
+      .populate('mozos', 'name')
+      .lean();
+    return poblada || comanda;
   } catch (error) {
     console.error("❌ Error al eliminar comanda lógicamente:", error);
     throw error;
@@ -5692,6 +5744,19 @@ const separarCantidadLineaPlato = async (comandaId, platoId, cantidadEntregar) =
   const saved = await comandaModel.findById(comandaId);
   const indexEntregar = saved.platos.length - 1;
   const platoEntregarId = saved.platos[indexEntregar]._id;
+  try {
+    const { sincronizarParticionTicketsAlta } = require('../utils/ticketAltaComanda');
+    await sincronizarParticionTicketsAlta(comandaId, {
+      lineaViejaId: String(saved.platos[platoIndex]._id),
+      lineaNuevaId: String(platoEntregarId),
+      cantidadMovida: r.cantidadEntregar,
+    });
+  } catch (syncErr) {
+    logger.warn('No se pudo partir el ticket de alta tras separar la línea', {
+      comandaId: String(comandaId),
+      error: syncErr.message,
+    });
+  }
   return {
     didSplit: true,
     platoEntregarId: String(platoEntregarId),

@@ -15,6 +15,7 @@ const {
 } = require('../services/pushNotifications');
 const { overlayPronombresEnComandas } = require('../utils/precioComplementos');
 const { toCartaMozo } = require('../utils/cartaMozoPlato');
+const { historialCuentaComoEliminacion, unidadesEliminadasHistorial } = require('../utils/bajaCantidadPlato');
 const { getSosCocineras } = require('../services/sosCocineras.service');
 
 /** Emite solo al mozo asignado a la comanda (room mozo-{id}) */
@@ -697,7 +698,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       if (comanda.historialPlatos && comanda.historialPlatos.length > 0) {
         const platoModel = require('../database/models/plato.model');
         for (const h of comanda.historialPlatos) {
-          if (h.estado === 'eliminado') {
+          if (historialCuentaComoEliminacion(h)) {
             let nombrePlato = h.nombreOriginal;
             // Si no tiene nombre o es un placeholder, buscarlo desde la BD
             if (!nombrePlato || nombrePlato === 'Plato desconocido' || nombrePlato === 'Sin nombre' || nombrePlato.startsWith('Plato #')) {
@@ -713,7 +714,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
             }
             platosEliminados.push({
               ...h,
-              nombreOriginal: nombrePlato || `Plato #${h.platoId || 'N/A'}`
+              nombreOriginal: nombrePlato || `Plato #${h.platoId || 'N/A'}`,
+              cantidad: unidadesEliminadasHistorial(h),
             });
           }
         }
@@ -3454,6 +3456,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       // Cocina: actualizar bandeja y KDS
       if (cocinaNamespace && cocinaNamespace.sockets) {
         cocinaNamespace.to(`fecha-${fecha}`).emit('comanda-aprobada', eventData);
+        cocinaNamespace.emit('comanda-aprobada', eventData);
       }
 
       // Mozos: room de mesa + namespace (ComandaDetalle puede no estar en el room)
