@@ -5132,9 +5132,10 @@ this.scheduleRefreshVentasTotales();
   if (!lista.length) return null;
   const lineas = lista.map((c) => {
     const anulada = this.comandaEsEliminada(c);
-    const num = c.numeroComandaDia != null && c.numeroComandaDia !== ''
+    const numBase = c.numeroComandaDia != null && c.numeroComandaDia !== ''
       ? c.numeroComandaDia
       : (c.numComanda ?? '');
+    const num = String(numBase) + (numBase === '' ? '' : this.letraRevComanda(c.revisionTicket));
     if (anulada) {
       return {
         comandaNumber: num,
@@ -5160,7 +5161,7 @@ this.scheduleRefreshVentasTotales();
       descuento: desc,
       total: Number(neto.toFixed(2)),
     };
-  }).sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
+  }).sort((a, b) => (parseInt(a.comandaNumber, 10) || 0) - (parseInt(b.comandaNumber, 10) || 0));
   const cobradas = lineas.filter((l) => !l.anulada);
   const total = Number(cobradas.reduce((s, l) => s + l.total, 0).toFixed(2));
   const tiempos = lista

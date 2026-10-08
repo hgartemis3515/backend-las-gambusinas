@@ -19,6 +19,7 @@ const {
   obtenerUltimoCierreVigente
 } = require('../utils/cierreCajaReversion');
 const { obtenerTurnosDia } = require('../utils/cierreCajaTurnosDia');
+const { letraRevisionTicket } = require('../utils/comandasNumbers');
 const {
   montoDescuentoComandaNum,
   montoFilaReporte,
@@ -1475,7 +1476,7 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
   };
 }
 
-const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion eliminadaPor';
+const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo revisionTicket totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion eliminadaPor';
 
 function numMesaComanda(c) {
   const m = c?.mesas;
@@ -1572,7 +1573,10 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
     }
 
     const lineaDe = (c, anulada) => {
-      const num = c.numeroComandaDia != null && c.numeroComandaDia !== '' ? c.numeroComandaDia : '';
+      const base = c.numeroComandaDia != null && c.numeroComandaDia !== ''
+        ? c.numeroComandaDia
+        : (anulada ? '' : (c.comandaNumber ?? ''));
+      const num = `${base}${base === '' ? '' : letraRevisionTicket(c.revisionTicket)}`;
       if (anulada) {
         return {
           comandaNumber: num,
@@ -1592,7 +1596,7 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       const brutoRaw = Number(c.totalSinDescuento);
       const bruto = Number.isFinite(brutoRaw) && brutoRaw > 0 ? brutoRaw : total + desc;
       return {
-        comandaNumber: num !== '' ? num : (c.comandaNumber ?? ''),
+        comandaNumber: num,
         numeroComandaMozo: c.numeroComandaMozo ?? null,
         mesa: numMesaComanda(c),
         mozo: c.mozos?.name || '',
@@ -1616,7 +1620,7 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
     const lineas = [
       ...comandas.map((c) => lineaDe(c, false)),
       ...eliminadas.filter((c) => !idsVigentes.has(String(c._id))).map((c) => lineaDe(c, true)),
-    ].sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
+    ].sort((a, b) => (parseInt(a.comandaNumber, 10) || 0) - (parseInt(b.comandaNumber, 10) || 0));
 
     const cobradas = lineas.filter((l) => !l.anulada);
     const subtotal = Number(cobradas.reduce((s, l) => s + l.bruto, 0).toFixed(2));
