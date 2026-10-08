@@ -1476,13 +1476,34 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
   };
 }
 
-const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo revisionTicket totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion eliminadaPor';
+const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo revisionTicket pedido origenCreacion totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion eliminadaPor';
 
 function numMesaComanda(c) {
   const m = c?.mesas;
   if (!m) return '';
   if (Array.isArray(m)) return m[0]?.nummesa ?? '';
   return m.nummesa ?? '';
+}
+
+/** Otras comandas del mismo pedido, a la derecha de la mesa: (6, 7) */
+function sufijoAgrupadasCierre(c, todas) {
+  const pid = c?.pedido ? String(c.pedido._id || c.pedido) : '';
+  if (!pid) return '';
+  if ((c.origenCreacion || '') === 'dashboard') return '';
+  if (String(c.status || '').toLowerCase() === 'cancelado') return '';
+  const id = String(c._id || '');
+  const nums = [];
+  for (const o of todas || []) {
+    if (!o || String(o._id || '') === id) continue;
+    const op = o.pedido ? String(o.pedido._id || o.pedido) : '';
+    if (op !== pid) continue;
+    if ((o.origenCreacion || '') === 'dashboard') continue;
+    if (String(o.status || '').toLowerCase() === 'cancelado') continue;
+    const n = Number(o.numeroComandaDia);
+    if (Number.isFinite(n)) nums.push(n);
+  }
+  const uniq = [...new Set(nums)].sort((a, b) => a - b);
+  return uniq.length ? `(${uniq.join(', ')})` : '';
 }
 
 async function cargarComandasParaTicketCierre(cierre) {
@@ -1577,11 +1598,14 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
         ? c.numeroComandaDia
         : (anulada ? '' : (c.comandaNumber ?? ''));
       const num = `${base}${base === '' ? '' : letraRevisionTicket(c.revisionTicket)}`;
+      const mesaBase = String(numMesaComanda(c) || '—');
+      const suf = sufijoAgrupadasCierre(c, universo);
+      const mesa = suf ? `${mesaBase} ${suf}` : mesaBase;
       if (anulada) {
         return {
           comandaNumber: num,
           numeroComandaMozo: null,
-          mesa: numMesaComanda(c),
+          mesa,
           mozo: c.mozos?.name || '',
           eliminadoPorNombre: c.eliminadaPor?.name || '',
           anulada: true,
@@ -1598,7 +1622,7 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       return {
         comandaNumber: num,
         numeroComandaMozo: c.numeroComandaMozo ?? null,
-        mesa: numMesaComanda(c),
+        mesa,
         mozo: c.mozos?.name || '',
         anulada: false,
         bruto: Number(bruto.toFixed(2)),
@@ -1617,6 +1641,7 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
         .lean()
       : [];
     const idsVigentes = new Set(comandas.map((c) => String(c._id)));
+    const universo = [...comandas, ...eliminadas.filter((c) => !idsVigentes.has(String(c._id)))];
     const lineas = [
       ...comandas.map((c) => lineaDe(c, false)),
       ...eliminadas.filter((c) => !idsVigentes.has(String(c._id))).map((c) => lineaDe(c, true)),

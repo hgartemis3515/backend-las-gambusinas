@@ -72,25 +72,26 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
   html += `</div>`;
   html += divider(8);
 
-  const thNum = 'text-align:right;padding:0 0 3px 2px;font-weight:700;';
-  const tdNum = 'padding:1px 0 1px 2px;text-align:right;vertical-align:top;white-space:nowrap;';
+  const thCentro = 'text-align:center;padding:0 2px 3px;font-weight:700;';
+  const tdCentro = 'padding:1px 2px;text-align:center;vertical-align:top;white-space:nowrap;';
+  const tdMesa = 'padding:1px 2px;text-align:center;vertical-align:top;white-space:nowrap;';
   html += `<table style="width:100%;border-collapse:collapse;font-size:${px(9)}px;table-layout:fixed;">`;
   html += `<thead><tr>
-    <th style="text-align:left;padding:0 0 3px 0;width:16%;">Cmd</th>
-    <th style="text-align:left;padding:0 0 3px 2px;width:16%;">Mesa</th>
-    <th style="${thNum}width:22%;">Subt.</th>
-    <th style="${thNum}width:22%;">Desc.</th>
-    <th style="${thNum}width:24%;">Total</th>
+    <th style="text-align:left;padding:0 0 3px 0;width:10%;">Cmd</th>
+    <th style="${thCentro}width:36%;">Mesa</th>
+    <th style="${thCentro}width:18%;">Subt.</th>
+    <th style="${thCentro}width:18%;">Desc.</th>
+    <th style="${thCentro}width:18%;">Total</th>
   </tr></thead><tbody>`;
 
   for (const c of lineas) {
     if (c.anulada) {
       html += `<tr>
         <td style="padding:1px 0;vertical-align:top;"><s>${escapeHtml(c.comandaNumber ?? '')}</s></td>
-        <td style="padding:1px 2px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
-        <td style="${tdNum}font-weight:700;white-space:normal;">${escapeHtml(c.eliminadoPorNombre || '—')}</td>
-        <td style="${tdNum}">—</td>
-        <td style="${tdNum}font-weight:700;">ANULADO</td>
+        <td style="${tdMesa}">${escapeHtml(c.mesa || '—')}</td>
+        <td style="${tdCentro}font-weight:700;white-space:normal;">${escapeHtml(c.eliminadoPorNombre || '—')}</td>
+        <td style="${tdCentro}">—</td>
+        <td style="${tdCentro}font-weight:700;">ANULADO</td>
       </tr>`;
       continue;
     }
@@ -99,10 +100,10 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
     const tot = Number(c.total) || 0;
     html += `<tr>
       <td style="padding:1px 0;vertical-align:top;">${escapeHtml(c.comandaNumber ?? '')}</td>
-      <td style="padding:1px 2px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
-      <td style="${tdNum}">${money(subt)}</td>
-      <td style="${tdNum}">${desc > 0 ? '-' + money(desc) : '—'}</td>
-      <td style="${tdNum}font-weight:600;">${money(tot)}</td>
+      <td style="${tdMesa}">${escapeHtml(c.mesa || '—')}</td>
+      <td style="${tdCentro}">${money(subt)}</td>
+      <td style="${tdCentro}">${desc > 0 ? '-' + money(desc) : '—'}</td>
+      <td style="${tdCentro}font-weight:600;">${money(tot)}</td>
     </tr>`;
   }
   html += `</tbody></table>`;
