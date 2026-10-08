@@ -36,6 +36,12 @@ tailwind.config = {
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
 <style>
   .tabla-platos-print-only { display: none; }
+  #modal-tabla-platos tr.fila-contorno-rojo td {
+    border-top: 2px solid #e74c3c;
+    border-bottom: 2px solid #e74c3c;
+  }
+  #modal-tabla-platos tr.fila-contorno-rojo td:first-child { border-left: 2px solid #e74c3c; }
+  #modal-tabla-platos tr.fila-contorno-rojo td:last-child { border-right: 2px solid #e74c3c; }
   @media print {
     @page { size: landscape; margin: 10mm; }
     body.imprimiendo-tabla-platos { background: #fff !important; }
@@ -108,6 +114,16 @@ tailwind.config = {
       border-top: 1.5px solid #888 !important;
       letter-spacing: 0.04em;
       text-transform: uppercase;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tr.fila-contorno-rojo td {
+      border-top: 2px solid #e74c3c !important;
+      border-bottom: 2px solid #e74c3c !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tr.fila-contorno-rojo td:first-child {
+      border-left: 2px solid #e74c3c !important;
+    }
+    body.imprimiendo-tabla-platos #modal-tabla-platos tr.fila-contorno-rojo td:last-child {
+      border-right: 2px solid #e74c3c !important;
     }
     body.imprimiendo-tabla-platos #modal-tabla-platos .tabla-platos-resumen {
       display: grid !important;
@@ -882,30 +898,27 @@ tailwind.config = {
           <tr class="text-[10px] uppercase text-txt-secondary">
             <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
             <th class="text-right px-3 py-2.5 font-semibold">Cant.</th>
-            <th class="text-right px-3 py-2.5 font-semibold whitespace-nowrap">Total (IGV incl.)</th>
             <th class="text-right px-3 py-2.5 font-semibold">% Total</th>
             <th class="text-left px-3 py-2.5 font-semibold">Detalle</th>
           </tr>
         </thead>
         <tbody>
           <template x-if="!filasModalPlatos().length">
-            <tr><td colspan="5" class="px-4 py-10 text-center text-txt-muted text-xs">No hay platos para el período o la búsqueda</td></tr>
+            <tr><td colspan="4" class="px-4 py-10 text-center text-txt-muted text-xs">No hay platos para el período o la búsqueda</td></tr>
           </template>
           <template x-for="(fila, idx) in filasModalPlatos()" :key="'modal-' + idx + '-' + (fila.titulo || fila.nombre)">
-            <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="fila.tipo === 'seccion' ? 'fila-seccion bg-bg-sidebar' : 'hover:bg-[rgba(212,175,55,0.03)]'">
+            <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="claseFilaModalPlatos(fila)">
               <td class="px-4 py-2.5" :class="fila.tipo === 'seccion' ? 'font-bold uppercase text-[11px] tracking-wide' : 'font-medium'" x-text="fila.tipo === 'seccion' ? fila.titulo : fila.nombre"></td>
               <td class="px-3 py-2.5 text-right font-semibold tabular-nums" x-text="fila.cantidad || 0"></td>
-              <td class="px-3 py-2.5 text-right text-[#d4af37] font-semibold tabular-nums whitespace-nowrap" x-text="'S/. ' + Number(fila.soles || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
               <td class="px-3 py-2.5 text-right text-txt-muted tabular-nums" x-text="fila.tipo === 'seccion' ? '' : ((fila.porcentaje || 0) + '%')"></td>
               <td class="px-3 py-2.5 text-xs text-txt-secondary" x-text="fila.tipo === 'seccion' ? '' : (fila.detalle || '—')"></td>
             </tr>
           </template>
         </tbody>
-        <tfoot class="bg-bg-sidebar border-t-2 border-[rgba(212,175,55,0.25)]">
-          <tr class="font-bold text-xs">
+        <tfoot class="bg-bg-sidebar">
+          <tr class="fila-contorno-rojo font-bold text-xs">
             <td class="px-4 py-3 uppercase">Total</td>
             <td class="px-3 py-3 text-right tabular-nums" x-text="filasModalPlatos().filter(f => f.tipo === 'fila').reduce((s, p) => s + (p.cantidad || 0), 0)"></td>
-            <td class="px-3 py-3 text-right text-[#d4af37] text-base tabular-nums whitespace-nowrap" x-text="'S/. ' + filasModalPlatos().filter(f => f.tipo === 'fila').reduce((s, p) => s + (Number(p.soles) || 0), 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
             <td class="px-3 py-3 text-right" x-text="busquedaTablaPlatos.trim() ? '' : '100%'"></td>
             <td></td>
           </tr>
@@ -2420,6 +2433,14 @@ function reportesApp() {
         platos: de('Platos')?.cantidad || 0,
         soles: fmt,
       };
+    },
+
+    claseFilaModalPlatos(fila) {
+      const seccion = fila && fila.tipo === 'seccion';
+      const marca = seccion && (fila.titulo === 'Pollos' || fila.titulo === 'Carnes');
+      if (marca) return 'fila-seccion fila-contorno-rojo bg-bg-sidebar';
+      if (seccion) return 'fila-seccion bg-bg-sidebar';
+      return 'hover:bg-[rgba(212,175,55,0.03)]';
     },
 
     filasModalPlatos() {
