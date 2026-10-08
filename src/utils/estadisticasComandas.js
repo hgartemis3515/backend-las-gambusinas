@@ -707,21 +707,61 @@ function filasARowsHorario(filas) {
     });
 }
 
-/** Creadas en el período, incluidas las eliminadas. `eliminadas` es el subconjunto borrado. */
+/** Creadas en el período, incluidas las eliminadas. `eliminadas` es el subconjunto borrado.
+ *  Llevar: sin mesa, o todos los platos son para llevar (la reserva entra por ese tipo). */
 async function contarComandasCreadas(inicio, fin) {
     const Comanda = getComandaModel();
     const rango = { createdAt: { $gte: inicio, $lte: fin } };
-    const [creadas, eliminadas] = await Promise.all([
-        Comanda.countDocuments(rango),
+    const [eliminadas, agrupado] = await Promise.all([
         Comanda.countDocuments({
             ...rango,
             $or: [
                 { eliminada: true },
                 { fechaEliminacion: { $type: 'date' } }
             ]
-        })
+        }),
+        Comanda.aggregate([
+            { $match: rango },
+            {
+                $project: {
+                    llevar: {
+                        $or: [
+                            { $eq: ['$sinMesa', true] },
+                            {
+                                $and: [
+                                    { $gt: [{ $size: { $ifNull: ['$platos', []] } }, 0] },
+                                    {
+                                        $allElementsTrue: {
+                                            $map: {
+                                                input: { $ifNull: ['$platos', []] },
+                                                as: 'p',
+                                                in: { $eq: ['$$p.tipoServicio', 'para_llevar'] }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    creadas: { $sum: 1 },
+                    llevar: { $sum: { $cond: ['$llevar', 1, 0] } }
+                }
+            }
+        ])
     ]);
-    return { creadas, eliminadas };
+    const creadas = agrupado[0]?.creadas || 0;
+    const llevar = agrupado[0]?.llevar || 0;
+    return {
+        creadas,
+        eliminadas,
+        llevar,
+        mesa: Math.max(0, creadas - llevar)
+    };
 }
 
 async function listarFilasEstadisticas(inicio, fin) {

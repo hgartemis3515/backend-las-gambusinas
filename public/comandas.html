@@ -177,6 +177,15 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
     <span x-text="kpiTicketsCreadas"></span><span x-show="kpiTicketsEliminadas > 0" class="text-[#ff4757]" x-text="' -' + kpiTicketsEliminadas"></span>
    </p>
   </div>
+  <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
+  <div>
+   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets mesa</p>
+   <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="kpiTicketsMesa"></p>
+  </div>
+  <div>
+   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets llevar</p>
+   <p class="text-sm font-extrabold text-[#3b82f6] tabular-nums leading-tight" x-text="kpiTicketsLlevar"></p>
+  </div>
  </div>
  </div>
  <div class="flex items-center gap-3">
@@ -3551,6 +3560,8 @@ function comandasApp() {
  kpiVentasTotales: 0,
  kpiTicketsCreadas: 0,
  kpiTicketsEliminadas: 0,
+ kpiTicketsMesa: 0,
+ kpiTicketsLlevar: 0,
  presetsPeriodo: [
   { id: 'hoy', label: 'Hoy' },
   { id: 'ayer', label: 'Ayer' },
@@ -6478,6 +6489,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     const conteo = reporteHoy && reporteHoy.meta && reporteHoy.meta.conteoComandas;
     this.kpiTicketsCreadas = Number(conteo && conteo.creadas) || 0;
     this.kpiTicketsEliminadas = Number(conteo && conteo.eliminadas) || 0;
+    this.kpiTicketsMesa = Number(conteo && conteo.mesa) || 0;
+    this.kpiTicketsLlevar = Number(conteo && conteo.llevar) || 0;
   } catch (e) {
     console.warn('Ventas totales:', e);
   }
