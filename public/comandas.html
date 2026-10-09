@@ -177,20 +177,20 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
    <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="fmtSolesKpi(totalVistoTabla)"></p>
   </div>
   <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
-  <div>
-   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets</p>
-   <p class="text-sm font-extrabold text-white tabular-nums leading-tight">
+  <div class="text-center">
+   <p class="text-[12px] uppercase tracking-wide text-txt-muted font-semibold">Tickets</p>
+   <p class="text-[16.8px] font-extrabold text-white tabular-nums leading-tight">
     <span x-text="kpiTicketsCreadas"></span><span x-show="kpiTicketsEliminadas > 0" class="text-[#ff4757]" x-text="' -' + kpiTicketsEliminadas"></span>
    </p>
   </div>
   <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
-  <div>
-   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets mesa</p>
-   <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="kpiTicketsMesa"></p>
+  <div class="text-center">
+   <p class="text-[12px] uppercase tracking-wide text-txt-muted font-semibold">Tickets mesa</p>
+   <p class="text-[16.8px] font-extrabold text-white tabular-nums leading-tight" x-text="kpiTicketsMesa"></p>
   </div>
-  <div>
-   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Tickets llevar</p>
-   <p class="text-sm font-extrabold text-[#3b82f6] tabular-nums leading-tight" x-text="kpiTicketsLlevar"></p>
+  <div class="text-center">
+   <p class="text-[12px] uppercase tracking-wide text-txt-muted font-semibold">Tickets llevar</p>
+   <p class="text-[16.8px] font-extrabold text-[#3b82f6] tabular-nums leading-tight" x-text="kpiTicketsLlevar"></p>
   </div>
  </div>
  </div>
@@ -199,10 +199,15 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span class="w-2 h-2 rounded-full bg-st-libre animate-pulse"></span> Conectado
  </span>
  <button x-show="activeTab === 'tabla'" @click="vistaPreviaComandasVisibles()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Vista previa</button>
- <button x-show="activeTab === 'tabla'" @click="imprimirComandasVisibles()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition inline-flex items-center gap-1.5">
+ <div x-show="activeTab === 'tabla'" class="inline-flex">
+ <button @click="imprimirComandasVisibles()" class="px-4 py-2 border border-txt-muted/30 rounded-l-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition inline-flex items-center gap-1.5">
   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0H6.34m0 0H5.409c-.621 0-1.125-.504-1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125h14.25c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125H17.66z"/></svg>
   Imprimir
  </button>
+ <button type="button" @click="abrirModalRangoImpresion()" title="Imprimir un rango" class="px-2.5 py-2 border border-l-0 border-txt-muted/30 rounded-r-lg text-txt-secondary hover:border-gold hover:text-gold transition inline-flex items-center">
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+ </button>
+ </div>
  <button x-show="activeTab === 'tabla'" @click="recargarTabla()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
  <button x-show="activeTab === 'plantilla' && plantillaComandaModificada" @click="guardarPlantillaComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
  </div>
@@ -214,6 +219,35 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
    <button type="button" @click="vistaPreviaAbierta = false" class="text-txt-secondary hover:text-white text-sm">Cerrar</button>
   </div>
   <iframe class="flex-1 w-full min-h-0 bg-white" title="Vista previa de impresión" :srcdoc="vistaPreviaHtml"></iframe>
+ </div>
+
+ <div x-show="modalRangoImpresion" x-cloak class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/70" @click.self="!rangoBuscando && (modalRangoImpresion = false)">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-md shadow-2xl" @click.stop>
+   <div class="px-5 py-4 border-b border-[rgba(212,175,55,0.15)]">
+    <h2 class="text-lg font-bold">Imprimir rango</h2>
+    <p class="text-[11px] text-txt-muted mt-1">Número del día, dentro del filtro <span class="text-gold" x-text="rangoFiltroEtiqueta"></span>. La letra no cuenta: 1b es la 1.</p>
+   </div>
+   <div class="px-5 py-4 space-y-3">
+    <div class="grid grid-cols-2 gap-3">
+     <label class="block">
+      <span class="text-[10px] uppercase text-txt-muted font-semibold">Desde</span>
+      <input type="number" min="1" step="1" x-model="rangoDesde" :disabled="rangoBuscando" class="mt-1 w-full h-10 bg-bg-sidebar border border-[rgba(212,175,55,0.3)] rounded-lg px-3 text-white text-sm focus:border-gold focus:outline-none">
+     </label>
+     <label class="block">
+      <span class="text-[10px] uppercase text-txt-muted font-semibold">Hasta</span>
+      <input type="number" min="1" step="1" x-model="rangoHasta" :disabled="rangoBuscando" class="mt-1 w-full h-10 bg-bg-sidebar border border-[rgba(212,175,55,0.3)] rounded-lg px-3 text-white text-sm focus:border-gold focus:outline-none">
+     </label>
+    </div>
+    <p x-show="rangoAviso" class="text-xs text-[#ffa502] leading-snug" x-text="rangoAviso"></p>
+   </div>
+   <div class="px-5 py-4 border-t border-[rgba(212,175,55,0.1)] flex justify-end gap-2">
+    <button type="button" @click="modalRangoImpresion = false" :disabled="rangoBuscando" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:text-white disabled:opacity-40">Cerrar</button>
+    <button type="button" @click="imprimirRangoComandas()" :disabled="rangoBuscando" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-60">
+     <span x-show="rangoBuscando" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></span>
+     <span x-text="rangoBuscando ? 'Verificando...' : 'Imprimir rango'"></span>
+    </button>
+   </div>
+  </div>
  </div>
 
  <!-- TABS -->
@@ -975,9 +1009,9 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
 
  <div x-show="!loadingDetalle && selectedComanda?.eliminada" class="mx-6 mt-4 rounded-lg border border-[#ff4757]/40 bg-[#ff4757]/10 px-3 py-2 text-xs text-[#ffb4b4] space-y-0.5">
-  <p x-text="'Eliminó: ' + (selectedComanda.eliminadaPorNombre || 'Sin registro')"></p>
-  <p x-text="'Motivo: ' + (selectedComanda.motivoEliminacion || 'Sin motivo')"></p>
-  <p x-text="'Hora: ' + horaCorta(selectedComanda.fechaEliminacion)"></p>
+  <p x-text="'Eliminó: ' + (selectedComanda?.eliminadaPorNombre || 'Sin registro')"></p>
+  <p x-text="'Motivo: ' + (selectedComanda?.motivoEliminacion || 'Sin motivo')"></p>
+  <p x-text="'Hora: ' + horaCorta(selectedComanda?.fechaEliminacion)"></p>
  </div>
 
  <!-- LOADING DETALLE -->
@@ -3555,6 +3589,11 @@ function comandasApp() {
  verIdHistorico: false,
  verEliminadas: false,
  vistaPreviaAbierta: false,
+ modalRangoImpresion: false,
+ rangoDesde: '',
+ rangoHasta: '',
+ rangoBuscando: false,
+ rangoAviso: '',
  vistaPreviaHtml: '',
  filtroPeriodo: 'hoy',
  customFechaDesde: '',
@@ -5151,8 +5190,15 @@ this.scheduleRefreshVentasTotales();
   return out;
  },
 
+ numeroDiaComanda(c) {
+  if (!c) return null;
+  const raw = c.numeroComandaDia != null && c.numeroComandaDia !== '' ? c.numeroComandaDia : c.numComanda;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+ },
+
  /** Hermanas del mismo pedido, a la derecha de la mesa: (6, 7) */
- sufijoComandasAgrupadas(c) {
+ sufijoComandasAgrupadas(c, idsPermitidos) {
   if (!c) return '';
   const pid = this.normalizeObjectId(c.pedidoId);
   if (!pid) return '';
@@ -5162,6 +5208,7 @@ this.scheduleRefreshVentasTotales();
   const nums = [];
   for (const x of this.comandas || []) {
     if (!x || String(x._id || '') === id) continue;
+    if (idsPermitidos && !idsPermitidos.has(String(x._id || ''))) continue;
     if (this.normalizeObjectId(x.pedidoId) !== pid) continue;
     if ((x.origenCreacion || '') === 'dashboard' || x.createdByDashboard) continue;
     if (String(x.estado || x.status || '').toLowerCase() === 'cancelado') continue;
@@ -5172,18 +5219,20 @@ this.scheduleRefreshVentasTotales();
   const uniq = [...new Set(nums)].sort((a, b) => a - b);
   return uniq.length ? ('(' + uniq.join(', ') + ')') : '';
  },
- mesaTicketCierre(c) {
+ mesaTicketCierre(c, idsPermitidos) {
   const mesa = this.formatearNombreMesa(c.mesa) || '—';
-  const suf = this.sufijoComandasAgrupadas(c);
+  const suf = this.sufijoComandasAgrupadas(c, idsPermitidos);
   return suf ? (mesa + ' ' + suf) : mesa;
  },
 
- datosTicketComandasVisibles() {
-  const lista = this.comandasVisiblesTabla();
+ datosTicketComandasVisibles(listaFiltrada) {
+  const acotada = Array.isArray(listaFiltrada);
+  const lista = acotada ? listaFiltrada : this.comandasVisiblesTabla();
   if (!lista.length) return null;
+  const idsRango = acotada ? new Set(lista.map((c) => String(c._id || ''))) : null;
   const lineas = lista.map((c) => {
     const anulada = this.comandaEsEliminada(c);
-    const mesa = this.mesaTicketCierre(c);
+    const mesa = this.mesaTicketCierre(c, idsRango);
     const numBase = c.numeroComandaDia != null && c.numeroComandaDia !== ''
       ? c.numeroComandaDia
       : (c.numComanda ?? '');
@@ -5257,6 +5306,61 @@ this.scheduleRefreshVentasTotales();
     window.imprimirTicketDesdeDatos(datos);
   } catch (e) {
     this.showToast(e.message || 'No se pudo imprimir', 'error');
+  }
+ },
+
+ abrirModalRangoImpresion() {
+  this.rangoAviso = '';
+  this.modalRangoImpresion = true;
+ },
+
+ async imprimirRangoComandas() {
+  if (this.rangoBuscando) return;
+  const desde = Number(this.rangoDesde);
+  const hasta = Number(this.rangoHasta);
+  if (!Number.isInteger(desde) || !Number.isInteger(hasta) || desde < 1 || hasta < 1) {
+    this.showToast('Desde y Hasta tienen que ser números enteros', 'error');
+    return;
+  }
+  if (desde > hasta) {
+    this.showToast('Desde no puede ser mayor que Hasta', 'error');
+    return;
+  }
+  if (hasta - desde > 999) {
+    this.showToast('El rango no puede pasar de 1000 números', 'error');
+    return;
+  }
+  this.rangoBuscando = true;
+  this.rangoAviso = '';
+  await new Promise((r) => setTimeout(r, 280));
+  try {
+    const presentes = new Set();
+    const elegidas = [];
+    for (const c of this.comandas || []) {
+      const n = this.numeroDiaComanda(c);
+      if (n == null || n < desde || n > hasta) continue;
+      presentes.add(n);
+      elegidas.push(c);
+    }
+    const faltan = [];
+    for (let n = desde; n <= hasta; n++) {
+      if (!presentes.has(n)) faltan.push(n);
+    }
+    if (faltan.length) {
+      const muestra = faltan.length > 24 ? faltan.slice(0, 24).join(', ') + '…' : faltan.join(', ');
+      this.rangoAviso = 'En este período no están: ' + muestra;
+    }
+    if (!elegidas.length) return;
+    const datos = this.datosTicketComandasVisibles(elegidas);
+    if (!datos || typeof window.imprimirTicketDesdeDatos !== 'function') {
+      this.showToast('No se pudo armar el ticket', 'error');
+      return;
+    }
+    window.imprimirTicketDesdeDatos(datos);
+  } catch (e) {
+    this.showToast(e.message || 'No se pudo imprimir', 'error');
+  } finally {
+    this.rangoBuscando = false;
   }
  },
 
