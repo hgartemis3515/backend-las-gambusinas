@@ -604,7 +604,27 @@ function mapearFilaReporte(c, config) {
             };
         })
         .filter(Boolean);
-    const totalLineas = Math.round(platos.reduce((s, p) => s + Number(p.subtotal || 0), 0) * 100) / 100;
+    let totalLineas = Math.round(platos.reduce((s, p) => s + Number(p.subtotal || 0), 0) * 100) / 100;
+    // El descuento se prorratea por plato y cada línea se redondea al céntimo.
+    // Esa suma puede quedar 1 céntimo bajo totalCalculado; el céntimo va a la última línea.
+    if (comandaTieneDescuento(c) && platos.length) {
+        const objetivo = Math.round(montoComandaNum(c, cfg) * 100) / 100;
+        const delta = Math.round((objetivo - totalLineas) * 100) / 100;
+        if (delta) {
+            for (let i = platos.length - 1; i >= 0; i--) {
+                const linea = platos[i];
+                const nuevo = Math.round(((Number(linea.subtotal) || 0) + delta) * 100) / 100;
+                if (nuevo < 0) continue;
+                linea.subtotal = nuevo;
+                if ((Number(linea.cantidad) || 0) === 1) {
+                    linea.precio = nuevo;
+                    linea.precioUnitario = nuevo;
+                }
+                totalLineas = objetivo;
+                break;
+            }
+        }
+    }
     const lineasRaw = c.platos || [];
     const todasLineasInactivas = lineasRaw.length > 0
         && lineasRaw.every((p) => !p || p.eliminado || p.anulado);

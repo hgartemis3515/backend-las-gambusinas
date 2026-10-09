@@ -205,6 +205,28 @@ describe('estadisticasComandas', () => {
     expect(fila.platos[0].subtotal).toBe(106.2);
   });
 
+  test('el céntimo del redondeo del descuento queda en el total cobrado', () => {
+    const fila = mapearFilaReporte({
+      status: 'pagado',
+      descuento: 5,
+      montoDescuento: 5,
+      totalCalculado: 80,
+      totalSinDescuento: 85,
+      platos: [
+        { nombre: 'Jarra plátano', cantidad: 1, precioUnitario: 16 },
+        { nombre: 'Promo Butifarra', cantidad: 1, precioUnitario: 15 },
+        { nombre: 'Pan con huevo', cantidad: 1, precioUnitario: 4 },
+        { nombre: 'Tamal Chancho', cantidad: 3, precioUnitario: 12 },
+        { nombre: 'Leche con Cafe', cantidad: 2, precioUnitario: 5 },
+        { nombre: 'Vaso papaya', cantidad: 1, precioUnitario: 4 }
+      ]
+    });
+    const sumaLineas = Math.round(fila.platos.reduce((s, p) => s + p.subtotal, 0) * 100) / 100;
+    expect(sumaLineas).toBe(80);
+    expect(fila.total).toBe(80);
+    expect(fila.platos[fila.platos.length - 1].subtotal).toBe(3.77);
+  });
+
   test('mapearFila incluye complementos y minutos de servicio', () => {
     expect(etiquetasComplemento({
       complementosSeleccionados: [
