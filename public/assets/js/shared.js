@@ -337,9 +337,39 @@ function syncLayoutStoreFromBody() {
   }
 }
 
+document.addEventListener('pointerdown', (ev) => {
+  if (!window.Alpine || typeof Alpine.store !== 'function') return;
+  const store = Alpine.store('layout');
+  if (!store || !store.sidebarOpen) return;
+  const aside = document.querySelector('#sidebar-container aside, aside.bg-bg-sidebar');
+  if (aside && aside.contains(ev.target)) return;
+  if (ev.target.closest && ev.target.closest('[data-sidebar-toggle]')) return;
+  store.cerrarSidebar();
+});
+
 document.addEventListener('alpine:init', () => {
   Alpine.store('layout', {
-    sidebarOpen: true,
+    sidebarOpen: false,
+    sidebarCloseTimer: null,
+    abrirSidebar() {
+      if (this.sidebarCloseTimer) {
+        clearTimeout(this.sidebarCloseTimer);
+        this.sidebarCloseTimer = null;
+      }
+      this.sidebarOpen = true;
+    },
+    cerrarSidebar() {
+      if (this.sidebarCloseTimer) clearTimeout(this.sidebarCloseTimer);
+      this.sidebarCloseTimer = setTimeout(() => {
+        this.sidebarOpen = false;
+        this.sidebarCloseTimer = null;
+      }, 150);
+    },
+    tocarSidebar(ev) {
+      if (this.sidebarOpen) return;
+      if (ev && ev.pointerType === 'touch') ev.preventDefault();
+      this.abrirSidebar();
+    },
     activeNav: navKeyFromPath(),
     pageTitle: (sharedData.pages[navKeyFromPath()] || {}).label || '',
     menuGestion: leerMenuGestionCache()

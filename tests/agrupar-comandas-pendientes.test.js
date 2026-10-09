@@ -6,14 +6,15 @@ const {
 describe('agruparComandasPendientes (comandas.html)', () => {
   test('mismo pedidoId sale una sola fila #81+#82', () => {
     const filas = agruparComandasPendientes([
-      { _id: 'c', mesaNumero: 3, pedidoId: 'aaaaaaaaaaaaaaaaaaaaaaaa', comandaNumber: 82, pendienteCobro: 20, createdAt: '2026-09-02T12:10:00Z' },
-      { _id: 'a', mesaNumero: 3, pedidoId: 'aaaaaaaaaaaaaaaaaaaaaaaa', comandaNumber: 81, pendienteCobro: 10, createdAt: '2026-09-02T12:00:00Z' },
+      { _id: 'c', mesaNumero: 3, pedidoId: 'aaaaaaaaaaaaaaaaaaaaaaaa', comandaNumber: 482, numeroComandaDia: 12, pendienteCobro: 20, total: 20, createdAt: '2026-09-02T12:10:00Z' },
+      { _id: 'a', mesaNumero: 3, pedidoId: 'aaaaaaaaaaaaaaaaaaaaaaaa', comandaNumber: 481, numeroComandaDia: 11, pendienteCobro: 10, total: 10, createdAt: '2026-09-02T12:00:00Z' },
       { _id: 'b', mesaNumero: 5, comandaNumber: 90, pendienteCobro: 5, createdAt: '2026-09-02T12:05:00Z' },
     ]);
     const grupo = filas.find((f) => f.tipo === 'grupo');
     const solo = filas.find((f) => f.tipo === 'individual');
-    expect(grupo.comandaLabel).toBe('#82+#81');
+    expect(grupo.comandaLabel).toBe('#12+#11');
     expect(grupo.pendienteCobro).toBe(30);
+    expect(grupo.total).toBe(30);
     expect(grupo.id).toBe('pedido_aaaaaaaaaaaaaaaaaaaaaaaa');
     expect(solo._id).toBe('b');
     expect(filas).toHaveLength(2);

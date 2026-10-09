@@ -221,7 +221,7 @@ tailwind.config = {
 function inventarioApp() {
   const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
   return {
-    sidebarOpen: true,
+    sidebarOpen: false,
     dia: hoy,
     filas: [],
     carta: null,

@@ -180,7 +180,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
   };
 }
 
-const SELECT_COMANDA_COBRO = 'comandaNumber status createdAt updatedAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado tiempoEnEspera tiempoRecoger tiempoEntregado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard';
+const SELECT_COMANDA_COBRO = 'numeroComandaDia numeroComandaMozo comandaNumber status createdAt updatedAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado tiempoEnEspera tiempoRecoger tiempoEntregado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard';
 
 function idsDeRelacionComandas(docs) {
   const out = [];
@@ -213,7 +213,7 @@ async function listarComandasPagadasHoyMozo(mozoId) {
     ticketPagoAdelantadoModel.find({
       mozo: mid,
       createdAt: { $gte: inicio, $lte: fin },
-      estado: { $in: ['pendiente_aprobacion', 'aprobado'] },
+      estado: 'aprobado',
       isActive: { $ne: false },
     }).select('comandas').lean(),
     boucherModel.find({
@@ -231,7 +231,7 @@ async function listarComandasPagadasHoyMozo(mozoId) {
       $or: [
         { status: { $in: ['pagado', 'completado'] } },
         { 'platos.pagoAdelantado.cobrado': true },
-        { 'platos.pagoAdelantado.estadoTicket': { $in: ['pendiente_aprobacion', 'aprobado'] } },
+        { 'platos.pagoAdelantado.estadoTicket': 'aprobado' },
       ],
     },
   ];
@@ -257,12 +257,10 @@ async function listarComandasPagadasHoyMozo(mozoId) {
     if (seen.has(id)) continue;
     const st = String(c.status || '').toLowerCase();
     if (['cancelado', 'anulado'].includes(st)) continue;
-    const viaTicketHoy = idsTicketSet.has(id);
-    if (!viaTicketHoy && !esComandaPagadaCaja(c)) continue;
+    if (!esComandaPagadaCaja(c)) continue;
     const fechaPago = fechaReferenciaPago(c);
-    const enDia = viaTicketHoy
-      || fechaEnRango(fechaPago, inicio, fin)
-      || (fechaEnRango(c.createdAt, inicio, fin) && esComandaPagadaCaja(c));
+    const enDia = fechaEnRango(fechaPago, inicio, fin)
+      || (idsTicketSet.has(id) && fechaEnRango(c.tiempoPagado || c.updatedAt || c.createdAt, inicio, fin));
     if (!enDia) continue;
     seen.add(id);
     const total = netoComanda(c);

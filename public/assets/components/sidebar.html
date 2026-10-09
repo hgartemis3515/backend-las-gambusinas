@@ -1,5 +1,5 @@
 <!-- SIDEBAR - Componente compartido -->
-<aside :class="$store.layout.sidebarOpen ? 'w-[270px]' : 'w-[68px]'" class="bg-bg-sidebar fixed top-[72px] left-0 bottom-0 z-30 transition-all duration-300 flex flex-col border-r border-[rgba(212,175,55,0.1)]">
+<aside :class="$store.layout.sidebarOpen ? 'w-[270px]' : 'w-[68px]'" class="bg-bg-sidebar fixed top-[72px] left-0 bottom-0 z-30 transition-all duration-300 ease-out flex flex-col border-r border-[rgba(212,175,55,0.1)]" @mouseenter="$store.layout.abrirSidebar()" @mouseleave="$store.layout.cerrarSidebar()" @pointerdown="$store.layout.tocarSidebar($event)">
   <div class="px-4 py-5 flex items-center gap-3 overflow-hidden">
     <span class="text-2xl flex-shrink-0">🍽️</span>
     <span x-show="$store.layout.sidebarOpen" x-transition class="text-gold font-bold text-lg whitespace-nowrap">San Benito</span>
