@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario — Las Gambusinas</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
+<link rel="stylesheet" href="/assets/css/cosmos-search.css">
+<style>
+  input.caja-num,
+  input.caja-num[type="number"],
+  input.caja-num[type="text"] {
+    width: auto !important;
+    min-width: 2.6ch !important;
+    field-sizing: content;
+    max-width: 8rem;
+    background-color: #ffffff !important;
+    color: #111111 !important;
+    -webkit-text-fill-color: #111111;
+    text-align: center;
+    border: 1px solid #d4d4d4 !important;
+    border-radius: 4px !important;
+    padding: 1px 2px !important;
+    font-size: 17px !important;
+    line-height: 1.2;
+  }
+  .caja-num::-webkit-outer-spin-button, .caja-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .paso-num { display: inline-flex; align-items: center; gap: 0; }
+  .flecha-num { line-height: 1; color: #d4af37; font-size: 18px; font-weight: 700; padding: 0 2px; min-width: 1rem; }
+  .tabla-inv { font-size: 18px; }
+  .tabla-inv th { font-size: 13px; letter-spacing: 0.04em; }
+  .celda-producto { font-weight: 700; color: #fff; background: rgba(212, 175, 55, 0.16); }
+  .celda-saldo { background: rgba(255, 255, 255, 0.07); }
+  .barra-cuadro { background: #d4af37 !important; }
+  .barra-cuadro th { color: #1a1200 !important; font-weight: 800; }
+</style>
+</head>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="inventarioApp()" x-cloak>
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <div>
+        <h1 class="text-xl font-bold">Inventario</h1>
+        <p class="text-xs text-txt-muted">Una tabla con los productos y otra con el crudo y el cocido de cada uno</p>
+      </div>
+      <input type="date" x-model="dia" @change="cargar()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-sm text-txt-secondary">
+    </div>
+
+    <div x-show="error" class="mb-4 px-4 py-3 rounded-lg bg-red-500/15 text-red-300 text-sm" x-text="error"></div>
+
+    <div x-show="alertas.length" class="mb-4 px-4 py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-sm">
+      <p class="font-semibold text-red-200 mb-1">Alerta crítica</p>
+      <p x-text="alertas.map(a => a.nombre + ' ' + a.tipoProducto + ' · saldo ' + a.saldo + ' · mínimo ' + a.umbral).join(' · ')"></p>
+    </div>
+
+    <div class="flex items-center justify-between mb-5 gap-3 flex-wrap">
+      <div class="flex gap-1 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
+        <button type="button" @click="vistaTab = 'tabla'" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Tabla</button>
+        <button type="button" @click="vistaTab = 'crudo'" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'crudo' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Crudo y cocido</button>
+      </div>
+      <div class="relative">
+        <button type="button" @click="configAbierta = !configAbierta" class="px-4 py-2 rounded-lg text-sm border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:text-gold">Configuración</button>
+        <div x-show="configAbierta" @click.outside="configAbierta = false" x-cloak class="absolute right-0 top-12 z-30 w-72 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-3 shadow-none">
+          <button type="button" @click="toggleAprovechador()" class="w-full px-4 py-2 rounded-lg text-sm font-medium transition text-left" :class="aprovechador ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-white hover:text-gold'">Aprovechador</button>
+          <p class="text-xs text-txt-muted mt-2">Las comandas van en cuadros pegados, sin hueco entre tarjetas. El encabezado sigue en una fila.</p>
+        </div>
+      </div>
+    </div>
+
+    <section x-show="vistaTab === 'tabla'" class="mb-8">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] overflow-hidden" :class="aprovechador ? 'rounded-none' : 'rounded-xl'">
+        <div class="overflow-x-auto">
+          <table class="tabla-inv w-full">
+            <thead>
+              <tr class="bg-bg-sidebar border-b-2 border-gold/30" :class="aprovechador ? 'whitespace-nowrap' : ''">
+                <th class="text-left px-2 py-2 uppercase font-semibold text-gold">Producto</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-white">Saldo inicial</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Ingreso</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Total</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Egreso</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Regulación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="f in tablaProductos" :key="f.nombre">
+                <tr class="border-b border-[rgba(212,175,55,0.1)]">
+                  <td class="celda-producto px-2 py-1.5" x-text="f.nombre"></td>
+                  <td class="celda-saldo px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1,true)">−</button><input class="caja-num" type="number" step="any" :value="f.saldoInicial" @change="fijar(f.clave,'cocido','ingreso', f.saldoInicial, $event.target.value, true)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1,true)">+</button></span></td>
+                  <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.ingresos" @change="fijar(f.clave,'cocido','ingreso', f.ingresos, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1)">+</button></span></td>
+                  <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1)">−</button><input class="caja-num font-semibold" type="number" step="any" :value="f.total" @change="fijar(f.clave,'cocido','ingreso', f.total, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1)">+</button></span></td>
+                  <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','egreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.egreso" @change="fijar(f.clave,'cocido','egreso', f.egreso, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','egreso',1)">+</button></span></td>
+                  <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','regulacion',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.regulacion" @change="fijar(f.clave,'cocido','regulacion', f.regulacion, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','regulacion',1)">+</button></span></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section x-show="vistaTab === 'crudo'" class="mb-8">
+      <div class="grid grid-cols-1 xl:grid-cols-2" :class="aprovechador ? 'gap-0' : 'gap-4'">
+        <template x-for="cuadro in cuadros" :key="cuadro.nombre">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] overflow-hidden" :class="aprovechador ? 'rounded-none' : 'rounded-xl'">
+            <table class="tabla-inv w-full">
+              <thead>
+                <tr class="barra-cuadro border-b-2 border-[#8a7018]" :class="aprovechador ? 'whitespace-nowrap' : ''">
+                  <th class="text-left px-2 py-2 uppercase font-semibold text-gold" x-text="cuadro.nombre"></th>
+                  <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Cocido</th>
+                  <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Crudo</th>
+                  <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="fila in cuadro.filas" :key="cuadro.nombre + fila.nombre">
+                  <tr class="border-b border-[rgba(212,175,55,0.1)]">
+                    <td class="celda-producto px-2 py-1.5" x-text="fila.nombre"></td>
+                    <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(fila.clave,'cocido','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="fila.cocido" @change="fijar(fila.clave,'cocido','ingreso', fila.cocido, $event.target.value)"><button type="button" class="flecha-num" @click="paso(fila.clave,'cocido','ingreso',1)">+</button></span></td>
+                    <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(fila.clave,'crudo','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="fila.crudo" @change="fijar(fila.clave,'crudo','ingreso', fila.crudo, $event.target.value)"><button type="button" class="flecha-num" @click="paso(fila.clave,'crudo','ingreso',1)">+</button></span></td>
+                    <td class="celda-saldo px-1 py-1 text-right"><input class="caja-num font-semibold" type="text" readonly :value="fila.total"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <section class="mb-8">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-semibold text-gold">Registro de entrada y salida</h2>
+        <button type="button" @click="formulario = !formulario" class="text-xs px-3 py-1.5 rounded-lg bg-gold text-black font-semibold">Anotar movimiento</button>
+      </div>
+      <form x-show="formulario" @submit.prevent="guardarMovimiento()" class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-3">
+        <p class="md:col-span-6 text-xs text-txt-muted">Producto que sale</p>
+        <select x-model="alta.saleRubro" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-2">
+          <option value="">Sale</option>
+          <template x-for="p in opciones" :key="'s'+p.clave">
+            <option :value="p.clave" x-text="p.nombre"></option>
+          </template>
+        </select>
+        <select x-model="alta.saleTipo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm">
+          <option value="crudo">Crudo</option>
+          <option value="cocido">Cocido</option>
+        </select>
+        <input x-model="alta.saleCantidad" type="number" step="any" min="0" placeholder="Cantidad que sale" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm">
+        <p class="md:col-span-6 text-xs text-txt-muted">Producto que ingresa</p>
+        <select x-model="alta.ingresaRubro" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-2">
+          <option value="">Ingresa</option>
+          <template x-for="p in opciones" :key="'i'+p.clave">
+            <option :value="p.clave" x-text="p.nombre"></option>
+          </template>
+        </select>
+        <select x-model="alta.ingresaTipo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm">
+          <option value="crudo">Crudo</option>
+          <option value="cocido">Cocido</option>
+        </select>
+        <input x-model="alta.ingresaCantidad" type="number" step="any" min="0" placeholder="Cantidad que ingresa" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm">
+        <input x-model="alta.motivo" type="text" placeholder="Motivo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-4" required>
+        <button type="submit" class="md:col-span-2 text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold" :disabled="guardando" x-text="guardando ? 'Guardando…' : 'Guardar'"></button>
+      </form>
+      <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)]">
+        <table class="w-full text-sm">
+          <thead class="bg-bg-sidebar text-txt-muted text-xs">
+            <tr>
+              <th class="text-left px-3 py-2">Fecha</th>
+              <th class="text-left px-3 py-2">Sale</th>
+              <th class="text-left px-3 py-2">Ingresa</th>
+              <th class="text-left px-3 py-2">Tipo</th>
+              <th class="text-right px-3 py-2">Cantidad</th>
+              <th class="text-left px-3 py-2">Motivo</th>
+              <th class="text-left px-3 py-2">Usuario</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="m in movimientos" :key="m._id">
+              <tr class="border-t border-white/5">
+                <td class="px-3 py-2 whitespace-nowrap" x-text="fechaCorta(m.fecha)"></td>
+                <td class="px-3 py-2" x-text="productoSale(m)"></td>
+                <td class="px-3 py-2" x-text="productoIngresa(m)"></td>
+                <td class="px-3 py-2 capitalize" x-text="m.tipoProducto"></td>
+                <td class="px-3 py-2 text-right" x-text="Math.abs(Number(m.cantidad) || 0)"></td>
+                <td class="px-3 py-2" x-text="m.motivo"></td>
+                <td class="px-3 py-2" x-text="m.usuario || '—'"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+<script src="/assets/js/shared.js"></script>
+<script src="/assets/js/page-transitions.js"></script>
+<script src="/assets/js/cosmos-search.js"></script>
+<script src="/assets/js/notificaciones-dashboard.js"></script>
+<script>
+function inventarioApp() {
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+  return {
+    sidebarOpen: true,
+    dia: hoy,
+    filas: [],
+    carta: null,
+    vistaTab: 'tabla',
+    tablaProductos: [],
+    cuadros: [],
+    opciones: [],
+    configAbierta: false,
+    aprovechador: false,
+    movimientos: [],
+    alertas: [],
+    error: '',
+    formulario: false,
+    guardando: false,
+    alta: { saleRubro: '', saleTipo: 'crudo', saleCantidad: '', ingresaRubro: '', ingresaTipo: 'cocido', ingresaCantidad: '', motivo: '' },
+    filaRubro(clave, tipo) {
+      return this.filas.find((f) => f.rubro === clave && f.tipoProducto === tipo) || {
+        rubro: clave, tipoProducto: tipo, saldoInicial: 0, ingresos: 0, total: 0, egreso: 0, saldoFinal: 0, regulacion: 0, baja: 0
+      };
+    },
+    resumen(claves) {
+      const crudo = claves.map((c) => this.filaRubro(c, 'crudo'));
+      const cocido = claves.map((c) => this.filaRubro(c, 'cocido'));
+      const sum = (arr, k) => arr.reduce((a, f) => a + (Number(f[k]) || 0), 0);
+      return {
+        ingreso: sum(crudo, 'ingresos') + sum(cocido, 'ingresos'),
+        total: sum(crudo, 'total') + sum(cocido, 'total'),
+        suma: sum(crudo, 'baja') + sum(cocido, 'baja'),
+        crudo: sum(crudo, 'baja'),
+        cocido: sum(cocido, 'baja'),
+        ingresoCrudo: sum(crudo, 'ingresos'),
+        totalCrudo: sum(crudo, 'total'),
+        ingresoCocido: sum(cocido, 'ingresos'),
+        totalCocido: sum(cocido, 'total')
+      };
+    },
+    filaDe(claves, tipo) {
+      const partes = claves.map((c) => this.filaRubro(c, tipo));
+      const row = {};
+      ['saldoInicial', 'ingresos', 'total', 'egreso', 'regulacion', 'baja'].forEach((campo) => {
+        row[campo] = partes.reduce((a, p) => a + (Number(p[campo]) || 0), 0);
+      });
+      return row;
+    },
+    armarVista() {
+      const meta = this.carta || { kardex: [], grupos: [], sueltos: [], opciones: [] };
+      this.opciones = meta.opciones || [];
+      this.tablaProductos = (meta.kardex || []).map((k) => {
+        const claves = k.suma && k.suma.length ? k.suma : [k.clave];
+        const crudo = this.filaDe(claves, 'crudo');
+        const cocido = this.filaDe(claves, 'cocido');
+        const sumaCampo = (campo) => (crudo[campo] || 0) + (cocido[campo] || 0);
+        return {
+          nombre: k.nombre,
+          clave: (k.suma && k.suma[0]) || k.clave,
+          saldoInicial: sumaCampo('saldoInicial'),
+          ingresos: sumaCampo('ingresos'),
+          total: sumaCampo('total'),
+          egreso: sumaCampo('egreso'),
+          regulacion: sumaCampo('regulacion')
+        };
+      });
+      const filaCuadro = (clave, nombre) => {
+        const crudo = this.filaRubro(clave, 'crudo');
+        const cocido = this.filaRubro(clave, 'cocido');
+        return {
+          nombre: nombre,
+          clave: clave,
+          cocido: cocido.baja || 0,
+          crudo: crudo.baja || 0,
+          total: (cocido.baja || 0) + (crudo.baja || 0)
+        };
+      };
+      const fueraDelPollo = new Set(['filete', 'chicharron-pollo']);
+      const deGrupos = (meta.grupos || [])
+        .filter((g) => g.nombre !== 'Pescado')
+        .map((g) => ({
+          nombre: g.nombre,
+          filas: (g.hijos || [])
+            .filter((h) => g.nombre !== 'Pollo' || !fueraDelPollo.has(h.clave))
+            .map((h) => filaCuadro(h.clave, h.nombre))
+        }))
+        .filter((g) => g.filas.length);
+      const deSueltos = (meta.sueltos || []).filter((s) => s.clave === 'arroz').map((s) => ({
+        nombre: s.nombre,
+        filas: [filaCuadro(s.clave, s.nombre)]
+      }));
+      const orden = ['Pachamanca', 'Pollo', 'Panceta', 'Arroz'];
+      this.cuadros = deGrupos.concat(deSueltos).sort((a, b) => orden.indexOf(a.nombre) - orden.indexOf(b.nombre));
+    },
+    signo(n) {
+      const x = Number(n) || 0;
+      if (x > 0) return '+' + x;
+      if (x < 0) return '−' + Math.abs(x);
+      return '0';
+    },
+    productoSale(m) {
+      const n = Number(m.cantidad) || 0;
+      if (m.clase === 'egreso' && n > 0) return m.nombre;
+      if (m.clase === 'ingreso' && n < 0) return m.nombre;
+      return '—';
+    },
+    productoIngresa(m) {
+      const n = Number(m.cantidad) || 0;
+      if (m.clase === 'ingreso' && n > 0) return m.nombre;
+      if (m.clase === 'egreso' && n < 0) return m.nombre;
+      return '—';
+    },
+    nombreRubro(clave) {
+      const op = (this.opciones || []).find((p) => p.clave === clave);
+      return op ? op.nombre : clave;
+    },
+    fechaCorta(iso) {
+      if (!iso) return '';
+      return new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+    },
+    token() {
+      return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') || '';
+    },
+    async api(path, opts) {
+      const res = await fetch('/api' + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.token(), ...(opts && opts.headers) }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo completar');
+      return data;
+    },
+    async init() {
+      if (!this.token()) { window.location.href = '/login.html'; return; }
+      if (typeof sharedTienePermiso === 'function' && !sharedTienePermiso('ver-inventario')) {
+        window.location.href = '/index.html';
+        return;
+      }
+      this.aprovechador = localStorage.getItem('inventario-aprovechador') === '1';
+      await this.cargar();
+      this.initSocket();
+    },
+    guardarAprovechador() {
+      localStorage.setItem('inventario-aprovechador', this.aprovechador ? '1' : '0');
+    },
+    toggleAprovechador() {
+      this.aprovechador = !this.aprovechador;
+      this.guardarAprovechador();
+    },
+    fechaAyer() {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      d.setHours(12, 0, 0, 0);
+      return d.toISOString();
+    },
+    async fijar(rubro, tipo, clase, actual, nuevo, ayer) {
+      const n = Number(String(nuevo).replace(',', '.'));
+      const a = Number(actual) || 0;
+      if (!Number.isFinite(n) || n === a) return;
+      await this.paso(rubro, tipo, clase, n - a, !!ayer);
+    },
+    async paso(rubro, tipo, clase, delta, ayer) {
+      if (!rubro || this.guardando) return;
+      this.guardando = true;
+      this.error = '';
+      try {
+        const nombre = this.nombreRubro(rubro);
+        let motivo = 'Regulación ' + nombre;
+        if (clase === 'ingreso') motivo = (delta < 0 ? 'Sale ' : 'Ingresa ') + nombre;
+        else if (clase === 'egreso') motivo = (delta < 0 ? 'Ingresa ' : 'Sale ') + nombre;
+        const body = { rubro: rubro, tipoProducto: tipo, clase: clase, cantidad: delta, motivo: motivo };
+        if (ayer) body.fecha = this.fechaAyer();
+        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify(body) });
+        await this.cargar();
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.guardando = false;
+      }
+    },
+    async cargar() {
+      this.error = '';
+      try {
+        const q = '?carta=1&desde=' + this.dia + '&hasta=' + this.dia;
+        const [k, m, a] = await Promise.all([
+          this.api('/inventario/kardex' + q),
+          this.api('/inventario/movimientos' + q),
+          this.api('/inventario/alertas')
+        ]);
+        this.filas = k.filas || [];
+        this.carta = k.carta || null;
+        this.movimientos = m.movimientos || [];
+        this.alertas = a.alertas || [];
+        this.armarVista();
+      } catch (e) {
+        this.error = e.message;
+      }
+    },
+    async guardarMovimiento() {
+      const sale = Number(this.alta.saleCantidad);
+      const entra = Number(this.alta.ingresaCantidad);
+      const haySale = this.alta.saleRubro && sale > 0;
+      const hayEntra = this.alta.ingresaRubro && entra > 0;
+      if (!haySale && !hayEntra) {
+        this.error = 'Indica el producto que sale o el que ingresa';
+        return;
+      }
+      this.guardando = true;
+      this.error = '';
+      try {
+        if (haySale) {
+          await this.api('/inventario/movimientos', {
+            method: 'POST',
+            body: JSON.stringify({
+              rubro: this.alta.saleRubro,
+              tipoProducto: this.alta.saleTipo,
+              clase: 'egreso',
+              cantidad: sale,
+              motivo: 'Sale ' + this.nombreRubro(this.alta.saleRubro) + (this.alta.motivo ? ' · ' + this.alta.motivo : '')
+            })
+          });
+        }
+        if (hayEntra) {
+          await this.api('/inventario/movimientos', {
+            method: 'POST',
+            body: JSON.stringify({
+              rubro: this.alta.ingresaRubro,
+              tipoProducto: this.alta.ingresaTipo,
+              clase: 'ingreso',
+              cantidad: entra,
+              motivo: 'Ingresa ' + this.nombreRubro(this.alta.ingresaRubro) + (this.alta.motivo ? ' · ' + this.alta.motivo : '')
+            })
+          });
+        }
+        this.alta.saleCantidad = '';
+        this.alta.ingresaCantidad = '';
+        this.alta.motivo = '';
+        this.formulario = false;
+        await this.cargar();
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.guardando = false;
+      }
+    },
+    initSocket() {
+      if (typeof io === 'undefined') return;
+      const socket = io('/admin', { auth: { token: this.token() }, transports: ['websocket', 'polling'] });
+      socket.on('inventario:alerta', () => this.cargar());
+    }
+  };
+}
+</script>
+</body>
+</html>

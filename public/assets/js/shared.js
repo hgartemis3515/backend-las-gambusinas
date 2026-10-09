@@ -161,6 +161,7 @@ const sharedData = {
     auditoria: { label: 'Auditoría', icon: '🔍', href: '/auditoria.html' },
     cierre: { label: 'Cierre Caja', icon: '💰', href: '/cierre-caja.html' },
     reportes: { label: 'Reportes', icon: '📊', href: '/reportes.html' },
+    inventario: { label: 'Inventario', icon: '📦', href: '/inventario.html' },
     config: { label: 'Configuración', icon: '⚙️', href: '/configuracion.html' }
   }
 };
@@ -171,7 +172,8 @@ const PAGES_PERMISOS = {
   cierre: 'ver-cierre-caja',
   roles: 'gestionar-roles',
   auditoria: 'ver-auditoria',
-  reportes: 'ver-reportes'
+  reportes: 'ver-reportes',
+  inventario: 'ver-inventario'
 };
 
 /**
@@ -207,7 +209,7 @@ const MENU_GESTION_DEFAULT = {
   colorPrincipal: '#d4af37',
   colorAvanzada: '#a0a0b8',
   principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
-  avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config']
+  avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'inventario', 'config']
 };
 
 function normalizarMenuGestionFront(raw) {

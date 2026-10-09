@@ -35,6 +35,7 @@ class CosmosSearch {
       mesas: 'Buscar mesas por número o estado...',
       bouchers: 'Buscar bouchers por código o estado...',
       reportes: 'Buscar reportes por fecha o tipo...',
+      inventario: 'Buscar inventario...',
       all: 'Buscar por nombre, mesa, #comanda, código boucher...'
     };
     
@@ -45,6 +46,7 @@ class CosmosSearch {
       { id: 'mesas', label: 'Mesas', icon: 'grid-3x3', navigable: true },
       { id: 'bouchers', label: 'Bouchers', icon: 'ticket', navigable: true },
       { id: 'reportes', label: 'Reportes', icon: 'bar-chart-2', navigable: true },
+      { id: 'inventario', label: 'Inventario', icon: 'package', navigable: true },
       { id: 'configuracion', label: 'Configuración', icon: 'settings', navigable: false, isExternal: true }
     ];
     
@@ -476,7 +478,8 @@ class CosmosSearch {
           this.searchBouchers(q, results);
           break;
         case 'reportes':
-          // Los reportes son acciones, no datos
+          break;
+        case 'inventario':
           break;
         default:
           // Buscar en todos lados
@@ -640,6 +643,9 @@ class CosmosSearch {
         { type: 'accion', title: 'Reporte de Ventas', subtitle: 'Ver estadísticas de ventas', icon: '📊', url: '/reportes.html?tab=ventas', badge: 'Acción', badgeClass: 'cosmos-badge-accion' },
         { type: 'accion', title: 'Reporte de Platos', subtitle: 'Platos más vendidos', icon: '🍽️', url: '/reportes.html?tab=platos', badge: 'Acción', badgeClass: 'cosmos-badge-accion' },
         { type: 'accion', title: 'Reporte de Mesas', subtitle: 'Ocupación por mesa', icon: '🪑', url: '/reportes.html?tab=mesas', badge: 'Acción', badgeClass: 'cosmos-badge-accion' }
+      ],
+      inventario: [
+        { type: 'accion', title: 'Inventario', subtitle: 'Kardex de platos crudos y cocidos', icon: '📦', url: '/inventario.html', badge: 'Acción', badgeClass: 'cosmos-badge-accion' }
       ]
     };
     
@@ -715,7 +721,8 @@ class CosmosSearch {
       platos: 'Platos',
       mesas: 'Mesas',
       bouchers: 'Bouchers',
-      reportes: 'Reportes'
+      reportes: 'Reportes',
+      inventario: 'Inventario'
     };
     
     if (this.results.length === 0) {

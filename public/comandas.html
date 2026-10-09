@@ -381,7 +381,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <table class="comandas-table w-full">
  <thead>
  <tr class="bg-bg-sidebar border-b-2 border-gold/30">
- <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap w-36">ID/Grupo</th>
+ <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap min-w-[11rem]">ID/Grupo</th>
  <th x-show="verIdHistorico" class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">Nº histórico</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mesa</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Contador G</th>
@@ -401,9 +401,9 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  :class="claseColorFilaComanda(row)">
  
  <!-- ID / Grupo -->
- <td class="px-3 py-2.5 align-top w-36 max-w-[9rem]">
+ <td class="px-3 py-2.5 align-top whitespace-nowrap">
  <template x-if="row.tipo === 'grupo'">
- <button @click.stop="toggleExpandGrupo(row.id)" class="flex items-start gap-1.5 w-36 max-w-[9rem] text-left">
+ <button @click.stop="toggleExpandGrupo(row.id)" class="flex items-start gap-1.5 text-left">
  <span class="text-gold font-bold text-sm shrink-0 leading-tight" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
  <span class="min-w-0 flex flex-col gap-0.5">
   <span class="text-gold font-bold text-sm leading-snug break-words">
@@ -412,7 +412,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
     <span class="inline-block mr-1" x-text="etq"></span>
    </template>
    <span x-show="etiquetasGrupoTabla(row.comandas).length === 0" class="inline-block ml-1" x-text="row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj)"></span>
-   <span x-show="esFilaPrueba(row)" class="inline-block ml-1 text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
+   <span x-show="esFilaPrueba(row)" class="ml-1 text-xl px-3 py-1 rounded-md bg-[#7C3AED] text-white font-extrabold leading-none whitespace-nowrap align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
   </span>
   <span x-show="esGrupoReserva(row)"
    class="inline-flex flex-col items-start leading-tight text-[#e879f9]"
@@ -428,7 +428,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 <template x-if="row.tipo === 'individual'">
 <div class="flex items-center gap-1.5 whitespace-nowrap">
   <span class="font-medium text-sm" :class="row.comanda?.eliminada ? 'line-through text-txt-muted' : ''" x-text="etiquetaNumeroTabla(row.comanda)"></span>
-  <span x-show="esComandaPrueba(row.comanda)" class="text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none" title="Comanda de prueba (monto 0)">PRUEBA</span>
+  <span x-show="esComandaPrueba(row.comanda)" class="text-xl px-3 py-1 rounded-md bg-[#7C3AED] text-white font-extrabold leading-none whitespace-nowrap align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
   <span x-show="row.comanda?.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none">ANULADO</span>
   <span x-show="row.comanda?.omitirPago" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
   <span x-show="esComandaReserva(row.comanda)"
@@ -610,7 +610,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center gap-1.5 whitespace-nowrap">
  <span class="text-txt-muted text-xs">↳</span>
  <span class="text-txt-secondary text-sm" :class="comanda.eliminada ? 'line-through' : ''" x-text="etiquetaNumeroTabla(comanda)"></span>
- <span x-show="esComandaPrueba(comanda)" class="text-[9px] px-1.5 py-0 rounded bg-[#7C3AED] text-white font-extrabold leading-none" title="Comanda de prueba (monto 0)">PRUEBA</span>
+ <span x-show="esComandaPrueba(comanda)" class="text-xl px-3 py-1 rounded-md bg-[#7C3AED] text-white font-extrabold leading-none whitespace-nowrap align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
  <span x-show="comanda.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none">ANULADO</span>
  <span x-show="esComandaReserva(comanda)"
   class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
@@ -925,6 +925,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div>
  <div class="flex items-center gap-3">
  <h2 class="text-lg font-bold" x-text="'Comanda ' + etiquetaNumeroTabla(selectedComanda)"></h2>
+ <span x-show="esComandaPrueba(selectedComanda)" class="text-xl px-3 py-1 rounded-md font-extrabold bg-[#7C3AED] text-white">PRUEBA</span>
  <span x-show="selectedComanda?.eliminada" class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-st-pagado/20 text-st-pagado">ELIMINADA</span>
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
  :class="{
@@ -2314,6 +2315,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div>
  <div class="flex items-center gap-3">
  <h2 class="text-lg font-bold" x-text="'Editar Comanda ' + etiquetaNumeroTabla(editComanda)"></h2>
+ <span x-show="esComandaPrueba(editComanda)" class="text-xl px-3 py-1 rounded-md font-extrabold bg-[#7C3AED] text-white">PRUEBA</span>
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
  :class="{
  'bg-[#2ecc71]/20 text-[#2ecc71]': editComanda?.estado === 'recoger' || editComanda?.estado === 'preparado',

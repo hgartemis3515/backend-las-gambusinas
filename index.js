@@ -31,6 +31,7 @@ const notificacionesRoutes = require('./src/controllers/notificacionesController
 const mensajesRoutes = require('./src/controllers/mensajesController')
 const alertasRoutes = require('./src/controllers/alertasController')
 const reportesRoutes = require('./src/controllers/reportesController')
+const inventarioRoutes = require('./src/controllers/inventarioController')
 const rolesRoutes = require('./src/controllers/rolesController')
 const configuracionRoutes = require('./src/controllers/configuracionController')
 const archivoCajaRoutes = require('./src/controllers/archivoCajaController')
@@ -292,6 +293,7 @@ app.use('/api', notificacionesRoutes);
 app.use('/api', mensajesRoutes);
 app.use('/api', alertasRoutes);
 app.use('/api', reportesRoutes);
+app.use('/api', inventarioRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', configuracionRoutes);
 app.use('/api', archivoCajaRoutes);

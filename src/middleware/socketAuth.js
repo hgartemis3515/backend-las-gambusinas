@@ -288,6 +288,7 @@ const authenticateAdmin = (socket, next) => {
     if (!rolesPermitidos.includes(rol)
         && !permisos.includes('gestionar-roles')
         && !permisos.includes('ver-reportes')
+        && !permisos.includes('ver-inventario')
         && !permisos.includes('ver-auditoria')) {
       logger.warn('Intento de conexión a /admin con rol no autorizado', {
         socketId: socket.id,

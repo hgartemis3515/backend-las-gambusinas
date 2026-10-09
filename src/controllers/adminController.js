@@ -108,6 +108,7 @@ router.post('/admin/auth', async (req, res) => {
             || rol === 'supervisor'
             || permisos.includes('gestionar-roles')
             || permisos.includes('ver-reportes')
+            || permisos.includes('ver-inventario')
             || permisos.includes('ver-auditoria');
 
         if (!tieneAccesoDashboard) {

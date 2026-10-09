@@ -358,16 +358,29 @@ async function procesarPagoBoucher(params) {
   let platosParaBoucher;
   let comandasIdsAfectadas;
   let seleccionesParaMarcar;
+  let comandasIdsPago = comandasIds;
+  let forzarCobroTotalEspecial = false;
+  if (mesaId && !esPagoAdelantado) {
+    const mesaEsp = await mesasModel.findById(mesaId).select('especial').lean();
+    if (mesaEsp?.especial === true) {
+      forzarCobroTotalEspecial = true;
+      const todas = await getComandasParaPagar(mesaId);
+      const ids = (todas || []).map((c) => String(c._id)).filter(Boolean);
+      if (ids.length) comandasIdsPago = ids;
+    }
+  }
 
-  if (usaSeleccion) {
+  if (usaSeleccion && !forzarCobroTotalEspecial) {
     const validacion = await validarPlatosSeleccionadosParaPago(mesaId, platosSel, esPagoAdelantado);
     comandasValidas = validacion.comandas;
     platosParaBoucher = validacion.platosParaBoucher;
     comandasIdsAfectadas = validacion.comandasIds;
     seleccionesParaMarcar = validacion.selecciones;
   } else {
-    comandasValidas = await validarComandasParaPagar(mesaId, comandasIds);
-    comandasIdsAfectadas = comandasIds;
+    comandasValidas = await validarComandasParaPagar(mesaId, comandasIdsPago);
+    comandasIdsAfectadas = forzarCobroTotalEspecial
+      ? comandasValidas.map((c) => c._id)
+      : comandasIds;
     platosParaBoucher = [];
     seleccionesParaMarcar = [];
 
@@ -447,6 +460,11 @@ async function procesarPagoBoucher(params) {
       esAbonoPorCantidad = false;
       totales.total = 0;
       totales.totalConDescuento = 0;
+    } else if (forzarCobroTotalEspecial) {
+      esAbonoPorCantidad = false;
+      totales.total = saldo;
+      totales.totalConDescuento = saldo;
+      totalCuenta = ya > 0 ? Math.round((saldo + ya) * 100) / 100 : null;
     } else {
       const decision = decidirMontoCobro(montoCobro, saldo);
       // BUG_MESA_ESPECIAL_PAGO_TOTAL: tolerancia de redondeo IGV/descuento.

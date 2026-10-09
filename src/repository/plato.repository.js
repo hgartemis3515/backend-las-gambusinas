@@ -968,6 +968,18 @@ const actualizarPlato = async (id, newData) => {
         clean.categorias = cats.categorias;
         clean.categoria = cats.categoria;
     }
+    if (newData && Object.prototype.hasOwnProperty.call(newData, 'alertaCritica')) {
+        const raw = newData.alertaCritica || {};
+        const minimo = (v) => {
+            const n = Number(v);
+            if (!Number.isFinite(n) || n < 0) return 0;
+            return n;
+        };
+        clean.alertaCritica = {
+            crudo: minimo(raw.crudo),
+            cocido: minimo(raw.cocido)
+        };
+    }
     ['precio', 'stock'].forEach((k) => {
         if (!Object.prototype.hasOwnProperty.call(clean, k)) return;
         if (clean[k] === '' || clean[k] === null || clean[k] === undefined) {

@@ -80,6 +80,11 @@ const platoSchema = new mongoose.Schema({
     },
     precio: { type: Number, required: true, min: 0 },
     stock: { type: Number, required: true, min: 0 },
+    // Mínimo de inventario por existencia. 0 = no avisa.
+    alertaCritica: {
+        crudo: { type: Number, default: 0, min: 0 },
+        cocido: { type: Number, default: 0, min: 0 }
+    },
     categoria: {
         type: String,
         required: true,

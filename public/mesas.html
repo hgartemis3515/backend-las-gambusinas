@@ -121,11 +121,11 @@ tailwind.config = {
 
     <!-- VISTA TARJETAS -->
     <div x-show="view==='cards' && (mesas.length > 0 || !loading)" class="space-y-6">
-      <template x-for="area in areasList" :key="area._id || area">
-        <div x-show="getMesasByArea(area).length > 0">
-          <h3 class="text-sm font-semibold text-txt-secondary mb-3" x-text="area.nombre || area"></h3>
+      <template x-for="grupo in mesasAgrupadasTarjetas" :key="grupo.id">
+        <div>
+          <h3 class="text-sm font-semibold text-txt-secondary mb-3" x-text="grupo.nombre"></h3>
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            <template x-for="m in getMesasByArea(area)" :key="m._id || m.numMesa">
+            <template x-for="m in grupo.mesas" :key="m._id || m.numMesa">
               <div class="relative bg-bg-card border-2 rounded-xl p-3.5 cursor-pointer card-hover transition hover:scale-[1.02]"
                 :class="[
                   mesaBorderClass(estadoNormalizado(m.estado)),
@@ -858,20 +858,46 @@ tailwind.config = {
       return map[estado?.toLowerCase()] || estado || 'Libre';
     },
     
+    idAreaDe(valor) {
+      if (valor == null || valor === '') return '';
+      if (typeof valor === 'string' || typeof valor === 'number') return String(valor);
+      return String(valor._id || valor.id || '');
+    },
+
+    mesaPerteneceArea(mesa, area) {
+      const areaId = this.idAreaDe(area && area._id != null ? area._id : area);
+      const areaNombre = this.normNombreArea(area && area.nombre != null ? area.nombre : area);
+      const mArea = mesa && mesa.area;
+      const mesaId = this.idAreaDe(mArea);
+      const mesaNombre = this.normNombreArea(
+        mArea && typeof mArea === 'object' ? mArea.nombre : mArea
+      );
+      if (areaId && mesaId && mesaId === areaId) return true;
+      return !!(areaNombre && mesaNombre && mesaNombre === areaNombre);
+    },
+
     getMesasByArea(area) {
-      const areaId = area._id?.toString() || area?.toString();
-      const areaNombre = area.nombre || area;
-      return this.mesas.filter(m => {
-        const mArea = m.area;
-        const matchArea = 
-          (mArea?._id?.toString() === areaId) ||
-          (mArea?.nombre === areaNombre) ||
-          (typeof mArea === 'string' && (mArea === areaId || mArea === areaNombre));
-        const matchEstado = this.filterEstado === 'Todas' || this.estadoNormalizado(m.estado) === this.filterEstado;
-        // Ocultar mesas secundarias (las que están unidas a otra mesa)
-        const esVisible = m.esMesaPrincipal !== false;
-        return matchArea && matchEstado && esVisible;
-      });
+      return this.filteredMesasList.filter((m) => this.mesaPerteneceArea(m, area));
+    },
+
+    get mesasAgrupadasTarjetas() {
+      const usadas = new Set();
+      const grupos = [];
+      for (const area of this.areasList || []) {
+        const lista = this.getMesasByArea(area);
+        if (!lista.length) continue;
+        lista.forEach((m) => usadas.add(String(m._id)));
+        grupos.push({
+          id: this.idAreaDe(area && area._id != null ? area._id : area) || String(area && area.nombre || area),
+          nombre: (area && area.nombre) || String(area),
+          mesas: lista,
+        });
+      }
+      const sueltas = this.filteredMesasList.filter((m) => !usadas.has(String(m._id)));
+      if (sueltas.length) {
+        grupos.push({ id: 'sin-area', nombre: 'Sin área', mesas: sueltas });
+      }
+      return grupos;
     },
     
     get filteredMesasList() {

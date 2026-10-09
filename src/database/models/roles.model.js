@@ -26,6 +26,7 @@ const PERMISOS_FUNDAMENTALES = {
     'gestionar-roles': { nombre: 'Gestionar Roles', grupo: 'Backend/Dashboard', descripcion: 'Crear y asignar roles y permisos' },
     'ver-auditoria': { nombre: 'Ver Auditoría', grupo: 'Backend/Dashboard', descripcion: 'Acceder al registro de acciones del sistema' },
     'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Ver el módulo Reportes en el panel de gestión (ventas, platos, mozos, cocineros)' },
+    'ver-inventario': { nombre: 'Ver Inventario', grupo: 'Backend/Dashboard', descripcion: 'Ver y anotar el inventario de platos (crudo y cocido) en el panel' },
     // Cierre de caja: división granular para control de acceso
     // - ver-cierre-caja: ver el módulo, historial, KPIs y la tabla de verificación de tickets
     // - ejecutar-cierre-caja: confirmar el cierre del período y revertirlo (con motivo de auditoría)
