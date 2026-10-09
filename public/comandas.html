@@ -25,7 +25,7 @@
 <script src="/socket.io/socket.io.js"></script>
  <script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
  <script type="module" src="/js/comanda-print/imprimirTicketsEpos.js"></script>
- <script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261006b"></script>
+ <script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261008d"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -101,6 +101,12 @@ tailwind.config = {
     padding-top: 1rem;
     color: #fff;
     font-weight: 700;
+  }
+  /* 840px × 1.3 de ancho visible; zoom 1.15 sube letras e iconos. */
+  .modal-comanda-amplia {
+    width: min(950px, 83vw) !important;
+    max-height: 78vh !important;
+    zoom: 1.15;
   }
   .preview-scale { transform-origin: top left; transition: transform 0.2s ease; }
   @media print { .comanda-ticket { box-shadow: none; } }
@@ -917,7 +923,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 
 <!-- MODAL: VER COMANDA — Diseño segun pencil-new.pen frame wmbyw -->
 <div id="modal-ver-comanda" x-show="modal==='verComanda' && selectedComanda" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarModalVerComanda()">
- <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+ <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" :class="vistaComanda==='avanzada' && 'modal-comanda-amplia'" @click.stop>
 
  <!-- HEADER -->
  <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
@@ -2307,7 +2313,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 
 <!-- MODAL: EDITAR COMANDA — Mismo diseño que verComanda con funciones de edicion -->
 <div x-show="modal==='editarComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
- <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+ <div class="modal-comanda-amplia bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
 
  <!-- HEADER -->
  <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
@@ -2690,7 +2696,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
 
  <!-- SECCION DESCUENTO - Solo visible para admin/supervisor -->
- <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoInput: 0, motivoDescuentoInput: '' }"
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoInput: 0, motivoDescuentoInput: '', marca100: false }"
  class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <div class="flex items-center justify-between mb-3">
  <div class="flex items-center gap-2">
@@ -2738,13 +2744,14 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm focus:border-gold focus:outline-none"
  placeholder="Opcional">
  </div>
- <button type="button" @click="aplicarDescuento100Comanda(motivoDescuentoInput)"
+ <button type="button" @click="marca100 = !marca100"
  :disabled="!(brutoParaDescuento() > 0)"
- class="h-9 px-4 bg-st-preparado text-white rounded-lg text-sm font-bold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
+ class="h-9 px-4 rounded-lg text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+ :class="marca100 ? 'bg-st-preparado text-white ring-2 ring-white' : 'bg-st-preparado/35 text-white hover:bg-st-preparado'">
  100%
  </button>
- <button type="button" @click="aplicarDescuentoMontoComanda(descuentoMontoInput, motivoDescuentoInput)"
- :disabled="!(Number(descuentoMontoInput) > 0)"
+ <button type="button" @click="if (marca100) { aplicarDescuento100Comanda(motivoDescuentoInput); marca100 = false } else { aplicarDescuentoMontoComanda(descuentoMontoInput, motivoDescuentoInput) }"
+ :disabled="!(marca100 || Number(descuentoMontoInput) > 0)"
  class="h-9 px-4 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
  Aplicar
  </button>
@@ -2758,11 +2765,11 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  <div>
  <p class="text-[10px] text-txt-muted">Descuento</p>
- <p class="text-st-pagado font-semibold" x-text="'-S/. ' + clampMontoDescuento(descuentoMontoInput, brutoParaDescuento()).toFixed(2)"></p>
+ <p class="text-st-pagado font-semibold" x-text="'-S/. ' + (marca100 ? brutoParaDescuento() : clampMontoDescuento(descuentoMontoInput, brutoParaDescuento())).toFixed(2)"></p>
  </div>
  <div>
  <p class="text-[10px] text-txt-muted">Total Final</p>
- <p class="text-st-preparado font-bold text-lg" x-text="'S/. ' + (brutoParaDescuento() - clampMontoDescuento(descuentoMontoInput, brutoParaDescuento())).toFixed(2)"></p>
+ <p class="text-st-preparado font-bold text-lg" x-text="'S/. ' + (brutoParaDescuento() - (marca100 ? brutoParaDescuento() : clampMontoDescuento(descuentoMontoInput, brutoParaDescuento()))).toFixed(2)"></p>
  </div>
  </div>
  </div>
@@ -3308,7 +3315,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
 
  <!-- DESCUENTO PARA EL GRUPO -->
- <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoGrupoInput: 0, motivoDescuentoGrupoInput: '' }"
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoGrupoInput: 0, motivoDescuentoGrupoInput: '', marca100: false }"
  class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <div class="flex items-center justify-between mb-3">
  <div class="flex items-center gap-2">
@@ -3355,13 +3362,14 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm focus:border-gold focus:outline-none"
  placeholder="Opcional">
  </div>
- <button type="button" @click="aplicarDescuento100Grupo(motivoDescuentoGrupoInput)"
+ <button type="button" @click="marca100 = !marca100"
  :disabled="aplicandoDescuentoGrupo || !(brutoGrupo() > 0)"
- class="h-9 px-4 bg-st-preparado text-white rounded-lg text-sm font-bold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
+ class="h-9 px-4 rounded-lg text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+ :class="marca100 ? 'bg-st-preparado text-white ring-2 ring-white' : 'bg-st-preparado/35 text-white hover:bg-st-preparado'">
  100%
  </button>
- <button type="button" @click="aplicarDescuentoMontoGrupo(descuentoMontoGrupoInput, motivoDescuentoGrupoInput)"
- :disabled="aplicandoDescuentoGrupo || !(Number(descuentoMontoGrupoInput) > 0)"
+ <button type="button" @click="if (marca100) { aplicarDescuento100Grupo(motivoDescuentoGrupoInput); marca100 = false } else { aplicarDescuentoMontoGrupo(descuentoMontoGrupoInput, motivoDescuentoGrupoInput) }"
+ :disabled="aplicandoDescuentoGrupo || !(marca100 || Number(descuentoMontoGrupoInput) > 0)"
  class="h-9 px-4 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
  <span x-show="!aplicandoDescuentoGrupo">Aplicar</span>
  <span x-show="aplicandoDescuentoGrupo" class="flex items-center gap-1">
@@ -3379,11 +3387,11 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  <div>
  <p class="text-[10px] text-txt-muted">Descuento</p>
- <p class="text-st-pagado font-semibold" x-text="'-S/. ' + clampMontoDescuento(descuentoMontoGrupoInput, brutoGrupo()).toFixed(2)"></p>
+ <p class="text-st-pagado font-semibold" x-text="'-S/. ' + (marca100 ? brutoGrupo() : clampMontoDescuento(descuentoMontoGrupoInput, brutoGrupo())).toFixed(2)"></p>
  </div>
  <div>
  <p class="text-[10px] text-txt-muted">Total Final</p>
- <p class="text-st-preparado font-bold text-lg" x-text="'S/. ' + (brutoGrupo() - clampMontoDescuento(descuentoMontoGrupoInput, brutoGrupo())).toFixed(2)"></p>
+ <p class="text-st-preparado font-bold text-lg" x-text="'S/. ' + (brutoGrupo() - (marca100 ? brutoGrupo() : clampMontoDescuento(descuentoMontoGrupoInput, brutoGrupo()))).toFixed(2)"></p>
  </div>
  </div>
  </div>
@@ -5143,18 +5151,47 @@ this.scheduleRefreshVentasTotales();
   return out;
  },
 
+ /** Hermanas del mismo pedido, a la derecha de la mesa: (6, 7) */
+ sufijoComandasAgrupadas(c) {
+  if (!c) return '';
+  const pid = this.normalizeObjectId(c.pedidoId);
+  if (!pid) return '';
+  if ((c.origenCreacion || '') === 'dashboard' || c.createdByDashboard) return '';
+  if (String(c.estado || c.status || '').toLowerCase() === 'cancelado') return '';
+  const id = String(c._id || '');
+  const nums = [];
+  for (const x of this.comandas || []) {
+    if (!x || String(x._id || '') === id) continue;
+    if (this.normalizeObjectId(x.pedidoId) !== pid) continue;
+    if ((x.origenCreacion || '') === 'dashboard' || x.createdByDashboard) continue;
+    if (String(x.estado || x.status || '').toLowerCase() === 'cancelado') continue;
+    const raw = x.numeroComandaDia != null && x.numeroComandaDia !== '' ? x.numeroComandaDia : x.numComanda;
+    const n = Number(raw);
+    if (Number.isFinite(n)) nums.push(n);
+  }
+  const uniq = [...new Set(nums)].sort((a, b) => a - b);
+  return uniq.length ? ('(' + uniq.join(', ') + ')') : '';
+ },
+ mesaTicketCierre(c) {
+  const mesa = this.formatearNombreMesa(c.mesa) || '—';
+  const suf = this.sufijoComandasAgrupadas(c);
+  return suf ? (mesa + ' ' + suf) : mesa;
+ },
+
  datosTicketComandasVisibles() {
   const lista = this.comandasVisiblesTabla();
   if (!lista.length) return null;
   const lineas = lista.map((c) => {
     const anulada = this.comandaEsEliminada(c);
-    const num = c.numeroComandaDia != null && c.numeroComandaDia !== ''
+    const mesa = this.mesaTicketCierre(c);
+    const numBase = c.numeroComandaDia != null && c.numeroComandaDia !== ''
       ? c.numeroComandaDia
       : (c.numComanda ?? '');
+    const num = String(numBase) + (numBase === '' ? '' : this.letraRevComanda(c.revisionTicket));
     if (anulada) {
       return {
         comandaNumber: num,
-        mesa: this.formatearNombreMesa(c.mesa),
+        mesa,
         eliminadoPorNombre: c.eliminadaPorNombre || '',
         anulada: true,
         bruto: 0,
@@ -5169,14 +5206,14 @@ this.scheduleRefreshVentasTotales();
     return {
       comandaNumber: num,
       numeroComandaMozo: c.numeroComandaMozo || null,
-      mesa: this.formatearNombreMesa(c.mesa),
+      mesa,
       anulada: false,
       bruto,
       subtotal: bruto,
       descuento: desc,
       total: Number(neto.toFixed(2)),
     };
-  }).sort((a, b) => (Number(a.comandaNumber) || 0) - (Number(b.comandaNumber) || 0));
+  }).sort((a, b) => (parseInt(a.comandaNumber, 10) || 0) - (parseInt(b.comandaNumber, 10) || 0));
   const cobradas = lineas.filter((l) => !l.anulada);
   const total = Number(cobradas.reduce((s, l) => s + l.total, 0).toFixed(2));
   const tiempos = lista
@@ -7768,6 +7805,22 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return this.aplicarDescuentoGrupo(100, motivoFinal, bruto);
  },
 
+ /** El monto cae en la comanda de mayor valor. El resto, si no cabe, sigue por la siguiente. */
+ montosEnMayorComanda(pesos, montoTotal) {
+  const vals = (pesos || []).map((p) => Math.max(0, Math.round((Number(p) || 0) * 100)));
+  const out = vals.map(() => 0);
+  let resto = Math.max(0, Math.round((Number(montoTotal) || 0) * 100));
+  const tope = vals.reduce((s, c) => s + c, 0);
+  if (resto > tope) resto = tope;
+  const order = vals.map((cents, i) => ({ i, cents })).sort((a, b) => b.cents - a.cents || a.i - b.i);
+  for (const item of order) {
+    if (resto <= 0 || item.cents <= 0) continue;
+    const toma = Math.min(item.cents, resto);
+    out[item.i] = toma / 100;
+    resto -= toma;
+  }
+  return out;
+ },
  repartirCentesimos(pesos, montoTotal) {
  const vals = (pesos || []).map(p => Math.max(0, Number(p) || 0));
  const cents = Math.round((Number(montoTotal) || 0) * 100);
@@ -8110,45 +8163,57 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    return Number(c.totalCalculado || c.total || 0) + (Number(c.montoDescuento) || 0);
  });
  const totalGrupo = pesos.reduce((s, p) => s + p, 0);
- const montos = montoNum > 0 && totalGrupo > 0
-   ? this.repartirCentesimos(pesos, Math.min(montoNum, totalGrupo))
-   : null;
- if (montos) {
-   pct = totalGrupo > 0 ? Number((Math.min(montoNum, totalGrupo) / totalGrupo * 100).toFixed(2)) : 0;
- }
+ const aplicar = montoNum > 0
+   ? Math.min(montoNum, totalGrupo)
+   : (pct > 0 && totalGrupo > 0 ? Number((totalGrupo * Math.min(pct, 100) / 100).toFixed(2)) : 0);
+ const montos = aplicar > 0 ? this.montosEnMayorComanda(pesos, aplicar) : null;
+ if (!(aplicar > 0)) { this.showToast('Ingresa un monto de descuento', 'error'); return; }
  if (pct < 0 || pct > 100) { this.showToast('El descuento debe estar entre 0 y 100%', 'error'); return; }
  if (!this.puedeAplicarDescuento) { this.showToast('No tienes permisos para aplicar descuentos', 'error'); return; }
  this.aplicandoDescuentoGrupo = true;
  try {
  let exitosos = 0;
- for (let i = 0; i < targets.length; i++) {
- const comanda = targets[i];
+ const orden = targets.map((c, i) => ({ c, i, peso: pesos[i] }))
+   .sort((a, b) => b.peso - a.peso || a.i - b.i);
+ for (const item of orden) {
+ const comanda = item.c;
+ const montoLinea = montos[item.i];
  try {
+ if (!(montoLinea > 0)) {
+   if (this.comandaTieneDescuentoFront(comanda)) {
+     const resQuitar = await apiDelete('/comanda/' + comanda._id + '/descuento', {
+       usuarioId: 'admin',
+       usuarioRol: this.userRole,
+       motivoEliminacion: 'Descuento del grupo pasado a la comanda de mayor monto',
+     });
+     if (resQuitar?.ok && !resQuitar.error) {
+       comanda.descuento = 0;
+       comanda.montoDescuento = 0;
+       comanda.motivoDescuento = null;
+     }
+   }
+   continue;
+ }
  const body = {
  motivo: motivoFinal,
  usuarioId: 'admin',
  usuarioRol: this.userRole,
- sourceApp: 'dashboard'
+ sourceApp: 'dashboard',
+ monto: montoLinea,
+ descuento: 0,
  };
- if (montos) {
-   if (!(montos[i] > 0)) continue;
-   body.monto = montos[i];
-   body.descuento = 0;
- } else {
-   body.descuento = pct;
- }
  const res = await apiPut('/comanda/' + comanda._id + '/descuento', body);
  if (res?.ok && !res.error) {
  comanda.descuento = res.descuentoAplicado?.porcentaje != null ? res.descuentoAplicado.porcentaje : pct;
  comanda.motivoDescuento = motivoFinal;
- comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : (montos ? montos[i] : (comanda.total || 0) * pct / 100);
+ comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : montoLinea;
  comanda.totalCalculado = res.descuentoAplicado?.totalCalculado != null ? res.descuentoAplicado.totalCalculado : comanda.totalCalculado;
  if (comanda.totalCalculado != null) comanda.total = comanda.totalCalculado;
  exitosos++;
  }
  } catch (e) { console.error(e); }
  }
- this.showToast('Descuento aplicado a ' + exitosos + ' comandas del grupo');
+ this.showToast('Descuento del grupo: de la comanda de mayor monto a la de menor');
  if (this.socket && this.socket.connected) this.editGrupo.comandas.forEach(c => this.socket.emit('comandaActualizada', { _id: c._id }));
  await this.loadComandas();
  const row = this.groupedRows.find(r => r.tipo === 'grupo' && r.id === this.editGrupo.id);
