@@ -34,4 +34,13 @@ describe('normalizarMenuGestion', () => {
     expect(ok.colorPrincipal).toBe('#4c1d95');
     expect(ok.colorAvanzada).toBe(MENU_GESTION_DEFAULT.colorAvanzada);
   });
+
+  test('guarda el fondo de cada cuadro y descarta colores inválidos', () => {
+    const n = normalizarMenuGestion({
+      fondos: { comandas: '#112233', mesas: 'rojo', noExiste: '#abcdef' },
+    });
+    expect(n.fondos.comandas).toBe('#112233');
+    expect(n.fondos.mesas).toBeUndefined();
+    expect(n.fondos.noExiste).toBeUndefined();
+  });
 });

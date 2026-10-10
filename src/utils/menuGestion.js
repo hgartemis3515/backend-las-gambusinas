@@ -22,9 +22,10 @@ const MENU_GESTION_KEYS = [
 const MENU_GESTION_DEFAULT = {
   tituloPrincipal: 'Principal',
   tituloAvanzada: 'Avanzada',
-  colorPrincipal: '#d4af37',
-  colorAvanzada: '#a0a0b8',
-  principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
+    colorPrincipal: '#d4af37',
+    colorAvanzada: '#a0a0b8',
+    fondos: {},
+    principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
   avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config'],
 };
 
@@ -68,9 +69,20 @@ function normalizarMenuGestion(raw) {
     tituloAvanzada: tituloMenu(src.tituloAvanzada, MENU_GESTION_DEFAULT.tituloAvanzada),
     colorPrincipal: colorMenu(src.colorPrincipal, MENU_GESTION_DEFAULT.colorPrincipal),
     colorAvanzada: colorMenu(src.colorAvanzada, MENU_GESTION_DEFAULT.colorAvanzada),
+    fondos: fondosMenu(src.fondos, [...principal, ...avanzada]),
     principal,
     avanzada,
   };
+}
+
+function fondosMenu(raw, keys) {
+  const out = {};
+  const src = raw && typeof raw === 'object' ? raw : {};
+  for (const key of keys) {
+    const s = String(src[key] == null ? '' : src[key]).trim();
+    if (/^#([0-9A-Fa-f]{6})$/.test(s)) out[key] = s.toLowerCase();
+  }
+  return out;
 }
 
 module.exports = {

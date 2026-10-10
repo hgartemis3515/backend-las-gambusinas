@@ -2,6 +2,24 @@
  * Las Gambusinas - shared.js
  * MockData global, funciones helper, carga de componentes
  */
+(function consumirSesionPanel() {
+  const hash = window.location.hash || '';
+  if (!hash.includes('panelAuth=')) return;
+  const m = hash.match(/panelAuth=([^&]*)/);
+  if (!m || !m[1]) return;
+  try {
+    let b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    b64 += '==='.slice((b64.length + 3) % 4);
+    const json = JSON.parse(decodeURIComponent(escape(atob(b64))));
+    if (json && json.token) {
+      localStorage.setItem('adminToken', json.token);
+      localStorage.setItem('gambusinas_auth', 'true');
+    }
+  } catch (_) { /* el login sigue disponible */ }
+  try {
+    history.replaceState({}, document.title, window.location.pathname + window.location.search);
+  } catch (_) { /* ignore */ }
+})();
 
 // ============================================
 // MOCK DATA - Extraído del archivo de referencia
@@ -208,6 +226,7 @@ const MENU_GESTION_DEFAULT = {
   tituloAvanzada: 'Avanzada',
   colorPrincipal: '#d4af37',
   colorAvanzada: '#a0a0b8',
+  fondos: {},
   principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
   avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'inventario', 'config']
 };
@@ -246,9 +265,27 @@ function normalizarMenuGestionFront(raw) {
     tituloAvanzada: titulo(src.tituloAvanzada, MENU_GESTION_DEFAULT.tituloAvanzada),
     colorPrincipal: color(src.colorPrincipal, MENU_GESTION_DEFAULT.colorPrincipal),
     colorAvanzada: color(src.colorAvanzada, MENU_GESTION_DEFAULT.colorAvanzada),
+    fondos: fondosMenu(src.fondos, [...principal, ...avanzada]),
     principal,
     avanzada
   };
+}
+
+function fondosMenu(raw, keys) {
+  const out = {};
+  const src = raw && typeof raw === 'object' ? raw : {};
+  for (const key of keys || []) {
+    const s = String(src[key] == null ? '' : src[key]).trim();
+    if (/^#([0-9A-Fa-f]{6})$/.test(s)) out[key] = s.toLowerCase();
+  }
+  return out;
+}
+
+function estiloFilaSidebar(row) {
+  const st = {};
+  if (row && row.color) st.boxShadow = 'inset 3px 0 0 ' + row.color;
+  if (row && row.fondo) st.backgroundColor = row.fondo;
+  return st;
 }
 
 function leerMenuGestionCache() {
@@ -279,7 +316,7 @@ function getOrderedNavRows(menuGestion) {
       if (!page) continue;
       const requerido = PAGES_PERMISOS[key];
       if (requerido && !sharedTienePermiso(requerido)) continue;
-      items.push({ type: 'item', id: 'item-' + key, key: key, label: page.label, icon: page.icon, href: page.href, color: colorSeccion });
+      items.push({ type: 'item', id: 'item-' + key, key: key, label: page.label, icon: page.icon, href: page.href, color: colorSeccion, fondo: (mg.fondos && mg.fondos[key]) || '' });
     }
     if (!items.length) return;
     if (titulo) rows.push({ type: 'header', id: 'hdr-' + sid, label: titulo, color: colorSeccion });
@@ -554,10 +591,10 @@ function notificarTopbarError(titulo, mensaje) {
 
 let abriendoAppCocina = false;
 
-async function abrirAppCocinaDesdeDashboard() {
+async function abrirAppCocinaDesdeDashboard(vista) {
   if (abriendoAppCocina) return;
   abriendoAppCocina = true;
-  const popup = window.open('about:blank', 'gambusinas-app-cocina');
+  const popup = window.open('about:blank', '_blank');
   try {
     try {
       if (popup && popup.document) {
@@ -573,11 +610,12 @@ async function abrirAppCocinaDesdeDashboard() {
     }
 
     const base = String(data.cocinaUrl || urlAppCocinaLocal()).replace(/\/$/, '');
-    const dest = `${base}/${data.hubAuthHash}`;
+    const q = vista ? ('?vista=' + encodeURIComponent(vista)) : '';
+    const dest = `${base}/${q}${data.hubAuthHash}`;
     if (popup && !popup.closed) {
       popup.location.replace(dest);
     } else {
-      window.location.href = dest;
+      notificarTopbarError('App Cocina', 'El navegador bloqueó la pestaña nueva.');
     }
   } catch (e) {
     if (popup && !popup.closed) popup.close();
@@ -592,7 +630,7 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-open-app-cocina]');
   if (!btn) return;
   e.preventDefault();
-  abrirAppCocinaDesdeDashboard();
+  abrirAppCocinaDesdeDashboard(btn.getAttribute('data-cocina-vista') || '');
 });
 
 function elementoFullscreen() {

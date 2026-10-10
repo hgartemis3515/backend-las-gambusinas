@@ -1577,7 +1577,7 @@ tailwind.config = {
         <div x-show="cfgTab==='personalizar-gestion'" class="p-6 space-y-5">
           <div>
             <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-1">Personalizar Gestión</h3>
-            <p class="text-xs text-txt-muted">Ordena los cuadros del menú. Arrástralos de una lista a la otra o pulsa <span class="text-gold">A Avanzada</span> / <span class="text-gold">A Principal</span>. El color se aplica al título y a la raya del menú lateral.</p>
+            <p class="text-xs text-txt-muted">Ordena los cuadros del menú. Arrástralos de una lista a la otra o pulsa <span class="text-gold">A Avanzada</span> / <span class="text-gold">A Principal</span>. El color de la lista pinta el título y la raya. Cada cuadro tiene su propio color de fondo.</p>
           </div>
           <div class="flex justify-end">
             <button type="button" @click="restaurarMenuGestion()" class="text-xs text-txt-secondary hover:text-gold transition">Restablecer predeterminados</button>
@@ -1606,11 +1606,13 @@ tailwind.config = {
                     @dragstart="menuDragStart('principal', idx)"
                     @dragover.prevent="menuDragOver('principal', idx)"
                     @dragend="menuDragEnd()"
-                    :style="{ boxShadow: 'inset 3px 0 0 ' + (config.menuGestion.colorPrincipal || '#d4af37') }"
+                    :style="{ boxShadow: 'inset 3px 0 0 ' + (config.menuGestion.colorPrincipal || '#d4af37'), backgroundColor: fondoMenuItem(key) || '' }"
                     :class="menuDragLista==='principal' && menuDragIdx===idx ? 'opacity-40 border-gold' : ''">
                     <span class="text-txt-muted cursor-grab text-xs select-none">⠿</span>
                     <span class="text-lg" x-text="menuItemMeta(key).icon"></span>
                     <p class="flex-1 text-sm truncate" x-text="menuItemMeta(key).label"></p>
+                    <input type="color" :value="fondoMenuItem(key) || '#1a1a28'" @input="setFondoMenuItem(key, $event.target.value)" class="h-7 w-8 rounded cursor-pointer bg-transparent border border-[rgba(212,175,55,0.25)]" title="Color de fondo">
+                    <button type="button" @click="setFondoMenuItem(key, '')" class="w-6 h-6 rounded text-xs text-txt-muted hover:text-gold" title="Quitar fondo">×</button>
                     <button type="button" @click="moverMenuItem('principal', idx, -1)" :disabled="idx===0" class="w-6 h-6 rounded text-xs" :class="idx===0 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▲</button>
                     <button type="button" @click="moverMenuItem('principal', idx, 1)" :disabled="idx===config.menuGestion.principal.length-1" class="w-6 h-6 rounded text-xs" :class="idx===config.menuGestion.principal.length-1 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▼</button>
                     <button type="button" @click="pasarMenuItem('principal', 'avanzada', idx)" class="px-2 h-7 rounded-lg text-[10px] font-semibold bg-gold/15 text-gold hover:bg-gold/25 whitespace-nowrap">A Avanzada →</button>
@@ -1642,11 +1644,13 @@ tailwind.config = {
                     @dragstart="menuDragStart('avanzada', idx)"
                     @dragover.prevent="menuDragOver('avanzada', idx)"
                     @dragend="menuDragEnd()"
-                    :style="{ boxShadow: 'inset 3px 0 0 ' + (config.menuGestion.colorAvanzada || '#a0a0b8') }"
+                    :style="{ boxShadow: 'inset 3px 0 0 ' + (config.menuGestion.colorAvanzada || '#a0a0b8'), backgroundColor: fondoMenuItem(key) || '' }"
                     :class="menuDragLista==='avanzada' && menuDragIdx===idx ? 'opacity-40 border-gold' : ''">
                     <span class="text-txt-muted cursor-grab text-xs select-none">⠿</span>
                     <span class="text-lg" x-text="menuItemMeta(key).icon"></span>
                     <p class="flex-1 text-sm truncate" x-text="menuItemMeta(key).label"></p>
+                    <input type="color" :value="fondoMenuItem(key) || '#1a1a28'" @input="setFondoMenuItem(key, $event.target.value)" class="h-7 w-8 rounded cursor-pointer bg-transparent border border-[rgba(212,175,55,0.25)]" title="Color de fondo">
+                    <button type="button" @click="setFondoMenuItem(key, '')" class="w-6 h-6 rounded text-xs text-txt-muted hover:text-gold" title="Quitar fondo">×</button>
                     <button type="button" @click="pasarMenuItem('avanzada', 'principal', idx)" class="px-2 h-7 rounded-lg text-[10px] font-semibold bg-gold/15 text-gold hover:bg-gold/25 whitespace-nowrap">← A Principal</button>
                     <button type="button" @click="moverMenuItem('avanzada', idx, -1)" :disabled="idx===0" class="w-6 h-6 rounded text-xs" :class="idx===0 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▲</button>
                     <button type="button" @click="moverMenuItem('avanzada', idx, 1)" :disabled="idx===config.menuGestion.avanzada.length-1" class="w-6 h-6 rounded text-xs" :class="idx===config.menuGestion.avanzada.length-1 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▼</button>
@@ -2032,6 +2036,7 @@ function configApp() {
         tituloAvanzada: 'Avanzada',
         colorPrincipal: '#d4af37',
         colorAvanzada: '#a0a0b8',
+        fondos: {},
         principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
         avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config']
       },
@@ -2835,6 +2840,21 @@ function configApp() {
 
     previewMenuGestion() {
       if (typeof aplicarMenuGestion === 'function') aplicarMenuGestion(this.config.menuGestion);
+    },
+
+    fondoMenuItem(key) {
+      const f = this.config.menuGestion && this.config.menuGestion.fondos;
+      return (f && f[key]) || '';
+    },
+
+    setFondoMenuItem(key, valor) {
+      if (!this.config.menuGestion.fondos || typeof this.config.menuGestion.fondos !== 'object') {
+        this.config.menuGestion.fondos = {};
+      }
+      const s = String(valor || '').trim();
+      if (/^#[0-9A-Fa-f]{6}$/.test(s)) this.config.menuGestion.fondos[key] = s.toLowerCase();
+      else delete this.config.menuGestion.fondos[key];
+      this.previewMenuGestion();
     },
 
     restaurarMenuGestion() {
