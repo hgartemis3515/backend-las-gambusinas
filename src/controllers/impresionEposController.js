@@ -72,7 +72,7 @@ router.post('/impresion/epos', async (req, res) => {
     return res.json({ ok: true });
   } catch (error) {
     logger.warn('impresion epos', { ip, error: error.message });
-    return res.status(502).json({ message: 'No se alcanzó la impresora de cocina.' });
+    return res.status(502).json({ message: `No se alcanzó la impresora ${ip}.` });
   }
 });
 

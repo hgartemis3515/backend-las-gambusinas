@@ -81,3 +81,19 @@ test('el menos de un ingreso baja esa columna', () => {
     expect(fila.total).toBe(2);
     expect(fila.baja).toBe(2);
 });
+
+test('el ingreso queda fijo y el conteo no lo mueve', () => {
+    const movs = [
+        { plato: 'arroz', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 30, fecha: dia('2026-10-08', '09:00:00') },
+        { plato: 'arroz', tipoProducto: 'cocido', clase: 'regulacion', cantidad: -1, fecha: dia('2026-10-08', '18:00:00') },
+        { plato: 'arroz', tipoProducto: 'cocido', clase: 'inventario', cantidad: 18, fecha: dia('2026-10-08', '21:00:00') },
+        { plato: 'arroz', tipoProducto: 'cocido', clase: 'inventario', cantidad: 16, fecha: dia('2026-10-08', '21:30:00') }
+    ];
+    const fila = armarKardex(platos, movs, dia('2026-10-08', '00:00:00'), dia('2026-10-08', '23:59:59'))
+        .find((f) => f.plato === 'arroz' && f.tipoProducto === 'cocido');
+    expect(fila.ingresos).toBe(30);
+    expect(fila.regulacion).toBe(-1);
+    expect(fila.conteo).toBe(16);
+    expect(fila.tieneConteo).toBe(true);
+    expect(fila.baja).toBe(29);
+});

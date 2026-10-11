@@ -4,6 +4,8 @@ const { armarKardex } = require('./inventarioKardex');
 
 /** Productos de la tabla Kardex. `suma` arma la fila con esas piezas. */
 const KARDEX = [
+    { clave: 'pollo-origen', nombre: 'Pollo' },
+    { clave: 'pescado-origen', nombre: 'Pescado' },
     { clave: 'filete', nombre: 'Filete' },
     { clave: 'chicharron-pollo', nombre: 'Chicharrón de pollo' },
     { clave: 'pachamanca', nombre: 'Pachamanca', suma: ['pachamanca-pollo', 'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero'] },
@@ -35,7 +37,18 @@ const PIEZAS = [
     { clave: 'pachamanca-res', nombre: 'Res' },
     { clave: 'pachamanca-cordero', nombre: 'Cordero' },
     { clave: 'presas-arroz-pollo', nombre: 'Presas de arroz con pollo' },
-    { clave: 'presas-pollo-olla', nombre: 'Presas de pollo a la olla' }
+    { clave: 'presas-pollo-olla', nombre: 'Presas de pollo a la olla' },
+    { clave: 'pollo-origen', nombre: 'Pollo' },
+    { clave: 'pescado-origen', nombre: 'Pescado' },
+    { clave: 'bubu', nombre: 'Bubu' },
+    { clave: 'sr-juan', nombre: 'Sr Juan' },
+    { clave: 'pachamanca-dist', nombre: 'Pachamanca' },
+    { clave: 'menu', nombre: 'Menu' },
+    { clave: 'sandwiches', nombre: 'Sandwiches' },
+    { clave: 'beata', nombre: 'Beata' },
+    { clave: 'evento', nombre: 'Evento' },
+    { clave: 'tollo-origen', nombre: 'Pescado Tollo' },
+    { clave: 'perico-origen', nombre: 'Pescado Perico o ojo de uva' }
 ];
 
 const GRUPOS = [
@@ -115,6 +128,8 @@ function ceroFila(clave, tipo, nombre) {
         saldoFinal: 0,
         regulacion: 0,
         baja: 0,
+        conteo: null,
+        tieneConteo: false,
         umbral: 0,
         critico: false
     };

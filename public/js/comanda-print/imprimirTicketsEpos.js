@@ -258,6 +258,7 @@ export async function imprimirTicketsEposAutomatico(comandas) {
     montoDescuento: desc,
     descuentos: motivo ? [{ motivo }] : [],
     total: 0,
+    esPrueba: lista.some((c) => c?.esPrueba === true),
   };
   let detenerCocina = false;
   let detenerCaja = false;
@@ -267,6 +268,10 @@ export async function imprimirTicketsEposAutomatico(comandas) {
     detenerCocina = cfg?.detenerImpresionCocina === true;
     detenerCaja = cfg?.detenerImpresionCaja === true;
   } catch {
+    detenerCocina = false;
+    detenerCaja = false;
+  }
+  if (datos.esPrueba === true) {
     detenerCocina = false;
     detenerCaja = false;
   }
@@ -310,6 +315,7 @@ async function imprimirTicketAnulacionEpos(comanda, ticketAnulacion) {
     montoDescuento: 0,
     total: 0,
     anulacion: ticketAnulacion,
+    esPrueba: comanda?.esPrueba === true,
   };
   let detenerCocina = false;
   let detenerCaja = false;
@@ -319,6 +325,10 @@ async function imprimirTicketAnulacionEpos(comanda, ticketAnulacion) {
     detenerCocina = cfg?.detenerImpresionCocina === true;
     detenerCaja = cfg?.detenerImpresionCaja === true;
   } catch {
+    detenerCocina = false;
+    detenerCaja = false;
+  }
+  if (datos.esPrueba === true) {
     detenerCocina = false;
     detenerCaja = false;
   }

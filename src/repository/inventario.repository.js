@@ -120,13 +120,13 @@ async function crearMovimiento(data, usuarioId) {
         err.statusCode = 400;
         throw err;
     }
-    if (clase !== 'ingreso' && clase !== 'egreso' && clase !== 'regulacion') {
-        const err = new Error('La clase es ingreso, egreso o regulación');
+    if (clase !== 'ingreso' && clase !== 'egreso' && clase !== 'regulacion' && clase !== 'inventario') {
+        const err = new Error('La clase es ingreso, egreso, regulación o inventario');
         err.statusCode = 400;
         throw err;
     }
     const cantidad = Number(data.cantidad);
-    if (!Number.isFinite(cantidad) || cantidad === 0) {
+    if (!Number.isFinite(cantidad) || (cantidad === 0 && clase !== 'inventario')) {
         const err = new Error('La cantidad no puede ser 0');
         err.statusCode = 400;
         throw err;

@@ -28,10 +28,12 @@ tailwind.config = {
 <style>
   input.caja-num,
   input.caja-num[type="number"],
-  input.caja-num[type="text"] {
-    width: auto !important;
+  input.caja-num[type="text"],
+  button.caja-num {
+    width: fit-content !important;
     min-width: 2.6ch !important;
     field-sizing: content;
+    box-sizing: content-box;
     max-width: 8rem;
     background-color: #ffffff !important;
     color: #111111 !important;
@@ -43,11 +45,31 @@ tailwind.config = {
     font-size: 17px !important;
     line-height: 1.2;
   }
+  button.caja-num { cursor: pointer; }
+  .tabla-inv { font-size: 18px; border-collapse: collapse; }
+  .tabla-inv th { font-size: 13px; letter-spacing: 0.04em; padding-top: 2px; padding-bottom: 2px; }
+  .tabla-inv td { padding-top: 0; padding-bottom: 0; line-height: 1.15; }
+  .cuadro-pos,
+  input.caja-num.cuadro-pos,
+  button.caja-num.cuadro-pos {
+    background-color: #1d4ed8 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: #1d4ed8 !important;
+    font-weight: 800;
+  }
+  .cuadro-neg,
+  input.caja-num.cuadro-neg,
+  button.caja-num.cuadro-neg {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: #dc2626 !important;
+    font-weight: 800;
+  }
   .caja-num::-webkit-outer-spin-button, .caja-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .paso-num { display: inline-flex; align-items: center; gap: 0; }
   .flecha-num { line-height: 1; color: #d4af37; font-size: 18px; font-weight: 700; padding: 0 2px; min-width: 1rem; }
-  .tabla-inv { font-size: 18px; }
-  .tabla-inv th { font-size: 13px; letter-spacing: 0.04em; }
   .celda-producto { font-weight: 700; color: #fff; background: rgba(212, 175, 55, 0.16); }
   .celda-saldo { background: rgba(255, 255, 255, 0.07); }
   .barra-cuadro { background: #d4af37 !important; }
@@ -62,9 +84,20 @@ tailwind.config = {
     <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
       <div>
         <h1 class="text-xl font-bold">Inventario</h1>
-        <p class="text-xs text-txt-muted">Una tabla con los productos y otra con el crudo y el cocido de cada uno</p>
+        <p class="text-xs text-txt-muted">Cada día guarda su registro. El período solo elige qué días ves.</p>
       </div>
-      <input type="date" x-model="dia" @change="cargar()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-sm text-txt-secondary">
+      <div class="flex flex-col items-end gap-2">
+        <div class="inline-flex items-center gap-1 rounded-full bg-[#12121c] border border-[rgba(212,175,55,0.28)] p-1">
+          <span class="px-3 text-[11px] uppercase tracking-wider text-txt-muted font-semibold">Período</span>
+          <template x-for="p in periodos" :key="p.id">
+            <button type="button" @click="setPeriodo(p.id)" class="px-3 py-1.5 rounded-full text-sm font-medium transition" :class="periodo === p.id ? 'bg-gold text-bg-primary font-bold' : 'text-txt-secondary hover:text-white'" x-text="p.label"></button>
+          </template>
+        </div>
+        <div x-show="periodo === 'custom'" class="flex gap-2">
+          <input type="date" x-model="customDesde" @change="cargar()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-sm text-txt-secondary">
+          <input type="date" x-model="customHasta" @change="cargar()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-sm text-txt-secondary">
+        </div>
+      </div>
     </div>
 
     <div x-show="error" class="mb-4 px-4 py-3 rounded-lg bg-red-500/15 text-red-300 text-sm" x-text="error"></div>
@@ -78,6 +111,7 @@ tailwind.config = {
       <div class="flex gap-1 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
         <button type="button" @click="vistaTab = 'tabla'" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Tabla</button>
         <button type="button" @click="vistaTab = 'crudo'" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'crudo' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Crudo y cocido</button>
+        <button type="button" @click="vistaTab = 'transformacion'" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'transformacion' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Transformación</button>
       </div>
       <div class="relative">
         <button type="button" @click="configAbierta = !configAbierta" class="px-4 py-2 rounded-lg text-sm border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:text-gold">Configuración</button>
@@ -95,22 +129,30 @@ tailwind.config = {
             <thead>
               <tr class="bg-bg-sidebar border-b-2 border-gold/30" :class="aprovechador ? 'whitespace-nowrap' : ''">
                 <th class="text-left px-2 py-2 uppercase font-semibold text-gold">Producto</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-white">Saldo inicial</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-white">Saldo Anterior</th>
                 <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Ingreso</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Total</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Egreso</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Regulación</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Corrección</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Ingreso Total</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Salida</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Saldo</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Inventario</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-white">Saldo Real</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-white">Diferencia</th>
               </tr>
             </thead>
             <tbody>
               <template x-for="f in tablaProductos" :key="f.nombre">
                 <tr class="border-b border-[rgba(212,175,55,0.1)]">
-                  <td class="celda-producto px-2 py-1.5" x-text="f.nombre"></td>
-                  <td class="celda-saldo px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1,true)">−</button><input class="caja-num" type="number" step="any" :value="f.saldoInicial" @change="fijar(f.clave,'cocido','ingreso', f.saldoInicial, $event.target.value, true)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1,true)">+</button></span></td>
-                  <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.ingresos" @change="fijar(f.clave,'cocido','ingreso', f.ingresos, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1)">+</button></span></td>
-                  <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1)">−</button><input class="caja-num font-semibold" type="number" step="any" :value="f.total" @change="fijar(f.clave,'cocido','ingreso', f.total, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1)">+</button></span></td>
-                  <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','egreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.egreso" @change="fijar(f.clave,'cocido','egreso', f.egreso, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','egreso',1)">+</button></span></td>
-                  <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','regulacion',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.regulacion" @change="fijar(f.clave,'cocido','regulacion', f.regulacion, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','regulacion',1)">+</button></span></td>
+                  <td class="celda-producto px-2 py-0" x-text="f.nombre"></td>
+                  <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1,true)">−</button><input class="caja-num" type="number" step="any" :value="f.saldoInicial" @change="fijar(f.clave,'cocido','ingreso', f.saldoInicial, $event.target.value, true)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1,true)">+</button></span></td>
+                  <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.ingresos" @change="fijar(f.clave,'cocido','ingreso', f.ingresos, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1)">+</button></span></td>
+                  <td class="px-1 py-0 text-right"><button type="button" class="caja-num num-corr" @click="abrirCorreccion(f)" x-text="f.regulacion"></button></td>
+                  <td class="px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.ingresoTotal"></td>
+                  <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','egreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.egreso" @change="fijar(f.clave,'cocido','egreso', f.egreso, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','egreso',1)">+</button></span></td>
+                  <td class="px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.saldo"></td>
+                  <td class="px-1 py-0 text-right"><button type="button" class="caja-num" @click="abrirCorreccion(f, 'Inventario')" x-text="f.inventario"></button></td>
+                  <td class="celda-saldo px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.saldoReal"></td>
+                  <td class="px-1 py-0 text-center text-base" :class="cuadroSigno(f.diferencia)" x-text="f.tieneConteo ? f.diferencia : ''"></td>
                 </tr>
               </template>
             </tbody>
@@ -136,8 +178,8 @@ tailwind.config = {
                 <template x-for="fila in cuadro.filas" :key="cuadro.nombre + fila.nombre">
                   <tr class="border-b border-[rgba(212,175,55,0.1)]">
                     <td class="celda-producto px-2 py-1.5" x-text="fila.nombre"></td>
-                    <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(fila.clave,'cocido','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="fila.cocido" @change="fijar(fila.clave,'cocido','ingreso', fila.cocido, $event.target.value)"><button type="button" class="flecha-num" @click="paso(fila.clave,'cocido','ingreso',1)">+</button></span></td>
-                    <td class="px-1 py-1 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(fila.clave,'crudo','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="fila.crudo" @change="fijar(fila.clave,'crudo','ingreso', fila.crudo, $event.target.value)"><button type="button" class="flecha-num" @click="paso(fila.clave,'crudo','ingreso',1)">+</button></span></td>
+                    <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(fila.clave,'cocido','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="fila.cocido" @change="fijar(fila.clave,'cocido','ingreso', fila.cocido, $event.target.value)"><button type="button" class="flecha-num" @click="paso(fila.clave,'cocido','ingreso',1)">+</button></span></td>
+                    <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(fila.clave,'crudo','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="fila.crudo" @change="fijar(fila.clave,'crudo','ingreso', fila.crudo, $event.target.value)"><button type="button" class="flecha-num" @click="paso(fila.clave,'crudo','ingreso',1)">+</button></span></td>
                     <td class="celda-saldo px-1 py-1 text-right"><input class="caja-num font-semibold" type="text" readonly :value="fila.total"></td>
                   </tr>
                 </template>
@@ -148,9 +190,73 @@ tailwind.config = {
       </div>
     </section>
 
-    <section class="mb-8">
+    <section x-show="vistaTab === 'transformacion'" class="mb-8">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] overflow-hidden rounded-xl">
+          <table class="tabla-inv w-full">
+            <thead>
+              <tr class="bg-bg-sidebar border-b-2 border-gold/30">
+                <th class="text-left px-2 py-2 uppercase font-semibold text-gold" colspan="2">Pollo</th>
+              </tr>
+              <tr>
+                <th class="text-left px-2 py-1 text-txt-muted">Cantidad ingresada</th>
+                <th class="text-right px-2 py-1">
+                  <span class="paso-num"><button type="button" class="flecha-num" @click="paso('pollo-origen','crudo','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="polloTrans.ingresada" @change="fijar('pollo-origen','crudo','ingreso', polloTrans.ingresada, $event.target.value)"><button type="button" class="flecha-num" @click="paso('pollo-origen','crudo','ingreso',1)">+</button></span>
+                </th>
+              </tr>
+              <tr class="text-txt-muted text-xs">
+                <th class="text-left px-2 py-1">Producto obtenido</th>
+                <th class="text-right px-2 py-1">Cantidad obtenida</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="h in polloTrans.hijos" :key="h.clave">
+                <tr class="border-t border-[rgba(212,175,55,0.1)]">
+                  <td class="px-2 py-0" x-text="h.obtenido"></td>
+                  <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="trasladar(h, (Number(h.obtenida)||0)-1)">−</button><input class="caja-num" type="number" step="any" :value="h.obtenida" @change="trasladar(h, $event.target.value)"><button type="button" class="flecha-num" @click="trasladar(h, (Number(h.obtenida)||0)+1)">+</button></span></td>
+                </tr>
+              </template>
+              <tr class="border-t border-gold/30 font-semibold">
+                <td class="px-2 py-1 text-gold">Total</td>
+                <td class="px-2 py-1 text-right" x-text="polloTrans.aplicado"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] overflow-hidden rounded-xl">
+          <table class="tabla-inv w-full">
+            <thead>
+              <tr class="bg-bg-sidebar border-b-2 border-gold/30">
+                <th class="text-left px-2 py-2 uppercase font-semibold text-gold">Producto origen</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Cantidad ingresada</th>
+                <th class="text-left px-2 py-2 uppercase font-semibold text-gold">Producto obtenido</th>
+                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Cantidad obtenida</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="p in pescadoTrans" :key="p.origenClave">
+                <tr class="border-t border-[rgba(212,175,55,0.1)]">
+                  <td class="celda-producto px-2 py-0" x-text="p.origen"></td>
+                  <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(p.origenClave,'crudo','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="p.ingresada" @change="fijar(p.origenClave,'crudo','ingreso', p.ingresada, $event.target.value)"><button type="button" class="flecha-num" @click="paso(p.origenClave,'crudo','ingreso',1)">+</button></span></td>
+                  <td class="px-2 py-0" x-text="p.obtenido"></td>
+                  <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="trasladar(p, (Number(p.obtenida)||0)-1)">−</button><input class="caja-num" type="number" step="any" :value="p.obtenida" @change="trasladar(p, $event.target.value)"><button type="button" class="flecha-num" @click="trasladar(p, (Number(p.obtenida)||0)+1)">+</button></span></td>
+                </tr>
+              </template>
+              <tr class="border-t border-gold/30 font-semibold">
+                <td class="px-2 py-1 text-gold">Total</td>
+                <td class="px-2 py-1 text-right" x-text="pescadoTrans.reduce((a, p) => a + (Number(p.ingresada) || 0), 0)"></td>
+                <td class="px-2 py-1"></td>
+                <td class="px-2 py-1 text-right" x-text="pescadoTrans.reduce((a, p) => a + (Number(p.obtenida) || 0), 0)"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section x-show="vistaTab === 'tabla'" class="mb-8">
       <div class="flex items-center justify-between mb-2">
-        <h2 class="text-sm font-semibold text-gold">Registro de entrada y salida</h2>
+        <h2 class="text-sm font-semibold text-gold">Totales</h2>
         <button type="button" @click="formulario = !formulario" class="text-xs px-3 py-1.5 rounded-lg bg-gold text-black font-semibold">Anotar movimiento</button>
       </div>
       <form x-show="formulario" @submit.prevent="guardarMovimiento()" class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-3">
@@ -181,35 +287,79 @@ tailwind.config = {
         <input x-model="alta.motivo" type="text" placeholder="Motivo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-4" required>
         <button type="submit" class="md:col-span-2 text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold" :disabled="guardando" x-text="guardando ? 'Guardando…' : 'Guardar'"></button>
       </form>
-      <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)]">
-        <table class="w-full text-sm">
-          <thead class="bg-bg-sidebar text-txt-muted text-xs">
-            <tr>
-              <th class="text-left px-3 py-2">Fecha</th>
-              <th class="text-left px-3 py-2">Sale</th>
-              <th class="text-left px-3 py-2">Ingresa</th>
-              <th class="text-left px-3 py-2">Tipo</th>
-              <th class="text-right px-3 py-2">Cantidad</th>
-              <th class="text-left px-3 py-2">Motivo</th>
-              <th class="text-left px-3 py-2">Usuario</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template x-for="m in movimientos" :key="m._id">
-              <tr class="border-t border-white/5">
-                <td class="px-3 py-2 whitespace-nowrap" x-text="fechaCorta(m.fecha)"></td>
-                <td class="px-3 py-2" x-text="productoSale(m)"></td>
-                <td class="px-3 py-2" x-text="productoIngresa(m)"></td>
-                <td class="px-3 py-2 capitalize" x-text="m.tipoProducto"></td>
-                <td class="px-3 py-2 text-right" x-text="Math.abs(Number(m.cantidad) || 0)"></td>
-                <td class="px-3 py-2" x-text="m.motivo"></td>
-                <td class="px-3 py-2" x-text="m.usuario || '—'"></td>
+      <div class="flex flex-wrap items-start gap-4">
+        <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)] w-max">
+          <table class="text-sm">
+            <thead class="bg-bg-sidebar text-txt-muted text-xs">
+              <tr>
+                <th class="text-left pl-2 pr-4 py-1">Producto</th>
+                <th class="text-right pl-2 pr-2 py-1">Total</th>
               </tr>
-            </template>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <template x-for="f in tablaProductos" :key="'t'+f.nombre">
+                <tr class="border-t border-white/5">
+                  <td class="pl-2 pr-4 py-0.5 font-semibold whitespace-nowrap" x-text="f.nombre"></td>
+                  <td class="pl-2 pr-2 py-0.5 text-right" x-text="f.saldoReal"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)] w-max">
+          <table class="text-sm">
+            <thead class="bg-bg-sidebar text-txt-muted text-xs">
+              <tr>
+                <th class="text-left pl-2 pr-3 py-1" colspan="5">Alerta crítica</th>
+              </tr>
+              <tr>
+                <th class="text-left pl-2 pr-3 py-1">Producto</th>
+                <th class="text-right px-2 py-1">Stock actual</th>
+                <th class="text-right px-2 py-1">Stock mínimo</th>
+                <th class="text-right px-2 py-1">Stock bajo</th>
+                <th class="text-left pl-2 pr-2 py-1">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="f in tablaProductos" :key="'a'+f.nombre">
+                <tr class="border-t border-white/5">
+                  <td class="pl-2 pr-3 py-0.5 font-semibold whitespace-nowrap" x-text="f.nombre"></td>
+                  <td class="px-2 py-0.5 text-right" x-text="f.saldoReal"></td>
+                  <td class="px-2 py-0.5 text-right" x-text="stockMinimo"></td>
+                  <td class="px-2 py-0.5 text-right" x-text="stockBajo"></td>
+                  <td class="pl-2 pr-2 py-0.5 font-semibold whitespace-nowrap" :class="estadoStock(f) === 'Crítico' ? 'text-red-400' : (estadoStock(f) === 'Bajo' ? 'text-amber-300' : 'text-emerald-400')" x-text="estadoStock(f)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
+
+    <template x-if="corrAbierta">
+      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" @click.self="cerrarCorreccion()" @keydown.escape.window="cerrarCorreccion()">
+        <form @submit.prevent="guardarCorreccion()" class="w-full max-w-md bg-bg-card border border-[rgba(212,175,55,0.35)] rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gold" x-text="corr.titulo"></h3>
+            <button type="button" class="text-txt-muted hover:text-white text-xl leading-none px-1" @click="cerrarCorreccion()" aria-label="Cerrar">×</button>
+          </div>
+          <p class="text-xs text-txt-muted mb-1">Nombre del producto</p>
+          <p class="text-base font-semibold mb-3" x-text="corr.nombre"></p>
+          <p class="text-xs text-txt-muted mb-1">Ingreso</p>
+          <p class="text-base font-semibold mb-3" x-text="corr.ingresoInfo"></p>
+          <label class="block text-xs text-txt-muted mb-1" for="corr-num" x-text="corr.clase === 'inventario' ? 'Inventario' : 'Corrección'"></label>
+          <div class="flex items-center gap-2 mb-3">
+            <button type="button" class="flecha-num text-2xl px-2" @click="moverCorr(-1)">−</button>
+            <input id="corr-num" x-model="corr.ingreso" type="number" step="any" class="flex-1 bg-white text-black rounded-lg px-3 py-2 text-sm" x-init="$nextTick(() => $el.focus())">
+            <button type="button" class="flecha-num text-2xl px-2" @click="moverCorr(1)">+</button>
+          </div>
+          <label class="block text-xs text-txt-muted mb-1" for="corr-nota">Nota</label>
+          <textarea id="corr-nota" x-model="corr.nota" rows="3" maxlength="200" required class="w-full bg-bg-sidebar rounded-lg px-3 py-2 text-sm mb-3" placeholder="Nota"></textarea>
+          <p x-show="error" class="text-red-300 text-sm mb-3" x-text="error"></p>
+          <button type="submit" class="w-full text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold" :disabled="guardando" x-text="guardando ? 'Guardando…' : 'Guardar cambios'"></button>
+        </form>
+      </div>
+    </template>
 
   </main>
 </div>
@@ -223,10 +373,24 @@ function inventarioApp() {
   return {
     sidebarOpen: false,
     dia: hoy,
+    periodo: 'hoy',
+    customDesde: hoy,
+    customHasta: hoy,
+    periodos: [
+      { id: 'hoy', label: 'Hoy' },
+      { id: 'ayer', label: 'Ayer' },
+      { id: '7dias', label: '7 días' },
+      { id: 'todos', label: 'Todos' },
+      { id: 'custom', label: 'Personalizado' }
+    ],
     filas: [],
     carta: null,
     vistaTab: 'tabla',
     tablaProductos: [],
+    transformaciones: [],
+    filasTransformacion: [],
+    polloTrans: { ingresada: 0, aplicado: 0, hijos: [] },
+    pescadoTrans: [],
     cuadros: [],
     opciones: [],
     configAbierta: false,
@@ -234,12 +398,16 @@ function inventarioApp() {
     movimientos: [],
     alertas: [],
     error: '',
+    stockMinimo: 5,
+    stockBajo: 10,
     formulario: false,
     guardando: false,
+    corrAbierta: false,
+    corr: { clave: '', nombre: '', ingreso: '', ingresoInfo: 0, base: 0, nota: '', titulo: 'Corrección', clase: 'regulacion' },
     alta: { saleRubro: '', saleTipo: 'crudo', saleCantidad: '', ingresaRubro: '', ingresaTipo: 'cocido', ingresaCantidad: '', motivo: '' },
     filaRubro(clave, tipo) {
       return this.filas.find((f) => f.rubro === clave && f.tipoProducto === tipo) || {
-        rubro: clave, tipoProducto: tipo, saldoInicial: 0, ingresos: 0, total: 0, egreso: 0, saldoFinal: 0, regulacion: 0, baja: 0
+        rubro: clave, tipoProducto: tipo, saldoInicial: 0, ingresos: 0, total: 0, egreso: 0, saldoFinal: 0, regulacion: 0, baja: 0, umbral: 0, conteo: null, tieneConteo: false
       };
     },
     resumen(claves) {
@@ -261,27 +429,53 @@ function inventarioApp() {
     filaDe(claves, tipo) {
       const partes = claves.map((c) => this.filaRubro(c, tipo));
       const row = {};
-      ['saldoInicial', 'ingresos', 'total', 'egreso', 'regulacion', 'baja'].forEach((campo) => {
+      ['saldoInicial', 'ingresos', 'total', 'egreso', 'regulacion', 'baja', 'umbral'].forEach((campo) => {
         row[campo] = partes.reduce((a, p) => a + (Number(p[campo]) || 0), 0);
       });
+      row.tieneConteo = partes.some((p) => p.tieneConteo);
+      row.conteo = row.tieneConteo ? partes.reduce((a, p) => a + (p.tieneConteo ? (Number(p.conteo) || 0) : 0), 0) : null;
       return row;
     },
     armarVista() {
       const meta = this.carta || { kardex: [], grupos: [], sueltos: [], opciones: [] };
       this.opciones = meta.opciones || [];
-      this.tablaProductos = (meta.kardex || []).map((k) => {
+      const origenDe = { Pollo: 'pollo-origen', Pescado: 'pescado-origen' };
+      const kardex = (meta.kardex || []).slice();
+      Object.keys(origenDe).forEach((nombre) => {
+        const clave = origenDe[nombre];
+        if (!kardex.some((k) => k.clave === clave)) kardex.unshift({ clave: clave, nombre: nombre });
+      });
+      this.tablaProductos = kardex.map((k) => {
         const claves = k.suma && k.suma.length ? k.suma : [k.clave];
         const crudo = this.filaDe(claves, 'crudo');
         const cocido = this.filaDe(claves, 'cocido');
         const sumaCampo = (campo) => (crudo[campo] || 0) + (cocido[campo] || 0);
+        const saldoInicial = sumaCampo('saldoInicial');
+        const ingresos = sumaCampo('ingresos');
+        const regulacion = sumaCampo('regulacion');
+        const egreso = sumaCampo('egreso');
+        const ingresoTotal = saldoInicial + regulacion;
+        const saldo = ingresoTotal - egreso;
+        const tiene = !!(crudo.tieneConteo || cocido.tieneConteo);
+        const inventario = tiene
+          ? (crudo.tieneConteo ? (Number(crudo.conteo) || 0) : 0) + (cocido.tieneConteo ? (Number(cocido.conteo) || 0) : 0)
+          : saldo;
+        const saldoReal = saldo;
+        const diferencia = tiene ? inventario - saldo : 0;
         return {
           nombre: k.nombre,
           clave: (k.suma && k.suma[0]) || k.clave,
-          saldoInicial: sumaCampo('saldoInicial'),
-          ingresos: sumaCampo('ingresos'),
-          total: sumaCampo('total'),
-          egreso: sumaCampo('egreso'),
-          regulacion: sumaCampo('regulacion')
+          saldoInicial,
+          ingresos,
+          regulacion,
+          ingresoTotal,
+          egreso,
+          saldo,
+          inventario,
+          saldoReal,
+          stockMinimo: sumaCampo('umbral'),
+          tieneConteo: tiene,
+          diferencia
         };
       });
       const filaCuadro = (clave, nombre) => {
@@ -295,22 +489,62 @@ function inventarioApp() {
           total: (cocido.baja || 0) + (crudo.baja || 0)
         };
       };
-      const fueraDelPollo = new Set(['filete', 'chicharron-pollo']);
       const deGrupos = (meta.grupos || [])
-        .filter((g) => g.nombre !== 'Pescado')
-        .map((g) => ({
-          nombre: g.nombre,
-          filas: (g.hijos || [])
-            .filter((h) => g.nombre !== 'Pollo' || !fueraDelPollo.has(h.clave))
-            .map((h) => filaCuadro(h.clave, h.nombre))
-        }))
+        .map((g) => {
+          const filas = (g.hijos || []).map((h) => filaCuadro(h.clave, h.nombre));
+          if (origenDe[g.nombre]) filas.unshift(filaCuadro(origenDe[g.nombre], g.nombre));
+          return { nombre: g.nombre, filas: filas };
+        })
         .filter((g) => g.filas.length);
       const deSueltos = (meta.sueltos || []).filter((s) => s.clave === 'arroz').map((s) => ({
         nombre: s.nombre,
         filas: [filaCuadro(s.clave, s.nombre)]
       }));
-      const orden = ['Pachamanca', 'Pollo', 'Panceta', 'Arroz'];
+      const orden = ['Pachamanca', 'Pollo', 'Pescado', 'Panceta', 'Arroz'];
       this.cuadros = deGrupos.concat(deSueltos).sort((a, b) => orden.indexOf(a.nombre) - orden.indexOf(b.nombre));
+      const destinosPollo = [
+        { clave: 'filete', nombre: 'Filete' },
+        { clave: 'chicharron-pollo', nombre: 'Chicharrón de pollo' },
+        { clave: 'pachamanca-pollo', nombre: 'Pachamanca', tipo: 'crudo' },
+        { clave: 'pollada', nombre: 'Pollada' },
+        { clave: 'menu', nombre: 'Menu' },
+        { clave: 'sandwiches', nombre: 'Sandwich' },
+        { clave: 'evento', nombre: 'Evento' },
+        { clave: 'beata', nombre: 'Beata' },
+        { clave: 'sr-juan', nombre: 'Sr. Juan' },
+        { clave: 'bubu', nombre: 'Bubu' }
+      ];
+      const hijosPollo = destinosPollo.map((h) => ({
+        origen: 'Pollo',
+        origenClave: 'pollo-origen',
+        clave: h.clave,
+        tipo: h.tipo || 'cocido',
+        obtenido: h.nombre,
+        obtenida: this.obtenidaDe(h.clave, 'Pollo', h.tipo || 'cocido')
+      }));
+      this.polloTrans = {
+        ingresada: Number(this.filaRubro('pollo-origen', 'crudo').ingresos) || 0,
+        aplicado: hijosPollo.reduce((a, h) => a + h.obtenida, 0),
+        hijos: hijosPollo
+      };
+      const destinosPescado = [
+        { origen: 'Pescado Tollo', origenClave: 'tollo-origen', clave: 'chicharron-pescado', obtenido: 'Chicharrón de pescado' },
+        { origen: 'Pescado Perico o ojo de uva', origenClave: 'perico-origen', clave: 'ceviche', obtenido: 'Ceviche' }
+      ];
+      this.pescadoTrans = destinosPescado.map((p) => ({
+        ...p,
+        ingresada: Number(this.filaRubro(p.origenClave, 'crudo').ingresos) || 0,
+        obtenida: this.obtenidaDe(p.clave, p.origen, 'cocido')
+      }));
+      this.filasTransformacion = [];
+    },
+    obtenidaDe(clave, origen, tipo) {
+      const tipoProducto = tipo || 'cocido';
+      return (this.movimientos || []).reduce((suma, m) => {
+        if (m.rubro !== clave || m.tipoProducto !== tipoProducto || m.clase !== 'ingreso') return suma;
+        if (String(m.motivo || '').indexOf('Sale de ' + origen) !== 0) return suma;
+        return suma + (Number(m.cantidad) || 0);
+      }, 0);
     },
     signo(n) {
       const x = Number(n) || 0;
@@ -367,11 +601,100 @@ function inventarioApp() {
       this.aprovechador = !this.aprovechador;
       this.guardarAprovechador();
     },
+    ymd(fecha) {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(fecha);
+    },
+    sumarDias(ymd, n) {
+      const d = new Date(ymd + 'T12:00:00');
+      d.setDate(d.getDate() + n);
+      return this.ymd(d);
+    },
+    rangoPeriodo() {
+      const hoy = this.ymd(new Date());
+      if (this.periodo === 'ayer') {
+        const a = this.sumarDias(hoy, -1);
+        return { desde: a, hasta: a };
+      }
+      if (this.periodo === '7dias') return { desde: this.sumarDias(hoy, -6), hasta: hoy };
+      if (this.periodo === 'todos') return { desde: '2000-01-01', hasta: hoy };
+      if (this.periodo === 'custom') {
+        let desde = this.customDesde || hoy;
+        let hasta = this.customHasta || desde;
+        if (hasta < desde) { const t = desde; desde = hasta; hasta = t; }
+        return { desde, hasta };
+      }
+      return { desde: hoy, hasta: hoy };
+    },
+    diaEdicion() {
+      return this.rangoPeriodo().hasta;
+    },
+    fechaDelDia(ymd) {
+      return ymd + 'T17:00:00.000Z';
+    },
+    setPeriodo(id) {
+      this.periodo = id;
+      this.cargar();
+    },
     fechaAyer() {
       const d = new Date();
       d.setDate(d.getDate() - 1);
       d.setHours(12, 0, 0, 0);
       return d.toISOString();
+    },
+    estadoStock(f) {
+      const actual = Number(f.saldoReal) || 0;
+      if (actual <= this.stockMinimo) return 'Crítico';
+      if (actual <= this.stockBajo) return 'Bajo';
+      return 'Normal';
+    },
+    cuadroSigno(n) {
+      const x = Number(n) || 0;
+      if (x > 0) return 'cuadro-pos';
+      if (x < 0) return 'cuadro-neg';
+      return '';
+    },
+    abrirCorreccion(f, titulo) {
+      const inventario = titulo === 'Inventario';
+      this.error = '';
+      this.corr = {
+        clave: f.clave,
+        nombre: f.nombre,
+        ingreso: String(inventario ? f.inventario : f.regulacion),
+        ingresoInfo: f.ingresos,
+        base: inventario ? (Number(f.inventario) || 0) : (Number(f.regulacion) || 0),
+        nota: '',
+        titulo: titulo || 'Corrección',
+        clase: inventario ? 'inventario' : 'regulacion'
+      };
+      this.corrAbierta = true;
+    },
+    moverCorr(delta) {
+      const n = Number(String(this.corr.ingreso).replace(',', '.'));
+      this.corr.ingreso = (Number.isFinite(n) ? n : 0) + delta;
+    },
+    cerrarCorreccion() {
+      if (this.guardando) return;
+      this.corrAbierta = false;
+    },
+    async guardarCorreccion() {
+      const nota = String(this.corr.nota || '').trim();
+      if (!nota) {
+        this.error = 'Escribe la nota';
+        return;
+      }
+      const nuevo = Number(String(this.corr.ingreso).replace(',', '.'));
+      if (!Number.isFinite(nuevo)) {
+        this.error = this.corr.clase === 'inventario' ? 'El inventario no es válido' : 'La corrección no es válida';
+        return;
+      }
+      const delta = nuevo - (Number(this.corr.base) || 0);
+      if (delta === 0) {
+        this.error = this.corr.clase === 'inventario' ? 'El inventario no cambió' : 'La corrección no cambió';
+        return;
+      }
+      const cantidad = this.corr.clase === 'inventario' ? nuevo : delta;
+      const ok = await this.paso(this.corr.clave, 'cocido', this.corr.clase || 'regulacion', cantidad, false, nota);
+      if (ok) this.corrAbierta = false;
     },
     async fijar(rubro, tipo, clase, actual, nuevo, ayer) {
       const n = Number(String(nuevo).replace(',', '.'));
@@ -379,18 +702,21 @@ function inventarioApp() {
       if (!Number.isFinite(n) || n === a) return;
       await this.paso(rubro, tipo, clase, n - a, !!ayer);
     },
-    async paso(rubro, tipo, clase, delta, ayer) {
-      if (!rubro || this.guardando) return;
+    async trasladar(fila, nuevo) {
+      const n = Number(String(nuevo).replace(',', '.'));
+      const actual = Number(fila.obtenida) || 0;
+      if (!fila || !fila.origenClave || !Number.isFinite(n) || n === actual || this.guardando) return;
+      const delta = n - actual;
       this.guardando = true;
       this.error = '';
       try {
-        const nombre = this.nombreRubro(rubro);
-        let motivo = 'Regulación ' + nombre;
-        if (clase === 'ingreso') motivo = (delta < 0 ? 'Sale ' : 'Ingresa ') + nombre;
-        else if (clase === 'egreso') motivo = (delta < 0 ? 'Ingresa ' : 'Sale ') + nombre;
-        const body = { rubro: rubro, tipoProducto: tipo, clase: clase, cantidad: delta, motivo: motivo };
-        if (ayer) body.fecha = this.fechaAyer();
-        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify(body) });
+        const fecha = this.fechaDelDia(this.diaEdicion());
+        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify({
+          rubro: fila.origenClave, tipoProducto: 'crudo', clase: 'ingreso', cantidad: -delta, motivo: 'Pasa a ' + fila.obtenido, fecha: fecha
+        }) });
+        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify({
+          rubro: fila.clave, tipoProducto: fila.tipo || 'cocido', clase: 'ingreso', cantidad: delta, motivo: 'Sale de ' + fila.origen, fecha: fecha
+        }) });
         await this.cargar();
       } catch (e) {
         this.error = e.message;
@@ -398,13 +724,40 @@ function inventarioApp() {
         this.guardando = false;
       }
     },
+    async paso(rubro, tipo, clase, delta, ayer, motivoNota) {
+      if (!rubro || this.guardando) return false;
+      this.guardando = true;
+      this.error = '';
+      try {
+        const nombre = this.nombreRubro(rubro);
+        let motivo = String(motivoNota || '').trim();
+        if (!motivo) {
+          motivo = 'Regulación ' + nombre;
+          if (clase === 'ingreso') motivo = (delta < 0 ? 'Sale ' : 'Ingresa ') + nombre;
+          else if (clase === 'egreso') motivo = (delta < 0 ? 'Ingresa ' : 'Sale ') + nombre;
+        }
+        const body = { rubro: rubro, tipoProducto: tipo, clase: clase, cantidad: delta, motivo: motivo };
+        const dia = ayer ? this.sumarDias(this.diaEdicion(), -1) : this.diaEdicion();
+        body.fecha = this.fechaDelDia(dia);
+        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify(body) });
+        await this.cargar();
+        return true;
+      } catch (e) {
+        this.error = e.message;
+        return false;
+      } finally {
+        this.guardando = false;
+      }
+    },
     async cargar() {
       this.error = '';
       try {
-        const q = '?carta=1&desde=' + this.dia + '&hasta=' + this.dia;
+        const r = this.rangoPeriodo();
+        this.dia = r.hasta;
+        const q = '?carta=1&desde=' + r.desde + '&hasta=' + r.hasta;
         const [k, m, a] = await Promise.all([
           this.api('/inventario/kardex' + q),
-          this.api('/inventario/movimientos' + q),
+          this.api('/inventario/movimientos?desde=' + r.desde + '&hasta=' + r.hasta),
           this.api('/inventario/alertas')
         ]);
         this.filas = k.filas || [];
@@ -436,7 +789,8 @@ function inventarioApp() {
               tipoProducto: this.alta.saleTipo,
               clase: 'egreso',
               cantidad: sale,
-              motivo: 'Sale ' + this.nombreRubro(this.alta.saleRubro) + (this.alta.motivo ? ' · ' + this.alta.motivo : '')
+              motivo: 'Sale ' + this.nombreRubro(this.alta.saleRubro) + (this.alta.motivo ? ' · ' + this.alta.motivo : ''),
+              fecha: this.fechaDelDia(this.diaEdicion())
             })
           });
         }
@@ -448,7 +802,8 @@ function inventarioApp() {
               tipoProducto: this.alta.ingresaTipo,
               clase: 'ingreso',
               cantidad: entra,
-              motivo: 'Ingresa ' + this.nombreRubro(this.alta.ingresaRubro) + (this.alta.motivo ? ' · ' + this.alta.motivo : '')
+              motivo: 'Ingresa ' + this.nombreRubro(this.alta.ingresaRubro) + (this.alta.motivo ? ' · ' + this.alta.motivo : ''),
+              fecha: this.fechaDelDia(this.diaEdicion())
             })
           });
         }

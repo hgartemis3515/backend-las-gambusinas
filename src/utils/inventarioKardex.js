@@ -2,7 +2,7 @@ const TIPOS = ['crudo', 'cocido'];
 
 function aporte(clase, cantidad) {
     const n = Number(cantidad);
-    if (!Number.isFinite(n)) return 0;
+    if (!Number.isFinite(n) || clase === 'inventario') return 0;
     if (clase === 'ingreso') return n;
     if (clase === 'egreso') return -n;
     return n;
@@ -28,7 +28,7 @@ function armarKardex(platos, movimientos, desde, hasta) {
     const sumas = new Map();
     for (const p of activos) {
         for (const tipo of TIPOS) {
-            sumas.set(clave(p._id, tipo), { antes: 0, ingresos: 0, egreso: 0, regulacion: 0 });
+            sumas.set(clave(p._id, tipo), { antes: 0, ingresos: 0, egreso: 0, regulacion: 0, conteo: null, conteoEn: -1 });
         }
     }
     const desdeMs = new Date(desde).getTime();
@@ -38,6 +38,13 @@ function armarKardex(platos, movimientos, desde, hasta) {
         if (!bucket) continue;
         const t = new Date(m.fecha).getTime();
         if (!Number.isFinite(t) || t > hastaMs) continue;
+        if (m.clase === 'inventario') {
+            if (t >= bucket.conteoEn) {
+                bucket.conteo = Number(m.cantidad) || 0;
+                bucket.conteoEn = t;
+            }
+            continue;
+        }
         const delta = aporte(m.clase, m.cantidad);
         if (t < desdeMs) {
             bucket.antes += delta;
@@ -59,6 +66,8 @@ function armarKardex(platos, movimientos, desde, hasta) {
                 nombre: p.nombre,
                 tipoProducto: tipo,
                 ...fila,
+                conteo: b.conteo,
+                tieneConteo: b.conteo !== null,
                 umbral: minimo,
                 critico: minimo > 0 && fila.baja <= minimo
             };

@@ -263,6 +263,9 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
   const fechaLabel = esReserva && d.fechaAtencion ? 'Atención' : 'Fecha';
   const fechaValor = esReserva && d.fechaAtencion ? d.fechaAtencion : fecha;
   html += `<div style="text-align:center;font-size:22px;font-weight:800;letter-spacing:0.5px;line-height:1.15;padding:4px 0 6px;">${escapeHtml(letrero)}</div>`;
+  if (d.esPrueba === true) {
+    html += '<div style="text-align:center;font-size:18px;font-weight:900;letter-spacing:2px;line-height:1.1;padding:0 0 6px;">PRUEBA</div>';
+  }
   if (d.anulacion) {
     html += `<div style="text-align:center;font-size:13px;font-weight:700;line-height:1.35;padding:0 0 6px;">${escapeHtml(d.anulacion.usuario)}<br/>${escapeHtml(d.anulacion.hora)}<br/>${escapeHtml(d.anulacion.motivo)}</div>`;
   }
@@ -292,7 +295,7 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     html += `<div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:1px;padding:10px 0 2px;">ANULADO X</div>`;
   }
 
-  const heightPx = 220 + productos.length * 28;
+  const heightPx = 220 + productos.length * 28 + (d.esPrueba === true ? 24 : 0);
   const wrapOpts = { fontSizeBase: 11, lineHeightBase: 14, pageHeightPx: heightPx, title: 'Ticket cocina' };
   const full = envolverHtmlBoucherTicket(html, wrapOpts);
   return { html: full, heightPx, htmlInner: html };

@@ -831,6 +831,7 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
       nombre: ticket.clienteNombre || boucherData?.clienteNombre || NOMBRE_CLIENTE_FALLBACK,
       dni: ticket.clienteDni || boucherData?.clienteDni || '',
     },
+    esPrueba: ticket.esPrueba === true,
     voucherId: ticket.voucherId || boucherData?.voucherId || boucherData?.boucherNumber || null,
     montoRecibido: ticket.montoRecibido ?? boucherData?.montoRecibido ?? null,
     vuelto: ticket.vuelto ?? boucherData?.vuelto ?? null,

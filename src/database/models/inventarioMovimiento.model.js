@@ -6,7 +6,7 @@ const inventarioMovimientoSchema = new mongoose.Schema({
     rubro: { type: String, default: '', trim: true },
     nombre: { type: String, required: true, trim: true },
     tipoProducto: { type: String, required: true, enum: ['crudo', 'cocido'] },
-    clase: { type: String, required: true, enum: ['ingreso', 'egreso', 'regulacion'] },
+    clase: { type: String, required: true, enum: ['ingreso', 'egreso', 'regulacion', 'inventario'] },
     cantidad: { type: Number, required: true },
     motivo: { type: String, required: true, trim: true, maxlength: 200 },
     comanda: { type: mongoose.Schema.Types.ObjectId, ref: 'Comanda', default: null },
