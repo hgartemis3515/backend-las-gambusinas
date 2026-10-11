@@ -222,29 +222,39 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
 
  <div x-show="modalRangoImpresion" x-cloak class="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/70" @click.self="!rangoBuscando && (modalRangoImpresion = false)">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-md shadow-2xl" @click.stop>
-   <div class="px-5 py-4 border-b border-[rgba(212,175,55,0.15)]">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[88vh]" @click.stop>
+   <div class="px-5 py-4 border-b border-[rgba(212,175,55,0.15)] shrink-0">
     <h2 class="text-lg font-bold">Imprimir rango</h2>
-    <p class="text-[11px] text-txt-muted mt-1">Número del día, dentro del filtro <span class="text-gold" x-text="rangoFiltroEtiqueta"></span>. La letra no cuenta: 1b es la 1.</p>
+    <p class="text-[11px] text-txt-muted mt-1">Toca el inicio y el final. Período <span class="text-gold" x-text="rangoFiltroEtiqueta"></span>. La letra no cuenta: 1b es la 1.</p>
    </div>
-   <div class="px-5 py-4 space-y-3">
-    <div class="grid grid-cols-2 gap-3">
-     <label class="block">
-      <span class="text-[10px] uppercase text-txt-muted font-semibold">Desde</span>
-      <input type="number" min="1" step="1" x-model="rangoDesde" :disabled="rangoBuscando" class="mt-1 w-full h-10 bg-bg-sidebar border border-[rgba(212,175,55,0.3)] rounded-lg px-3 text-white text-sm focus:border-gold focus:outline-none">
-     </label>
-     <label class="block">
-      <span class="text-[10px] uppercase text-txt-muted font-semibold">Hasta</span>
-      <input type="number" min="1" step="1" x-model="rangoHasta" :disabled="rangoBuscando" class="mt-1 w-full h-10 bg-bg-sidebar border border-[rgba(212,175,55,0.3)] rounded-lg px-3 text-white text-sm focus:border-gold focus:outline-none">
-     </label>
+   <div class="px-5 py-4 space-y-3 overflow-y-auto min-h-0">
+    <div class="flex items-center justify-between gap-2">
+     <p class="text-xs text-txt-secondary" x-text="ayudaRangoImpresion()"></p>
+     <div class="flex gap-1.5 shrink-0">
+      <button type="button" @click="seleccionarTodosRango()" :disabled="rangoBuscando || !numerosRangoLista.length" class="px-2.5 py-1 rounded-lg border border-[rgba(212,175,55,0.35)] text-[11px] font-semibold text-gold hover:bg-gold-20 disabled:opacity-40">Todas</button>
+      <button type="button" @click="limpiarSeleccionRango()" :disabled="rangoBuscando" class="px-2.5 py-1 rounded-lg border border-txt-muted/30 text-[11px] text-txt-secondary hover:text-white disabled:opacity-40">Limpiar</button>
+     </div>
     </div>
+    <p x-show="!numerosRangoLista.length" class="text-sm text-txt-muted">No hay comandas en este período.</p>
+    <div x-show="numerosRangoLista.length" class="flex flex-wrap gap-1.5 max-h-[46vh] overflow-y-auto pr-1">
+     <template x-for="item in numerosRangoLista" :key="'rn-' + item.n">
+      <button type="button"
+       @click="elegirNumeroRango(item.n)"
+       :disabled="rangoBuscando"
+       :title="item.titulo"
+       class="h-9 min-w-9 px-2 rounded-lg border text-sm font-bold tabular-nums transition disabled:opacity-40"
+       :class="extremoRangoImpresion(item.n) ? 'bg-gold text-bg-primary border-gold' : (numeroEnRangoImpresion(item.n) ? 'bg-gold-20 text-gold border-gold' : 'bg-bg-sidebar text-txt-secondary border-txt-muted/30 hover:border-gold hover:text-white')"
+       x-text="item.n"></button>
+     </template>
+    </div>
+    <p x-show="seleccionRangoImpresion.etiqueta" class="text-sm font-semibold text-gold tabular-nums" x-text="seleccionRangoImpresion.etiqueta + ' · ' + seleccionRangoImpresion.cantidad + (seleccionRangoImpresion.cantidad === 1 ? ' comanda' : ' comandas')"></p>
     <p x-show="rangoAviso" class="text-xs text-[#ffa502] leading-snug" x-text="rangoAviso"></p>
    </div>
-   <div class="px-5 py-4 border-t border-[rgba(212,175,55,0.1)] flex justify-end gap-2">
+   <div class="px-5 py-4 border-t border-[rgba(212,175,55,0.1)] flex justify-end gap-2 shrink-0">
     <button type="button" @click="modalRangoImpresion = false" :disabled="rangoBuscando" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:text-white disabled:opacity-40">Cerrar</button>
-    <button type="button" @click="imprimirRangoComandas()" :disabled="rangoBuscando" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-60">
+    <button type="button" @click="imprimirRangoComandas()" :disabled="rangoBuscando || !seleccionRangoImpresion.ok" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-60">
      <span x-show="rangoBuscando" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></span>
-     <span x-text="rangoBuscando ? 'Verificando...' : 'Imprimir rango'"></span>
+     <span x-text="rangoBuscando ? 'Verificando...' : (seleccionRangoImpresion.ok ? ('Imprimir ' + seleccionRangoImpresion.cantidad) : 'Imprimir')"></span>
     </button>
    </div>
   </div>
@@ -3592,6 +3602,8 @@ function comandasApp() {
  modalRangoImpresion: false,
  rangoDesde: '',
  rangoHasta: '',
+ rangoFase: 'inicio',
+ numerosRangoLista: [],
  rangoBuscando: false,
  rangoAviso: '',
  vistaPreviaHtml: '',
@@ -5311,7 +5323,95 @@ this.scheduleRefreshVentasTotales();
 
  abrirModalRangoImpresion() {
   this.rangoAviso = '';
+  this.rangoDesde = '';
+  this.rangoHasta = '';
+  this.rangoFase = 'inicio';
+  this.cargarNumerosRango();
   this.modalRangoImpresion = true;
+ },
+
+ cargarNumerosRango() {
+  const map = new Map();
+  for (const c of this.comandas || []) {
+    const n = this.numeroDiaComanda(c);
+    if (n == null) continue;
+    if (!map.has(n)) {
+      const mesa = this.formatearNombreMesa(c.mesa);
+      map.set(n, mesa && mesa !== 'Sin mesa' ? ('#' + n + ' · ' + mesa) : ('#' + n));
+    }
+  }
+  this.numerosRangoLista = [...map.entries()].sort((a, b) => a[0] - b[0]).map(([n, titulo]) => ({ n, titulo }));
+ },
+
+ get seleccionRangoImpresion() {
+  const d = Number(this.rangoDesde);
+  const h = Number(this.rangoHasta);
+  if (!Number.isInteger(d) || !Number.isInteger(h) || d < 1 || h < 1 || d > h) {
+    return { ok: false, etiqueta: '', cantidad: 0 };
+  }
+  let cantidad = 0;
+  for (const c of this.comandas || []) {
+    const n = this.numeroDiaComanda(c);
+    if (n != null && n >= d && n <= h) cantidad++;
+  }
+  return {
+    ok: cantidad > 0,
+    etiqueta: d === h ? ('#' + d) : ('#' + d + ' → #' + h),
+    cantidad,
+  };
+ },
+
+ ayudaRangoImpresion() {
+  if (!this.numerosRangoLista.length) return 'No hay números para elegir.';
+  if (this.rangoFase === 'fin') return 'Ahora toca el último número.';
+  if (this.seleccionRangoImpresion.etiqueta) return 'Toca un número para empezar otro rango.';
+  return 'Toca el primer número.';
+ },
+
+ numeroEnRangoImpresion(n) {
+  const d = Number(this.rangoDesde);
+  const h = Number(this.rangoHasta);
+  if (!Number.isInteger(d) || !Number.isInteger(h)) return false;
+  return n >= Math.min(d, h) && n <= Math.max(d, h);
+ },
+
+ extremoRangoImpresion(n) {
+  const d = Number(this.rangoDesde);
+  const h = Number(this.rangoHasta);
+  if (!Number.isInteger(d) || !Number.isInteger(h)) return false;
+  return n === d || n === h;
+ },
+
+ elegirNumeroRango(n) {
+  if (this.rangoBuscando) return;
+  this.rangoAviso = '';
+  const d = Number(this.rangoDesde);
+  if (!Number.isInteger(d) || d < 1 || this.rangoFase !== 'fin') {
+    this.rangoDesde = n;
+    this.rangoHasta = n;
+    this.rangoFase = 'fin';
+    return;
+  }
+  this.rangoDesde = Math.min(d, n);
+  this.rangoHasta = Math.max(d, n);
+  this.rangoFase = 'inicio';
+ },
+
+ seleccionarTodosRango() {
+  const nums = this.numerosRangoLista;
+  if (!nums.length || this.rangoBuscando) return;
+  this.rangoDesde = nums[0].n;
+  this.rangoHasta = nums[nums.length - 1].n;
+  this.rangoFase = 'inicio';
+  this.rangoAviso = '';
+ },
+
+ limpiarSeleccionRango() {
+  if (this.rangoBuscando) return;
+  this.rangoDesde = '';
+  this.rangoHasta = '';
+  this.rangoFase = 'inicio';
+  this.rangoAviso = '';
  },
 
  async imprimirRangoComandas() {
