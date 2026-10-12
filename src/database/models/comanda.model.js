@@ -858,7 +858,24 @@ comandaSchema.pre('save', async function (next) {
         }
     }
     
-    // Calcular precioTotal automáticamente si hay platos
+    // Calcular precioTotal automáticamente si hay platos.
+    // PRUEBA no tiene valor: el 0 no se reemplaza por el precio de la carta.
+    if (this.esPrueba === true && this.platos && this.platos.length > 0) {
+        for (const platoItem of this.platos) {
+            platoItem.precioBase = 0;
+            platoItem.extraComplementos = 0;
+            platoItem.totalUnidadesComplementos = 0;
+            platoItem.precioUnitario = 0;
+            platoItem.precio = 0;
+        }
+        this.precioTotal = 0;
+        this.precioTotalOriginal = 0;
+        this.totalSinDescuento = 0;
+        this.totalCalculado = 0;
+        this.montoDescuento = 0;
+        this.descuento = 0;
+        this.descuentoMontoFijo = 0;
+    }
     if ((this.isNew || this.isModified('platos') || this.isModified('cantidades')) && this.platos && this.platos.length > 0) {
         try {
             const platoModel = mongoose.model('platos');

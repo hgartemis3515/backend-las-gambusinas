@@ -46,34 +46,101 @@ tailwind.config = {
     line-height: 1.2;
   }
   button.caja-num { cursor: pointer; }
-  .tabla-inv { font-size: 18px; border-collapse: collapse; }
-  .tabla-inv th { font-size: 13px; letter-spacing: 0.04em; padding-top: 2px; padding-bottom: 2px; }
-  .tabla-inv td { padding-top: 0; padding-bottom: 0; line-height: 1.15; }
-  .cuadro-pos,
-  input.caja-num.cuadro-pos,
-  button.caja-num.cuadro-pos {
-    background-color: #1d4ed8 !important;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    border-color: #1d4ed8 !important;
+  .inv-titulo {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #d4af37;
+    font-weight: 700;
+  }
+  .tabla-inv, .tabla-suave { border-collapse: separate; border-spacing: 0; }
+  .tabla-inv { font-size: 16px; }
+  .tabla-inv thead th {
+    background: #12121a;
+    color: #cbb56a;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 9px 8px;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.35);
+  }
+  .tabla-inv td { padding: 3px 6px; line-height: 1.2; vertical-align: middle; }
+  .tabla-inv tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.025); }
+  .tabla-inv tbody tr:hover td { background: rgba(212, 175, 55, 0.07); }
+  .tabla-principal th:first-child,
+  .tabla-principal td.celda-producto { position: sticky; left: 0; z-index: 2; }
+  .tabla-principal thead th.col-h {
+    color: #1a1200 !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
+  }
+  .tabla-principal thead th.col-producto { background: #d4af37 !important; }
+  .tabla-principal thead th.col-anterior { background: #e8d48a !important; }
+  .tabla-principal thead th.col-ingreso { background: #86efac !important; }
+  .tabla-principal thead th.col-correccion { background: #fcd34d !important; }
+  .tabla-principal thead th.col-ingreso-total { background: #f59e0b !important; }
+  .tabla-principal thead th.col-salida { background: #fca5a5 !important; }
+  .tabla-principal thead th.col-saldo { background: #93c5fd !important; }
+  .tabla-principal thead th.col-inventario { background: #c4b5fd !important; }
+  .tabla-principal thead th.col-saldo-real { background: #fde68a !important; }
+  .tabla-principal thead th.col-diferencia { background: #67e8f9 !important; }
+  .tabla-suave { font-size: 14px; }
+  .tabla-suave thead th {
+    background: #12121a;
+    color: #cbb56a;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+  .tabla-suave tbody td { padding: 7px 12px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+  .tabla-suave tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.025); }
+  .tabla-suave tbody tr:hover td { background: rgba(212, 175, 55, 0.07); }
+  .num-in { color: #86efac; font-weight: 700; }
+  .num-out { color: #fca5a5; font-weight: 700; }
+  .cuadro-pos, .cuadro-neg {
+    display: inline-block;
+    min-width: 2.4ch;
+    padding: 1px 7px;
+    border-radius: 6px;
     font-weight: 800;
   }
-  .cuadro-neg,
-  input.caja-num.cuadro-neg,
-  button.caja-num.cuadro-neg {
-    background-color: #dc2626 !important;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    border-color: #dc2626 !important;
-    font-weight: 800;
-  }
+  .cuadro-pos { background-color: #1d4ed8; color: #fff; }
+  .cuadro-neg { background-color: #dc2626; color: #fff; }
   .caja-num::-webkit-outer-spin-button, .caja-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .paso-num { display: inline-flex; align-items: center; gap: 0; }
-  .flecha-num { line-height: 1; color: #d4af37; font-size: 18px; font-weight: 700; padding: 0 2px; min-width: 1rem; }
-  .celda-producto { font-weight: 700; color: #fff; background: rgba(212, 175, 55, 0.16); }
-  .celda-saldo { background: rgba(255, 255, 255, 0.07); }
+  .paso-num { display: inline-flex; align-items: center; gap: 1px; }
+  .flecha-num { line-height: 1; color: #d4af37; font-size: 16px; font-weight: 700; padding: 0 3px; min-width: 1rem; border-radius: 4px; }
+  .flecha-num:hover { background: rgba(212, 175, 55, 0.15); }
+  .celda-producto { font-weight: 700; color: #fff; background: transparent; }
+  .celda-saldo { background: transparent; }
   .barra-cuadro { background: #d4af37 !important; }
-  .barra-cuadro th { color: #1a1200 !important; font-weight: 800; }
+  .barra-cuadro th { color: #1a1200 !important; font-weight: 800; background: #d4af37 !important; }
+  .tabla-inv tbody tr td:last-child,
+  .tabla-inv tbody tr:nth-child(even) td:last-child,
+  .tabla-inv tbody tr:hover td:last-child,
+  .tabla-suave tbody tr td:last-child,
+  .tabla-suave tbody tr:nth-child(even) td:last-child,
+  .tabla-suave tbody tr:hover td:last-child {
+    background: rgba(212, 175, 55, 0.16);
+    font-weight: 800;
+    box-shadow: inset 3px 0 0 #d4af37;
+  }
+  .tabla-inv thead th:last-child,
+  .tabla-suave thead th:last-child {
+    color: #fff;
+    background: #3d3416;
+    box-shadow: inset 3px 0 0 #d4af37;
+  }
+  .fila-cierre td {
+    background: #d4af37 !important;
+    color: #1a1200 !important;
+    font-weight: 800;
+    box-shadow: none !important;
+  }
 </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="inventarioApp()" x-cloak>
@@ -125,19 +192,19 @@ tailwind.config = {
     <section x-show="vistaTab === 'tabla'" class="mb-8">
       <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] overflow-hidden" :class="aprovechador ? 'rounded-none' : 'rounded-xl'">
         <div class="overflow-x-auto">
-          <table class="tabla-inv w-full">
+          <table class="tabla-inv tabla-principal w-full">
             <thead>
-              <tr class="bg-bg-sidebar border-b-2 border-gold/30" :class="aprovechador ? 'whitespace-nowrap' : ''">
-                <th class="text-left px-2 py-2 uppercase font-semibold text-gold">Producto</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-white">Saldo Anterior</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Ingreso</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Corrección</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Ingreso Total</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Salida</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Saldo</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-txt-muted">Inventario</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-white">Saldo Real</th>
-                <th class="text-right px-2 py-2 uppercase font-semibold text-white">Diferencia</th>
+              <tr :class="aprovechador ? 'whitespace-nowrap' : ''">
+                <th class="col-h col-producto text-left">Producto</th>
+                <th class="col-h col-anterior text-right">Saldo Anterior</th>
+                <th class="col-h col-ingreso text-right">Ingreso</th>
+                <th class="col-h col-correccion text-right">Corrección</th>
+                <th class="col-h col-ingreso-total text-right">Ingreso Total</th>
+                <th class="col-h col-salida text-right">Salida</th>
+                <th class="col-h col-saldo text-right">Saldo</th>
+                <th class="col-h col-inventario text-right">Inventario</th>
+                <th class="col-h col-saldo-real text-right">Saldo Real</th>
+                <th class="col-h col-diferencia text-right">Diferencia</th>
               </tr>
             </thead>
             <tbody>
@@ -152,7 +219,7 @@ tailwind.config = {
                   <td class="px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.saldo"></td>
                   <td class="px-1 py-0 text-right"><button type="button" class="caja-num" @click="abrirCorreccion(f, 'Inventario')" x-text="f.inventario"></button></td>
                   <td class="celda-saldo px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.saldoReal"></td>
-                  <td class="px-1 py-0 text-center text-base" :class="cuadroSigno(f.diferencia)" x-text="f.tieneConteo ? f.diferencia : ''"></td>
+                  <td class="px-1 py-0 text-center"><span :class="cuadroSigno(f.diferencia)" x-text="f.tieneConteo ? f.diferencia : ''"></span></td>
                 </tr>
               </template>
             </tbody>
@@ -216,7 +283,7 @@ tailwind.config = {
                   <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="trasladar(h, (Number(h.obtenida)||0)-1)">−</button><input class="caja-num" type="number" step="any" :value="h.obtenida" @change="trasladar(h, $event.target.value)"><button type="button" class="flecha-num" @click="trasladar(h, (Number(h.obtenida)||0)+1)">+</button></span></td>
                 </tr>
               </template>
-              <tr class="border-t border-gold/30 font-semibold">
+              <tr class="fila-cierre">
                 <td class="px-2 py-1 text-gold">Total</td>
                 <td class="px-2 py-1 text-right" x-text="polloTrans.aplicado"></td>
               </tr>
@@ -242,7 +309,7 @@ tailwind.config = {
                   <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="trasladar(p, (Number(p.obtenida)||0)-1)">−</button><input class="caja-num" type="number" step="any" :value="p.obtenida" @change="trasladar(p, $event.target.value)"><button type="button" class="flecha-num" @click="trasladar(p, (Number(p.obtenida)||0)+1)">+</button></span></td>
                 </tr>
               </template>
-              <tr class="border-t border-gold/30 font-semibold">
+              <tr class="fila-cierre">
                 <td class="px-2 py-1 text-gold">Total</td>
                 <td class="px-2 py-1 text-right" x-text="pescadoTrans.reduce((a, p) => a + (Number(p.ingresada) || 0), 0)"></td>
                 <td class="px-2 py-1"></td>
@@ -256,7 +323,7 @@ tailwind.config = {
 
     <section x-show="vistaTab === 'tabla'" class="mb-8">
       <div class="flex items-center justify-between mb-2">
-        <h2 class="text-sm font-semibold text-gold">Totales</h2>
+        <h2 class="inv-titulo">Totales</h2>
         <button type="button" @click="formulario = !formulario" class="text-xs px-3 py-1.5 rounded-lg bg-gold text-black font-semibold">Anotar movimiento</button>
       </div>
       <form x-show="formulario" @submit.prevent="guardarMovimiento()" class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-3">
@@ -289,11 +356,11 @@ tailwind.config = {
       </form>
       <div class="flex flex-wrap items-start gap-4">
         <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)] w-max">
-          <table class="text-sm">
-            <thead class="bg-bg-sidebar text-txt-muted text-xs">
+          <table class="tabla-suave">
+            <thead>
               <tr>
-                <th class="text-left pl-2 pr-4 py-1">Producto</th>
-                <th class="text-right pl-2 pr-2 py-1">Total</th>
+                <th class="text-left">Producto</th>
+                <th class="text-right">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -307,17 +374,17 @@ tailwind.config = {
           </table>
         </div>
         <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)] w-max">
-          <table class="text-sm">
-            <thead class="bg-bg-sidebar text-txt-muted text-xs">
+          <table class="tabla-suave">
+            <thead>
               <tr>
-                <th class="text-left pl-2 pr-3 py-1" colspan="5">Alerta crítica</th>
+                <th class="text-left" colspan="5">Alerta crítica</th>
               </tr>
               <tr>
-                <th class="text-left pl-2 pr-3 py-1">Producto</th>
-                <th class="text-right px-2 py-1">Stock actual</th>
-                <th class="text-right px-2 py-1">Stock mínimo</th>
-                <th class="text-right px-2 py-1">Stock bajo</th>
-                <th class="text-left pl-2 pr-2 py-1">Estado</th>
+                <th class="text-left">Producto</th>
+                <th class="text-right">Stock actual</th>
+                <th class="text-right">Stock mínimo</th>
+                <th class="text-right">Stock bajo</th>
+                <th class="text-left">Estado</th>
               </tr>
             </thead>
             <tbody>
@@ -333,6 +400,39 @@ tailwind.config = {
             </tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <section x-show="vistaTab === 'tabla'" class="mb-8">
+      <h2 class="inv-titulo mb-2">Historial del día</h2>
+      <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)]">
+        <table class="tabla-suave w-full">
+          <thead>
+            <tr>
+              <th class="text-left px-3 py-2">Fecha</th>
+              <th class="text-left px-3 py-2">Producto</th>
+              <th class="text-left px-3 py-2">Tipo</th>
+              <th class="text-right px-3 py-2">Ingresó</th>
+              <th class="text-right px-3 py-2">Salió</th>
+              <th class="text-left px-3 py-2">Motivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="m in historialDia()" :key="m._id">
+              <tr class="border-t border-white/5">
+                <td class="px-3 py-1.5 whitespace-nowrap" x-text="fechaCorta(m.fecha)"></td>
+                <td class="px-3 py-1.5 font-semibold" x-text="m.producto"></td>
+                <td class="px-3 py-1.5 capitalize" x-text="m.tipo"></td>
+                <td class="num-in text-right" x-text="m.ingreso"></td>
+                <td class="num-out text-right" x-text="m.salida"></td>
+                <td class="px-3 py-1.5" x-text="m.motivo"></td>
+              </tr>
+            </template>
+            <tr x-show="historialDia().length === 0">
+              <td class="px-3 py-2 text-txt-muted" colspan="6">Este día no tiene ingresos ni salidas.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -454,7 +554,11 @@ function inventarioApp() {
         const ingresos = sumaCampo('ingresos');
         const regulacion = sumaCampo('regulacion');
         const egreso = sumaCampo('egreso');
-        const ingresoTotal = saldoInicial + regulacion;
+        const hayCorreccion = Number(regulacion) !== 0;
+        const haySaldoAnterior = Number(saldoInicial) !== 0;
+        const ingresoTotal = hayCorreccion && haySaldoAnterior
+          ? saldoInicial + regulacion
+          : saldoInicial + ingresos + (haySaldoAnterior ? 0 : regulacion);
         const saldo = ingresoTotal - egreso;
         const tiene = !!(crudo.tieneConteo || cocido.tieneConteo);
         const inventario = tiene
@@ -567,6 +671,21 @@ function inventarioApp() {
     nombreRubro(clave) {
       const op = (this.opciones || []).find((p) => p.clave === clave);
       return op ? op.nombre : clave;
+    },
+    historialDia() {
+      return (this.movimientos || []).filter((m) => m.clase === 'ingreso' || m.clase === 'egreso').map((m) => {
+        const n = Number(m.cantidad) || 0;
+        const entra = (m.clase === 'ingreso' && n > 0) || (m.clase === 'egreso' && n < 0);
+        return {
+          _id: m._id,
+          fecha: m.fecha,
+          producto: m.nombre,
+          tipo: m.tipoProducto,
+          ingreso: entra ? Math.abs(n) : '—',
+          salida: entra ? '—' : Math.abs(n),
+          motivo: m.motivo || ''
+        };
+      });
     },
     fechaCorta(iso) {
       if (!iso) return '';
