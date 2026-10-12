@@ -2,7 +2,59 @@ const express = require('express');
 const router = express.Router();
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 const inventario = require('../repository/inventario.repository');
+const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
+const { objectIdUsuarioOrNull } = require('../utils/objectIdUsuario');
 const logger = require('../utils/logger');
+
+const ACCION_INVENTARIO = {
+    regulacion: 'INVENTARIO_CORRECCION',
+    inventario: 'INVENTARIO_CONTEO',
+    ingreso: 'INVENTARIO_INGRESO',
+    egreso: 'INVENTARIO_EGRESO'
+};
+
+function resumenMovimiento(doc) {
+    const nombre = doc.nombre || 'Producto';
+    const tipo = doc.tipoProducto || '';
+    const n = Number(doc.cantidad);
+    const cant = Number.isFinite(n) ? n : doc.cantidad;
+    if (doc.clase === 'regulacion') {
+        const signo = Number.isFinite(n) && n > 0 ? '+' : '';
+        return nombre + ' · ' + tipo + ' · corrección ' + signo + cant;
+    }
+    if (doc.clase === 'inventario') return nombre + ' · ' + tipo + ' · inventario ' + cant;
+    if (doc.clase === 'egreso') return nombre + ' · ' + tipo + ' · salida ' + cant;
+    return nombre + ' · ' + tipo + ' · ingreso ' + cant;
+}
+
+async function auditarMovimiento(req, doc) {
+    const accion = ACCION_INVENTARIO[doc && doc.clase];
+    if (!accion || !doc) return;
+    try {
+        const admin = req.admin || {};
+        const dato = {
+            producto: doc.nombre,
+            tipoProducto: doc.tipoProducto,
+            clase: doc.clase,
+            cantidad: doc.cantidad,
+            rubro: doc.rubro || '',
+            fecha: doc.fecha
+        };
+        await AuditoriaAcciones.create({
+            accion,
+            entidadId: doc._id,
+            entidadTipo: 'inventario',
+            usuario: objectIdUsuarioOrNull(admin.id),
+            usuarioNombre: admin.name || null,
+            motivo: doc.motivo || null,
+            ip: req.ip || null,
+            datosDespues: dato,
+            metadata: { ...dato, resumen: resumenMovimiento(doc) }
+        });
+    } catch (error) {
+        logger.warn('No se registró auditoría de inventario', { error: error.message });
+    }
+}
 
 function puedeLeerAlertas(req) {
     const rol = req.admin && req.admin.rol;
@@ -43,6 +95,7 @@ router.get('/inventario/movimientos', adminAuth, checkPermission('ver-inventario
 router.post('/inventario/movimientos', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
     try {
         const doc = await inventario.crearMovimiento(req.body || {}, req.admin && req.admin.id);
+        await auditarMovimiento(req, doc);
         res.status(201).json({ success: true, movimiento: doc });
     } catch (error) {
         errorHttp(error, res);

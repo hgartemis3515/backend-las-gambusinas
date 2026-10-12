@@ -453,8 +453,8 @@ tailwind.config = {
             <input id="corr-num" x-model="corr.ingreso" type="number" step="any" class="flex-1 bg-white text-black rounded-lg px-3 py-2 text-sm" x-init="$nextTick(() => $el.focus())">
             <button type="button" class="flecha-num text-2xl px-2" @click="moverCorr(1)">+</button>
           </div>
-          <label class="block text-xs text-txt-muted mb-1" for="corr-nota">Nota</label>
-          <textarea id="corr-nota" x-model="corr.nota" rows="3" maxlength="200" required class="w-full bg-bg-sidebar rounded-lg px-3 py-2 text-sm mb-3" placeholder="Nota"></textarea>
+          <label class="block text-xs text-txt-muted mb-1" for="corr-motivo">Motivo</label>
+          <textarea id="corr-motivo" x-model="corr.motivo" rows="3" maxlength="200" required class="w-full bg-bg-sidebar rounded-lg px-3 py-2 text-sm mb-3" placeholder="Motivo"></textarea>
           <p x-show="error" class="text-red-300 text-sm mb-3" x-text="error"></p>
           <button type="submit" class="w-full text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold" :disabled="guardando" x-text="guardando ? 'Guardando…' : 'Guardar cambios'"></button>
         </form>
@@ -503,7 +503,7 @@ function inventarioApp() {
     formulario: false,
     guardando: false,
     corrAbierta: false,
-    corr: { clave: '', nombre: '', ingreso: '', ingresoInfo: 0, base: 0, nota: '', titulo: 'Corrección', clase: 'regulacion' },
+    corr: { clave: '', nombre: '', ingreso: '', ingresoInfo: 0, base: 0, motivo: '', titulo: 'Corrección', clase: 'regulacion' },
     alta: { saleRubro: '', saleTipo: 'crudo', saleCantidad: '', ingresaRubro: '', ingresaTipo: 'cocido', ingresaCantidad: '', motivo: '' },
     filaRubro(clave, tipo) {
       return this.filas.find((f) => f.rubro === clave && f.tipoProducto === tipo) || {
@@ -781,7 +781,7 @@ function inventarioApp() {
         ingreso: String(inventario ? f.inventario : f.regulacion),
         ingresoInfo: f.ingresos,
         base: inventario ? (Number(f.inventario) || 0) : (Number(f.regulacion) || 0),
-        nota: '',
+        motivo: '',
         titulo: titulo || 'Corrección',
         clase: inventario ? 'inventario' : 'regulacion'
       };
@@ -796,9 +796,9 @@ function inventarioApp() {
       this.corrAbierta = false;
     },
     async guardarCorreccion() {
-      const nota = String(this.corr.nota || '').trim();
-      if (!nota) {
-        this.error = 'Escribe la nota';
+      const motivo = String(this.corr.motivo || '').trim();
+      if (!motivo) {
+        this.error = 'Escribe el motivo';
         return;
       }
       const nuevo = Number(String(this.corr.ingreso).replace(',', '.'));
@@ -812,7 +812,7 @@ function inventarioApp() {
         return;
       }
       const cantidad = this.corr.clase === 'inventario' ? nuevo : delta;
-      const ok = await this.paso(this.corr.clave, 'cocido', this.corr.clase || 'regulacion', cantidad, false, nota);
+      const ok = await this.paso(this.corr.clave, 'cocido', this.corr.clase || 'regulacion', cantidad, false, motivo);
       if (ok) this.corrAbierta = false;
     },
     async fijar(rubro, tipo, clase, actual, nuevo, ayer) {

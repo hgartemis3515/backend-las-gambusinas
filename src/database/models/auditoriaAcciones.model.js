@@ -55,7 +55,11 @@ const auditoriaSchema = new mongoose.Schema({
       'ELIMINAR_DESCUENTO_COMANDA',
       'PAGO_FORZADO_CAJA',
       'MESA_ESPECIAL_AUTORIZADA',
-      'MESA_ESPECIAL_BLOQUEADA'
+      'MESA_ESPECIAL_BLOQUEADA',
+      'INVENTARIO_CORRECCION',
+      'INVENTARIO_CONTEO',
+      'INVENTARIO_INGRESO',
+      'INVENTARIO_EGRESO'
     ],
     index: true
   },
@@ -67,7 +71,7 @@ const auditoriaSchema = new mongoose.Schema({
   entidadTipo: {
     type: String,
     required: true,
-    enum: ['comanda', 'plato', 'mesa', 'mozo', 'cliente', 'pago', 'cierre_caja', 'ticket_verificacion'],
+    enum: ['comanda', 'plato', 'mesa', 'mozo', 'cliente', 'pago', 'cierre_caja', 'ticket_verificacion', 'inventario'],
     index: true
   },
   usuario: {

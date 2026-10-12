@@ -79,6 +79,13 @@ tailwind.config = {
           <option value="SOLICITUD_ORDEN_APROBADA">Solicitud Orden Aprobada</option>
           <option value="SOLICITUD_ORDEN_RECHAZADA">Solicitud Orden Rechazada</option>
         </optgroup>
+        <optgroup label="📦 Inventario">
+          <option value="INVENTARIO">Inventario (todas)</option>
+          <option value="INVENTARIO_CORRECCION">Corrección</option>
+          <option value="INVENTARIO_CONTEO">Inventario</option>
+          <option value="INVENTARIO_INGRESO">Ingreso</option>
+          <option value="INVENTARIO_EGRESO">Salida</option>
+        </optgroup>
       </select>
       
       <!-- Filtro Usuario -->
@@ -164,6 +171,7 @@ tailwind.config = {
               <td class="px-4 py-3 text-xs">
                 <span x-show="etiquetaComandaAuditoria(a)" class="text-gold" x-text="etiquetaComandaAuditoria(a)"></span>
                 <span x-show="idComandaAuditoria(a)" class="text-txt-muted font-mono block text-[10px]" x-text="idComandaAuditoria(a)"></span>
+                <span x-show="a.metadata?.resumen" class="text-txt-secondary block" x-text="a.metadata.resumen"></span>
                 <span x-show="a.metadata?.platoNombre" class="text-txt-secondary" x-text="a.metadata.platoNombre"></span>
                 <span x-show="a.motivo" class="text-txt-muted block text-[10px]" x-text="a.motivo?.substring(0, 30) + (a.motivo?.length > 30 ? '...' : '')"></span>
                 <span x-show="a.metadata?.cronometro" class="text-[#9c88ff] block text-[10px] font-mono" x-text="'⏱ ' + a.metadata.cronometro"></span>
@@ -245,6 +253,30 @@ tailwind.config = {
           </div>
         </div>
       </div>
+
+      <template x-if="esAccionInventario(selectedRegistro?.accion)">
+        <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <h3 class="text-[#d4af37] font-bold mb-3">Qué cambió</h3>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Producto</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.producto || '—'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Tipo</p>
+              <p class="font-medium capitalize" x-text="selectedRegistro?.metadata?.tipoProducto || '—'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5" x-text="selectedRegistro?.accion === 'INVENTARIO_CORRECCION' ? 'Ajuste' : (selectedRegistro?.accion === 'INVENTARIO_CONTEO' ? 'Inventario' : 'Cantidad')"></p>
+              <p class="font-medium" x-text="textoCantidadInventario(selectedRegistro)"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Motivo</p>
+              <p class="font-medium" x-text="selectedRegistro?.motivo || '—'"></p>
+            </div>
+          </div>
+        </div>
+      </template>
 
       <!-- INFO ESPECÍFICA PARA ELIMINACIONES -->
       <template x-if="esAccionEliminacion(selectedRegistro?.accion)">
@@ -646,6 +678,8 @@ function auditoriaApp() {
     },
 
     idComandaAuditoria(a) {
+      const accion = String(a?.accion || '');
+      if (a?.entidadTipo === 'inventario' || a?.modulo === 'Inventario' || accion.startsWith('INVENTARIO_')) return '';
       const id = a?.comandaVista?.id || a?.entidadId || a?.metadata?.comandaId;
       return id ? String(id) : '';
     },
@@ -756,7 +790,7 @@ function auditoriaApp() {
         hora: a.timestamp || a.createdAt,
         usuario: a.usuario?.name || a.usuario?.nombre || a.usuarioNombre || a.usuario || 'Sistema',
         accion: a.accion,
-        modulo: a.entidadTipo || a.modulo || '—',
+        modulo: a.entidadTipo === 'inventario' ? 'Inventario' : (a.entidadTipo || a.modulo || '—'),
         ip: a.ip || '—',
         cambios: a.cambios || a.diferencias || [],
         metadata: a.metadata || a.payload || a.datos || null,
@@ -893,6 +927,17 @@ function auditoriaApp() {
       return accionesLiberacion.includes(accion) || accion.toLowerCase().includes('dejad') || accion.toLowerCase().includes('liberad');
     },
 
+    esAccionInventario(accion) {
+      return String(accion || '').startsWith('INVENTARIO_');
+    },
+
+    textoCantidadInventario(reg) {
+      const n = Number(reg?.metadata?.cantidad);
+      if (!Number.isFinite(n)) return '—';
+      if (reg.accion === 'INVENTARIO_CORRECCION') return (n > 0 ? '+' : '') + n;
+      return String(n);
+    },
+
     // === FUNCIONES AUXILIARES PARA EL MODAL ===
 
     getTituloModal(reg) {
@@ -901,6 +946,9 @@ function auditoriaApp() {
       if (this.esAccionAnulacion(reg.accion)) return 'Detalle de Anulación';
       if (this.esAccionReversion(reg.accion)) return 'Detalle de Reversión';
       if (this.esAccionLiberacion(reg.accion)) return 'Detalle de Liberación';
+      if (reg.accion === 'INVENTARIO_CORRECCION') return 'Detalle de Corrección';
+      if (reg.accion === 'INVENTARIO_CONTEO') return 'Detalle de Inventario';
+      if (this.esAccionInventario(reg.accion)) return 'Detalle de movimiento';
       return 'Detalle de Auditoría';
     },
 
@@ -941,7 +989,11 @@ function auditoriaApp() {
         'CIERRE_CAJA_REVERTIDO': '↩️ Cierre Revertido',
         'TICKET_VERIFICADO_CIERRE': '✅ Ticket Verificado',
         'TICKETS_VERIFICADOS_CIERRE_MASIVO': '✅ Tickets Verificados',
-        'TICKET_ANULADO_COCINA': '🗑️ Ticket anulado (tabla cocina)'
+        'TICKET_ANULADO_COCINA': '🗑️ Ticket anulado (tabla cocina)',
+        'INVENTARIO_CORRECCION': '✏️ Corrección',
+        'INVENTARIO_CONTEO': '📦 Inventario',
+        'INVENTARIO_INGRESO': '📥 Ingreso',
+        'INVENTARIO_EGRESO': '📤 Salida'
       };
       return labels[accion] || accion;
     },
@@ -952,6 +1004,7 @@ function auditoriaApp() {
       if (this.esAccionAnulacion(accion)) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
       if (this.esAccionReversion(accion)) return 'bg-[rgba(0,212,170,0.2)] text-[#00d4aa]';
       if (this.esAccionLiberacion(accion)) return 'bg-[rgba(156,136,255,0.2)] text-[#9c88ff]';
+      if (this.esAccionInventario(accion)) return 'bg-[rgba(212,175,55,0.2)] text-[#d4af37]';
       if (accion.includes('crear') || accion.includes('nuevo') || accion.includes('agregado')) return 'bg-[rgba(46,204,113,0.2)] text-[#2ecc71]';
       if (accion.includes('editar') || accion.includes('modificar')) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
       return 'bg-bg-sidebar text-txt-secondary';
