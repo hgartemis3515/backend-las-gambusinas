@@ -1,32 +1,33 @@
 const mongoose = require('mongoose');
-const moment = require('moment-timezone');
 const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
 const { claveDe, filasDeRubros, carta } = require('../utils/inventarioRubros');
+const { boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
+const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
 const Rubro = require('../database/models/inventarioRubro.model');
 const logger = require('../utils/logger');
 
-const ZONA = 'America/Lima';
-
 function rango(desde, hasta) {
-    const ini = moment.tz(String(desde || ''), 'YYYY-MM-DD', true, ZONA);
-    const fin = moment.tz(String(hasta || desde || ''), 'YYYY-MM-DD', true, ZONA);
-    if (!ini.isValid() || !fin.isValid()) {
+    const iniStr = String(desde || '').trim();
+    const finStr = String(hasta || desde || '').trim();
+    if (!esSoloFechaYMD(iniStr) || !esSoloFechaYMD(finStr)) {
         const err = new Error('Usa fechas YYYY-MM-DD');
         err.statusCode = 400;
         throw err;
     }
-    if (fin.isBefore(ini)) {
+    if (finStr < iniStr) {
         const err = new Error('La fecha hasta es anterior a desde');
         err.statusCode = 400;
         throw err;
     }
-    return { desde: ini.clone().startOf('day').toDate(), hasta: fin.clone().endOf('day').toDate() };
+    const ini = boundsDiaOperativo(iniStr);
+    const fin = boundsDiaOperativo(finStr);
+    return { desde: ini.inicio, hasta: fin.fin };
 }
 
 function hoy() {
-    const d = moment.tz(ZONA).format('YYYY-MM-DD');
+    const d = ymdOperativo();
     return rango(d, d);
 }
 
@@ -176,11 +177,22 @@ async function umbralesRubro() {
 
 async function kardexCarta(desdeStr, hastaStr) {
     const { desde, hasta } = (desdeStr || hastaStr) ? rango(desdeStr, hastaStr || desdeStr) : hoy();
-    const movs = await Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
-        .select('rubro tipoProducto clase cantidad fecha')
-        .lean();
-    const filas = filasDeRubros(movs, desde, hasta, await umbralesRubro());
-    return { desde, hasta, filas, carta: carta() };
+    const [guardados, ventasPack, umbrales] = await Promise.all([
+        Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
+            .select('rubro tipoProducto clase cantidad fecha')
+            .lean(),
+        egresosVentaHasta(hasta),
+        umbralesRubro()
+    ]);
+    const movs = guardados.concat(ventasPack.movs);
+    const filas = filasDeRubros(movs, desde, hasta, umbrales);
+    const desdeMs = desde.getTime();
+    const hastaMs = hasta.getTime();
+    const ventas = (ventasPack.ventas || []).filter((v) => {
+        const t = new Date(v.fecha).getTime();
+        return t >= desdeMs && t <= hastaMs;
+    });
+    return { desde, hasta, filas, carta: carta(), ventas };
 }
 
 async function guardarUmbralRubro(clave, body) {
@@ -206,11 +218,28 @@ async function guardarUmbralRubro(clave, body) {
 }
 
 async function alertasRubro() {
-    const movs = await Movimiento.find({ rubro: { $nin: [null, ''] } })
-        .select('rubro tipoProducto clase cantidad fecha')
-        .lean();
-    const filas = filasDeRubros(movs, new Date(0), new Date(), await umbralesRubro());
+    const hasta = new Date();
+    const [guardados, ventasPack] = await Promise.all([
+        Movimiento.find({ rubro: { $nin: [null, ''] } })
+            .select('rubro tipoProducto clase cantidad fecha')
+            .lean(),
+        egresosVentaHasta(hasta)
+    ]);
+    const filas = filasDeRubros(guardados.concat(ventasPack.movs), new Date(0), hasta, await umbralesRubro());
     return alertasDeFilas(filas);
+}
+
+async function eliminarHoy() {
+    const { desde, hasta } = hoy();
+    const docs = await Movimiento.find({ fecha: { $gte: desde, $lte: hasta } })
+        .select('nombre rubro tipoProducto clase cantidad motivo fecha')
+        .lean();
+    if (docs.length) {
+        await Movimiento.deleteMany({ _id: { $in: docs.map((d) => d._id) } });
+    }
+    const despues = await alertasActuales();
+    emitirAlerta({ alertas: despues, cambio: null });
+    return { eliminados: docs.length, movimientos: docs };
 }
 
 module.exports = {
@@ -219,5 +248,6 @@ module.exports = {
     listarMovimientos,
     crearMovimiento,
     alertasActuales,
-    guardarUmbralRubro
+    guardarUmbralRubro,
+    eliminarHoy
 };

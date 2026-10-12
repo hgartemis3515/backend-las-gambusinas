@@ -59,7 +59,8 @@ const auditoriaSchema = new mongoose.Schema({
       'INVENTARIO_CORRECCION',
       'INVENTARIO_CONTEO',
       'INVENTARIO_INGRESO',
-      'INVENTARIO_EGRESO'
+      'INVENTARIO_EGRESO',
+      'INVENTARIO_DIA_BORRADO'
     ],
     index: true
   },

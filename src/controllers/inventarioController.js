@@ -56,6 +56,37 @@ async function auditarMovimiento(req, doc) {
     }
 }
 
+async function auditarDiaBorrado(req, data) {
+    try {
+        const admin = req.admin || {};
+        const lista = (data.movimientos || []).map((m) => ({
+            producto: m.nombre,
+            rubro: m.rubro || '',
+            tipoProducto: m.tipoProducto,
+            clase: m.clase,
+            cantidad: m.cantidad,
+            motivo: m.motivo
+        }));
+        const n = data.eliminados || 0;
+        await AuditoriaAcciones.create({
+            accion: 'INVENTARIO_DIA_BORRADO',
+            entidadTipo: 'inventario',
+            usuario: objectIdUsuarioOrNull(admin.id),
+            usuarioNombre: admin.name || null,
+            motivo: 'Eliminó los datos de inventario de hoy',
+            ip: req.ip || null,
+            datosAntes: { eliminados: n, movimientos: lista },
+            metadata: {
+                resumen: 'Inventario de hoy · ' + n + (n === 1 ? ' movimiento' : ' movimientos'),
+                eliminados: n,
+                movimientos: lista
+            }
+        });
+    } catch (error) {
+        logger.warn('No se registró auditoría al borrar el inventario de hoy', { error: error.message });
+    }
+}
+
 function puedeLeerAlertas(req) {
     const rol = req.admin && req.admin.rol;
     if (rol === 'admin' || rol === 'supervisor' || rol === 'cocinero') return true;
@@ -97,6 +128,16 @@ router.post('/inventario/movimientos', adminAuth, checkPermission('ver-inventari
         const doc = await inventario.crearMovimiento(req.body || {}, req.admin && req.admin.id);
         await auditarMovimiento(req, doc);
         res.status(201).json({ success: true, movimiento: doc });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
+router.delete('/inventario/hoy', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const data = await inventario.eliminarHoy();
+        await auditarDiaBorrado(req, data);
+        res.json({ success: true, eliminados: data.eliminados });
     } catch (error) {
         errorHttp(error, res);
     }

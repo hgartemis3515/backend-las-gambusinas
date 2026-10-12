@@ -96,4 +96,21 @@ test('el ingreso queda fijo y el conteo no lo mueve', () => {
     expect(fila.conteo).toBe(16);
     expect(fila.tieneConteo).toBe(true);
     expect(fila.baja).toBe(29);
+    expect(fila.cierre).toBe(16);
+});
+
+test('el saldo real del día abre el saldo anterior del día siguiente', () => {
+    const movs = [
+        { plato: 'arroz', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 30, fecha: dia('2026-10-08', '09:00:00') },
+        { plato: 'arroz', tipoProducto: 'cocido', clase: 'inventario', cantidad: 16, fecha: dia('2026-10-08', '21:30:00') },
+        { plato: 'arroz', tipoProducto: 'cocido', clase: 'egreso', cantidad: 1, fecha: dia('2026-10-09', '10:00:00') }
+    ];
+    const ocho = armarKardex(platos, movs, dia('2026-10-08', '00:00:00'), dia('2026-10-08', '23:59:59'))
+        .find((f) => f.plato === 'arroz' && f.tipoProducto === 'cocido');
+    const nueve = armarKardex(platos, movs, dia('2026-10-09', '00:00:00'), dia('2026-10-09', '23:59:59'))
+        .find((f) => f.plato === 'arroz' && f.tipoProducto === 'cocido');
+    expect(ocho.cierre).toBe(16);
+    expect(nueve.saldoInicial).toBe(ocho.cierre);
+    expect(nueve.egreso).toBe(1);
+    expect(nueve.cierre).toBe(15);
 });

@@ -85,6 +85,7 @@ tailwind.config = {
           <option value="INVENTARIO_CONTEO">Inventario</option>
           <option value="INVENTARIO_INGRESO">Ingreso</option>
           <option value="INVENTARIO_EGRESO">Salida</option>
+          <option value="INVENTARIO_DIA_BORRADO">Borrar día</option>
         </optgroup>
       </select>
       
@@ -170,6 +171,7 @@ tailwind.config = {
               </td>
               <td class="px-4 py-3 text-xs">
                 <span x-show="etiquetaComandaAuditoria(a)" class="text-gold" x-text="etiquetaComandaAuditoria(a)"></span>
+                <span x-show="marcaInventario(a)" class="text-gold font-semibold" x-text="marcaInventario(a)"></span>
                 <span x-show="idComandaAuditoria(a)" class="text-txt-muted font-mono block text-[10px]" x-text="idComandaAuditoria(a)"></span>
                 <span x-show="a.metadata?.resumen" class="text-txt-secondary block" x-text="a.metadata.resumen"></span>
                 <span x-show="a.metadata?.platoNombre" class="text-txt-secondary" x-text="a.metadata.platoNombre"></span>
@@ -671,6 +673,14 @@ function auditoriaApp() {
       return '#' + n + this.letraRevAuditoria(c.revisionTicket);
     },
 
+    marcaInventario(a) {
+      if (!a || (a.accion !== 'INVENTARIO_CORRECCION' && a.accion !== 'INVENTARIO_CONTEO')) return '';
+      const n = Number(a.metadata && a.metadata.cantidad);
+      if (!Number.isFinite(n)) return '#';
+      if (a.accion === 'INVENTARIO_CORRECCION') return '#' + (n > 0 ? '+' : '') + n;
+      return '#' + n;
+    },
+
     etiquetaComandaAuditoria(a) {
       const id = this.idComandaAuditoria(a);
       if (id && this.mapaNumeros[id]) return this.mapaNumeros[id];
@@ -999,7 +1009,8 @@ function auditoriaApp() {
         'INVENTARIO_CORRECCION': '✏️ Corrección',
         'INVENTARIO_CONTEO': '📦 Inventario',
         'INVENTARIO_INGRESO': '📥 Ingreso',
-        'INVENTARIO_EGRESO': '📤 Salida'
+        'INVENTARIO_EGRESO': '📤 Salida',
+        'INVENTARIO_DIA_BORRADO': '🗑️ Inventario del día'
       };
       return labels[accion] || accion;
     },

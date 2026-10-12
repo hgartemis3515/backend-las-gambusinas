@@ -28,31 +28,33 @@ function armarKardex(platos, movimientos, desde, hasta) {
     const sumas = new Map();
     for (const p of activos) {
         for (const tipo of TIPOS) {
-            sumas.set(clave(p._id, tipo), { antes: 0, ingresos: 0, egreso: 0, regulacion: 0, conteo: null, conteoEn: -1 });
+            sumas.set(clave(p._id, tipo), { antes: 0, ingresos: 0, egreso: 0, regulacion: 0, conteo: null, conteoEn: -1, balance: 0 });
         }
     }
     const desdeMs = new Date(desde).getTime();
     const hastaMs = new Date(hasta).getTime();
-    for (const m of movimientos || []) {
+    const ordenados = (movimientos || []).slice().sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+    for (const m of ordenados) {
         const bucket = sumas.get(clave(m.plato, m.tipoProducto));
         if (!bucket) continue;
         const t = new Date(m.fecha).getTime();
         if (!Number.isFinite(t) || t > hastaMs) continue;
+        const enVentana = t >= desdeMs;
         if (m.clase === 'inventario') {
-            if (t >= bucket.conteoEn) {
-                bucket.conteo = Number(m.cantidad) || 0;
+            bucket.balance = Number(m.cantidad) || 0;
+            if (enVentana && t >= bucket.conteoEn) {
+                bucket.conteo = bucket.balance;
                 bucket.conteoEn = t;
             }
-            continue;
+        } else {
+            bucket.balance += aporte(m.clase, m.cantidad);
+            if (enVentana) {
+                if (m.clase === 'ingreso') bucket.ingresos += Number(m.cantidad) || 0;
+                else if (m.clase === 'egreso') bucket.egreso += Number(m.cantidad) || 0;
+                else bucket.regulacion += Number(m.cantidad) || 0;
+            }
         }
-        const delta = aporte(m.clase, m.cantidad);
-        if (t < desdeMs) {
-            bucket.antes += delta;
-            continue;
-        }
-        if (m.clase === 'ingreso') bucket.ingresos += Number(m.cantidad) || 0;
-        else if (m.clase === 'egreso') bucket.egreso += Number(m.cantidad) || 0;
-        else bucket.regulacion += Number(m.cantidad) || 0;
+        if (!enVentana) bucket.antes = bucket.balance;
     }
     return activos.map((p) => {
         const umbral = p.alertaCritica || {};
@@ -68,8 +70,9 @@ function armarKardex(platos, movimientos, desde, hasta) {
                 ...fila,
                 conteo: b.conteo,
                 tieneConteo: b.conteo !== null,
+                cierre: b.balance,
                 umbral: minimo,
-                critico: minimo > 0 && fila.baja <= minimo
+                critico: minimo > 0 && b.balance <= minimo
             };
         });
     }).flat();
@@ -83,7 +86,7 @@ function alertasDeFilas(filas) {
             platoId: f.platoId,
             nombre: f.nombre,
             tipoProducto: f.tipoProducto,
-            saldo: f.baja,
+            saldo: f.cierre != null ? f.cierre : f.baja,
             umbral: f.umbral
         }));
 }
