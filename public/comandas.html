@@ -148,6 +148,62 @@ tailwind.config = {
   }
   html.embed-ver body { background: transparent !important; }
   html.embed-ver body > *:not(#modal-ver-comanda) { display: none !important; }
+  .filtro-solido {
+    color: #fff !important;
+    font-weight: 700;
+    border: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  }
+  .filtro-on {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+    filter: brightness(1.12);
+  }
+  .comandas-table thead th { color: #fff !important; }
+  .filtro-campo {
+    color: #fff;
+    font-weight: 600;
+    border-width: 2px;
+    background: #12121a;
+  }
+  .filtro-campo::placeholder { color: rgba(255,255,255,.75); }
+  select.filtro-campo option { color: #111; background: #fff; }
+  .badge-g {
+    background: #f5c518;
+    color: #fff !important;
+    font-weight: 800;
+    text-shadow: 0 1px 1px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.65);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  }
+  .chip-tabla {
+    color: #fff !important;
+    font-weight: 800;
+    box-shadow: 0 1px 2px rgba(0,0,0,.35);
+    letter-spacing: 0.01em;
+  }
+  .cmd-accion {
+    width: 2.15rem;
+    height: 2.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.55rem;
+    color: #fff;
+    font-size: 1.15rem;
+    line-height: 1;
+    box-shadow: 0 2px 6px rgba(0,0,0,.4);
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .cmd-accion:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  .etiq-tabla {
+    color: #fff !important;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    border-radius: 0.35rem;
+    padding: 0.15rem 0.4rem;
+    line-height: 1.15;
+    box-shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
 </style>
 <script>
 if (new URLSearchParams(location.search).get('embed') === '1') {
@@ -274,11 +330,11 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 
  <!-- FILTROS -->
  <div class="flex gap-2 mb-5 flex-wrap items-center">
- <input type="text" x-model="filterMesa" @input="filterComandas()" list="dl-filtro-mesa" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
+ <input type="text" x-model="filterMesa" @input="filterComandas()" list="dl-filtro-mesa" class="filtro-campo border-[#3b82f6] rounded-lg px-3 py-2 text-sm w-28" placeholder="Mesa">
  <datalist id="dl-filtro-mesa">
   <template x-for="m in valoresFiltro('mesa')" :key="'fm-'+m"><option :value="m"></option></template>
  </datalist>
- <select x-model="filterEstado" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+ <select x-model="filterEstado" @change="filterComandas()" class="filtro-campo border-[#f59e0b] rounded-lg px-3 py-2 text-sm">
  <option value="">Estado: Todos</option>
  <option value="en_espera">En espera</option>
  <option value="recoger">Listo para recoger</option>
@@ -294,26 +350,26 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="w-px h-6 bg-txt-muted/30 mx-1"></div>
 
  <!-- Filtro ID Comanda -->
- <input type="text" x-model="filterIdComanda" @input="filterComandas()" list="dl-filtro-comanda" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="# Comanda">
+ <input type="text" x-model="filterIdComanda" @input="filterComandas()" list="dl-filtro-comanda" class="filtro-campo border-[#8b5cf6] rounded-lg px-3 py-2 text-sm w-28" placeholder="# Comanda">
  <datalist id="dl-filtro-comanda">
   <template x-for="n in valoresFiltro('comanda')" :key="'fc-'+n"><option :value="n"></option></template>
  </datalist>
 
- <label class="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-medium cursor-pointer select-none"
-  :class="verIdHistorico ? 'bg-gold/20 border-gold text-gold' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+ <label class="filtro-solido flex items-center gap-2 px-3 py-2 rounded-lg text-xs cursor-pointer select-none bg-[#6d28d9]"
+  :class="verIdHistorico ? 'filtro-on' : ''"
   title="Muestra la columna Nº histórico en la tabla">
-  <input type="checkbox" class="accent-[#D4AF37]" x-model="verIdHistorico">
+  <input type="checkbox" class="accent-white" x-model="verIdHistorico">
   <span>Ver ID histórico</span>
  </label>
 
  <!-- Ver ticket duplicado / huérfano por número (tabla cocina) -->
  <form @submit.prevent="buscarTicketPorNumero()" class="flex items-center gap-1">
-  <input type="text" x-model="buscarTicketNumero" inputmode="numeric" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-24 placeholder-txt-muted" placeholder="# Ticket">
-  <button type="submit" class="px-3 py-2 border border-gold/40 rounded-lg text-xs font-semibold text-gold hover:bg-gold/10 transition whitespace-nowrap" title="Busca el ticket aunque no figure en la comanda">🎫 Ver ticket</button>
+  <input type="text" x-model="buscarTicketNumero" inputmode="numeric" class="filtro-campo border-[#f97316] rounded-lg px-3 py-2 text-sm w-24" placeholder="# Ticket">
+  <button type="submit" class="filtro-solido px-3 py-2 rounded-lg text-xs bg-[#c2410c] whitespace-nowrap" title="Busca el ticket aunque no figure en la comanda">🎫 Ver ticket</button>
  </form>
 
  <!-- Filtro Mozo -->
- <select x-model="filterMozo" @change="filterMozoId = ''; filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
+ <select x-model="filterMozo" @change="filterMozoId = ''; filterComandas()" class="filtro-campo border-[#14b8a6] rounded-lg px-3 py-2 text-sm min-w-[140px]">
  <option value="">Mozo: Todos</option>
  <template x-for="mozo in valoresFiltro('mozo')" :key="mozo">
  <option :value="mozo" x-text="mozo"></option>
@@ -321,95 +377,95 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </select>
 
  <!-- Filtro Cliente (NUEVO) -->
- <input type="text" x-model="filterCliente" @input="filterComandas()" list="dl-filtro-cliente" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="Cliente/DNI">
+ <input type="text" x-model="filterCliente" @input="filterComandas()" list="dl-filtro-cliente" class="filtro-campo border-[#ec4899] rounded-lg px-3 py-2 text-sm w-32" placeholder="Cliente/DNI">
  <datalist id="dl-filtro-cliente">
   <template x-for="n in valoresFiltro('cliente')" :key="'fcl-'+n"><option :value="n"></option></template>
  </datalist>
 
  <button type="button" @click="filterSoloDescuentos = !filterSoloDescuentos; filterComandas()"
-  :class="filterSoloDescuentos ? 'bg-[#e74c3c]/20 border-[#e74c3c] text-[#e74c3c]' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
-  class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1"
+  :class="filterSoloDescuentos ? 'filtro-on' : ''"
+  class="filtro-solido px-3 py-2 rounded-lg text-xs transition flex items-center gap-1 bg-[#dc2626]"
   title="Mostrar solo comandas con descuento">
   <span>%</span>
   <span>Solo descuentos</span>
  </button>
 
  <button type="button" @click="filterSoloCambioG = !filterSoloCambioG; filterComandas()"
-  :class="filterSoloCambioG ? 'bg-[#2ecc71]/20 border-[#2ecc71] text-[#2ecc71]' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
-  class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1"
+  :class="filterSoloCambioG ? 'filtro-on' : ''"
+  class="badge-g px-3 py-2 rounded-lg text-xs font-extrabold transition flex items-center gap-1"
   title="Mostrar solo comandas donde el mozo cambió la guarnición preseleccionada">
   <span>G</span>
-  <span>Solo uso G</span>
+  <span>Comandas G</span>
  </button>
 
  <!-- Período (mismo patrón que mozos → rendimiento) -->
  <div class="flex flex-wrap items-center gap-1">
-  <span class="text-[10px] uppercase text-txt-muted mr-1">Período</span>
+  <span class="filtro-solido text-[10px] uppercase px-2 py-2 rounded-lg bg-[#334155]">Período</span>
   <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('dia')"
-    class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
-    :class="filtroPeriodo === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+    class="filtro-solido px-3 py-2 rounded-lg text-xs transition bg-[#0284c7]"
+    :class="filtroPeriodo === 'dia' ? 'filtro-on' : ''">DIA</button>
   <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('noche')"
-    class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
-    :class="filtroPeriodo === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
-  <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-5 bg-[rgba(212,175,55,0.35)] mx-1"></span>
+    class="filtro-solido px-3 py-2 rounded-lg text-xs transition bg-[#4338ca]"
+    :class="filtroPeriodo === 'noche' ? 'filtro-on' : ''">NOCHE</button>
+  <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-5 bg-white/30 mx-1"></span>
   <template x-for="p in presetsPeriodo" :key="p.id">
    <button type="button" @click="setFiltroPeriodo(p.id)"
-    class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
-    :class="filtroPeriodo === p.id ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">
+    class="filtro-solido px-3 py-2 rounded-lg text-xs transition"
+    :class="[p.bg, filtroPeriodo === p.id ? 'filtro-on' : '']">
     <span x-text="p.label"></span>
    </button>
   </template>
  </div>
  <div x-show="filtroPeriodo === 'custom'" x-cloak class="flex flex-wrap items-center gap-2">
   <button type="button" @click="abrirFiltroPersonalizado()"
-    class="px-3 py-2 rounded-lg text-xs font-semibold border border-gold/40 bg-gold/10 text-gold hover:bg-gold/20">
+    class="filtro-solido px-3 py-2 rounded-lg text-xs bg-[#6d28d9]">
     Editar filtro
   </button>
-  <span class="text-[10px] text-txt-muted" x-text="etiquetaFiltroAvanzado"></span>
+  <span class="filtro-solido text-[10px] px-2 py-1 rounded bg-[#4c1d95]" x-text="etiquetaFiltroAvanzado"></span>
  </div>
- <span class="text-[10px] text-txt-muted font-mono" x-show="filtroPeriodo !== 'todos'" x-text="rangoFiltroEtiqueta"></span>
+ <span class="filtro-solido text-[10px] font-mono px-2 py-1 rounded bg-[#1e3a8a]" x-show="filtroPeriodo !== 'todos'" x-text="rangoFiltroEtiqueta"></span>
 
  <!-- Toggle Agrupación (NUEVO) -->
  <button @click="toggleAgrupacion()" 
- :class="agruparPorCliente ? 'bg-gold/20 border-gold text-gold' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
- class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1">
- <span x-text="agruparPorCliente ? '👥' : '📋'"></span>
+ :class="agruparPorCliente ? 'bg-[#0e7490] filtro-on' : 'bg-[#155e75]'"
+ class="filtro-solido px-3 py-2 rounded-lg text-xs transition flex items-center gap-1">
+ <span class="text-base leading-none" x-text="agruparPorCliente ? '👥' : '📋'"></span>
  <span x-text="agruparPorCliente ? 'Agrupado' : 'Individual'"></span>
  </button>
 
  <!-- Botón Crear Comanda (Dashboard) -->
  <button @click="openComandaModal()" x-show="tienePermisoComanda('crear-comandas-dashboard')"
  data-blendy-from="btn-crear-comanda"
- class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1 bg-st-preparado/20 border-st-preparado text-st-preparado hover:bg-st-preparado/30">
- <span>🍽️</span>
+ class="filtro-solido px-3 py-2 rounded-lg text-xs transition flex items-center gap-1 bg-[#15803d]">
+ <span class="text-base leading-none">🍽️</span>
  <span>Crear Comanda</span>
  </button>
 
  <!-- Botón Crear Reserva -->
  <button @click="openReservaModal()"
  data-blendy-from="btn-crear-reserva"
- class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1 bg-st-reservado/20 border-st-reservado text-st-reservado hover:bg-st-reservado/30">
- <span>📅</span>
+ class="filtro-solido px-3 py-2 rounded-lg text-xs transition flex items-center gap-1 bg-[#7e22ce]">
+ <span class="text-base leading-none">📅</span>
  <span>Crear Reserva</span>
  </button>
 
  <button type="button" @click="toggleVerEliminadas()"
-   :class="verEliminadas ? 'bg-st-pagado/20 border-st-pagado text-st-pagado' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
-   class="px-3 py-2 border rounded-lg text-xs font-medium transition"
+   :class="verEliminadas ? 'bg-[#be123c] filtro-on' : 'bg-[#9f1239]'"
+   class="filtro-solido px-3 py-2 rounded-lg text-xs transition"
    title="Mostrar comandas borradas (clones / tickets huérfanos)">
-   <span x-text="verEliminadas ? '🗑️ Eliminadas visibles' : '🗑️ Ver eliminadas'"></span>
+   <span class="text-base leading-none" x-text="verEliminadas ? '🗑️ Eliminadas visibles' : '🗑️ Ver eliminadas'"></span>
  </button>
 
  <!-- Botón Ver Reservas -->
  <button @click="openReservasListModal()" 
- class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1 bg-bg-sidebar border-txt-muted/30 text-txt-secondary hover:border-st-reservado hover:text-st-reservado">
- <span>📋</span>
+ class="filtro-solido px-3 py-2 rounded-lg text-xs transition flex items-center gap-1 bg-[#5b21b6]">
+ <span class="text-base leading-none">📋</span>
  <span>Ver Reservas</span>
  </button>
 
  <!-- Botón limpiar filtros -->
  <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterMozoId || filterCliente || filterSoloDescuentos || filterSoloCambioG || filtroPeriodo !== periodoDefault || hayFiltroAvanzado"
- class="dash-btn-limpiar px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
+ class="filtro-solido px-3 py-2 text-xs rounded-lg bg-[#b91c1c]">
  ✕ Limpiar
  </button>
  </div>
@@ -454,24 +510,24 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <td class="px-3 py-2.5 align-top whitespace-nowrap">
  <template x-if="row.tipo === 'grupo'">
  <button @click.stop="toggleExpandGrupo(row.id)" class="flex items-start gap-1.5 text-left">
- <span class="text-gold font-bold text-sm shrink-0 leading-tight" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
+ <span class="etiq-tabla bg-[#b45309] text-sm shrink-0" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
  <span class="min-w-0 flex flex-col gap-0.5">
-  <span class="text-gold font-bold text-sm leading-snug break-words">
-   <span>GRUPO</span>
+  <span class="text-white font-bold text-sm leading-snug break-words">
+   <span class="etiq-tabla bg-[#b45309] text-[10px] mr-1">GRUPO</span>
    <template x-for="etq in etiquetasGrupoTabla(row.comandas)" :key="'g' + row.id + '-' + etq">
-    <span class="inline-block mr-1" x-text="etq"></span>
+    <span class="etiq-tabla bg-[#1d4ed8] text-[11px] mr-1" x-text="etq"></span>
    </template>
    <span x-show="etiquetasGrupoTabla(row.comandas).length === 0" class="inline-block ml-1" x-text="row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj)"></span>
    <span x-show="esFilaPrueba(row)" class="ml-1 text-2xl px-3 py-1 rounded-md bg-[#7C3AED] text-white font-extrabold leading-none whitespace-nowrap align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
   </span>
   <span x-show="esGrupoReserva(row)"
-   class="inline-flex flex-col items-start leading-tight text-[#e879f9]"
+   class="etiq-tabla inline-flex flex-col items-start bg-[#a21caf]"
    :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comandaReservaDeFila(row)) || '—')">
    <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
    <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(comandaReservaDeFila(row))" x-text="sufijoPagoReserva(comandaReservaDeFila(row))"></span>
   </span>
-  <span x-show="filaMuestraParaLlevar(row)" class="text-[9px] font-extrabold tracking-wide text-[#f87171] leading-tight" title="PARA LLEVAR">🥡 PARA LLEVAR</span>
-  <span x-show="filaMuestraExtraLlevar(row)" class="text-[9px] font-extrabold tracking-wide text-[#c4b5fd] leading-tight" title="EXTRA LLEVAR">EXTRA LLEVAR</span>
+  <span x-show="filaMuestraParaLlevar(row)" class="etiq-tabla text-[9px] bg-[#dc2626]" title="PARA LLEVAR">🥡 PARA LLEVAR</span>
+  <span x-show="filaMuestraExtraLlevar(row)" class="etiq-tabla text-[9px] bg-[#6d28d9]" title="EXTRA LLEVAR">EXTRA LLEVAR</span>
  </span>
  </button>
  </template>
@@ -479,21 +535,21 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 <div class="flex items-center gap-1.5 whitespace-nowrap">
   <span class="font-medium text-sm" :class="row.comanda?.eliminada ? 'line-through text-txt-muted' : ''" x-text="etiquetaNumeroTabla(row.comanda)"></span>
   <span x-show="esComandaPrueba(row.comanda)" class="text-2xl px-3 py-1 rounded-md bg-[#7C3AED] text-white font-extrabold leading-none whitespace-nowrap align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
-  <span x-show="row.comanda?.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none">ANULADO</span>
-  <span x-show="row.comanda?.omitirPago" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
+  <span x-show="row.comanda?.eliminada" class="etiq-tabla text-[9px] bg-[#b91c1c]">ANULADO</span>
+  <span x-show="row.comanda?.omitirPago" class="etiq-tabla text-[9px] bg-[#be123c] text-base" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
   <span x-show="esComandaReserva(row.comanda)"
-   class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
+   class="etiq-tabla inline-flex flex-col items-center justify-center bg-[#a21caf] whitespace-nowrap"
    :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(row.comanda) || '—')">
    <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
    <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(row.comanda)" x-text="sufijoPagoReserva(row.comanda)"></span>
   </span>
   <span x-show="comandaTieneParaLlevar(row.comanda)"
-   class="inline-flex flex-col items-center justify-center leading-tight text-[#f87171] whitespace-nowrap"
+   class="etiq-tabla inline-flex flex-col items-center justify-center bg-[#dc2626] whitespace-nowrap"
    title="PARA LLEVAR">
    <span class="text-[9px] font-extrabold tracking-wide">🥡 PARA LLEVAR</span>
   </span>
   <span x-show="comandaTieneExtraLlevar(row.comanda)"
-   class="inline-flex flex-col items-center justify-center leading-tight text-[#c4b5fd] whitespace-nowrap"
+   class="etiq-tabla inline-flex flex-col items-center justify-center bg-[#6d28d9] whitespace-nowrap"
    title="EXTRA LLEVAR">
    <span class="text-[9px] font-extrabold tracking-wide">EXTRA LLEVAR</span>
   </span>
@@ -523,7 +579,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  
  <!-- Contador G -->
  <td class="px-3 py-2.5 text-sm text-center">
- <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+ <span class="badge-g inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-md text-sm tabular-nums"
    :title="row.tipo === 'grupo' ? ((row.numComandas || 0) + ' comandas') : 'Platos con guarnición distinta a la preselección'"
    x-text="contadorGFila(row)"></span>
  </td>
@@ -533,7 +589,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <template x-if="row.tipo === 'grupo'">
  <div class="flex flex-wrap gap-1">
  <template x-for="nombre in (row.mozosUnicos || [])" :key="nombre">
- <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del mozo"
+ <button type="button" class="etiq-tabla bg-[#0f766e] text-[11px]" title="Ver registro de platos del mozo"
    @click.stop="irARegistroMozo(comandaDeMozoEnGrupo(row, nombre))" x-text="etiquetaMozoEnGrupo(row, nombre)"></button>
  </template>
  <span x-show="!(row.mozosUnicos && row.mozosUnicos.length)" class="text-txt-muted">—</span>
@@ -541,7 +597,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </template>
  <template x-if="row.tipo === 'individual'">
  <div>
- <button type="button" class="text-gold hover:underline text-left" title="Ver registro de platos del mozo"
+ <button type="button" class="etiq-tabla bg-[#0f766e] text-[11px]" title="Ver registro de platos del mozo"
    x-show="row.comanda.mozo && row.comanda.mozo !== 'Sin asignar'"
    @click.stop="irARegistroMozo(row.comanda)" x-text="nombreMozo(row.comanda)"></button>
  <span x-show="!row.comanda.mozo || row.comanda.mozo === 'Sin asignar'" class="text-txt-muted">—</span>
@@ -553,7 +609,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <td class="px-3 py-2.5 text-sm">
  <div class="flex flex-wrap gap-1">
  <template x-for="chef in (row.cocinerosResumen || [])" :key="String(chef.cocineroId || chef.nombre)">
- <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del cocinero"
+ <button type="button" class="etiq-tabla bg-[#1d4ed8] text-[11px]" title="Ver registro de platos del cocinero"
    @click.stop="irARegistroCocinero(chef, chef.comanda || row.comanda)" x-text="chef.nombre"></button>
  </template>
  <span x-show="!(row.cocinerosResumen && row.cocinerosResumen.length)" class="text-txt-muted text-xs">—</span>
@@ -592,7 +648,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <td class="px-3 py-2.5 text-center">
  <div class="flex flex-wrap gap-1 justify-center">
  <template x-for="chip in contarEstadosPlatosFila(row)" :key="chip.estado">
- <span class="text-[11px] px-2.5 py-1 rounded font-bold whitespace-nowrap"
+ <span class="chip-tabla text-xs px-2.5 py-1 rounded-md whitespace-nowrap"
  :class="claseEstadoPlatoChip(chip.estado)"
  x-text="chip.label + ' ×' + chip.cantidad"></span>
  </template>
@@ -631,19 +687,19 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <!-- Acciones -->
  <td class="px-3 py-2.5 text-center">
  <template x-if="row.tipo === 'grupo'">
-<div class="flex gap-1 justify-center">
-<button @click.stop="openGrupoModal(row)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Ver grupo">👁</button>
-<button @click.stop="openEditGrupoModal(row)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Editar grupo">✏️</button>
-<button @click.stop="imprimirComanda(row.comandas?.[0] || row.comanda, row)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Imprimir comanda">🖨️</button>
-<button @click.stop="confirmarEliminarGrupo(row)" class="p-1.5 rounded hover:bg-st-pagado/20 transition" title="Eliminar grupo">🗑️</button>
+<div class="flex gap-1.5 justify-center">
+<button @click.stop="openGrupoModal(row)" class="cmd-accion bg-[#2563eb]" title="Ver grupo">👁</button>
+<button @click.stop="openEditGrupoModal(row)" class="cmd-accion bg-[#d97706]" title="Editar grupo">✏️</button>
+<button @click.stop="imprimirComanda(row.comandas?.[0] || row.comanda, row)" class="cmd-accion bg-[#0f766e]" title="Imprimir comanda">🖨️</button>
+<button @click.stop="confirmarEliminarGrupo(row)" class="cmd-accion bg-[#dc2626]" title="Eliminar grupo">🗑️</button>
 </div>
 </template>
 <template x-if="row.tipo === 'individual'">
-<div class="flex gap-1 justify-center">
-<button @click.stop="openDetailModal(row.comanda)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Ver comanda">👁</button>
-<button @click.stop="openEditModal(row.comanda)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Editar comanda">✏️</button>
-<button @click.stop="imprimirComanda(row.comanda, row)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Imprimir comanda">🖨️</button>
-<button x-show="!row.comanda?.eliminada" @click.stop="confirmarEliminarComanda(row.comanda)" class="p-1.5 rounded hover:bg-st-pagado/20 transition" title="Eliminar comanda">🗑️</button>
+<div class="flex gap-1.5 justify-center">
+<button @click.stop="openDetailModal(row.comanda)" class="cmd-accion bg-[#2563eb]" title="Ver comanda">👁</button>
+<button @click.stop="openEditModal(row.comanda)" class="cmd-accion bg-[#d97706]" title="Editar comanda">✏️</button>
+<button @click.stop="imprimirComanda(row.comanda, row)" class="cmd-accion bg-[#0f766e]" title="Imprimir comanda">🖨️</button>
+<button x-show="!row.comanda?.eliminada" @click.stop="confirmarEliminarComanda(row.comanda)" class="cmd-accion bg-[#dc2626]" title="Eliminar comanda">🗑️</button>
 </div>
 </template>
  </td>
@@ -661,20 +717,20 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span class="text-txt-muted text-xs">↳</span>
  <span class="text-txt-secondary text-sm" :class="comanda.eliminada ? 'line-through' : ''" x-text="etiquetaNumeroTabla(comanda)"></span>
  <span x-show="esComandaPrueba(comanda)" class="text-2xl px-3 py-1 rounded-md bg-[#7C3AED] text-white font-extrabold leading-none whitespace-nowrap align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
- <span x-show="comanda.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none">ANULADO</span>
+ <span x-show="comanda.eliminada" class="etiq-tabla text-[9px] bg-[#b91c1c]">ANULADO</span>
  <span x-show="esComandaReserva(comanda)"
-  class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
+  class="etiq-tabla inline-flex flex-col items-center justify-center bg-[#a21caf] whitespace-nowrap"
   :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comanda) || '—')">
   <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
   <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(comanda)" x-text="sufijoPagoReserva(comanda)"></span>
  </span>
  <span x-show="comandaTieneParaLlevar(comanda)"
-  class="inline-flex flex-col items-center justify-center leading-tight text-[#f87171] whitespace-nowrap"
+  class="etiq-tabla inline-flex flex-col items-center justify-center bg-[#dc2626] whitespace-nowrap"
   title="PARA LLEVAR">
   <span class="text-[9px] font-extrabold tracking-wide">🥡 PARA LLEVAR</span>
  </span>
  <span x-show="comandaTieneExtraLlevar(comanda)"
-  class="inline-flex flex-col items-center justify-center leading-tight text-[#c4b5fd] whitespace-nowrap"
+  class="etiq-tabla inline-flex flex-col items-center justify-center bg-[#6d28d9] whitespace-nowrap"
   title="EXTRA LLEVAR">
   <span class="text-[9px] font-extrabold tracking-wide">EXTRA LLEVAR</span>
  </span>
@@ -689,12 +745,12 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </td>
  <!-- Contador G -->
  <td class="px-3 py-2 text-xs text-center">
- <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+ <span class="badge-g inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-md text-sm tabular-nums"
    x-text="contadorGComanda(comanda)"></span>
  </td>
  <!-- Mozo -->
  <td class="px-3 py-2 text-xs">
- <button type="button" class="text-gold hover:underline text-left" title="Ver registro de platos del mozo"
+ <button type="button" class="etiq-tabla bg-[#0f766e] text-[11px]" title="Ver registro de platos del mozo"
    x-show="comanda.mozo && comanda.mozo !== 'Sin asignar'"
    @click.stop="irARegistroMozo(comanda)" x-text="nombreMozo(comanda)"></button>
  <span x-show="!comanda.mozo || comanda.mozo === 'Sin asignar'" class="text-txt-muted">—</span>
@@ -703,7 +759,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <td class="px-3 py-2 text-xs">
  <div class="flex flex-wrap gap-1">
  <template x-for="chef in (comanda.cocinerosResumen || [])" :key="String(chef.cocineroId || chef.nombre)">
- <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del cocinero"
+ <button type="button" class="etiq-tabla bg-[#1d4ed8] text-[11px]" title="Ver registro de platos del cocinero"
    @click.stop="irARegistroCocinero(chef, comanda)" x-text="chef.nombre"></button>
  </template>
  <span x-show="!(comanda.cocinerosResumen && comanda.cocinerosResumen.length)" class="text-txt-muted">—</span>
@@ -725,7 +781,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <td class="px-3 py-2 text-center">
  <div class="flex flex-wrap gap-1 justify-center">
  <template x-for="chip in contarEstadosPlatosComanda(comanda)" :key="chip.estado">
- <span class="text-[11px] px-2.5 py-1 rounded font-bold whitespace-nowrap"
+ <span class="chip-tabla text-xs px-2.5 py-1 rounded-md whitespace-nowrap"
  :class="claseEstadoPlatoChip(chip.estado)"
  x-text="chip.label + ' ×' + chip.cantidad"></span>
  </template>
@@ -742,10 +798,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </td>
  <!-- Acciones -->
  <td class="px-3 py-2 text-center">
- <div class="flex gap-1 justify-center">
- <button @click.stop="openDetailModal(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Ver detalle">👁</button>
- <button @click.stop="openEditModal(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Editar">✏️</button>
- <button @click.stop="imprimirComanda(comanda, row)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir comanda">🖨️</button>
+ <div class="flex gap-1.5 justify-center">
+ <button @click.stop="openDetailModal(comanda)" class="cmd-accion bg-[#2563eb]" title="Ver detalle">👁</button>
+ <button @click.stop="openEditModal(comanda)" class="cmd-accion bg-[#d97706]" title="Editar">✏️</button>
+ <button @click.stop="imprimirComanda(comanda, row)" class="cmd-accion bg-[#0f766e]" title="Imprimir comanda">🖨️</button>
  </div>
  </td>
  </tr>
@@ -1320,7 +1376,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  <div>
  <p class="text-[#5a5a7a]">Contador G</p>
- <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+ <span class="badge-g inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-md text-sm tabular-nums"
    x-text="contadorGComanda(selectedComanda)"></span>
  </div>
  </div>
@@ -1791,7 +1847,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Contador G</p>
- <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+ <span class="badge-g inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-md text-sm tabular-nums"
    x-text="contadorGFila(selectedGrupo)"></span>
  </div>
  </div>
@@ -2065,7 +2121,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  <div>
  <p class="text-[#5a5a7a]">Contador G</p>
- <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+ <span class="badge-g inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-md text-sm tabular-nums"
    x-text="contadorGComanda(comanda)"></span>
  </div>
  </div>
@@ -3627,11 +3683,11 @@ function comandasApp() {
  kpiTicketsMesa: 0,
  kpiTicketsLlevar: 0,
  presetsPeriodo: [
-  { id: 'hoy', label: 'Hoy' },
-  { id: 'ayer', label: 'Ayer' },
-  { id: '7dias', label: '7 días' },
-  { id: 'todos', label: 'Todos' },
-  { id: 'custom', label: 'Personalizado' },
+  { id: 'hoy', label: 'Hoy', bg: 'bg-[#059669]' },
+  { id: 'ayer', label: 'Ayer', bg: 'bg-[#0f766e]' },
+  { id: '7dias', label: '7 días', bg: 'bg-[#1d4ed8]' },
+  { id: 'todos', label: 'Todos', bg: 'bg-[#475569]' },
+  { id: 'custom', label: 'Personalizado', bg: 'bg-[#7c3aed]' },
  ],
  mozosList: [],
  activeNav: 'comandas',
@@ -6863,19 +6919,19 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  claseEstadoPlatoChip(estado) {
  const e = String(estado || '').toLowerCase();
  const map = {
- pendiente_aprobar: 'bg-black text-white',
- pendiente: 'bg-black text-white',
- pedido: 'bg-black text-[#ffa502]',
- en_espera: 'bg-black text-[#ffa502]',
- recoger: 'bg-black text-[#2ecc71]',
- salio: 'bg-black text-[#c084fc]',
- entregado: 'bg-black text-[#3498db]',
- entregado_auto: 'bg-black text-[#ff4757]',
- pagado: 'bg-black text-[#00d4aa]',
- cancelado: 'bg-black text-[#ff6b6b]',
- completado: 'bg-black text-[#c0c0c0]'
+ pendiente_aprobar: 'bg-[#ea580c]',
+ pendiente: 'bg-[#9a3412]',
+ pedido: 'bg-[#c2410c]',
+ en_espera: 'bg-[#b45309]',
+ recoger: 'bg-[#15803d]',
+ salio: 'bg-[#7e22ce]',
+ entregado: 'bg-[#1d4ed8]',
+ entregado_auto: 'bg-[#be123c]',
+ pagado: 'bg-[#0f766e]',
+ cancelado: 'bg-[#b91c1c]',
+ completado: 'bg-[#4b5563]'
  };
- return map[e] || 'bg-black text-[#c0c0c0]';
+ return map[e] || 'bg-[#4b5563]';
  },
 
  contarEstadosPlatosDeItems(items, comanda) {

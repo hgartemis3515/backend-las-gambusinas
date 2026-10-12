@@ -400,9 +400,22 @@ tailwind.config = {
 
     <!-- Tabla Platos -->
     <div x-show="!loading && repTab === 'Platos'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
-      <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] flex justify-between items-center">
-        <h3 class="font-semibold text-sm">📋 Desglose Detallado de Platos</h3>
-        <span class="text-[10px] text-txt-muted" x-text="(tablaData.platos?.length || 0) + ' platos'"></span>
+      <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] flex justify-between items-center gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <h3 class="font-semibold text-sm">📋 Desglose Detallado de Platos</h3>
+          <button
+            type="button"
+            @click="abrirModalTablaPlatos()"
+            title="Abrir tabla de platos"
+            class="px-3 py-1.5 bg-[#1d4ed8] text-white rounded-lg text-xs font-bold hover:brightness-110 transition inline-flex items-center gap-1.5 shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-3.5 h-3.5" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+              <path d="M3 9h18M3 14h18M9 9v11M15 9v11"></path>
+            </svg>
+            Tabla de platos
+          </button>
+        </div>
+        <span class="text-[10px] text-txt-muted shrink-0" x-text="(tablaData.platos?.length || 0) + ' platos'"></span>
       </div>
       <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
         <table class="w-full text-sm">
