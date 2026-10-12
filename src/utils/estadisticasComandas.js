@@ -23,6 +23,12 @@ function firstPositive(...vals) {
     return 0;
 }
 
+function esComandaPrueba(c) {
+    if (!c) return false;
+    if (c.esPrueba === true) return true;
+    return String(c.pagoOmitido?.motivo || '').trim().toLowerCase() === 'prueba';
+}
+
 /** Precio unitario como comandas.html: catálogo → precio → snapshot → base+extras. 0 no bloquea el fallback. */
 function precioPlatoNum(p) {
     if (!p) return 0;
@@ -39,6 +45,7 @@ function cantidadPlatoNum(p, i, cantidades) {
 }
 
 function montoDesdePlatos(c) {
+    if (esComandaPrueba(c)) return 0;
     return (c?.platos || []).reduce((sum, p, i) => {
         if (!p || p.eliminado || p.anulado) return sum;
         return sum + precioPlatoNum(p) * cantidadPlatoNum(p, i, c.cantidades);
@@ -135,7 +142,7 @@ function factorNetoComanda(c, config) {
  * incluye líneas eliminadas.
  */
 function montoComandaNum(c, config) {
-    if (!c) return 0;
+    if (!c || esComandaPrueba(c)) return 0;
     if (comandaTieneDescuento(c)) {
         const calc = Number(c.totalCalculado);
         if (Number.isFinite(calc) && calc >= 0) return calc;

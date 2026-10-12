@@ -5421,19 +5421,25 @@ this.scheduleRefreshVentasTotales();
 
  normalizarComanda(raw) {
  if (!raw) return null;
+ const esPrueba = this.esComandaPrueba(raw);
 
  const platosNorm = (raw.platos || raw.items || []).map((item, index) => {
  const plato = item.plato || item;
  const cantidad = raw.cantidades?.[index] || item.cantidad || 1;
  const precioCatalogo = Number(plato.precio || item.precio || 0);
- const precioBase = item.precioBase != null ? Number(item.precioBase) : precioCatalogo;
- const extraComplementos = Number(item.extraComplementos) || 0;
+ let precioBase = item.precioBase != null ? Number(item.precioBase) : precioCatalogo;
+ let extraComplementos = Number(item.extraComplementos) || 0;
  const unitSnap = Number(item.precioUnitario);
  const baseExtra = (Number.isFinite(precioBase) && precioBase > 0 ? precioBase : 0) + extraComplementos;
  const precioRaw = (Number.isFinite(unitSnap) && unitSnap > 0)
    ? unitSnap
    : (baseExtra > 0 ? baseExtra : (Number.isFinite(precioCatalogo) && precioCatalogo > 0 ? precioCatalogo : 0));
- const precio = Number.isFinite(precioRaw) ? precioRaw : 0;
+ let precio = Number.isFinite(precioRaw) ? precioRaw : 0;
+ if (esPrueba) {
+   precioBase = 0;
+   extraComplementos = 0;
+   precio = 0;
+ }
  const subtotal = cantidad * precio;
 
         const platoObjectId = plato._id || null;
@@ -5507,12 +5513,23 @@ this.scheduleRefreshVentasTotales();
    }
  }
 
- const factorIgv = this.factorIgvParaComanda(totalActivos, brutoGuardado);
- if (Math.abs(factorIgv - 1) > 0.001) {
+ const factorIgv = esPrueba ? 1 : this.factorIgvParaComanda(totalActivos, brutoGuardado);
+ if (!esPrueba && Math.abs(factorIgv - 1) > 0.001) {
    platosNorm.forEach((p) => {
      p.precio = Number((Number(p.precio) * factorIgv).toFixed(2));
      p.precioUnitario = p.precio;
      p.subtotal = Number((Number(p.subtotal) * factorIgv).toFixed(2));
+   });
+ }
+
+ if (esPrueba) {
+   totalNeto = 0;
+   platosNorm.forEach((p) => {
+     p.precio = 0;
+     p.precioBase = 0;
+     p.precioUnitario = 0;
+     p.extraComplementos = 0;
+     p.subtotal = 0;
    });
  }
 
@@ -5559,9 +5576,9 @@ this.scheduleRefreshVentasTotales();
  clienteNombre: raw.clienteNombre || raw.cliente?.nombre || raw.cliente?.dni || null,
  pedidoId: pedidoId,
  items: platosNorm,
- total: totalNeto,
- totalCalculado: totalNeto,
- totalSinDescuento: Number(brutoMostrar || totalNeto),
+ total: esPrueba ? 0 : totalNeto,
+ totalCalculado: esPrueba ? 0 : totalNeto,
+ totalSinDescuento: esPrueba ? 0 : Number(brutoMostrar || totalNeto),
  estado: raw.status || raw.estado || 'en_espera',
  observaciones: raw.observaciones || '',
  createdAt: raw.createdAt,
@@ -5576,9 +5593,9 @@ this.scheduleRefreshVentasTotales();
  descuentoAplicadoPor: raw.descuentoAplicadoPor || null,
  descuentoAplicadoPorNombre: this.nombrePersona(raw.descuentoAplicadoPor),
  descuentoAplicadoAt: raw.descuentoAplicadoAt || null,
- montoDescuento: (hayEliminados && ptValido && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
+ montoDescuento: esPrueba ? 0 : ((hayEliminados && ptValido && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
    ? Number(Math.max(0, Number(brutoMostrar || 0) - Number(totalNeto || 0)).toFixed(2))
-   : (Number(raw.montoDescuento) || 0),
+   : (Number(raw.montoDescuento) || 0)),
  descuentoMontoFijo: Number(raw.descuentoMontoFijo) || 0,
  origenCreacion: raw.origenCreacion || (raw.createdByDashboard ? 'dashboard' : 'mozos'),
  armadoIniciadoEn: raw.armadoIniciadoEn || null,
@@ -6291,7 +6308,7 @@ mesaNum: grupo.mesaNum,
 mesaObj: grupo.mesaObj, // Objeto mesa completo para nombreCombinado
 comandas: grupo.comandas,
 numComandas: grupo.comandas.length,
-totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
+totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (this.comandaEsEliminada(c) || this.esComandaPrueba(c) ? 0 : this.totalNetoComanda(c)), 0),
 totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
 estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
 mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
@@ -6585,7 +6602,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  mesaObj: row.mesaObj || primera?.mesa || null,
  comandas: list,
  numComandas: list.length,
- totalAgrupado: list.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
+ totalAgrupado: list.reduce((sum, c) => sum + (this.comandaEsEliminada(c) || this.esComandaPrueba(c) ? 0 : this.totalNetoComanda(c)), 0),
  totalPlatos: list.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
  estadoGrupo: this.calcularEstadoGrupo(list),
  mozosUnicos: [...new Set(list.map(c => c.mozo))],
@@ -6657,8 +6674,13 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  get totalVistoTabla() {
   let s = 0;
   for (const row of (this.filteredRows || [])) {
-    if (row.tipo === 'grupo') s += Number(row.totalAgrupado) || 0;
-    else if (!this.comandaEsEliminada(row.comanda)) s += this.totalNetoComanda(row.comanda);
+    if (row.tipo === 'grupo') {
+      if (!this.esFilaPrueba(row) || (row.comandas || []).some((c) => !this.esComandaPrueba(c) && !this.comandaEsEliminada(c))) {
+        s += Number(row.totalAgrupado) || 0;
+      }
+    } else if (!this.comandaEsEliminada(row.comanda) && !this.esComandaPrueba(row.comanda)) {
+      s += this.totalNetoComanda(row.comanda);
+    }
   }
   return Number(s.toFixed(2));
  },
@@ -7704,7 +7726,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    ...grupo,
    comandas,
    numComandas: comandas.length,
-   totalAgrupado: comandas.reduce((sum, c) => sum + (this.comandaEsEliminada(c) ? 0 : this.totalNetoComanda(c)), 0),
+   totalAgrupado: comandas.reduce((sum, c) => sum + (this.comandaEsEliminada(c) || this.esComandaPrueba(c) ? 0 : this.totalNetoComanda(c)), 0),
    totalPlatos: comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
    estadoGrupo: this.calcularEstadoGrupo(comandas),
    mozosUnicos: [...new Set(comandas.map(c => c.mozo).filter(Boolean))],
@@ -8173,6 +8195,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  /** Total a mostrar en tabla: con descuento es neto (bruto − monto), incluido 0. */
  totalNetoComanda(c) {
   if (!c) return 0;
+  if (this.esComandaPrueba(c)) return 0;
   const md = Number(c.montoDescuento) || 0;
   const sin = Number(c.totalSinDescuento) || 0;
   const tc = c.totalCalculado != null && c.totalCalculado !== '' ? Number(c.totalCalculado) : NaN;
