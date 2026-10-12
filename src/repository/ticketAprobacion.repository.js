@@ -162,9 +162,14 @@ function totalesSnapshotAlta(data) {
   const montoDesc = Number(data.montoDescuento) || 0;
   const totalIn = Number(data.total);
   const subIn = Number(data.subtotal);
-  const total = (Number.isFinite(totalIn) && (totalIn > 0 || montoDesc > 0))
-    ? totalIn
-    : suma;
+  let total = (Number.isFinite(totalIn) && totalIn > 0) ? totalIn : suma;
+  if (data.cobroPorCantidad === true && Number.isFinite(totalIn) && totalIn > 0) {
+    total = totalIn;
+  } else if (data.esPrueba === true) {
+    total = Number.isFinite(totalIn) ? totalIn : 0;
+  } else if (suma > 0 && !(total > 0)) {
+    total = montoDesc > suma ? suma : Number(Math.max(0, suma - Math.min(montoDesc, suma)).toFixed(2));
+  }
   const subtotal = (Number.isFinite(subIn) && subIn > 0) ? subIn : suma;
   return { subtotal, total };
 }
@@ -293,6 +298,53 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
     .then((tickets) => adjuntarPendienteCobroTickets(tickets));
 }
 
+async function cerrarPlatosSiSaldoAbonoCompleto(ticket, ts) {
+  const ids = (ticket.comandas || []).map((id) => (id && id._id ? id._id : id)).filter(Boolean);
+  if (!ids.length) return;
+  const comandas = await comandaModel.find({ _id: { $in: ids } });
+  let sumaPendiente = 0;
+  comandas.forEach((c) => {
+    (c.platos || []).forEach((p, i) => {
+      if (!p || p.eliminado || p.anulado) return;
+      if (String(p.estado || '').toLowerCase() === 'pagado') return;
+      const cant = Number(p.cantidad || c.cantidades?.[i] || 1) || 1;
+      const precio = Number(p.precioUnitario ?? p.precio) || 0;
+      sumaPendiente += precio * cant;
+    });
+  });
+  const abonos = await ticketAprobacionModel.find({
+    _id: { $ne: ticket._id },
+    comandas: { $in: ids },
+    cobroPorCantidad: true,
+    estado: 'aprobado',
+    isActive: { $ne: false },
+  }).select('total').lean();
+  const ya = abonos.reduce((s, t) => s + (Number(t.total) || 0), 0);
+  const saldo = Math.max(0, sumaPendiente - ya);
+  if (Number(ticket.total) + 0.009 < saldo) return;
+  for (const comanda of comandas) {
+    let toco = false;
+    (comanda.platos || []).forEach((p) => {
+      if (!p || p.eliminado || p.anulado) return;
+      if (String(p.estado || '').toLowerCase() === 'pagado') return;
+      p.estado = 'pagado';
+      if (!p.tiempos) p.tiempos = {};
+      if (!p.tiempos.pagado) p.tiempos.pagado = ts;
+      toco = true;
+    });
+    if (!toco) continue;
+    const activos = (comanda.platos || []).filter((p) => !p.eliminado && !p.anulado);
+    const todos = activos.length > 0 && activos.every((p) => String(p.estado || '').toLowerCase() === 'pagado');
+    if (todos) {
+      comanda.status = 'pagado';
+      comanda.IsActive = false;
+      comanda.tiempoPagado = comanda.tiempoPagado || ts;
+    }
+    comanda.markModified('platos');
+    await comanda.save();
+  }
+}
+
 /**
  * Aprobar ticket de comanda completa o pago parcial:
  *  1. ticket.estado → 'aprobado'
@@ -398,6 +450,10 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
       }
     }
 
+    if (esAbonoCantidad && !skipLiberarPlatos) {
+      await cerrarPlatosSiSaldoAbonoCompleto(ticket, ts);
+    }
+
   if (alreadyApproved && platosLiberados.length === 0) {
     // Nada pendiente por liberar: devolver estado actual de mesa.
     return {
@@ -465,6 +521,22 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
             error: pedidoErr.message,
             mesaId: ticket.mesa,
           });
+        }
+
+        try {
+          const configuracionRepository = require('./configuracion.repository');
+          const { actualizarEstadoMesa } = require('./mesas.repository');
+          const cfg = await configuracionRepository.obtenerConfiguracion();
+          const plain = cfg && typeof cfg.toObject === 'function' ? cfg.toObject() : cfg;
+          if (plain?.caja?.autoliberarMesas !== false) {
+            await actualizarEstadoMesa(ticket.mesa, 'libre', true);
+            mesaEstadoFinal = 'libre';
+            if (global.emitMesaActualizada) {
+              await global.emitMesaActualizada(ticket.mesa);
+            }
+          }
+        } catch (libErr) {
+          logger.warn('No se pudo autoliberar la mesa tras el pago', { error: libErr.message, mesaId: ticket.mesa });
         }
       } else if (mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
         await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pendiente_aprobar' });

@@ -1485,7 +1485,7 @@ function numMesaComanda(c) {
   return m.nummesa ?? '';
 }
 
-/** Otras comandas del mismo pedido, a la derecha de la mesa: (6, 7) */
+/** Otras comandas del mismo pedido. Se imprimen debajo del número, no junto a la mesa. */
 function sufijoAgrupadasCierre(c, todas) {
   const pid = c?.pedido ? String(c.pedido._id || c.pedido) : '';
   if (!pid) return '';
@@ -1600,10 +1600,11 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       const num = `${base}${base === '' ? '' : letraRevisionTicket(c.revisionTicket)}`;
       const mesaBase = String(numMesaComanda(c) || '—');
       const suf = sufijoAgrupadasCierre(c, universo);
-      const mesa = suf ? `${mesaBase} ${suf}` : mesaBase;
+      const mesa = mesaBase;
       if (anulada) {
         return {
           comandaNumber: num,
+          agrupadas: suf,
           numeroComandaMozo: null,
           mesa,
           mozo: c.mozos?.name || '',
@@ -1621,6 +1622,7 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       const bruto = Number.isFinite(brutoRaw) && brutoRaw > 0 ? brutoRaw : total + desc;
       return {
         comandaNumber: num,
+        agrupadas: suf,
         numeroComandaMozo: c.numeroComandaMozo ?? null,
         mesa,
         mozo: c.mozos?.name || '',

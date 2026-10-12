@@ -20,6 +20,25 @@ const { anotarTicketsDeComanda, parseTicketNumber } = require('../utils/filtroTi
 const { anularTicketDuplicadoEnModelo } = require('../utils/anularTicketDuplicado');
 const { comandaOmiteTicketAlta } = require('../utils/omiteTicketAltaComanda');
 
+const { aplicarDescuentoAVistaTicket } = require('../utils/descuentoTicketSnapshot');
+
+function sanearTotalCeroEnLista(t) {
+  const tipo = t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA';
+  if (!t || t.esPrueba === true || t.cobroPorCantidad === true) {
+    return { ...t, tipo };
+  }
+  const vista = aplicarDescuentoAVistaTicket(t);
+  const total = Number(vista.total);
+  if (!(Number(t.total) > 0) && total > 0 && t._id) {
+    ticketAprobacionModel.updateOne(
+      { _id: t._id },
+      { $set: { total, subtotal: Number(vista.subtotal) || total, totalSinDescuento: Number(vista.totalSinDescuento) || total } }
+    ).catch((e) => logger.warn('No se pudo corregir ticket en 0', { error: e.message }));
+    return { ...t, total, subtotal: Number(vista.subtotal) || total, tipo };
+  }
+  return { ...t, tipo };
+}
+
 /**
  * Obtener lista unificada de tickets pendientes de aprobación:
  *   - Tickets de comandas completas (TicketAprobacion, tipo 'comanda_completa')
@@ -33,10 +52,7 @@ async function obtenerTicketsUnificadosPendientes(fecha) {
 
   // Tickets de comandas completas
   const ticketsComanda = await ticketAprobacionRepository.obtenerTicketsPendientes(fechaQuery);
-  const comandaItems = ticketsComanda.map((t) => ({
-    ...t,
-    tipo: t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA',
-  }));
+  const comandaItems = ticketsComanda.map((t) => sanearTotalCeroEnLista(t));
 
   // Tickets PPA pendientes
   const ticketsPPA = await ticketPagoAdelantadoRepository.obtenerTicketsPendientes(fechaQuery);
@@ -514,6 +530,7 @@ function armarSnapshotYTotales(comanda) {
         pronombre: c.pronombre || '',
       })),
       notaEspecial: p.notaEspecial || '',
+      clienteNombreLinea: typeof p.clienteNombreLinea === 'string' ? (p.clienteNombreLinea.trim() || null) : null,
       precioBase: p.precioBase != null ? p.precioBase : null,
       extraComplementos: p.extraComplementos != null ? p.extraComplementos : 0,
       precioUnitario: p.precioUnitario != null ? p.precioUnitario : precio,
@@ -529,9 +546,9 @@ function armarSnapshotYTotales(comanda) {
   const totalSinDescuento = Number(comanda.totalSinDescuento) > 0
     ? Number(comanda.totalSinDescuento)
     : subtotal;
-  const totalNeto = Number(comanda.totalCalculado) > 0
-    ? Number(Number(comanda.totalCalculado).toFixed(2))
-    : Number(Math.max(0, totalSinDescuento - montoDescuento).toFixed(2));
+  let totalNeto = Number(Math.max(0, subtotal - Math.min(montoDescuento, subtotal)).toFixed(2));
+  if (montoDescuento > subtotal && subtotal > 0 && comanda.esPrueba !== true) totalNeto = subtotal;
+  if (comanda.esPrueba === true) totalNeto = 0;
   return { platosSnapshot, subtotal, montoDescuento, totalSinDescuento, totalNeto };
 }
 
@@ -611,7 +628,7 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
     moneda: 'PEN',
     metodoPago: 'efectivo',
     cliente: comanda.cliente?._id || comanda.cliente || null,
-    clienteNombre: comanda.cliente?.nombre || comanda.clienteNombre || null,
+    clienteNombre: comanda.cliente?.nombre || comanda.clienteNombre || comanda.clienteNombreParaLlevar || null,
     clienteDni: comanda.cliente?.dni || null,
     observaciones: 'Comanda creada — pago pendiente',
     mozoId,
@@ -977,6 +994,7 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
         pronombre: c.pronombre || '',
       })),
       notaEspecial: p.notaEspecial || '',
+      clienteNombreLinea: typeof p.clienteNombreLinea === 'string' ? (p.clienteNombreLinea.trim() || null) : null,
       precioBase: p.precioBase != null ? p.precioBase : null,
       extraComplementos: p.extraComplementos != null ? p.extraComplementos : 0,
       precioUnitario: p.precioUnitario != null ? p.precioUnitario : precio,
@@ -999,9 +1017,9 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
   const totalSinDescuento = Number(comanda.totalSinDescuento) > 0
     ? Number(comanda.totalSinDescuento)
     : subtotal;
-  const totalNeto = Number(comanda.totalCalculado) > 0
-    ? Number(Number(comanda.totalCalculado).toFixed(2))
-    : Number(Math.max(0, totalSinDescuento - montoDescuento).toFixed(2));
+  let totalNeto = Number(Math.max(0, subtotal - Math.min(montoDescuento, subtotal)).toFixed(2));
+  if (montoDescuento > subtotal && subtotal > 0 && comanda.esPrueba !== true) totalNeto = subtotal;
+  if (comanda.esPrueba === true) totalNeto = 0;
 
   const boucher = await boucherModel.findOne({
     isActive: { $ne: false },
@@ -1051,7 +1069,7 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
     montoRecibido: boucher?.montoRecibido ?? null,
     vuelto: boucher?.vuelto ?? null,
     cliente: comanda.cliente?._id || comanda.cliente || null,
-    clienteNombre: comanda.cliente?.nombre || comanda.clienteNombre || null,
+    clienteNombre: comanda.cliente?.nombre || comanda.clienteNombre || comanda.clienteNombreParaLlevar || null,
     clienteDni: comanda.cliente?.dni || null,
     origen: 'pago',
     observaciones: comanda.observaciones || 'Ticket creado desde dashboard (ya aprobado)',
@@ -1273,6 +1291,186 @@ async function forzarPagoGrupoTickets(ticketIds, {
   };
 }
 
+function lineaCobroPendiente(p) {
+  if (!p || p.eliminado || p.anulado) return false;
+  return String(p.estado || '').toLowerCase() !== 'pagado';
+}
+
+function snapshotLineaPago(comanda, p, index) {
+  const cantidad = Number(p.cantidad || comanda.cantidades?.[index] || 1) || 1;
+  const cat = p.plato && typeof p.plato === 'object' ? p.plato : null;
+  const precio = Number(p.precioUnitario ?? p.precio ?? cat?.precio) || 0;
+  const nombreLinea = typeof p.clienteNombreLinea === 'string' ? p.clienteNombreLinea.trim() : '';
+  return {
+    comandaId: comanda._id,
+    comandaNumber: comanda.numeroComandaDia || comanda.comandaNumber,
+    platoLineaId: p._id || null,
+    plato: cat?._id || p.plato || null,
+    nombre: cat?.nombre || p.nombre || 'Plato',
+    precio,
+    cantidad,
+    subtotal: Number((precio * cantidad).toFixed(2)),
+    tipoServicio: p.tipoServicio || 'mesa',
+    clienteNombreLinea: nombreLinea || null,
+    notaEspecial: p.notaEspecial || '',
+  };
+}
+
+function errorPago(mensaje) {
+  const err = new Error(mensaje);
+  err.statusCode = 400;
+  return err;
+}
+
+async function crearPagoEnPartes({
+  comandaIds, modo, monto, platoLineaIds, metodoPago, partes, cobroDirecto, usuario,
+} = {}) {
+  const metodos = ['efectivo', 'digital', 'tarjeta'];
+  const listaPartes = Array.isArray(partes) && partes.length
+    ? partes
+    : [{ modo, monto, platoLineaIds, metodoPago, nombre: '' }];
+
+  const ids = [...new Set((comandaIds || []).map((id) => String(id)))].filter((id) => mongoose.Types.ObjectId.isValid(id));
+  if (!ids.length) throw errorPago('Elige al menos una comanda');
+
+  const comandas = await comandaModel.find({
+    _id: { $in: ids },
+    eliminada: { $ne: true },
+  }).populate('platos.plato', 'nombre precio');
+  if (!comandas.length) {
+    const err = new Error('No hay comandas para cobrar');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const pedidoIds = new Set(comandas.map((c) => String(c.pedido?._id || c.pedido || '')));
+  const mesaIds = new Set(comandas.map((c) => (c.sinMesa ? 'sin' : String(c.mesas?._id || c.mesas || ''))));
+  if (pedidoIds.size > 1) throw errorPago('Las comandas no son de la misma cuenta de la mesa');
+  if (mesaIds.size > 1) throw errorPago('No se puede partir la cuenta de dos mesas');
+
+  const lineas = [];
+  comandas.forEach((c) => {
+    (c.platos || []).forEach((p, i) => {
+      if (!lineaCobroPendiente(p)) return;
+      lineas.push({ ...snapshotLineaPago(c, p, i), estado: String(p.estado || '').toLowerCase() });
+    });
+  });
+  const { pendienteCobroDeComandaPopulada } = require('../utils/saldoPendienteComanda');
+  let saldoBruto = 0;
+  let pudoPendiente = true;
+  comandas.forEach((c) => {
+    const pend = pendienteCobroDeComandaPopulada(c);
+    if (pend == null) pudoPendiente = false;
+    else saldoBruto += pend;
+  });
+  if (!pudoPendiente) {
+    saldoBruto = lineas
+      .filter((l) => l.estado === 'entregado')
+      .reduce((s, l) => s + (Number(l.subtotal) || 0), 0);
+  }
+  saldoBruto = Number(saldoBruto.toFixed(2));
+  const cobrados = await ticketAprobacionModel.find({
+    comandas: { $in: ids },
+    cobroPorCantidad: true,
+    estado: { $in: ['pendiente_aprobacion', 'aprobado'] },
+    isActive: { $ne: false },
+  }).select('total').lean();
+  const ya = Number(cobrados.reduce((s, t) => s + (Number(t.total) || 0), 0).toFixed(2));
+  const saldo = Number(Math.max(0, saldoBruto - ya).toFixed(2));
+  if (!(saldo > 0)) throw errorPago('Estas comandas no tienen saldo pendiente');
+
+  const usadas = new Set();
+  const resueltas = [];
+  listaPartes.forEach((parte, idx) => {
+    const metodo = parte?.metodoPago;
+    if (!metodos.includes(metodo)) throw errorPago(`La parte ${idx + 1} no tiene método de pago`);
+    const modoParte = parte?.modo === 'platos' ? 'platos' : 'monto';
+    let platosTicket = lineas;
+    let total = 0;
+    if (modoParte === 'platos') {
+      const set = new Set((parte.platoLineaIds || []).map((id) => String(id)));
+      platosTicket = lineas.filter((l) => l.platoLineaId && set.has(String(l.platoLineaId)));
+      if (!platosTicket.length) throw errorPago(`La parte ${idx + 1} no tiene platos entregados`);
+      for (const l of platosTicket) {
+        if (l.estado !== 'entregado') throw errorPago('Solo se parten platos ya entregados');
+        const lid = String(l.platoLineaId);
+        if (usadas.has(lid)) throw errorPago('Un plato no puede estar en dos partes');
+        usadas.add(lid);
+      }
+      total = Number(platosTicket.reduce((s, l) => s + (Number(l.subtotal) || 0), 0).toFixed(2));
+    } else {
+      const m = Number(parte.monto);
+      if (!(m > 0)) throw errorPago(`La parte ${idx + 1} no tiene monto`);
+      total = Number(m.toFixed(2));
+    }
+    const nombre = String(parte.nombre || '').trim().slice(0, 60)
+      || platosTicket.map((l) => l.clienteNombreLinea).find(Boolean)
+      || null;
+    resueltas.push({ metodo, modoParte, platosTicket, total, nombre });
+  });
+
+  const sumaPartes = Number(resueltas.reduce((s, p) => s + p.total, 0).toFixed(2));
+  if (Math.abs(sumaPartes - saldo) > 0.01) {
+    throw errorPago(`Las partes suman ${sumaPartes.toFixed(2)} y el saldo es ${saldo.toFixed(2)}`);
+  }
+
+  const primera = comandas[0];
+  const mesaId = primera.mesas?._id || primera.mesas;
+  const tickets = [];
+  for (let i = 0; i < resueltas.length; i += 1) {
+    const parte = resueltas[i];
+    const cobroPorCantidad = parte.modoParte === 'monto';
+    const previas = Number(resueltas.slice(0, i).reduce((s, p) => s + p.total, 0).toFixed(2));
+    const saldoDespues = Number(Math.max(0, saldo - previas - parte.total).toFixed(2));
+    const ticket = await ticketAprobacionRepository.crearTicketAprobacion({
+      tipo: 'pago_parcial',
+      estado: 'pendiente_aprobacion',
+      origen: 'pago',
+      cobroPorCantidad,
+      esPrueba: false,
+      comandas: comandas.map((c) => c._id),
+      comandasNumbers: comandas.map((c) => c.numeroComandaDia || c.comandaNumber).filter((n) => n != null),
+      mesa: mesaId || undefined,
+      numMesa: primera.mesaNumero,
+      sinMesa: primera.sinMesa === true,
+      mozo: primera.mozos,
+      nombreMozo: primera.mozoNombre || 'N/A',
+      mozoNombre: primera.mozoNombre || 'N/A',
+      pedido: primera.pedido || null,
+      platos: parte.platosTicket,
+      subtotal: parte.total,
+      igv: 0,
+      total: parte.total,
+      totalSinDescuento: parte.total,
+      montoDescuento: 0,
+      metodoPago: parte.metodo,
+      clienteNombre: parte.nombre,
+      observaciones: `Parte ${i + 1} de ${resueltas.length} de la mesa. Saldo después: ${saldoDespues.toFixed(2)}`,
+      sourceApp: 'cocina',
+    });
+    tickets.push(ticket);
+  }
+
+  const { intentarCobroDirectoComanda } = require('./cobroDirectoCaja.service');
+  const directos = [];
+  for (const ticket of tickets) {
+    const cobro = await intentarCobroDirectoComanda(ticket, {
+      usuario,
+      cobroDirectoCaja: cobroDirecto === true,
+    });
+    directos.push(cobro.aplicado === true);
+  }
+
+  return {
+    tickets,
+    ticket: tickets[0],
+    saldo,
+    saldoDespues: 0,
+    total: sumaPartes,
+    cobroDirectoAplicado: directos.every(Boolean),
+  };
+}
+
 module.exports = {
   obtenerTicketsUnificadosPendientes,
   totalPendienteCobroMozo,
@@ -1285,6 +1483,8 @@ module.exports = {
   crearTicketPendienteDesdeComanda,
   forzarPagoTicketComanda,
   forzarPagoGrupoTickets,
+  crearPagoEnPartes,
+  sanearTotalCeroEnLista,
   aprobarTicketUnificado,
   actualizarTicketUnificado,
   eliminarTicketUnificado,

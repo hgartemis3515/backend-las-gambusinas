@@ -1369,6 +1369,11 @@ tailwind.config = {
               <input type="checkbox" x-model="config.cajaAutoAprobarCobroCaja" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
               <span class="text-sm text-txt-secondary">Aprobar automáticamente el ticket al cobrar caja</span>
             </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.cajaAutoliberarMesas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Liberar la mesa automáticamente al quedar pagada</span>
+            </label>
+            <p class="text-[11px] text-txt-muted pl-7">Después de cobrar en la tabla de tickets o con cobro directo desde mozos, la mesa pasa a libre sin el botón Liberar. Marcado por defecto.</p>
           </div>
         </div>
 
@@ -1963,6 +1968,7 @@ function configApp() {
       },
       cajaCobroDirectoMozos: true,
       cajaAutoAprobarCobroCaja: true,
+      cajaAutoliberarMesas: true,
       // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde App Mozos
       reservas: {
         permitirReservas: true,
@@ -2538,6 +2544,7 @@ function configApp() {
           }
           this.config.cajaCobroDirectoMozos = cfg.caja?.cobroDirectoMozos !== false;
           this.config.cajaAutoAprobarCobroCaja = cfg.caja?.autoAprobarCobroCaja !== false;
+          this.config.cajaAutoliberarMesas = cfg.caja?.autoliberarMesas !== false;
 
           // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloque reservas (merge sobre defaults)
           if (cfg.reservas) {
@@ -2738,7 +2745,8 @@ function configApp() {
           },
           caja: {
             cobroDirectoMozos: this.config.cajaCobroDirectoMozos !== false,
-            autoAprobarCobroCaja: this.config.cajaAutoAprobarCobroCaja !== false
+            autoAprobarCobroCaja: this.config.cajaAutoAprobarCobroCaja !== false,
+            autoliberarMesas: this.config.cajaAutoliberarMesas !== false
           },
 
           // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloque reservas

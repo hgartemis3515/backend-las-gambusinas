@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const { 
   listarComanda, 
   agregarComanda, 
+  moverComandasAMesa,
   eliminarComanda, 
   eliminarLogicamente,
   anularTicketsPendientesComanda,
@@ -2274,6 +2275,18 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
     }
 });
 
+router.put('/comanda/mover-mesa', async (req, res) => {
+    try {
+        const { comandaIds, mesaDestinoId } = req.body || {};
+        const resultado = await moverComandasAMesa(comandaIds, mesaDestinoId);
+        res.json({ success: true, ...resultado });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        logger.error('Error al mover comandas de mesa', { error: error.message });
+        res.status(statusCode).json({ success: false, message: error.message });
+    }
+});
+
 router.put("/comanda/:id", async (req, res) => {
     const { id } = req.params;
     const newData = req.body;
@@ -2549,6 +2562,32 @@ router.put('/comanda/platos/estado-lote', async (req, res) => {
         }
     }
     return res.json({ success: true, resultados });
+});
+
+router.put('/comanda/:id/plato/:platoId/cliente-nombre', async (req, res) => {
+    try {
+        const { id, platoId } = req.params;
+        const nombre = typeof req.body?.clienteNombreLinea === 'string'
+            ? req.body.clienteNombreLinea.trim().slice(0, 60)
+            : '';
+        const comanda = await mongoose.model('Comanda').findById(id);
+        if (!comanda || comanda.eliminada === true) {
+            return res.status(404).json({ success: false, message: 'Comanda no encontrada' });
+        }
+        const est = String(comanda.status || '').toLowerCase();
+        if (est === 'pagado' || est === 'cancelado') {
+            return res.status(400).json({ success: false, message: 'Esta comanda ya no se edita' });
+        }
+        const plato = (comanda.platos || []).find((p) => p && String(p._id) === String(platoId));
+        if (!plato) return res.status(404).json({ success: false, message: 'Plato no encontrado' });
+        plato.clienteNombreLinea = nombre || null;
+        comanda.markModified('platos');
+        await comanda.save();
+        res.json({ success: true, clienteNombreLinea: plato.clienteNombreLinea });
+    } catch (error) {
+        logger.error('Error al guardar nombre de cliente del plato', { error: error.message });
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {

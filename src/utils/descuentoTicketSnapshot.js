@@ -111,9 +111,13 @@ function resolverBrutoYNeto(doc, extraSubtotal = 0) {
       doc?.subtotal,
       Number.isFinite(tot) && tot > 0 && !(montoDesc > 0) ? tot : 0
     ) || (Number.isFinite(tot) && tot > 0 ? tot : 0));
-  const neto = montoDesc > 0
+  let neto = montoDesc > 0
     ? Number(Math.max(0, bruto - montoDesc).toFixed(2))
     : (haySnapshot ? bruto : (Number.isFinite(tot) && tot > 0 ? tot : bruto));
+  const esPrueba = doc?.esPrueba === true;
+  if (!esPrueba && doc?.cobroPorCantidad !== true && bruto > 0 && neto === 0 && montoDesc > bruto) {
+    neto = bruto;
+  }
   return { bruto, neto, montoDesc };
 }
 

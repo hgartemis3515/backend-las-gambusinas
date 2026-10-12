@@ -84,10 +84,19 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
     <th style="${thCentro}width:18%;">Total</th>
   </tr></thead><tbody>`;
 
+  const celdaCmd = (c, tachado) => {
+    const n = escapeHtml(c.comandaNumber ?? '');
+    const grupo = c.agrupadas
+      ? `<div style="font-size:${px(8)}px;font-weight:700;line-height:1.15;">${escapeHtml(c.agrupadas)}</div>`
+      : '';
+    const num = tachado ? `<s>${n}</s>` : n;
+    return `<td style="padding:1px 0;vertical-align:top;">${num}${grupo}</td>`;
+  };
+
   for (const c of lineas) {
     if (c.anulada) {
       html += `<tr>
-        <td style="padding:1px 0;vertical-align:top;"><s>${escapeHtml(c.comandaNumber ?? '')}</s></td>
+        ${celdaCmd(c, true)}
         <td style="${tdMesa}">${escapeHtml(c.mesa || '—')}</td>
         <td style="${tdCentro}font-weight:700;white-space:normal;">${escapeHtml(c.eliminadoPorNombre || '—')}</td>
         <td style="${tdCentro}">—</td>
@@ -99,7 +108,7 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
     const desc = Number(c.descuento) || 0;
     const tot = Number(c.total) || 0;
     html += `<tr>
-      <td style="padding:1px 0;vertical-align:top;">${escapeHtml(c.comandaNumber ?? '')}</td>
+      ${celdaCmd(c, false)}
       <td style="${tdMesa}">${escapeHtml(c.mesa || '—')}</td>
       <td style="${tdCentro}">${money(subt)}</td>
       <td style="${tdCentro}">${desc > 0 ? '-' + money(desc) : '—'}</td>

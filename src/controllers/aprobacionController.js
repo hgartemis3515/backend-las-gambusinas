@@ -24,6 +24,7 @@ const { NOMBRE_CLIENTE_FALLBACK } = require('../constants/clienteDefaults');
 const labelMetodoPago = require('../services/boucherPagoService').labelMetodoPago;
 const logger = require('../utils/logger');
 const { adminAuth, checkRole } = require('../middleware/adminAuth');
+const { authMozoOpcional } = require('../middleware/authMozoOpcional');
 const rolesTablaTickets = [adminAuth, checkRole(['admin', 'supervisor', 'cajero'])];
 const {
   resolverComandasNumbers,
@@ -284,11 +285,9 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
     const ticketsPPA = await ticketPagoAdelantadoRepository.obtenerTicketsPorFecha(rango.desde, rango.hasta);
 
     const { ticketSigueVigenteParaCierre } = require('../utils/estadisticasComandas');
+    const { sanearTotalCeroEnLista } = aprobacionService;
     const tickets = [
-      ...ticketsComanda.map((t) => ({
-        ...t,
-        tipo: t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA',
-      })),
+      ...ticketsComanda.map((t) => sanearTotalCeroEnLista(t)),
       ...ticketsPPA.map((t) => ({ ...t, tipo: 'ADELANTADO' })),
     ]
       .filter(ticketSigueVigenteParaCierre)
@@ -368,6 +367,68 @@ async function emitirTrasForzarPago(result) {
     logger.warn('Error emitiendo PPA tras forzar pago', { error: e.message });
   }
 }
+
+/**
+ * POST /api/aprobacion/pago-en-partes
+ * Una tanda: todas las partes de la mesa. También acepta una sola parte (modo/monto/platoLineaIds).
+ */
+router.post('/aprobacion/pago-en-partes', authMozoOpcional, async (req, res) => {
+  try {
+    const rol = String(req.usuario?.rol || '').toLowerCase();
+    if (!req.usuario || !['admin', 'supervisor', 'cajero', 'mozo'].includes(rol)) {
+      return res.status(403).json({ success: false, message: 'No autorizado para partir la cuenta' });
+    }
+    const body = req.body || {};
+    const resultado = await aprobacionService.crearPagoEnPartes({
+      comandaIds: body.comandaIds,
+      modo: body.modo,
+      monto: body.monto,
+      platoLineaIds: body.platoLineaIds,
+      metodoPago: body.metodoPago,
+      partes: body.partes,
+      cobroDirecto: body.cobroDirecto === true,
+      usuario: {
+        _id: req.usuario._id || req.usuario.id,
+        name: req.usuario.name,
+        rol: req.usuario.rol,
+      },
+    });
+    res.status(201).json({ success: true, ...resultado });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    logger.error('Error al crear pago en partes', { error: error.message });
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/aprobacion/comandas-imprimibles?desde&hasta
+ * Comandas del período, incluidas las eliminadas, para el ticket de caja.
+ */
+router.get('/aprobacion/comandas-imprimibles', ...rolesTablaTickets, async (req, res) => {
+  try {
+    const rango = resolverRangoFechas(req.query.desde, req.query.hasta || req.query.desde);
+    if (!rango) return res.status(400).json({ success: false, message: 'Fecha inválida' });
+    const lista = await comandaModel.find({
+      createdAt: { $gte: rango.desde, $lte: rango.hasta },
+    })
+      .select('numeroComandaDia comandaNumber mesaNumero mozoNombre clienteNombre clienteNombreParaLlevar eliminada sinMesa status')
+      .sort({ numeroComandaDia: 1, comandaNumber: 1 })
+      .lean();
+    const comandas = lista.map((c) => ({
+      _id: c._id,
+      numero: c.numeroComandaDia || c.comandaNumber,
+      mesa: c.sinMesa ? 'Sin mesa' : (c.mesaNumero != null ? `M${c.mesaNumero}` : ''),
+      mozo: c.mozoNombre || '',
+      clienteNombre: c.clienteNombre || c.clienteNombreParaLlevar || '',
+      eliminada: c.eliminada === true,
+    }));
+    res.json({ success: true, comandas });
+  } catch (error) {
+    logger.error('Error al listar comandas imprimibles', { error: error.message });
+    res.status(500).json({ success: false, message: 'Error al listar comandas' });
+  }
+});
 
 /**
  * PUT /api/aprobacion/grupo/forzar-pago

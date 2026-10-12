@@ -1281,6 +1281,20 @@ const agregarComanda = async (data) => {
   }
   data.esPrueba = esPruebaSolicitada;
 
+  const recortarNombreCliente = (v) => {
+    if (typeof v !== 'string') return null;
+    const t = v.trim().slice(0, 60);
+    return t || null;
+  };
+  const nombreClienteAlta = recortarNombreCliente(data.clienteNombre) || recortarNombreCliente(data.clienteNombreParaLlevar);
+  data.clienteNombre = nombreClienteAlta;
+  data.clienteNombreParaLlevar = nombreClienteAlta;
+  if (Array.isArray(data.platos)) {
+    data.platos.forEach((p) => {
+      if (p) p.clienteNombreLinea = recortarNombreCliente(p.clienteNombreLinea);
+    });
+  }
+
   // ========== OBTENER DATOS DESNORMALIZADOS ==========
   // Obtener mozoNombre, mesaNumero, areaNombre para guardar en el documento
   const datosDesnormalizados = await obtenerDatosDesnormalizados(data.mesas, data.mozos);
@@ -5769,9 +5783,99 @@ const separarCantidadLineaPlato = async (comandaId, platoId, cantidadEntregar) =
   };
 };
 
+const moverComandasAMesa = async (comandaIds, mesaDestinoId) => {
+  const ids = [...new Set((comandaIds || []).map((id) => String(id)))].filter((id) => /^[a-f0-9]{24}$/i.test(id));
+  if (!ids.length) {
+    const err = new Error('Elige al menos una comanda');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!/^[a-f0-9]{24}$/i.test(String(mesaDestinoId || ''))) {
+    const err = new Error('Mesa destino inválida');
+    err.statusCode = 400;
+    throw err;
+  }
+  const mesa = await mesasModel.findById(mesaDestinoId);
+  if (!mesa) {
+    const err = new Error('Mesa destino no encontrada');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (mesa.especial === true && mesa.usoEspecial && mesa.usoEspecial.bloqueada === true) {
+    const err = new Error('La mesa destino está bloqueada. Un administrador debe autorizarla.');
+    err.statusCode = 400;
+    throw err;
+  }
+  const comandas = await comandaModel.find({ _id: { $in: ids } });
+  if (comandas.length !== ids.length) {
+    const err = new Error('Alguna comanda no existe');
+    err.statusCode = 404;
+    throw err;
+  }
+  for (const c of comandas) {
+    const est = String(c.status || '').toLowerCase();
+    if (c.eliminada === true || est === 'pagado' || est === 'cancelado' || est === 'completado') {
+      const err = new Error('No se mueve una comanda pagada, cancelada o eliminada');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+  const mesasOrigen = [...new Set(comandas.map((c) => (c.mesas ? String(c.mesas) : '')).filter(Boolean))];
+  const pedido = await pedidoModel.obtenerOcrearPedidoAbierto(mesa._id, comandas[0].mozos, {
+    numMesa: mesa.nummesa,
+    nombreMozo: comandas[0].mozoNombre || 'Sin asignar',
+  });
+  const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
+  for (const c of comandas) {
+    if (c.pedido && String(c.pedido) !== String(pedido._id)) {
+      await pedidoModel.updateOne(
+        { _id: c.pedido },
+        { $pull: { comandas: c._id, comandasNumbers: c.comandaNumber } }
+      );
+    }
+    c.mesas = mesa._id;
+    c.sinMesa = false;
+    c.mesaNumero = mesa.nummesa;
+    c.pedido = pedido._id;
+    await c.save();
+    if (!Array.isArray(pedido.comandas)) pedido.comandas = [];
+    if (!pedido.comandas.some((id) => String(id) === String(c._id))) {
+      pedido.comandas.push(c._id);
+      if (!Array.isArray(pedido.comandasNumbers)) pedido.comandasNumbers = [];
+      pedido.comandasNumbers.push(c.comandaNumber);
+    }
+    await ticketAprobacionModel.updateMany(
+      { comandas: c._id, estado: 'pendiente_aprobacion', isActive: { $ne: false } },
+      { $set: { mesa: mesa._id, numMesa: mesa.nummesa, sinMesa: false } }
+    );
+  }
+  await pedido.save();
+  for (const mid of [...mesasOrigen, String(mesa._id)]) {
+    if (mid) await recalcularEstadoMesa(mid);
+  }
+  const emitMesa = (mesaId, comandaId) => {
+    if (!global.io || !mesaId) return;
+    const payload = { comandaId, mesaId: String(mesa._id), movida: true };
+    try {
+      global.io.to(`mesa-${mesaId}`).emit('comanda-actualizada', payload);
+      global.io.of('/mozos').to(`mesa-${mesaId}`).emit('comanda-actualizada', payload);
+      global.io.of('/cocina').to(`mesa-${mesaId}`).emit('comanda-actualizada', payload);
+      global.io.of('/admin').to(`mesa-${mesaId}`).emit('comanda-actualizada', payload);
+    } catch (e) {
+      logger.warn('No se pudo emitir cambio de mesa', { error: e.message });
+    }
+  };
+  comandas.forEach((c) => {
+    mesasOrigen.forEach((mid) => emitMesa(mid, c._id));
+    emitMesa(String(mesa._id), c._id);
+  });
+  return { movidas: comandas.length, mesaDestino: mesa.nummesa, pedidoId: pedido._id };
+};
+
 module.exports = { 
   listarComanda, 
   agregarComanda, 
+  moverComandasAMesa,
   eliminarComanda, 
   eliminarLogicamente,
   anularTicketsPendientesComanda,

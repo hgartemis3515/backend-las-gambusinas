@@ -210,7 +210,8 @@ const CONFIGURACION_DEFAULT = {
     // Cobro directo del rol caja desde la app de mozos.
     caja: {
         cobroDirectoMozos: true,
-        autoAprobarCobroCaja: true
+        autoAprobarCobroCaja: true,
+        autoliberarMesas: true
     },
 
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: configuración de reservas desde App Mozos.
@@ -715,6 +716,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         autoAprobarCobroCaja: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.caja.autoAprobarCobroCaja
+        },
+        autoliberarMesas: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.caja.autoliberarMesas
         }
     },
 

@@ -138,6 +138,8 @@ const comandaSchema = new mongoose.Schema({
         },
         // Nota especial para este plato (ej: "Sin sal, extra limón")
         notaEspecial: { type: String, default: '' },
+        clienteNombreLinea: { type: String, default: null, trim: true, maxlength: 60 },
+        clienteNombreLinea: { type: String, default: null, trim: true, maxlength: 60 },
         // Tipo de servicio del plato: 'mesa' | 'para_llevar' | 'extra_llevar'
         // extra_llevar: para llevar sobre comanda de mesa, sin PPA; KDS "EXTRA CLIENTE".
         // Comandas antiguas sin este campo se interpretan como 'mesa'.
@@ -814,9 +816,21 @@ comandaSchema.pre('save', async function (next) {
             const { asignarNumeroMozoEnDoc } = require('../../utils/numeroComandaMozo');
             await asignarNumeroMozoEnDoc(this);
         }
-        if (typeof this.clienteNombreParaLlevar === 'string') {
-            const nombre = this.clienteNombreParaLlevar.trim();
-            this.clienteNombreParaLlevar = nombre || null;
+        const recortarNombreCliente = (v) => {
+            if (typeof v !== 'string') return null;
+            const t = v.trim().slice(0, 60);
+            return t || null;
+        };
+        if (this.isNew || this.isModified('clienteNombre') || this.isModified('clienteNombreParaLlevar')) {
+            const nombre = recortarNombreCliente(this.clienteNombre) || recortarNombreCliente(this.clienteNombreParaLlevar);
+            this.clienteNombre = nombre;
+            this.clienteNombreParaLlevar = nombre;
+        }
+        if (this.isModified('platos') && Array.isArray(this.platos)) {
+            this.platos.forEach((p) => {
+                if (!p) return;
+                p.clienteNombreLinea = recortarNombreCliente(p.clienteNombreLinea);
+            });
         }
         if (this.isNew && this.numeroTicketCliente == null) {
             const { asignarTicketClienteEnDoc } = require('../../utils/numeroTicketCliente');

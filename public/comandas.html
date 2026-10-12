@@ -25,7 +25,7 @@
 <script src="/socket.io/socket.io.js"></script>
  <script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
  <script type="module" src="/js/comanda-print/imprimirTicketsEpos.js"></script>
- <script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261008d"></script>
+ <script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261012a"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -534,6 +534,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 <template x-if="row.tipo === 'individual'">
 <div class="flex items-center gap-1.5 whitespace-nowrap">
   <span class="font-medium text-sm" :class="row.comanda?.eliminada ? 'line-through text-txt-muted' : ''" x-text="etiquetaNumeroTabla(row.comanda)"></span>
+  <span x-show="row.comanda?.clienteNombre || row.comanda?.clienteNombreParaLlevar" class="etiq-tabla text-[10px] bg-[#6d28d9]" x-text="row.comanda?.clienteNombre || row.comanda?.clienteNombreParaLlevar"></span>
   <span x-show="esComandaPrueba(row.comanda)" class="text-2xl px-3 py-1 rounded-md bg-[#7C3AED] text-white font-extrabold leading-none whitespace-nowrap align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
   <span x-show="row.comanda?.eliminada" class="etiq-tabla text-[9px] bg-[#b91c1c]">ANULADO</span>
   <span x-show="row.comanda?.omitirPago" class="etiq-tabla text-[9px] bg-[#be123c] text-base" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
@@ -716,6 +717,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center gap-1.5 whitespace-nowrap">
  <span class="text-txt-muted text-xs">↳</span>
  <span class="text-txt-secondary text-sm" :class="comanda.eliminada ? 'line-through' : ''" x-text="etiquetaNumeroTabla(comanda)"></span>
+ <span x-show="comanda.clienteNombre || comanda.clienteNombreParaLlevar" class="etiq-tabla text-[10px] bg-[#6d28d9]" x-text="comanda.clienteNombre || comanda.clienteNombreParaLlevar"></span>
  <span x-show="esComandaPrueba(comanda)" class="text-2xl px-3 py-1 rounded-md bg-[#7C3AED] text-white font-extrabold leading-none whitespace-nowrap align-middle" title="Comanda de prueba (monto 0)">PRUEBA</span>
  <span x-show="comanda.eliminada" class="etiq-tabla text-[9px] bg-[#b91c1c]">ANULADO</span>
  <span x-show="esComandaReserva(comanda)"
@@ -2443,6 +2445,29 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-text="formatearNombreMesa(editComanda?.mesa)"></span>
  <template x-if="tieneMozoAsignado(editComanda)"><span> — <span x-text="nombreMozo(editComanda)"></span></span></template>
  </p>
+ <div class="mt-3 p-3 rounded-xl bg-[#1e1b4b] border border-white/20" x-show="editComanda?._id && editComanda?.estado !== 'pagado' && editComanda?.estado !== 'cancelado' && !editComanda?.eliminada">
+  <p class="text-xs font-bold text-white mb-2">Mover de mesa</p>
+  <p class="text-[11px] text-white/80 mb-2">Marca esta comanda y, si quieres, otras del mismo grupo. Viajan juntas a la mesa destino.</p>
+  <div class="flex flex-wrap gap-1.5 mb-2">
+   <template x-for="c in comandasDelGrupoEdit()" :key="'mv-'+c._id">
+    <label class="filtro-solido text-[11px] px-2 py-1 rounded cursor-pointer bg-[#4338ca]" :class="moverIds.includes(String(c._id)) ? 'filtro-on' : ''">
+     <input type="checkbox" class="mr-1" :checked="moverIds.includes(String(c._id))" @change="toggleMoverId(c._id)">
+     <span x-text="etiquetaNumeroTabla(c)"></span>
+    </label>
+   </template>
+  </div>
+  <div class="flex flex-wrap gap-2 items-center">
+   <select x-model="mesaDestinoMover" class="filtro-campo border-[#3b82f6] rounded-lg px-3 py-2 text-sm min-w-[140px]">
+    <option value="">Mesa destino</option>
+    <template x-for="m in mesasParaMover" :key="'md-'+m._id">
+     <option :value="m._id" x-text="m.nombreMesa || ('M' + (m.nummesa ?? ''))"></option>
+    </template>
+   </select>
+   <button type="button" @click="moverComandasEdit()" class="filtro-solido px-3 py-2 rounded-lg text-xs bg-[#15803d]">
+    <span x-text="moverIds.length > 1 ? ('Mover ' + moverIds.length + ' comandas') : 'Mover esta comanda'"></span>
+   </button>
+  </div>
+ </div>
  </div>
  <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
  </div>
@@ -3609,6 +3634,9 @@ function comandasApp() {
  selectedGrupo: null,
  editGrupo: null,
  editComanda: { _id: null, estado: '', observaciones: '', numComanda: null, mesa: null, mozo: null, version: 1 },
+ mesasParaMover: [],
+ moverIds: [],
+ mesaDestinoMover: '',
  editPlatos: [],
 
  comandaTickets: [],
@@ -6436,6 +6464,20 @@ if (pedidoId) {
 }
 });
 
+const nombreClienteDe = (c) => c?.clienteNombre || c?.clienteNombreParaLlevar || c?.cliente?.nombre || '';
+gruposPedido.forEach((g) => {
+  if (!g.clienteNombre) {
+    const n = (g.comandas || []).map(nombreClienteDe).find(Boolean);
+    if (n) g.clienteNombre = n;
+  }
+});
+gruposCliente.forEach((g) => {
+  if (!g.clienteNombre || g.clienteNombre === 'Cliente') {
+    const n = (g.comandas || []).map(nombreClienteDe).find(Boolean);
+    if (n) g.clienteNombre = n;
+  }
+});
+
 // Función para convertir un grupo a fila
 const crearFilaGrupo = (grupo, key) => ({
 tipo: 'grupo',
@@ -7734,6 +7776,57 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  this.editPlatos = detalle.items.map(item => this.mapEditPlatoFromItem(item));
  await this.loadComandaTickets(comandaId);
+ this.moverIds = [String(detalle._id)];
+ this.mesaDestinoMover = '';
+ this.cargarMesasParaMover();
+ },
+
+ comandasDelGrupoEdit() {
+  const id = String(this.editComanda?._id || '');
+  const grupo = (this.filteredRows || []).find((r) => r.tipo === 'grupo' && (r.comandas || []).some((c) => String(c._id) === id));
+  if (grupo && grupo.comandas?.length) return grupo.comandas;
+  return this.editComanda?._id ? [this.editComanda] : [];
+ },
+
+ toggleMoverId(id) {
+  const key = String(id);
+  if (this.moverIds.includes(key)) this.moverIds = this.moverIds.filter((x) => x !== key);
+  else this.moverIds = [...this.moverIds, key];
+ },
+
+ async cargarMesasParaMover() {
+  try {
+   const res = await fetch('/api/mesas', { headers: { Authorization: 'Bearer ' + getToken() } });
+   if (res.ok) {
+    const data = await res.json();
+    this.mesasParaMover = Array.isArray(data) ? data : (data.mesas || []);
+   }
+  } catch (e) {}
+ },
+
+ async moverComandasEdit() {
+  const ids = this.moverIds.length ? this.moverIds : (this.editComanda?._id ? [String(this.editComanda._id)] : []);
+  if (!ids.length || !this.mesaDestinoMover) {
+   this.showToast('Elige comandas y mesa destino', 'error');
+   return;
+  }
+  try {
+   const res = await fetch('/api/comanda/mover-mesa', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
+    body: JSON.stringify({ comandaIds: ids, mesaDestinoId: this.mesaDestinoMover }),
+   });
+   const data = await res.json().catch(() => ({}));
+   if (!res.ok) {
+    this.showToast(data.message || 'No se pudo mover', 'error');
+    return;
+   }
+   this.showToast(ids.length > 1 ? ('Movidas ' + ids.length + ' comandas') : 'Comanda movida', 'success');
+   this.modal = null;
+   await this.loadComandas();
+  } catch (e) {
+   this.showToast('No se pudo mover', 'error');
+  }
  },
 
  openEditModalFromDetail() {
