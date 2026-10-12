@@ -764,13 +764,14 @@ function auditoriaApp() {
         url += '?' + q.toString();
       }
       let data = await apiGet(url);
+      const reporteFallo = !!(data && data.error && !data.auditorias);
 
       let raw = [];
       if (data && data.auditorias) raw = data.auditorias;
       else if (data && Array.isArray(data)) raw = data;
 
       // Si no hay datos, intentar con /auditoria/comandas
-      if (raw.length === 0) {
+      if (raw.length === 0 && !reporteFallo) {
         const data2 = await apiGet('/auditoria/comandas');
         if (data2 && data2.auditorias) raw = data2.auditorias;
         else if (data2 && Array.isArray(data2)) raw = data2;
@@ -807,8 +808,13 @@ function auditoriaApp() {
     },
 
     async hidratarNumerosComanda() {
-      const ids = [...new Set(this.registros.map((r) => this.idComandaAuditoria(r)).filter(Boolean))];
-      const faltan = ids.filter((id) => !this.mapaNumeros[id]);
+      const ids = [];
+      this.registros.forEach((r) => {
+        if (r.comandaVista) return;
+        const id = this.idComandaAuditoria(r);
+        if (id && !this.mapaNumeros[id] && !ids.includes(id)) ids.push(id);
+      });
+      const faltan = ids;
       const mapa = { ...this.mapaNumeros };
       const lote = 8;
       for (let i = 0; i < faltan.length; i += lote) {

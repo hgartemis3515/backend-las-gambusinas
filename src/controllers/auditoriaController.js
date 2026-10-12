@@ -10,8 +10,13 @@ const moment = require('moment-timezone');
 function oidComanda(v) {
   if (v == null || v === '') return null;
   if (typeof v === 'object') {
-    if (v._id) return oidComanda(v._id);
+    if (v._bsontype === 'ObjectId' || v._id === v) {
+      const hex = String(v);
+      return /^[a-f0-9]{24}$/i.test(hex) ? hex : null;
+    }
     if (v.$oid) return oidComanda(v.$oid);
+    if (v._id) return oidComanda(v._id);
+    return null;
   }
   const s = String(v);
   return /^[a-f0-9]{24}$/i.test(s) ? s : null;
@@ -24,7 +29,7 @@ function idsComandaAuditoria(a) {
     const id = oidComanda(v);
     if (id && !ids.includes(id)) ids.push(id);
   };
-  push(a?.entidadId);
+  if (!a?.entidadTipo || a.entidadTipo === 'comanda') push(a?.entidadId);
   push(m.comandaId);
   if (Array.isArray(m.comandasIds)) m.comandasIds.forEach(push);
   if (Array.isArray(m.comandas)) m.comandas.forEach((c) => push(c?._id || c));
