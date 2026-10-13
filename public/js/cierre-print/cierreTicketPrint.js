@@ -86,11 +86,12 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
 
   const celdaCmd = (c, tachado) => {
     const n = escapeHtml(c.comandaNumber ?? '');
-    const grupo = c.agrupadas
-      ? `<div style="font-size:${px(8)}px;font-weight:700;line-height:1.15;">${escapeHtml(c.agrupadas)}</div>`
-      : '';
     const num = tachado ? `<s>${n}</s>` : n;
-    return `<td style="padding:1px 0;vertical-align:top;">${num}${grupo}</td>`;
+    return `<td style="padding:1px 0;vertical-align:top;white-space:nowrap;">${num}</td>`;
+  };
+  const filaGrupo = (c) => {
+    if (!c.agrupadas) return '';
+    return `<tr><td colspan="5" style="padding:0 0 3px 0;font-size:${px(8)}px;font-weight:700;line-height:1.2;text-align:left;white-space:normal;">${escapeHtml(c.agrupadas)}</td></tr>`;
   };
 
   for (const c of lineas) {
@@ -101,7 +102,7 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
         <td style="${tdCentro}font-weight:700;white-space:normal;">${escapeHtml(c.eliminadoPorNombre || '—')}</td>
         <td style="${tdCentro}">—</td>
         <td style="${tdCentro}font-weight:700;">ANULADO</td>
-      </tr>`;
+      </tr>${filaGrupo(c)}`;
       continue;
     }
     const subt = Number(c.bruto ?? c.subtotal) || 0;
@@ -113,7 +114,7 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
       <td style="${tdCentro}">${money(subt)}</td>
       <td style="${tdCentro}">${desc > 0 ? '-' + money(desc) : '—'}</td>
       <td style="${tdCentro}font-weight:600;">${money(tot)}</td>
-    </tr>`;
+    </tr>${filaGrupo(c)}`;
   }
   html += `</tbody></table>`;
   html += divider(8);
@@ -125,7 +126,8 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
   html += `</div>`;
   html += `<div style="text-align:center;font-size:${px(9)}px;margin-top:8px;">${lineas.length} comanda${lineas.length === 1 ? '' : 's'}</div>`;
 
-  const pageHeightPx = px(280 + lineas.length * 18 + 80);
+  const grupos = lineas.filter((c) => c.agrupadas).length;
+  const pageHeightPx = px(280 + lineas.length * 18 + grupos * 16 + 80);
   return envolverHtmlBoucherTicket(html, {
     fontSizeBase: fontSize,
     lineHeightBase: px(14),

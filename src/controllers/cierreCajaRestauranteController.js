@@ -1485,7 +1485,7 @@ function numMesaComanda(c) {
   return m.nummesa ?? '';
 }
 
-/** Otras comandas del mismo pedido. Se imprimen debajo del número, no junto a la mesa. */
+/** Otras comandas del mismo pedido, en orden. Van en una línea bajo el número: (2, 3, 6, 8). */
 function sufijoAgrupadasCierre(c, todas) {
   const pid = c?.pedido ? String(c.pedido._id || c.pedido) : '';
   if (!pid) return '';
