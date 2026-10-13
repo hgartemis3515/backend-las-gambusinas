@@ -1037,7 +1037,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center justify-between">
  <div>
  <div class="flex items-center gap-3">
+ <div>
  <h2 class="text-lg font-bold" x-text="'Comanda ' + etiquetaNumeroTabla(selectedComanda)"></h2>
+ <p x-show="etiquetaGrupoDe(selectedComanda)" class="text-sm font-extrabold text-gold leading-tight" x-text="etiquetaGrupoDe(selectedComanda)"></p>
+ </div>
  <span x-show="esComandaPrueba(selectedComanda)" class="text-2xl px-3 py-1 rounded-md font-extrabold bg-[#7C3AED] text-white">PRUEBA</span>
  <span x-show="selectedComanda?.eliminada" class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-st-pagado/20 text-st-pagado">ELIMINADA</span>
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
@@ -1175,7 +1178,8 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <!-- INFO GENERAL -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <p class="text-[10px] text-[#5a5a7a] uppercase mb-1 font-semibold tracking-wider text-center">Número de comanda</p>
- <p class="text-center text-5xl font-black text-gold tabular-nums leading-none mb-4" x-text="letreroCentrado(selectedComanda)"></p>
+ <p class="text-center text-5xl font-black text-gold tabular-nums leading-none" :class="etiquetaGrupoDe(selectedComanda) ? 'mb-1' : 'mb-4'" x-text="letreroCentrado(selectedComanda)"></p>
+ <p x-show="etiquetaGrupoDe(selectedComanda)" class="text-center text-lg font-extrabold text-gold mb-4" x-text="etiquetaGrupoDe(selectedComanda)"></p>
  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Creada</p>
@@ -2427,7 +2431,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center justify-between">
  <div>
  <div class="flex items-center gap-3">
+ <div>
  <h2 class="text-lg font-bold" x-text="'Editar Comanda ' + etiquetaNumeroTabla(editComanda)"></h2>
+ <p x-show="etiquetaGrupoDe(editComanda)" class="text-sm font-extrabold text-gold leading-tight" x-text="etiquetaGrupoDe(editComanda)"></p>
+ </div>
  <span x-show="esComandaPrueba(editComanda)" class="text-2xl px-3 py-1 rounded-md font-extrabold bg-[#7C3AED] text-white">PRUEBA</span>
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
  :class="{
@@ -2497,7 +2504,8 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <!-- INFO GENERAL -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <p class="text-[10px] text-[#5a5a7a] uppercase mb-1 font-semibold tracking-wider text-center">Número de comanda</p>
- <p class="text-center text-5xl font-black text-gold tabular-nums leading-none mb-4" x-text="etiquetaNumeroTabla(editComanda)"></p>
+ <p class="text-center text-5xl font-black text-gold tabular-nums leading-none" :class="etiquetaGrupoDe(editComanda) ? 'mb-1' : 'mb-4'" x-text="etiquetaNumeroTabla(editComanda)"></p>
+ <p x-show="etiquetaGrupoDe(editComanda)" class="text-center text-lg font-extrabold text-gold mb-4" x-text="etiquetaGrupoDe(editComanda)"></p>
  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Creada</p>
@@ -3732,6 +3740,7 @@ function comandasApp() {
  previewZoomComanda: 100,
  configMoneda: { igvPorcentaje: 18, preciosIncluyenIGV: false },
  ocultarTiempoEntrega: true,
+ etiquetasGrupoTicket: false,
  ETIQUETAS_DEFAULT_COMANDA: {
    comandaNumero: 'Comanda',
    fechaPedido: 'Fecha pedido',
@@ -4371,6 +4380,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
  const data = await apiGet('/configuracion');
  const cfg = data?.configuracion || data || {};
  this.ocultarTiempoEntrega = cfg.mozos?.ocultarTiempoEntrega !== false;
+ this.etiquetasGrupoTicket = cfg.cierreCaja?.etiquetasGrupoTicket === true;
  } catch (e) {
  this.ocultarTiempoEntrega = true;
  }
@@ -5321,10 +5331,45 @@ this.scheduleRefreshVentasTotales();
   const uniq = [...new Set(nums)].sort((a, b) => a - b);
   return uniq.length ? ('(' + uniq.join(', ') + ')') : '';
  },
- mesaTicketCierre(c, idsPermitidos) {
-  const mesa = this.formatearNombreMesa(c.mesa) || '—';
-  const suf = this.sufijoComandasAgrupadas(c, idsPermitidos);
-  return suf ? (mesa + ' ' + suf) : mesa;
+
+ mapaGruposConsecutivos(lista) {
+  const counts = new Map();
+  const validas = [];
+  for (const c of lista || []) {
+    if (!c) continue;
+    if ((c.origenCreacion || '') === 'dashboard' || c.createdByDashboard) continue;
+    if (String(c.estado || c.status || '').toLowerCase() === 'cancelado') continue;
+    const pid = this.normalizeObjectId(c.pedidoId);
+    if (!pid) continue;
+    validas.push(c);
+    counts.set(pid, (counts.get(pid) || 0) + 1);
+  }
+  validas.sort((a, b) => (this.numeroDiaComanda(a) || 0) - (this.numeroDiaComanda(b) || 0));
+  const mapa = new Map();
+  let n = 0;
+  for (const c of validas) {
+    const pid = this.normalizeObjectId(c.pedidoId);
+    if ((counts.get(pid) || 0) < 2 || mapa.has(pid)) continue;
+    n += 1;
+    mapa.set(pid, 'G' + n);
+  }
+  return mapa;
+ },
+
+ etiquetaGrupoDe(c) {
+  if (!this.etiquetasGrupoTicket || !c) return '';
+  const pid = this.normalizeObjectId(c.pedidoId);
+  if (!pid) return '';
+  return this.mapaGruposConsecutivos(this.comandas).get(pid) || '';
+ },
+
+ marcaAgrupadasTicket(c, idsPermitidos) {
+  if (this.etiquetasGrupoTicket) {
+    const pid = this.normalizeObjectId(c && c.pedidoId);
+    if (!pid) return '';
+    return this.mapaGruposConsecutivos(this.comandas).get(pid) || '';
+  }
+  return this.sufijoComandasAgrupadas(c, idsPermitidos);
  },
 
  datosTicketComandasVisibles(listaFiltrada) {
@@ -5334,7 +5379,8 @@ this.scheduleRefreshVentasTotales();
   const idsRango = acotada ? new Set(lista.map((c) => String(c._id || ''))) : null;
   const lineas = lista.map((c) => {
     const anulada = this.comandaEsEliminada(c);
-    const mesa = this.mesaTicketCierre(c, idsRango);
+    const mesa = this.formatearNombreMesa(c.mesa) || '—';
+    const agrupadas = this.marcaAgrupadasTicket(c, idsRango);
     const numBase = c.numeroComandaDia != null && c.numeroComandaDia !== ''
       ? c.numeroComandaDia
       : (c.numComanda ?? '');
@@ -5342,6 +5388,7 @@ this.scheduleRefreshVentasTotales();
     if (anulada) {
       return {
         comandaNumber: num,
+        agrupadas,
         mesa,
         eliminadoPorNombre: c.eliminadaPorNombre || '',
         anulada: true,
@@ -5356,6 +5403,7 @@ this.scheduleRefreshVentasTotales();
     const bruto = Number((neto + desc).toFixed(2));
     return {
       comandaNumber: num,
+      agrupadas,
       numeroComandaMozo: c.numeroComandaMozo || null,
       mesa,
       anulada: false,

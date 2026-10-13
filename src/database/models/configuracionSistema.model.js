@@ -204,7 +204,8 @@ const CONFIGURACION_DEFAULT = {
         bloquearSinCierreAnterior: false,
         requerirEfectivoInicial: true,
         cierreAutomatico: false,
-        horaCierreAutomatico: '04:00'
+        horaCierreAutomatico: '04:00',
+        etiquetasGrupoTicket: false
     },
 
     // Cobro directo del rol caja desde la app de mozos.
@@ -705,6 +706,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         horaCierreAutomatico: {
             type: String,
             default: CONFIGURACION_DEFAULT.cierreCaja.horaCierreAutomatico
+        },
+        etiquetasGrupoTicket: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cierreCaja.etiquetasGrupoTicket
         }
     },
 
