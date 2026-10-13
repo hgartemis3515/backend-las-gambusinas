@@ -4361,6 +4361,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
    || new URLSearchParams(window.location.search).get('comanda');
  if (openComandaId) await this.openDetailModal({ _id: openComandaId });
  this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
+ this.programarCorteOperativo();
  document.addEventListener('visibilitychange', () => {
    if (!document.hidden) {
      this.refreshTurnosCierre();
@@ -5608,23 +5609,51 @@ this.scheduleRefreshVentasTotales();
    await this.loadVentasTotales();
  },
 
+ programarCorteOperativo() {
+  clearTimeout(this._corteDiaTimer);
+  const ahora = new Date();
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Lima',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(ahora);
+  const n = (tipo) => Number((partes.find((p) => p.type === tipo) || {}).value) || 0;
+  const hora = n('hour') % 24;
+  const transcurrido = hora * 3600 + n('minute') * 60 + n('second');
+  const corte = 4 * 3600;
+  const falta = transcurrido < corte ? (corte - transcurrido) : (86400 - transcurrido + corte);
+  this._corteDiaTimer = setTimeout(() => {
+    this.refreshTurnosCierre();
+    this.programarCorteOperativo();
+  }, Math.max(1500, falta * 1000 + 2000));
+ },
+
  async refreshTurnosCierre({ filtrar = true } = {}) {
    const ymd = limaYMD();
+   const diaCambio = !!(this.turnosLimaYMD && this.turnosLimaYMD !== ymd);
    let data = null;
    try { data = await apiGet('/cierre-caja/turnos-dia'); } catch (e) { data = null; }
-   if (!data || typeof data.limaYMD !== 'string') return;
-
-   const mismoDia = data.limaYMD === ymd;
-   const cantidad = mismoDia ? (Number(data.cantidad) || 0) : 0;
-   const hay = mismoDia && data.hayCierreHoy === true && cantidad >= 1 && !!data.primerCierreAt;
-   const diaCambio = this.turnosLimaYMD && this.turnosLimaYMD !== ymd;
 
    if (diaCambio) {
      this._turnosAutoNocheHecho = false;
      if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
        this.filtroPeriodo = 'hoy';
      }
+     this.turnosLimaYMD = ymd;
+     this.showTurnoDiaNoche = false;
+     this.primerCierreHoyAt = null;
+     this.cierresHoyCount = 0;
+     await this.loadComandas();
+     await this.loadVentasTotales();
    }
+
+   if (!data || typeof data.limaYMD !== 'string') return;
+
+   const mismoDia = data.limaYMD === ymd;
+   const cantidad = mismoDia ? (Number(data.cantidad) || 0) : 0;
+   const hay = mismoDia && data.hayCierreHoy === true && cantidad >= 1 && !!data.primerCierreAt;
 
    this.turnosLimaYMD = ymd;
    this.showTurnoDiaNoche = hay;
@@ -5642,7 +5671,7 @@ this.scheduleRefreshVentasTotales();
      }
    }
 
-   if (filtrar) this.filterComandas();
+   if (diaCambio || filtrar) this.filterComandas();
  },
 
  extraerMozosUnicos() {
