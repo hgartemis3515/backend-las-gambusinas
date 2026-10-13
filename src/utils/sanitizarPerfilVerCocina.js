@@ -71,6 +71,7 @@ const PERFIL_VER_COCINA_KEYS = new Set([
     'cantidadPrefijo',
     'cantidadALaIzquierda',
     'cortarNombreConGuion',
+    'cronometroPegado',
     'guarnicionCantidadPrefijo', 'guarnicionCantidadPosicion',
     'cronometroColor', 'cronometroContorno', 'cronometroFondo',
     'cronometroContornoLetra', 'cronometroFondoTexto',
