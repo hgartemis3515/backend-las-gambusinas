@@ -211,6 +211,8 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
       logger.warn('El cierre quedó guardado, pero no se reescribieron los JSON', { error: jsonErr.message });
     }
     
+    try { require('./noticiasController').invalidarTopSemana(); } catch (_) { /* el ranking se recalcula en la siguiente lectura */ }
+
     // Paso 15: Responder al frontend
     res.status(201).json({
       success: true,
@@ -374,6 +376,8 @@ router.put('/cierre-caja/:id/revertir', adminAuth, checkPermission('ejecutar-cie
       usuarioNombre,
       comandasLiberadas: liberado.comandasLiberadas
     });
+
+    try { require('./noticiasController').invalidarTopSemana(); } catch (_) { /* el ranking se recalcula en la siguiente lectura */ }
 
     res.json({
       success: true,

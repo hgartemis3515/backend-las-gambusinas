@@ -60,6 +60,7 @@ const impresionEposRoutes = require('./src/controllers/impresionEposController')
 // VISTA COCINA: Controller para Vistas de Cocina y Pantallas de cocina (monitores pasivos TV)
 const vistaCocinaRoutes = require('./src/controllers/vistaCocinaController')
 const sosCocinerasRoutes = require('./src/controllers/sosCocinerasController')
+const noticiasRoutes = require('./src/controllers/noticiasController')
 // ASIGNACIÓN AUTOMÁTICA DE PLATOS: Controller para config global + reglas
 const asignacionAutomaticaRoutes = require('./src/controllers/asignacionAutomaticaController')
 const asignacionAutomaticaGuarnicionesRoutes = require('./src/controllers/asignacionAutomaticaGuarnicionesController')
@@ -308,6 +309,7 @@ app.use('/api', aprobacionRoutes);
 app.use('/api', impresionEposRoutes);
 app.use('/api', vistaCocinaRoutes);
 app.use('/api', sosCocinerasRoutes);
+app.use('/api', noticiasRoutes);
 app.use('/api', asignacionAutomaticaRoutes);
 app.use('/api', asignacionAutomaticaGuarnicionesRoutes);
 
@@ -344,6 +346,7 @@ app.use('/sounds/alertas', express.static(path.join(__dirname, 'public', 'sounds
 // Mensajería: servir audios de notas de voz subidos
 app.use('/uploads/mensajes', express.static(path.join(__dirname, 'uploads', 'mensajes')));
 app.use('/uploads/categorias', express.static(path.join(__dirname, 'uploads', 'categorias')));
+app.use('/uploads/noticias', express.static(path.join(__dirname, 'uploads', 'noticias')));
 
 // Ruta raíz: mostrar el dashboard multi-página (mismo que index.html)
 app.get('/', (req, res) => {

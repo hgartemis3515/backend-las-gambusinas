@@ -179,6 +179,7 @@ const sharedData = {
     auditoria: { label: 'Auditoría', icon: '🔍', href: '/auditoria.html' },
     cierre: { label: 'Cierre Caja', icon: '💰', href: '/cierre-caja.html' },
     reportes: { label: 'Reportes', icon: '📊', href: '/reportes.html' },
+    noticias: { label: 'Noticias', icon: '📰', href: '/noticias.html' },
     inventario: { label: 'Inventario', icon: '📦', href: '/inventario.html' },
     config: { label: 'Configuración', icon: '⚙️', href: '/configuracion.html' }
   }
@@ -227,7 +228,7 @@ const MENU_GESTION_DEFAULT = {
   colorPrincipal: '#d4af37',
   colorAvanzada: '#a0a0b8',
   fondos: {},
-  principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
+  principal: ['dashboard', 'noticias', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
   avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'inventario', 'config']
 };
 
@@ -314,6 +315,11 @@ function getOrderedNavRows(menuGestion) {
     for (const key of keys || []) {
       const page = sharedData.pages[key];
       if (!page) continue;
+      if (key === 'noticias') {
+        const rolNav = (sharedGetJwtPayload() || {}).rol;
+        const publica = rolNav === 'admin' || rolNav === 'supervisor' || rolNav === 'cajero' || sharedTienePermiso('publicar-noticias');
+        if (!publica) continue;
+      }
       const requerido = PAGES_PERMISOS[key];
       if (requerido && !sharedTienePermiso(requerido)) continue;
       items.push({ type: 'item', id: 'item-' + key, key: key, label: page.label, icon: page.icon, href: page.href, color: colorSeccion, fondo: (mg.fondos && mg.fondos[key]) || '' });

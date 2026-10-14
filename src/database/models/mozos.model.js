@@ -28,6 +28,7 @@ const PERMISOS_FUNDAMENTALES = {
     'ejecutar-cierre-caja': { nombre: 'Ejecutar Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Confirmar el cierre de caja del período y revertirlo (exige motivo de auditoría)' },
     'cierre-caja': { nombre: 'Cierre de Caja (legacy)', grupo: 'Backend/Dashboard', descripcion: 'Alias legacy. Preferir ver-cierre-caja y ejecutar-cierre-caja' },
     'ver-notificaciones': { nombre: 'Ver Notificaciones', grupo: 'Backend/Dashboard', descripcion: 'Acceder al centro de notificaciones' },
+    'publicar-noticias': { nombre: 'Publicar noticias', grupo: 'Backend/Dashboard', descripcion: 'Publicar y retirar las noticias del día en el panel' },
     'crear-comandas-dashboard': { nombre: 'Crear Comandas (Dashboard)', grupo: 'Backend/Dashboard', descripcion: 'Crear comandas desde comandas.html; incluye opción Omitir pago (auto-pagado al entregar)' },
     'omitir-pago-comandas-dashboard': { nombre: 'Omitir Pago en Comandas (Dashboard)', grupo: 'Backend/Dashboard', descripcion: 'Permitir activar "Omitir pago" al crear comanda desde dashboard (auto-pagado al entregar)' },
     
@@ -72,7 +73,8 @@ const PERMISOS_POR_ROL = {
         'crear-reservas-mozos', 'asignar-encargado-reserva',
         // Mensajería: supervisor cubre texto, voz, anuncios, canales y supervisión; sin forzar prioridad critica
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
-        'gestionar-canales-mensajes', 'ver-mensajes-todos'
+        'gestionar-canales-mensajes', 'ver-mensajes-todos',
+        'publicar-noticias'
     ],
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas',
@@ -102,7 +104,8 @@ const PERMISOS_POR_ROL = {
         'crear-reservas-mozos', 'asignar-encargado-reserva',
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
         'gestionar-canales-mensajes', 'ver-mensajes-todos',
-        'ver-cierre-caja', 'ejecutar-cierre-caja'
+        'ver-cierre-caja', 'ejecutar-cierre-caja',
+        'publicar-noticias'
     ]
 };
 

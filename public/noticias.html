@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noticias — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
+<style>
+  #editor:empty:before { content: 'Escribe la noticia del día…'; color: #5a5a7a; }
+  #editor { min-height: 180px; outline: none; }
+  #editor img { max-width: 100%; height: auto; border-radius: 8px; margin: 8px 0; }
+  .barra-editor button, .barra-editor select { min-height: 36px; }
+</style>
+</head>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="noticiasApp()" x-init="init()" x-cloak>
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="$store.layout.sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    <div class="flex items-end justify-between mb-5 gap-4">
+      <div>
+        <h1 class="text-xl font-bold">Noticias del día</h1>
+        <p class="text-txt-muted text-sm mt-1">Lo que publiques lo ven mozos y cocina en este día operativo.</p>
+      </div>
+      <button type="button" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="nueva()">Nueva</button>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <section class="xl:col-span-2 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-4">
+        <label class="block text-xs text-txt-muted mb-1">Título</label>
+        <input x-model="titulo" maxlength="120" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm mb-3" placeholder="Título de hoy">
+        <div class="barra-editor flex flex-wrap gap-2 mb-2">
+          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('bold')">N</button>
+          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)] italic" @click="cmd('italic')">I</button>
+          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)] underline" @click="cmd('underline')">S</button>
+          <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 text-sm" @change="cmd('fontName', $event.target.value); $event.target.selectedIndex = 0">
+            <option value="">Fuente</option>
+            <option value="Arial">Arial</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Courier New">Mono</option>
+          </select>
+          <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 text-sm" @change="cmd('fontSize', $event.target.value); $event.target.selectedIndex = 0">
+            <option value="">Tamaño</option>
+            <option value="2">Chico</option>
+            <option value="3">Normal</option>
+            <option value="5">Grande</option>
+            <option value="6">Muy grande</option>
+          </select>
+          <input type="color" class="h-9 w-10 bg-transparent" title="Color" @input="cmd('foreColor', $event.target.value)">
+          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('insertUnorderedList')">Lista</button>
+          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('justifyLeft')">Izq</button>
+          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('justifyCenter')">Centro</button>
+          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('justifyRight')">Der</button>
+          <label class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)] flex items-center cursor-pointer">
+            Imagen
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="subirImagen($event)">
+          </label>
+        </div>
+        <div id="editor" contenteditable="true" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm"></div>
+        <p class="text-txt-muted text-xs mt-2" x-text="estado"></p>
+        <div class="flex gap-2 mt-3">
+          <button type="button" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" :disabled="guardando" @click="publicar()" x-text="editandoId ? 'Guardar' : 'Publicar'"></button>
+          <button type="button" class="px-4 py-2 rounded-lg text-sm border border-[rgba(212,175,55,0.25)]" @click="nueva()">Limpiar</button>
+        </div>
+      </section>
+
+      <section class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-4">
+        <h2 class="font-semibold mb-2">TOP de la semana</h2>
+        <template x-for="p in top" :key="p.puesto">
+          <div class="flex justify-between gap-2 text-sm py-1 border-b border-[rgba(212,175,55,0.1)]">
+            <span><span class="text-gold font-bold" x-text="p.puesto + '.'"></span> <span x-text="p.nombre"></span></span>
+            <span class="text-txt-muted" x-text="p.cantidad"></span>
+          </div>
+        </template>
+        <p x-show="!top.length" class="text-txt-muted text-sm">Sin ventas esta semana.</p>
+      </section>
+    </div>
+
+    <section class="mt-5 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-4">
+      <h2 class="font-semibold mb-3">Publicaciones</h2>
+      <template x-for="n in noticias" :key="n._id">
+        <article class="border-b border-[rgba(212,175,55,0.12)] py-3 flex gap-3 items-start">
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold" x-text="n.titulo"></p>
+            <p class="text-xs text-txt-muted" x-text="n.fechaOperativa + (n.vigente ? ' · vigente' : ' · retirada') + ' · ' + (n.autor?.nombre || '')"></p>
+          </div>
+          <button type="button" class="text-sm px-3 py-1 rounded border border-[rgba(212,175,55,0.25)]" @click="editar(n)">Editar</button>
+          <button type="button" class="text-sm px-3 py-1 rounded border border-red-400/40 text-red-300" x-show="n.vigente" @click="retirar(n)">Retirar</button>
+        </article>
+      </template>
+      <p x-show="!noticias.length" class="text-txt-muted text-sm">Todavía no hay noticias.</p>
+    </section>
+  </main>
+</div>
+<script src="/assets/js/shared.js"></script>
+<script>
+function noticiasApp() {
+  return {
+    sidebarOpen: false,
+    activeNav: 'noticias',
+    pageTitle: 'Noticias',
+    titulo: '',
+    editandoId: null,
+    noticias: [],
+    top: [],
+    estado: '',
+    guardando: false,
+    token() {
+      return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') || '';
+    },
+    async init() {
+      const token = this.token();
+      if (!token) { window.location.href = '/login.html'; return; }
+      let rol = '';
+      try { rol = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))?.rol || ''; } catch (_) {}
+      if (!['admin', 'supervisor', 'cajero'].includes(rol)) {
+        window.location.href = '/index.html';
+        return;
+      }
+      await Promise.all([this.cargar(), this.cargarTop()]);
+    },
+    headers() {
+      return { Authorization: 'Bearer ' + this.token(), 'Content-Type': 'application/json' };
+    },
+    async cargar() {
+      const res = await fetch('/api/noticias', { headers: this.headers() });
+      if (res.status === 401) { window.location.href = '/login.html'; return; }
+      const data = await res.json();
+      this.noticias = data.noticias || [];
+    },
+    async cargarTop() {
+      const res = await fetch('/api/noticias/top-semana', { headers: { Authorization: 'Bearer ' + this.token() } });
+      if (!res.ok) return;
+      const data = await res.json();
+      this.top = data.platos || [];
+    },
+    editor() { return document.getElementById('editor'); },
+    nueva() {
+      this.titulo = '';
+      this.editandoId = null;
+      this.estado = '';
+      if (this.editor()) this.editor().innerHTML = '';
+    },
+    editar(n) {
+      this.editandoId = n._id;
+      this.titulo = n.titulo || '';
+      if (this.editor()) this.editor().innerHTML = n.cuerpoHtml || '';
+      this.estado = 'Editando';
+    },
+    cmd(nombre, valor) {
+      this.editor()?.focus();
+      document.execCommand(nombre, false, valor || null);
+    },
+    async subirImagen(ev) {
+      const file = ev.target.files && ev.target.files[0];
+      ev.target.value = '';
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('imagen', file);
+      this.estado = 'Subiendo imagen…';
+      const res = await fetch('/api/noticias/imagen', { method: 'POST', headers: { Authorization: 'Bearer ' + this.token() }, body: fd });
+      const data = await res.json();
+      if (!res.ok) { this.estado = data.error || 'No se pudo subir'; return; }
+      this.editor()?.focus();
+      document.execCommand('insertHTML', false, '<img src="' + data.url + '" alt="">');
+      this.estado = '';
+    },
+    async publicar() {
+      const cuerpoHtml = this.editor() ? this.editor().innerHTML : '';
+      this.guardando = true;
+      this.estado = '';
+      try {
+        const url = this.editandoId ? '/api/noticias/' + this.editandoId : '/api/noticias';
+        const res = await fetch(url, {
+          method: this.editandoId ? 'PUT' : 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ titulo: this.titulo, cuerpoHtml })
+        });
+        const data = await res.json();
+        if (!res.ok) { this.estado = data.error || 'No se pudo publicar'; return; }
+        this.nueva();
+        this.estado = 'Publicado';
+        await this.cargar();
+      } finally {
+        this.guardando = false;
+      }
+    },
+    async retirar(n) {
+      if (!window.confirm('¿Retirar esta noticia? Deja de verse en los teléfonos.')) return;
+      const res = await fetch('/api/noticias/' + n._id + '/retirar', { method: 'PATCH', headers: this.headers() });
+      if (!res.ok) { this.estado = 'No se pudo retirar'; return; }
+      await this.cargar();
+    }
+  };
+}
+</script>
+</body>
+</html>
