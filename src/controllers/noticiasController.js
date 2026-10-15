@@ -53,10 +53,15 @@ function puedePublicar(req, res, next) {
     return checkPermission('publicar-noticias')(req, res, next);
 }
 
-function emitirNoticia() {
+function emitirNoticia(accion = 'creada', noticia = null) {
     const io = global.io;
     if (!io) return;
-    const payload = { fechaOperativa: ymdOperativo() };
+    const payload = {
+        fechaOperativa: ymdOperativo(),
+        accion,
+        noticiaId: noticia?._id ? String(noticia._id) : null,
+        titulo: noticia?.titulo || '',
+    };
     try {
         io.of('/mozos').emit('noticia-publicada', payload);
         io.of('/cocina').emit('noticia-publicada', payload);
@@ -109,7 +114,7 @@ router.post('/noticias/imagen', adminAuth, puedePublicar, (req, res) => {
 router.post('/noticias', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.crearNoticia(req.body, autorDe(req));
-        emitirNoticia();
+        emitirNoticia('creada', noticia);
         res.status(201).json(noticia);
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo publicar' });
@@ -119,7 +124,7 @@ router.post('/noticias', adminAuth, puedePublicar, async (req, res) => {
 router.put('/noticias/:id', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.actualizarNoticia(req.params.id, req.body);
-        emitirNoticia();
+        emitirNoticia('editada', noticia);
         res.json(noticia);
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo guardar' });
@@ -129,7 +134,7 @@ router.put('/noticias/:id', adminAuth, puedePublicar, async (req, res) => {
 router.patch('/noticias/:id/retirar', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.retirarNoticia(req.params.id);
-        emitirNoticia();
+        emitirNoticia('retirada', noticia);
         res.json(noticia);
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo retirar' });

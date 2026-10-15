@@ -13,7 +13,7 @@ tailwind.config = {
     extend: {
       colors: {
         bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
-        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
         txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
       },
       fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
@@ -22,11 +22,110 @@ tailwind.config = {
 }
 </script>
 <link rel="stylesheet" href="/assets/css/dashboard.css">
+<link rel="stylesheet" href="/assets/css/cosmos-search.css">
+<link rel="stylesheet" href="/assets/vendor/quill/quill.snow.css">
 <style>
-  #editor:empty:before { content: 'Escribe la noticia del día…'; color: #5a5a7a; }
-  #editor { min-height: 180px; outline: none; }
-  #editor img { max-width: 100%; height: auto; border-radius: 8px; margin: 8px 0; }
-  .barra-editor button, .barra-editor select { min-height: 36px; }
+  [x-cloak] { display: none !important; }
+
+  /* La lupa del buscador y los iconos de Quill no deben heredar el reset de Tailwind (svg a ancho completo). */
+  .cosmos-search-icon svg { width: 18px; height: 18px; display: block; }
+  #toolbar.ql-toolbar.ql-snow svg { width: 16px !important; height: 16px !important; max-width: 16px; display: block; flex: none; }
+
+  /* Barra en una fila, iconos del mismo tamaño */
+  #toolbar.ql-toolbar.ql-snow {
+    display: flex; flex-wrap: nowrap; align-items: center; gap: 4px;
+    overflow-x: auto;
+    border: 1px solid rgba(212,175,55,0.22); border-bottom: 0; border-radius: 12px 12px 0 0;
+    background: #12121a; padding: 6px 8px;
+  }
+  #toolbar .ql-formats {
+    display: inline-flex; align-items: center; gap: 1px;
+    margin: 0; padding: 0 6px 0 0;
+    border-right: 1px solid rgba(212,175,55,0.16);
+    float: none; flex: none;
+  }
+  #toolbar .ql-formats:last-child { border-right: 0; padding-right: 0; }
+  #toolbar.ql-snow button,
+  #toolbar.ql-snow .ql-picker {
+    float: none; height: 30px;
+  }
+  #toolbar.ql-snow button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; padding: 0; border-radius: 8px;
+  }
+  #toolbar.ql-snow button.ql-active { background: rgba(212,175,55,0.16); }
+  #toolbar.ql-snow .ql-picker.ql-header,
+  #toolbar.ql-snow .ql-picker.ql-size { width: auto; }
+  #toolbar.ql-snow .ql-picker-label {
+    display: inline-flex; align-items: center;
+    height: 30px; border-radius: 8px; padding: 0 8px;
+    border: 1px solid transparent;
+  }
+  #toolbar.ql-snow .ql-picker.ql-header .ql-picker-label,
+  #toolbar.ql-snow .ql-picker.ql-size .ql-picker-label { padding-right: 22px; }
+  #toolbar.ql-snow .ql-picker.ql-color,
+  #toolbar.ql-snow .ql-picker.ql-align { width: 30px; }
+  #toolbar.ql-snow .ql-picker.ql-color .ql-picker-label,
+  #toolbar.ql-snow .ql-picker.ql-align .ql-picker-label {
+    width: 30px; padding: 0; justify-content: center;
+  }
+  #toolbar.ql-snow .ql-picker-label svg { position: static; margin: 0; }
+  #toolbar.ql-snow .ql-picker.ql-header .ql-picker-label svg,
+  #toolbar.ql-snow .ql-picker.ql-size .ql-picker-label svg {
+    position: absolute; right: 4px; top: 8px; width: 12px !important; height: 12px !important;
+  }
+
+  #editor.ql-container.ql-snow { border: 1px solid rgba(212,175,55,0.22); border-radius: 0 0 12px 12px; background: #141414; color: #f5f5f5; font-family: 'Inter', system-ui, sans-serif; font-size: 15px; height: auto !important; }
+  #editor .ql-editor { height: auto !important; min-height: 44px; max-height: 220px; padding: 10px 14px; line-height: 1.5; overflow-y: auto; }
+  #editor .ql-editor.ql-blank::before { color: #5a5a7a; font-style: normal; left: 18px; }
+  #editor .ql-editor img { max-width: 100%; height: auto; border-radius: 10px; margin: 8px 0; box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+  #editor .ql-editor h2 { font-size: 22px; font-weight: 800; margin: 6px 0; }
+  #editor .ql-editor h3 { font-size: 18px; font-weight: 700; margin: 4px 0; }
+  .ql-snow .ql-stroke { stroke: #a0a0b8; }
+  .ql-snow .ql-fill, .ql-snow .ql-stroke.ql-fill { fill: #a0a0b8; }
+  .ql-snow .ql-picker { color: #a0a0b8; font-size: 13px; }
+  .ql-snow.ql-toolbar button:hover .ql-stroke, .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+  .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke, .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke { stroke: #d4af37; }
+  .ql-snow.ql-toolbar button:hover .ql-fill, .ql-snow.ql-toolbar button.ql-active .ql-fill { fill: #d4af37; }
+  .ql-snow.ql-toolbar button:hover, .ql-snow.ql-toolbar .ql-picker-label:hover, .ql-snow.ql-toolbar .ql-picker-label.ql-active { color: #d4af37; }
+  .ql-snow .ql-picker-options { background: #1a1a28; border-color: rgba(212,175,55,0.3) !important; border-radius: 10px; padding: 6px; }
+  .ql-snow .ql-picker-item:hover, .ql-snow .ql-picker-item.ql-selected { color: #d4af37; }
+  .ql-snow .ql-picker.ql-expanded .ql-picker-label { border-color: rgba(212,175,55,0.4); }
+
+  /* Etiquetas en español */
+  .ql-snow .ql-picker.ql-header .ql-picker-label::before, .ql-snow .ql-picker.ql-header .ql-picker-item::before { content: 'Texto'; }
+  .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="2"]::before, .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="2"]::before { content: 'Título'; font-weight: 800; }
+  .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="3"]::before, .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::before { content: 'Subtítulo'; font-weight: 700; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: 'Normal'; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: 'Chico'; font-size: 13px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: 'Grande'; font-size: 17px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: 'Muy grande'; font-size: 21px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before { content: 'Muy grande'; }
+  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before { content: 'Enorme'; font-size: 26px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before { content: 'Enorme'; }
+  .ql-snow .ql-tooltip { display: none; }
+
+  /* Teléfono de vista previa */
+  .phone { width: 100%; max-width: 300px; aspect-ratio: 9 / 18; border-radius: 34px; background: #050507; border: 6px solid #23232f; box-shadow: 0 24px 60px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.05); position: relative; overflow: hidden; margin: 0 auto; }
+  .phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 86px; height: 22px; border-radius: 12px; background: #0f0f14; z-index: 2; }
+  .phone-screen { position: absolute; inset: 0; padding: 44px 14px 16px; overflow: hidden; display: flex; flex-direction: column; }
+  .phone-sheet { background: #1c1c1c; border: 1px solid rgba(212,175,55,0.35); border-radius: 16px; padding: 12px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .phone-body { flex: 1; min-height: 0; overflow: auto; color: #f5f5f5; font-size: 12.5px; line-height: 1.45; word-break: break-word; }
+  .phone-body h2 { font-size: 16px; font-weight: 800; margin: 0 0 6px; }
+  .phone-body h3 { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+  .phone-body p { margin: 0 0 6px; }
+  .phone-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 6px 0; }
+  .phone-body ul, .phone-body ol { padding-left: 18px; margin: 0 0 6px; }
+  .phone-body::-webkit-scrollbar { width: 4px; }
+  .phone-body::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.4); border-radius: 4px; }
+  .phone-listo { margin-top: 10px; height: 36px; border-radius: 10px; background: #d4af37; color: #1a1a1a; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+
+  /* Cropper */
+  #cropper-host cropper-canvas { width: 100%; height: 380px; border-radius: 12px; overflow: hidden; background: #050507; }
+  #cropper-host cropper-selection { outline: none; }
+
+  .fila-noticia { will-change: transform; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
 </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="noticiasApp()" x-init="init()" x-cloak>
@@ -34,83 +133,270 @@ tailwind.config = {
 <div class="flex pt-[72px] min-h-screen">
   <div id="sidebar-container"></div>
   <main :class="$store.layout.sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
-    <div class="flex items-end justify-between mb-5 gap-4">
+
+    <div class="flex items-end justify-between mb-5 gap-4 flex-wrap" data-anim="card">
       <div>
         <h1 class="text-xl font-bold">Noticias del día</h1>
-        <p class="text-txt-muted text-sm mt-1">Lo que publiques lo ven mozos y cocina en este día operativo.</p>
+        <p class="text-txt-muted text-sm mt-1">Lo que publiques lo ven mozos y cocina durante el día operativo <span class="text-gold font-semibold" x-text="fechaOperativa || '…'"></span>.</p>
       </div>
-      <button type="button" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="nueva()">Nueva</button>
+      <div class="flex items-center gap-2">
+        <span class="chip bg-gold-20 text-gold border border-gold/30" x-show="vigentesHoy > 0" x-text="vigentesHoy + (vigentesHoy === 1 ? ' vigente hoy' : ' vigentes hoy')"></span>
+        <button type="button" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" @click="nueva()">+ Nueva</button>
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
-      <section class="xl:col-span-2 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-4">
-        <label class="block text-xs text-txt-muted mb-1">Título</label>
-        <input x-model="titulo" maxlength="120" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm mb-3" placeholder="Título de hoy">
-        <div class="barra-editor flex flex-wrap gap-2 mb-2">
-          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('bold')">N</button>
-          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)] italic" @click="cmd('italic')">I</button>
-          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)] underline" @click="cmd('underline')">S</button>
-          <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 text-sm" @change="cmd('fontName', $event.target.value); $event.target.selectedIndex = 0">
-            <option value="">Fuente</option>
-            <option value="Arial">Arial</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Courier New">Mono</option>
-          </select>
-          <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 text-sm" @change="cmd('fontSize', $event.target.value); $event.target.selectedIndex = 0">
-            <option value="">Tamaño</option>
-            <option value="2">Chico</option>
-            <option value="3">Normal</option>
-            <option value="5">Grande</option>
-            <option value="6">Muy grande</option>
-          </select>
-          <input type="color" class="h-9 w-10 bg-transparent" title="Color" @input="cmd('foreColor', $event.target.value)">
-          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('insertUnorderedList')">Lista</button>
-          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('justifyLeft')">Izq</button>
-          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('justifyCenter')">Centro</button>
-          <button type="button" class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)]" @click="cmd('justifyRight')">Der</button>
-          <label class="px-3 rounded bg-bg-sidebar border border-[rgba(212,175,55,0.25)] flex items-center cursor-pointer">
-            Imagen
-            <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="subirImagen($event)">
-          </label>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-stretch">
+      <section class="xl:col-span-2 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-2xl p-4 flex flex-col min-h-0" data-anim="card">
+        <div class="flex items-center justify-between gap-3 mb-2">
+          <label class="block text-xs text-txt-muted" for="titulo">Título</label>
+          <div class="flex items-center gap-2">
+            <span x-show="editandoId" class="chip bg-blue-500/15 text-blue-300 border border-blue-400/30">Editando</span>
+            <span x-show="borradorRecuperado" class="chip bg-gold-20 text-gold border border-gold/30">
+              Borrador recuperado
+              <button type="button" class="ml-1 underline" @click="descartarBorrador()">descartar</button>
+            </span>
+            <span class="text-[11px] text-txt-muted tabular-nums" x-text="titulo.length + '/120'"></span>
+          </div>
         </div>
-        <div id="editor" contenteditable="true" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm"></div>
-        <p class="text-txt-muted text-xs mt-2" x-text="estado"></p>
-        <div class="flex gap-2 mt-3">
-          <button type="button" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" :disabled="guardando" @click="publicar()" x-text="editandoId ? 'Guardar' : 'Publicar'"></button>
-          <button type="button" class="px-4 py-2 rounded-lg text-sm border border-[rgba(212,175,55,0.25)]" @click="nueva()">Limpiar</button>
+        <input id="titulo" x-model="titulo" maxlength="120" @input="actualizarPreview()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-4 py-3 text-base font-semibold mb-3 focus:border-gold focus:outline-none placeholder-txt-muted" placeholder="Ej. Hoy hay lomo saltado en promoción">
+
+        <div id="toolbar">
+          <span class="ql-formats">
+            <select class="ql-header" title="Jerarquía">
+              <option value="2"></option>
+              <option value="3"></option>
+              <option selected></option>
+            </select>
+            <select class="ql-size" title="Tamaño">
+              <option value="14px"></option>
+              <option selected></option>
+              <option value="18px"></option>
+              <option value="24px"></option>
+              <option value="32px"></option>
+            </select>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-bold" title="Negrita (Ctrl+B)"></button>
+            <button class="ql-italic" title="Cursiva (Ctrl+I)"></button>
+            <button class="ql-underline" title="Subrayado (Ctrl+U)"></button>
+          </span>
+          <span class="ql-formats">
+            <select class="ql-color" title="Color">
+              <option selected></option>
+              <option value="#d4af37"></option>
+              <option value="#f87171"></option>
+              <option value="#fbbf24"></option>
+              <option value="#34d399"></option>
+              <option value="#60a5fa"></option>
+              <option value="#c084fc"></option>
+              <option value="#ffffff"></option>
+              <option value="#9ca3af"></option>
+            </select>
+            <select class="ql-align" title="Alineación">
+              <option selected></option>
+              <option value="center"></option>
+              <option value="right"></option>
+            </select>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-list" value="bullet" title="Lista"></button>
+            <button class="ql-list" value="ordered" title="Lista numerada"></button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-image" id="btn-imagen" title="Insertar imagen"></button>
+            <button class="ql-clean" title="Quitar formato"></button>
+          </span>
+        </div>
+        <div id="editor"></div>
+
+        <div class="flex items-center justify-between gap-3 mt-3 flex-wrap">
+          <div class="flex items-center gap-3 text-[11px] text-txt-muted">
+            <span x-text="imagenes + '/8 imágenes'" :class="imagenes >= 8 ? 'text-[#ffa502]' : ''"></span>
+            <span x-text="caracteres + ' caracteres'"></span>
+            <span class="hidden sm:inline">Ctrl + Enter publica</span>
+          </div>
+          <p class="text-xs" :class="estadoTipo === 'error' ? 'text-[#ff6b6b]' : 'text-txt-muted'" x-text="estado"></p>
+        </div>
+
+        <div class="flex gap-2 mt-4">
+          <button type="button" id="btn-publicar" class="bg-gold text-bg-primary px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 inline-flex items-center gap-2 hover:brightness-110 transition" :disabled="guardando || !puedePublicar" @click="publicar()">
+            <span x-show="guardando" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></span>
+            <span x-text="guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Publicar ahora')"></span>
+          </button>
+          <button type="button" class="px-4 py-2.5 rounded-xl text-sm border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:text-white transition" @click="nueva()" x-text="editandoId ? 'Cancelar edición' : 'Limpiar'"></button>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-[rgba(212,175,55,0.15)] flex-1 min-h-[180px] flex flex-col">
+          <div class="flex items-center justify-between mb-2 shrink-0">
+            <h2 class="font-semibold">Publicaciones</h2>
+            <span class="text-[11px] text-txt-muted" x-text="noticias.length + ' en el archivo'"></span>
+          </div>
+          <div x-ref="lista" class="flex-1 min-h-0 overflow-y-auto">
+            <template x-for="n in noticias" :key="n._id">
+              <article class="fila-noticia border-b border-[rgba(212,175,55,0.12)] last:border-0 py-3 px-2 rounded-lg flex gap-3 items-center" :data-flip-id="n._id" data-fila-noticia>
+                <div class="w-12 h-12 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] overflow-hidden shrink-0 flex items-center justify-center">
+                  <img x-show="n.imagenes && n.imagenes.length" :src="n.imagenes && n.imagenes[0]" alt="" class="w-full h-full object-cover">
+                  <span x-show="!(n.imagenes && n.imagenes.length)" class="text-txt-muted text-lg">📰</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <p class="font-semibold truncate" x-text="n.titulo"></p>
+                    <span class="chip" :class="n.vigente ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30' : 'bg-white/5 text-txt-muted border border-white/10'" x-text="n.vigente ? 'vigente' : 'retirada'"></span>
+                    <span class="chip bg-gold-20 text-gold border border-gold/30" x-show="n.fechaOperativa === fechaOperativa">hoy</span>
+                  </div>
+                  <p class="text-xs text-txt-muted mt-0.5 truncate" x-text="n.fechaOperativa + ' · ' + (n.autor?.nombre || 'sin autor') + (n.imagenes && n.imagenes.length ? ' · ' + n.imagenes.length + (n.imagenes.length === 1 ? ' imagen' : ' imágenes') : '')"></p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <template x-if="confirmRetirarId !== n._id">
+                    <div class="flex gap-2">
+                      <button type="button" class="text-sm px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.25)] hover:border-gold hover:text-gold transition" @click="editar(n)">Editar</button>
+                      <button type="button" class="text-sm px-3 py-1.5 rounded-lg border border-red-400/40 text-red-300 hover:bg-red-500/10 transition" x-show="n.vigente" @click="confirmRetirarId = n._id">Retirar</button>
+                    </div>
+                  </template>
+                  <template x-if="confirmRetirarId === n._id">
+                    <div class="flex items-center gap-2 text-sm">
+                      <span class="text-txt-secondary">¿Retirar?</span>
+                      <button type="button" class="px-3 py-1.5 rounded-lg bg-red-500 text-white font-semibold" @click="retirar(n)">Sí</button>
+                      <button type="button" class="px-3 py-1.5 rounded-lg border border-txt-muted/40 text-txt-secondary" @click="confirmRetirarId = null">No</button>
+                    </div>
+                  </template>
+                </div>
+              </article>
+            </template>
+          </div>
+          <p x-show="!noticias.length" class="text-txt-muted text-sm">Todavía no hay noticias. Escribe la primera arriba.</p>
         </div>
       </section>
 
-      <section class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-4">
-        <h2 class="font-semibold mb-2">TOP de la semana</h2>
-        <template x-for="p in top" :key="p.puesto">
-          <div class="flex justify-between gap-2 text-sm py-1 border-b border-[rgba(212,175,55,0.1)]">
-            <span><span class="text-gold font-bold" x-text="p.puesto + '.'"></span> <span x-text="p.nombre"></span></span>
-            <span class="text-txt-muted" x-text="p.cantidad"></span>
+      <aside class="flex flex-col gap-5">
+        <section class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-2xl p-4" data-anim="card">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">Así lo ve el mozo</h2>
+            <span class="text-[11px] text-txt-muted">en vivo</span>
           </div>
-        </template>
-        <p x-show="!top.length" class="text-txt-muted text-sm">Sin ventas esta semana.</p>
-      </section>
+          <div class="phone" x-ref="phone">
+            <div class="phone-screen">
+              <div class="phone-sheet">
+                <p class="text-[#f5f5f5] font-extrabold text-[15px] leading-tight mb-2">Noticias de hoy</p>
+                <div class="phone-body">
+                  <h2 x-text="titulo || 'Título de hoy'"></h2>
+                  <div x-ref="previewBody" class="text-[#f5f5f5]"><p class="text-[#5a5a7a]">Lo que escribas aparece aquí.</p></div>
+                </div>
+                <div class="phone-listo">Listo</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-2xl p-4" data-anim="card">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="font-semibold">TOP de la semana</h2>
+            <span class="text-[11px] text-txt-muted" x-text="topRango"></span>
+          </div>
+          <div x-ref="topLista">
+            <template x-for="p in top" :key="p.puesto">
+              <div class="flex items-center gap-3 text-sm py-2 border-b border-[rgba(212,175,55,0.1)] last:border-0" data-top-fila>
+                <span class="w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0" :style="estiloPuesto(p.puesto)" x-text="p.puesto"></span>
+                <div class="flex-1 min-w-0">
+                  <p class="truncate font-medium" x-text="p.nombre"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="(p.codigo ? p.codigo + ' · ' : '') + 'S/ ' + Number(p.soles || 0).toFixed(2)"></p>
+                </div>
+                <span class="text-gold font-bold tabular-nums" x-text="p.cantidad"></span>
+              </div>
+            </template>
+          </div>
+          <p x-show="!top.length" class="text-txt-muted text-sm">Sin ventas esta semana.</p>
+        </section>
+      </aside>
     </div>
 
-    <section class="mt-5 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-4">
-      <h2 class="font-semibold mb-3">Publicaciones</h2>
-      <template x-for="n in noticias" :key="n._id">
-        <article class="border-b border-[rgba(212,175,55,0.12)] py-3 flex gap-3 items-start">
-          <div class="flex-1 min-w-0">
-            <p class="font-semibold" x-text="n.titulo"></p>
-            <p class="text-xs text-txt-muted" x-text="n.fechaOperativa + (n.vigente ? ' · vigente' : ' · retirada') + ' · ' + (n.autor?.nombre || '')"></p>
-          </div>
-          <button type="button" class="text-sm px-3 py-1 rounded border border-[rgba(212,175,55,0.25)]" @click="editar(n)">Editar</button>
-          <button type="button" class="text-sm px-3 py-1 rounded border border-red-400/40 text-red-300" x-show="n.vigente" @click="retirar(n)">Retirar</button>
-        </article>
-      </template>
-      <p x-show="!noticias.length" class="text-txt-muted text-sm">Todavía no hay noticias.</p>
-    </section>
   </main>
 </div>
+
+<!-- Recorte de imagen -->
+<div x-show="modalRecorte" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/75" @click.self="!recorte.subiendo && cerrarRecorte()">
+  <div data-blendy-to="btn-imagen" class="bg-bg-card border border-[rgba(212,175,55,0.3)] rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]" @click.stop x-ref="modalRecorte">
+    <div class="px-5 py-4 border-b border-[rgba(212,175,55,0.15)] flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold">Recortar imagen</h2>
+        <p class="text-[11px] text-txt-muted mt-0.5">Arrastra para mover. Rueda del mouse para acercar. Se guarda hasta 1200 px.</p>
+      </div>
+      <button type="button" class="text-txt-secondary hover:text-white text-sm" @click="cerrarRecorte()" :disabled="recorte.subiendo">Cerrar</button>
+    </div>
+    <div class="px-5 py-4 space-y-3 overflow-y-auto">
+      <div id="cropper-host"></div>
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="flex gap-1.5">
+          <template x-for="r in ratios" :key="r.id">
+            <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition" :class="recorte.ratio === r.id ? 'bg-gold text-bg-primary border-gold' : 'border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white'" @click="setRatio(r.id)" x-text="r.label"></button>
+          </template>
+        </div>
+        <div class="flex gap-1.5">
+          <button type="button" class="px-3 py-1.5 rounded-lg text-xs border border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white" @click="rotar(-90)" title="Girar a la izquierda">⟲ 90°</button>
+          <button type="button" class="px-3 py-1.5 rounded-lg text-xs border border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white" @click="rotar(90)" title="Girar a la derecha">⟳ 90°</button>
+          <button type="button" class="px-3 py-1.5 rounded-lg text-xs border border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white" @click="zoom(0.15)">＋</button>
+          <button type="button" class="px-3 py-1.5 rounded-lg text-xs border border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white" @click="zoom(-0.15)">－</button>
+        </div>
+      </div>
+      <p x-show="recorte.error" class="text-xs text-[#ff6b6b]" x-text="recorte.error"></p>
+    </div>
+    <div class="px-5 py-4 border-t border-[rgba(212,175,55,0.1)] flex justify-end gap-2">
+      <button type="button" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:text-white disabled:opacity-40" @click="cerrarRecorte()" :disabled="recorte.subiendo">Cancelar</button>
+      <button type="button" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-60" @click="usarRecorte()" :disabled="recorte.subiendo">
+        <span x-show="recorte.subiendo" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></span>
+        <span x-text="recorte.subiendo ? 'Subiendo…' : 'Usar imagen'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="input-imagen" accept="image/jpeg,image/png,image/webp" class="hidden" @change="archivoElegido($event)">
+
+<!-- Toast -->
+<div x-ref="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[95] px-4 py-2.5 rounded-xl text-sm font-semibold shadow-2xl pointer-events-none opacity-0" :class="toast.tipo === 'error' ? 'bg-red-500 text-white' : 'bg-gold text-bg-primary'" x-text="toast.msg"></div>
+
 <script src="/assets/js/shared.js"></script>
+<script src="/assets/js/cosmos-search.js"></script>
+<script src="/assets/vendor/blendy.min.js"></script>
+<script src="/assets/js/blendy-wrapper.js"></script>
+<script src="/assets/vendor/gsap/gsap.min.js"></script>
+<script src="/assets/vendor/gsap/Flip.min.js"></script>
+<script src="/assets/vendor/quill/quill.js"></script>
+<script src="/assets/vendor/cropper/cropper.min.js"></script>
 <script>
+const BORRADOR_KEY = 'noticias_borrador_v1';
+const MAX_IMAGENES = 8;
+const MAX_BYTES = 2 * 1024 * 1024;
+
+const CROPPER_TEMPLATE = `
+<cropper-canvas background>
+  <cropper-image rotatable scalable translatable initial-center-size="contain"></cropper-image>
+  <cropper-shade hidden></cropper-shade>
+  <cropper-handle action="select" plain></cropper-handle>
+  <cropper-selection initial-coverage="0.9" movable resizable zoomable outlined>
+    <cropper-grid role="grid" bordered covered></cropper-grid>
+    <cropper-crosshair centered></cropper-crosshair>
+    <cropper-handle action="move" theme-color="rgba(255,255,255,0.3)"></cropper-handle>
+    <cropper-handle action="n-resize"></cropper-handle>
+    <cropper-handle action="e-resize"></cropper-handle>
+    <cropper-handle action="s-resize"></cropper-handle>
+    <cropper-handle action="w-resize"></cropper-handle>
+    <cropper-handle action="ne-resize"></cropper-handle>
+    <cropper-handle action="nw-resize"></cropper-handle>
+    <cropper-handle action="se-resize"></cropper-handle>
+    <cropper-handle action="sw-resize"></cropper-handle>
+  </cropper-selection>
+</cropper-canvas>`;
+
+/** El sanitizador del servidor solo guarda estilos en línea. Quill escribe algunas cosas con clases. */
+function htmlParaGuardar(quill) {
+  let html = quill.getSemanticHTML();
+  html = html.replace(/<(p|div|h[1-3]|li)([^>]*?)\sclass="ql-align-(center|right|left)"([^>]*)>/gi, '<$1$2 style="text-align:$3"$4>');
+  html = html.replace(/\sclass="[^"]*"/gi, '');
+  html = html.replace(/&nbsp;/g, ' ');
+  return html;
+}
+
 function noticiasApp() {
   return {
     sidebarOpen: false,
@@ -120,11 +406,46 @@ function noticiasApp() {
     editandoId: null,
     noticias: [],
     top: [],
+    topRango: '',
+    fechaOperativa: '',
+    vigentesHoy: 0,
     estado: '',
+    estadoTipo: 'info',
     guardando: false,
+    imagenes: 0,
+    caracteres: 0,
+    tieneContenido: false,
+    borradorRecuperado: false,
+    confirmRetirarId: null,
+    modalRecorte: false,
+    recorte: { url: '', ratio: 'libre', subiendo: false, error: '' },
+    ratios: [
+      { id: 'libre', label: 'Libre', valor: NaN },
+      { id: '16:9', label: '16:9', valor: 16 / 9 },
+      { id: '4:3', label: '4:3', valor: 4 / 3 },
+      { id: '1:1', label: '1:1', valor: 1 },
+    ],
+    toast: { msg: '', tipo: 'ok' },
+    quill: null,
+    cropper: null,
+    anima: true,
+    _mm: null,
+    _toastTween: null,
+    _borradorTimer: null,
+
+    get puedePublicar() {
+      return this.titulo.trim().length > 0 && this.tieneContenido;
+    },
+
     token() {
       return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') || '';
     },
+    headers(json = true) {
+      const h = { Authorization: 'Bearer ' + this.token() };
+      if (json) h['Content-Type'] = 'application/json';
+      return h;
+    },
+
     async init() {
       const token = this.token();
       if (!token) { window.location.href = '/login.html'; return; }
@@ -134,56 +455,240 @@ function noticiasApp() {
         window.location.href = '/index.html';
         return;
       }
-      await Promise.all([this.cargar(), this.cargarTop()]);
+      this.prepararAnimacion();
+      this.montarEditor();
+      this.restaurarBorrador();
+      await Promise.all([this.cargar(), this.cargarTop(), this.cargarHoy()]);
+      this.entrada();
     },
-    headers() {
-      return { Authorization: 'Bearer ' + this.token(), 'Content-Type': 'application/json' };
+
+    // ---------- animación ----------
+    prepararAnimacion() {
+      if (typeof gsap === 'undefined') { this.anima = false; return; }
+      if (window.Flip) gsap.registerPlugin(window.Flip);
+      this._mm = gsap.matchMedia();
+      this._mm.add('(prefers-reduced-motion: no-preference)', () => {
+        this.anima = true;
+        return () => { this.anima = false; };
+      });
+      this._mm.add('(prefers-reduced-motion: reduce)', () => { this.anima = false; });
     },
-    async cargar() {
-      const res = await fetch('/api/noticias', { headers: this.headers() });
-      if (res.status === 401) { window.location.href = '/login.html'; return; }
-      const data = await res.json();
-      this.noticias = data.noticias || [];
+    entrada() {
+      if (!this.anima) return;
+      gsap.from('[data-anim="card"]', { y: 18, opacity: 0, duration: 0.55, stagger: 0.08, ease: 'power3.out', clearProps: 'all' });
+      this.animarTop();
+      gsap.to(this.$refs.phone, { y: -4, duration: 2.6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
     },
-    async cargarTop() {
-      const res = await fetch('/api/noticias/top-semana', { headers: { Authorization: 'Bearer ' + this.token() } });
-      if (!res.ok) return;
-      const data = await res.json();
-      this.top = data.platos || [];
+    animarTop() {
+      if (!this.anima) return;
+      this.$nextTick(() => {
+        const filas = this.$refs.topLista?.querySelectorAll('[data-top-fila]');
+        if (filas && filas.length) gsap.from(filas, { x: -14, opacity: 0, duration: 0.4, stagger: 0.05, ease: 'power2.out', clearProps: 'all' });
+      });
     },
-    editor() { return document.getElementById('editor'); },
+    estiloPuesto(puesto) {
+      const map = {
+        1: 'background:#d4af37;color:#1a1a1a;box-shadow:0 0 14px rgba(212,175,55,0.45)',
+        2: 'background:#c0c0c0;color:#1a1a1a',
+        3: 'background:#cd7f32;color:#1a1a1a',
+      };
+      return map[puesto] || 'background:rgba(212,175,55,0.12);color:#d4af37;border:1px solid rgba(212,175,55,0.3)';
+    },
+    mostrarToast(msg, tipo = 'ok') {
+      this.toast = { msg, tipo };
+      const el = this.$refs.toast;
+      if (!el) return;
+      if (this._toastTween) this._toastTween.kill();
+      if (!this.anima || typeof gsap === 'undefined') {
+        el.style.opacity = '1';
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2400);
+        return;
+      }
+      this._toastTween = gsap.timeline()
+        .fromTo(el, { opacity: 0, y: 16, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.6)' })
+        .to(el, { opacity: 0, y: 10, duration: 0.3, ease: 'power2.in' }, '+=2.2');
+    },
+    async refrescarListaConFlip(fn) {
+      const puedeFlip = this.anima && window.Flip && this.$refs.lista;
+      const state = puedeFlip ? Flip.getState(this.$refs.lista.querySelectorAll('[data-fila-noticia]')) : null;
+      await fn();
+      if (!state) return;
+      await this.$nextTick();
+      Flip.from(state, {
+        targets: this.$refs.lista.querySelectorAll('[data-fila-noticia]'),
+        duration: 0.5,
+        ease: 'power2.out',
+        onEnter: (els) => gsap.fromTo(els,
+          { opacity: 0, y: -14, backgroundColor: 'rgba(212,175,55,0.22)' },
+          { opacity: 1, y: 0, backgroundColor: 'rgba(212,175,55,0)', duration: 0.9, ease: 'power2.out', clearProps: 'backgroundColor,transform,opacity' }),
+      });
+    },
+    pulsoTelefono() {
+      if (!this.anima || !this.$refs.phone) return;
+      gsap.fromTo(this.$refs.phone, { scale: 1 }, { scale: 1.03, duration: 0.16, yoyo: true, repeat: 1, ease: 'power1.inOut' });
+    },
+
+    // ---------- editor ----------
+    montarEditor() {
+      const SizeStyle = Quill.import('attributors/style/size');
+      SizeStyle.whitelist = ['14px', '18px', '24px', '32px'];
+      Quill.register(SizeStyle, true);
+      const AlignStyle = Quill.import('attributors/style/align');
+      Quill.register(AlignStyle, true);
+
+      this.quill = new Quill('#editor', {
+        theme: 'snow',
+        placeholder: 'Escribe la noticia del día. Puedes poner imágenes, títulos y colores.',
+        modules: {
+          toolbar: {
+            container: '#toolbar',
+            handlers: { image: () => this.elegirImagen() },
+          },
+          keyboard: {
+            bindings: {
+              publicar: { key: 'Enter', shortKey: true, handler: () => { this.publicar(); return false; } },
+            },
+          },
+        },
+        formats: ['bold', 'italic', 'underline', 'header', 'size', 'color', 'align', 'list', 'image'],
+      });
+      this.quill.on('text-change', () => {
+        this.sincronizarEstado();
+        this.ajustarAltoEditor();
+        this.actualizarPreview();
+        this.programarBorrador();
+      });
+      this.sincronizarEstado();
+      this.ajustarAltoEditor();
+    },
+    ajustarAltoEditor() {
+      const root = this.quill?.root;
+      if (!root) return;
+      root.style.height = 'auto';
+      const alto = Math.min(220, Math.max(44, root.scrollHeight));
+      root.style.height = alto + 'px';
+    },
+    sincronizarEstado() {
+      if (!this.quill) return;
+      const ops = this.quill.getContents().ops || [];
+      this.imagenes = ops.filter((op) => op.insert && typeof op.insert === 'object' && op.insert.image).length;
+      const texto = this.quill.getText().trim();
+      this.caracteres = texto.length;
+      this.tieneContenido = texto.length > 0 || this.imagenes > 0;
+    },
+    actualizarPreview() {
+      const body = this.$refs.previewBody;
+      if (!body || !this.quill) return;
+      if (!this.tieneContenido) {
+        body.innerHTML = '<p style="color:#5a5a7a">Lo que escribas aparece aquí.</p>';
+        return;
+      }
+      body.innerHTML = htmlParaGuardar(this.quill).replace(/<\s*script[\s\S]*?<\s*\/\s*script\s*>/gi, '');
+      this.programarBorrador();
+    },
     nueva() {
       this.titulo = '';
       this.editandoId = null;
       this.estado = '';
-      if (this.editor()) this.editor().innerHTML = '';
+      this.estadoTipo = 'info';
+      this.borradorRecuperado = false;
+      this.quill?.setContents([], 'silent');
+      this.sincronizarEstado();
+      this.ajustarAltoEditor();
+      this.actualizarPreview();
+      this.borrarBorrador();
+      this.quill?.focus();
     },
     editar(n) {
       this.editandoId = n._id;
       this.titulo = n.titulo || '';
-      if (this.editor()) this.editor().innerHTML = n.cuerpoHtml || '';
-      this.estado = 'Editando';
+      this.borradorRecuperado = false;
+      this.quill.setContents([], 'silent');
+      this.quill.clipboard.dangerouslyPasteHTML(0, n.cuerpoHtml || '', 'silent');
+      this.sincronizarEstado();
+      this.ajustarAltoEditor();
+      this.actualizarPreview();
+      this.estado = 'Editando «' + (n.titulo || '') + '». Al guardar, los teléfonos se actualizan solos.';
+      this.estadoTipo = 'info';
+      this.borrarBorrador();
+      window.scrollTo({ top: 0, behavior: this.anima ? 'smooth' : 'auto' });
+      this.quill.focus();
     },
-    cmd(nombre, valor) {
-      this.editor()?.focus();
-      document.execCommand(nombre, false, valor || null);
+
+    // ---------- borrador local ----------
+    programarBorrador() {
+      clearTimeout(this._borradorTimer);
+      this._borradorTimer = setTimeout(() => this.guardarBorrador(), 600);
     },
-    async subirImagen(ev) {
-      const file = ev.target.files && ev.target.files[0];
-      ev.target.value = '';
-      if (!file) return;
-      const fd = new FormData();
-      fd.append('imagen', file);
-      this.estado = 'Subiendo imagen…';
-      const res = await fetch('/api/noticias/imagen', { method: 'POST', headers: { Authorization: 'Bearer ' + this.token() }, body: fd });
+    guardarBorrador() {
+      if (!this.quill || this.editandoId) return;
+      if (!this.titulo.trim() && !this.tieneContenido) { this.borrarBorrador(); return; }
+      try {
+        localStorage.setItem(BORRADOR_KEY, JSON.stringify({ titulo: this.titulo, delta: this.quill.getContents(), at: Date.now() }));
+      } catch (_) {}
+    },
+    restaurarBorrador() {
+      try {
+        const raw = localStorage.getItem(BORRADOR_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data || (!data.titulo && !data.delta)) return;
+        this.titulo = data.titulo || '';
+        if (data.delta) this.quill.setContents(data.delta, 'silent');
+        this.sincronizarEstado();
+        this.ajustarAltoEditor();
+        this.actualizarPreview();
+        this.borradorRecuperado = true;
+      } catch (_) {}
+    },
+    descartarBorrador() {
+      this.borrarBorrador();
+      this.nueva();
+    },
+    borrarBorrador() {
+      try { localStorage.removeItem(BORRADOR_KEY); } catch (_) {}
+      this.borradorRecuperado = false;
+    },
+
+    // ---------- datos ----------
+    async cargar() {
+      const res = await fetch('/api/noticias', { headers: this.headers(false) });
+      if (res.status === 401) { window.location.href = '/login.html'; return; }
       const data = await res.json();
-      if (!res.ok) { this.estado = data.error || 'No se pudo subir'; return; }
-      this.editor()?.focus();
-      document.execCommand('insertHTML', false, '<img src="' + data.url + '" alt="">');
-      this.estado = '';
+      this.noticias = data.noticias || [];
+    },
+    async cargarHoy() {
+      try {
+        const res = await fetch('/api/noticias/hoy', { headers: this.headers(false), cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        this.fechaOperativa = data.fechaOperativa || '';
+        this.vigentesHoy = Array.isArray(data.noticias) ? data.noticias.length : 0;
+      } catch (_) {}
+    },
+    async cargarTop() {
+      const res = await fetch('/api/noticias/top-semana', { headers: this.headers(false) });
+      if (!res.ok) return;
+      const data = await res.json();
+      this.top = data.platos || [];
+      this.topRango = data.desde && data.hasta ? data.desde.slice(5) + ' → ' + data.hasta.slice(5) : '';
     },
     async publicar() {
-      const cuerpoHtml = this.editor() ? this.editor().innerHTML : '';
+      if (this.guardando) return;
+      if (!this.titulo.trim()) {
+        this.estado = 'Ponle un título.';
+        this.estadoTipo = 'error';
+        document.getElementById('titulo')?.focus();
+        return;
+      }
+      if (!this.tieneContenido) {
+        this.estado = 'Escribe algo o agrega una imagen.';
+        this.estadoTipo = 'error';
+        this.quill?.focus();
+        return;
+      }
+      const cuerpoHtml = htmlParaGuardar(this.quill);
       this.guardando = true;
       this.estado = '';
       try {
@@ -191,23 +696,174 @@ function noticiasApp() {
         const res = await fetch(url, {
           method: this.editandoId ? 'PUT' : 'POST',
           headers: this.headers(),
-          body: JSON.stringify({ titulo: this.titulo, cuerpoHtml })
+          body: JSON.stringify({ titulo: this.titulo, cuerpoHtml }),
         });
         const data = await res.json();
-        if (!res.ok) { this.estado = data.error || 'No se pudo publicar'; return; }
+        if (!res.ok) {
+          this.estado = data.error || 'No se pudo publicar';
+          this.estadoTipo = 'error';
+          this.mostrarToast(this.estado, 'error');
+          return;
+        }
+        const editaba = !!this.editandoId;
+        await this.refrescarListaConFlip(async () => {
+          await Promise.all([this.cargar(), this.cargarHoy()]);
+        });
         this.nueva();
-        this.estado = 'Publicado';
-        await this.cargar();
+        this.estado = editaba ? 'Cambios guardados. Los teléfonos ya lo tienen.' : 'Publicado. Mozos y cocina lo ven ahora.';
+        this.estadoTipo = 'info';
+        this.mostrarToast(editaba ? 'Guardado' : 'Publicado');
+        this.pulsoTelefono();
+      } catch (e) {
+        this.estado = 'Sin conexión con el servidor';
+        this.estadoTipo = 'error';
+        this.mostrarToast(this.estado, 'error');
       } finally {
         this.guardando = false;
       }
     },
     async retirar(n) {
-      if (!window.confirm('¿Retirar esta noticia? Deja de verse en los teléfonos.')) return;
+      this.confirmRetirarId = null;
       const res = await fetch('/api/noticias/' + n._id + '/retirar', { method: 'PATCH', headers: this.headers() });
-      if (!res.ok) { this.estado = 'No se pudo retirar'; return; }
-      await this.cargar();
-    }
+      if (!res.ok) { this.mostrarToast('No se pudo retirar', 'error'); return; }
+      await this.refrescarListaConFlip(async () => {
+        await Promise.all([this.cargar(), this.cargarHoy()]);
+      });
+      if (this.editandoId === n._id) this.nueva();
+      this.mostrarToast('Retirada. Ya no se ve en los teléfonos.');
+    },
+
+    // ---------- imágenes ----------
+    elegirImagen() {
+      if (this.imagenes >= MAX_IMAGENES) {
+        this.estado = 'Máximo ' + MAX_IMAGENES + ' imágenes por noticia.';
+        this.estadoTipo = 'error';
+        this.mostrarToast(this.estado, 'error');
+        return;
+      }
+      document.getElementById('input-imagen')?.click();
+    },
+    archivoElegido(ev) {
+      const file = ev.target.files && ev.target.files[0];
+      ev.target.value = '';
+      if (!file) return;
+      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) {
+        this.mostrarToast('Solo JPEG, PNG o WebP', 'error');
+        return;
+      }
+      this.abrirRecorte(file);
+    },
+    cropperCtor() {
+      const C = window.Cropper;
+      if (!C) return null;
+      if (typeof C === 'function') return C;
+      return C.default || C.Cropper || null;
+    },
+    async abrirRecorte(file) {
+      const Ctor = this.cropperCtor();
+      if (!Ctor) {
+        try { await this.subirYInsertar(file); } catch (e) { this.mostrarToast(e.message || 'No se pudo subir', 'error'); }
+        return;
+      }
+      this.recorte = { url: URL.createObjectURL(file), ratio: 'libre', subiendo: false, error: '' };
+      this.modalRecorte = true;
+      await this.$nextTick();
+      const host = document.getElementById('cropper-host');
+      host.innerHTML = '';
+      const img = new Image();
+      img.alt = '';
+      img.src = this.recorte.url;
+      host.appendChild(img);
+      try {
+        this.cropper = new Ctor(img, { template: CROPPER_TEMPLATE });
+      } catch (e) {
+        this.recorte.error = 'No se pudo abrir el recorte: ' + (e.message || e);
+        return;
+      }
+      const btn = document.getElementById('btn-imagen');
+      if (this.anima && window.BlendyWrapper && btn && this.$refs.modalRecorte) {
+        BlendyWrapper.morph(btn, this.$refs.modalRecorte);
+      }
+    },
+    setRatio(id) {
+      this.recorte.ratio = id;
+      const r = this.ratios.find((x) => x.id === id);
+      const sel = this.cropper?.getCropperSelection();
+      if (sel && r) {
+        sel.aspectRatio = r.valor;
+        sel.$center?.();
+      }
+    },
+    rotar(grados) {
+      this.cropper?.getCropperImage()?.$rotate(grados + 'deg');
+    },
+    zoom(delta) {
+      this.cropper?.getCropperImage()?.$zoom(delta);
+    },
+    cerrarRecorte() {
+      if (this.recorte.subiendo) return;
+      const btn = document.getElementById('btn-imagen');
+      const fin = () => {
+        this.modalRecorte = false;
+        try { this.cropper?.destroy(); } catch (_) {}
+        this.cropper = null;
+        const host = document.getElementById('cropper-host');
+        if (host) host.innerHTML = '';
+        if (this.recorte.url) URL.revokeObjectURL(this.recorte.url);
+        this.recorte = { url: '', ratio: 'libre', subiendo: false, error: '' };
+        if (window.BlendyWrapper && btn) BlendyWrapper.restoreSource(btn);
+      };
+      if (this.anima && window.BlendyWrapper && btn && this.$refs.modalRecorte) {
+        BlendyWrapper.unmorph(btn, this.$refs.modalRecorte, { onDone: fin });
+      } else {
+        fin();
+      }
+    },
+    async usarRecorte() {
+      const sel = this.cropper?.getCropperSelection();
+      if (!sel) return;
+      this.recorte.subiendo = true;
+      this.recorte.error = '';
+      try {
+        const ancho = Math.min(1200, Math.max(1, Math.round(sel.width)));
+        const canvas = await sel.$toCanvas({ width: ancho });
+        const blob = await this.canvasABlob(canvas);
+        if (!blob) throw new Error('La imagen sigue pesando más de 2 MB. Prueba un recorte más pequeño.');
+        await this.subirYInsertar(new File([blob], 'noticia.jpg', { type: 'image/jpeg' }));
+        this.recorte.subiendo = false;
+        this.cerrarRecorte();
+      } catch (e) {
+        this.recorte.subiendo = false;
+        this.recorte.error = e.message || 'No se pudo recortar';
+      }
+    },
+    canvasABlob(canvas) {
+      const intentar = (calidad) => new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', calidad));
+      return intentar(0.86).then((b) => {
+        if (b && b.size <= MAX_BYTES) return b;
+        return intentar(0.7).then((b2) => (b2 && b2.size <= MAX_BYTES ? b2 : null));
+      });
+    },
+    async subirYInsertar(file) {
+      if (file.size > MAX_BYTES) throw new Error('La imagen pesa más de 2 MB.');
+      const fd = new FormData();
+      fd.append('imagen', file);
+      this.estado = 'Subiendo imagen…';
+      this.estadoTipo = 'info';
+      const res = await fetch('/api/noticias/imagen', { method: 'POST', headers: this.headers(false), body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        this.estado = data.error || 'No se pudo subir';
+        this.estadoTipo = 'error';
+        throw new Error(this.estado);
+      }
+      const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
+      this.quill.insertEmbed(range.index, 'image', data.url, 'user');
+      this.quill.setSelection(range.index + 1, 0, 'silent');
+      this.estado = 'Imagen lista.';
+      this.estadoTipo = 'info';
+      this.mostrarToast('Imagen insertada');
+    },
   };
 }
 </script>
