@@ -224,7 +224,9 @@ tailwind.config = {
             <span x-text="guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Publicar ahora')"></span>
           </button>
           <button type="button" class="px-4 py-2.5 rounded-xl text-sm border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:text-white transition" @click="nueva()" x-text="editandoId ? 'Cancelar edición' : 'Limpiar'"></button>
+          <button type="button" class="px-4 py-2.5 rounded-xl text-sm border border-gold/40 text-gold hover:bg-gold-20 transition disabled:opacity-50" :disabled="guardando || !puedePublicar" @click="enviarUnaVez()">Enviar una vez</button>
         </div>
+        <p class="text-[11px] text-txt-muted mt-2">Enviar una vez llega a mozos y cocina ahora y no queda en el archivo.</p>
 
         <div class="mt-4 pt-4 border-t border-[rgba(212,175,55,0.15)] flex-1 min-h-[180px] flex flex-col">
           <div class="flex items-center justify-between mb-2 shrink-0">
@@ -718,6 +720,39 @@ function noticiasApp() {
         this.estado = 'Sin conexión con el servidor';
         this.estadoTipo = 'error';
         this.mostrarToast(this.estado, 'error');
+      } finally {
+        this.guardando = false;
+      }
+    },
+    async enviarUnaVez() {
+      if (this.guardando) return;
+      if (!this.titulo.trim() || !this.tieneContenido) {
+        this.estado = 'Ponle título y texto, o una imagen.';
+        this.estadoTipo = 'error';
+        return;
+      }
+      this.guardando = true;
+      this.estado = '';
+      try {
+        const res = await fetch('/api/noticias/temporal', {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify({ titulo: this.titulo, cuerpoHtml: htmlParaGuardar(this.quill) }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          this.estado = data.error || 'No se pudo enviar';
+          this.estadoTipo = 'error';
+          this.mostrarToast(this.estado, 'error');
+          return;
+        }
+        this.nueva();
+        this.estado = 'Enviada una vez. No quedó guardada.';
+        this.estadoTipo = 'info';
+        this.mostrarToast('Enviada una vez');
+        this.pulsoTelefono();
+      } catch (e) {
+        this.mostrarToast('Sin conexión con el servidor', 'error');
       } finally {
         this.guardando = false;
       }

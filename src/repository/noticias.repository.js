@@ -124,6 +124,16 @@ function armarCuerpo(body) {
     return { titulo, cuerpoHtml, imagenes };
 }
 
+function prepararTemporal(body, autor) {
+    const campos = armarCuerpo(body);
+    return {
+        titulo: campos.titulo,
+        cuerpoHtml: campos.cuerpoHtml,
+        autor: { nombre: String(autor?.nombre || '') },
+        temporal: true,
+    };
+}
+
 async function crearNoticia(body, autor) {
     const campos = armarCuerpo(body);
     const doc = await Noticia.create({
@@ -165,6 +175,7 @@ module.exports = {
     topSemana,
     listarHoy,
     listarArchivo,
+    prepararTemporal,
     crearNoticia,
     actualizarNoticia,
     retirarNoticia,

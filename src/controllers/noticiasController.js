@@ -53,21 +53,25 @@ function puedePublicar(req, res, next) {
     return checkPermission('publicar-noticias')(req, res, next);
 }
 
-function emitirNoticia(accion = 'creada', noticia = null) {
+function emitirEnApps(evento, payload) {
     const io = global.io;
     if (!io) return;
+    try {
+        io.of('/mozos').emit(evento, payload);
+        io.of('/cocina').emit(evento, payload);
+    } catch (error) {
+        logger.warn('No se avisó la noticia', { error: error.message });
+    }
+}
+
+function emitirNoticia(accion = 'creada', noticia = null) {
     const payload = {
         fechaOperativa: ymdOperativo(),
         accion,
         noticiaId: noticia?._id ? String(noticia._id) : null,
         titulo: noticia?.titulo || '',
     };
-    try {
-        io.of('/mozos').emit('noticia-publicada', payload);
-        io.of('/cocina').emit('noticia-publicada', payload);
-    } catch (error) {
-        logger.warn('No se avisó la noticia', { error: error.message });
-    }
+    emitirEnApps('noticia-publicada', payload);
 }
 
 function autorDe(req) {
@@ -109,6 +113,16 @@ router.post('/noticias/imagen', adminAuth, puedePublicar, (req, res) => {
         if (!req.file) return res.status(400).json({ error: 'Falta la imagen' });
         res.json({ url: `/uploads/noticias/${req.file.filename}` });
     });
+});
+
+router.post('/noticias/temporal', adminAuth, puedePublicar, (req, res) => {
+    try {
+        const aviso = repo.prepararTemporal(req.body, autorDe(req));
+        emitirEnApps('noticia-temporal', aviso);
+        res.json({ enviado: true });
+    } catch (error) {
+        res.status(error.status || 500).json({ error: error.message || 'No se pudo enviar' });
+    }
 });
 
 router.post('/noticias', adminAuth, puedePublicar, async (req, res) => {
