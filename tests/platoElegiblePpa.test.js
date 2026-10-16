@@ -5,6 +5,7 @@ describe('esPlatoElegibleParaPPA', () => {
     expect(esPlatoElegibleParaPPA({ estado: 'pedido', tipoServicio: 'mesa' })).toBe(true);
     expect(esPlatoElegibleParaPPA({ estado: 'recoger', tipoServicio: 'mesa' })).toBe(true);
     expect(esPlatoElegibleParaPPA({ estado: 'pedido', tipoServicio: 'para_llevar' })).toBe(true);
+    expect(esPlatoElegibleParaPPA({ estado: 'salio', tipoServicio: 'mesa' })).toBe(true);
   });
 
   test('entregado/pagado o ya cobrado por TPA no son elegibles', () => {
