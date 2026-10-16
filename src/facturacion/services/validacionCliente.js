@@ -96,7 +96,8 @@ function validarCliente(tipoComprobante, cliente, importeTotal, config = {}) {
     }
     if (!Object.values(TIPO_DOC_IDENTIDAD).includes(tipoDoc)) throw new ErrorCliente(`Tipo de documento no soportado: ${tipoDoc}`, 'DOCUMENTO_INVALIDO');
     if (!nombre) throw new ErrorCliente('Nombre del cliente requerido cuando se identifica', 'NOMBRE_REQUERIDO');
-    return { tipoDoc, numDoc: numDoc.toUpperCase(), nombre, ...extra, validacionPadron: 'no_aplica' };
+    const padron = c.validacionPadron === 'ok' || c.validacionPadron === 'pendiente' ? c.validacionPadron : 'no_aplica';
+    return { tipoDoc, numDoc: numDoc.toUpperCase(), nombre, ...extra, validacionPadron: padron };
 }
 
 module.exports = { validarCliente, esRucValido, esDniValido, ErrorCliente, LIMITE_BOLETA_ANONIMA_DEFECTO };

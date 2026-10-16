@@ -10,7 +10,7 @@ const { adminAuth } = require('../../middleware/adminAuth');
 const Comprobante = require('../models/comprobante.model');
 const TransaccionPago = require('../models/transaccionPago.model');
 const TurnoCaja = require('../models/turnoCaja.model');
-const { totalesDesdeMovimientos, cuadrarCierre } = require('../services/turnoCajaService');
+const { totalesDesdeMovimientos, efectivoEnGaveta, cuadrarCierre } = require('../services/turnoCajaService');
 const { emitirNotaCredito } = require('../services/notaCreditoService');
 const { comunicarBaja } = require('../services/bajaService');
 const { autorizarSupervisor } = require('../services/autorizarSupervisor');
@@ -61,7 +61,46 @@ router.get('/facturacion/turnos/activo', adminAuth, async (req, res) => {
         const terminal = 'CAJA1';
         const turno = await TurnoCaja.findOne({ estado: 'ABIERTO', $or: [{ cajero }, { terminal }] }).sort({ fechaApertura: -1 }).lean();
         if (!turno) return res.json(null);
-        res.json({ ...turno, ...(await movimientosDelTurno(turno)) });
+        const vivos = await movimientosDelTurno(turno);
+        const gaveta = efectivoEnGaveta({
+            fondoInicial: turno.fondoInicial,
+            ventasEfectivo: vivos.totalEfectivoEsperado,
+            movimientos: turno.movimientosCaja,
+        });
+        res.json({ ...turno, ...vivos, ...gaveta });
+    } catch (err) {
+        responderError(res, err);
+    }
+});
+
+router.post('/facturacion/turnos/movimiento', adminAuth, async (req, res) => {
+    try {
+        const cajero = req.admin?.name || req.admin?.id || 'caja';
+        const turno = await TurnoCaja.findOne({ estado: 'ABIERTO', $or: [{ cajero }, { terminal: 'CAJA1' }] });
+        if (!turno) return res.status(404).json({ message: 'No hay turno abierto' });
+        const tipo = req.body.tipo;
+        const monto = Number(req.body.monto);
+        const motivo = String(req.body.motivo || '').trim();
+        if (!['INGRESO', 'EGRESO'].includes(tipo)) return res.status(422).json({ message: 'El tipo es INGRESO o EGRESO', codigo: 'TIPO_MOVIMIENTO' });
+        if (!(monto > 0)) return res.status(422).json({ message: 'El monto debe ser mayor a 0', codigo: 'MONTO' });
+        if (!motivo) return res.status(422).json({ message: 'Indique el motivo', codigo: 'MOTIVO' });
+        turno.movimientosCaja.push({
+            tipo,
+            monto,
+            motivo,
+            medio: 'efectivo',
+            proveedorDoc: String(req.body.proveedorDoc || '').trim(),
+            registradoPor: cajero,
+            fecha: new Date(),
+        });
+        await turno.save();
+        const vivos = await movimientosDelTurno(turno);
+        const gaveta = efectivoEnGaveta({
+            fondoInicial: turno.fondoInicial,
+            ventasEfectivo: vivos.totalEfectivoEsperado,
+            movimientos: turno.movimientosCaja,
+        });
+        res.status(201).json({ ...turno.toObject(), ...vivos, ...gaveta });
     } catch (err) {
         responderError(res, err);
     }
@@ -73,13 +112,18 @@ router.post('/facturacion/turnos/cerrar', adminAuth, async (req, res) => {
         const turno = await TurnoCaja.findOne({ estado: 'ABIERTO', cajero });
         if (!turno) return res.status(404).json({ message: 'No hay turno abierto' });
         const vivos = await movimientosDelTurno(turno);
+        const gaveta = efectivoEnGaveta({
+            fondoInicial: turno.fondoInicial,
+            ventasEfectivo: vivos.totalEfectivoEsperado,
+            movimientos: turno.movimientosCaja,
+        });
         const declarado = {
             efectivo: Number(req.body.efectivoReal || 0),
             niubiz: Number(req.body.loteNiubiz?.montoVoucher || 0),
             izipay: Number(req.body.loteIzipay?.montoVoucher || 0),
         };
         const cuadre = cuadrarCierre({
-            efectivo: vivos.totalEfectivoEsperado + turno.fondoInicial,
+            efectivo: gaveta.efectivoEnGaveta,
             niubiz: vivos.totalNiubizEsperado,
             izipay: vivos.totalIzipayEsperado,
         }, declarado);
@@ -102,7 +146,9 @@ router.post('/facturacion/turnos/cerrar', adminAuth, async (req, res) => {
         const lineas = [
             'CIERRE DE TURNO',
             turno.terminal,
-            `Efectivo esperado ${vivos.totalEfectivoEsperado.toFixed(2)}`,
+            `Efectivo en gaveta ${gaveta.efectivoEnGaveta.toFixed(2)}`,
+            `Ingresos caja ${gaveta.totalIngresosCaja.toFixed(2)}`,
+            `Egresos caja ${gaveta.totalEgresosCaja.toFixed(2)}`,
             `Efectivo contado ${declarado.efectivo.toFixed(2)}`,
             `Propinas ${vivos.totalPropinas.toFixed(2)}`,
             `Dif. efectivo ${cuadre.diferencias.efectivo.toFixed(2)}`,

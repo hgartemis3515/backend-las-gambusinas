@@ -11,6 +11,8 @@ const mongoose = require('mongoose');
 const { adminAuth } = require('../../middleware/adminAuth');
 const Comprobante = require('../models/comprobante.model');
 const { emitir } = require('../services/emisionService');
+const motorTributario = require('../services/motorTributario');
+const { consultarPadron } = require('../services/padronService');
 const { asegurarSerie } = require('../services/serieService');
 const { obtenerConfiguracionFiscal } = require('../services/configuracionFiscal');
 const { construirPreCuenta } = require('../services/precuentaService');
@@ -31,6 +33,83 @@ const router = express.Router();
 function responderError(res, err) {
     const status = err.statusCode || (err.name === 'ValidationError' ? 422 : 500);
     res.status(status).json({ message: err.message, codigo: err.codigo || err.name });
+}
+
+router.post('/facturacion/cotizar', adminAuth, async (req, res) => {
+    try {
+        const cfg = await obtenerConfiguracionFiscal();
+        const calculo = motorTributario.calcular({
+            tipoComprobante: req.body.tipo,
+            items: req.body.items,
+            descuentoGlobal: req.body.descuentoGlobal,
+            config: { tasaIgv: cfg.tasaIgv, preciosIncluyenIGV: cfg.preciosIncluyenIGV, afectacionCortesia: cfg.afectacionCortesia },
+        });
+        res.json({
+            porcentajeIgv: calculo.porcentajeIgv,
+            totales: calculo.totales,
+            descuentoGlobal: calculo.descuentoGlobal,
+            topeDescuentoPct: cfg.topeDescuentoPct,
+            limiteBoletaAnonima: cfg.limiteBoletaAnonima,
+        });
+    } catch (err) {
+        responderError(res, err);
+    }
+});
+
+router.get('/facturacion/padron/:tipo/:numero', adminAuth, async (req, res) => {
+    try {
+        res.json(await consultarPadron(req.params.tipo, req.params.numero));
+    } catch (err) {
+        responderError(res, err);
+    }
+});
+
+router.get('/facturacion/comprobantes/:id/pdf', adminAuth, async (req, res) => {
+    try {
+        const doc = await cargarComprobante(req.params.id);
+        const { generarPdfA4 } = require('../print/pdfA4');
+        const pdf = await generarPdfA4(doc);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${doc.idCompleto}.pdf"`);
+        res.send(pdf);
+    } catch (err) {
+        responderError(res, err);
+    }
+});
+
+router.get('/facturacion/comprobantes/:id/xml', adminAuth, async (req, res) => {
+    try {
+        const doc = await cargarComprobante(req.params.id);
+        if (!doc.xml?.ruta || !fs.existsSync(doc.xml.ruta)) return res.status(404).json({ message: 'XML aún no firmado', codigo: 'SIN_XML' });
+        res.download(doc.xml.ruta, `${doc.idCompleto}.xml`);
+    } catch (err) {
+        responderError(res, err);
+    }
+});
+
+router.get('/facturacion/comprobantes/:id/cdr', adminAuth, async (req, res) => {
+    try {
+        const doc = await cargarComprobante(req.params.id);
+        if (!doc.cdr?.ruta || !fs.existsSync(doc.cdr.ruta)) return res.status(404).json({ message: 'CDR aún no recibido', codigo: 'SIN_CDR' });
+        res.download(doc.cdr.ruta, `${doc.idCompleto}-cdr.xml`);
+    } catch (err) {
+        responderError(res, err);
+    }
+});
+
+async function cargarComprobante(id) {
+    if (!mongoose.isValidObjectId(id)) {
+        const err = new Error('ID inválido');
+        err.statusCode = 400;
+        throw err;
+    }
+    const doc = await Comprobante.findById(id).lean();
+    if (!doc) {
+        const err = new Error('Comprobante no encontrado');
+        err.statusCode = 404;
+        throw err;
+    }
+    return doc;
 }
 
 router.post('/facturacion/comprobantes', adminAuth, async (req, res) => {

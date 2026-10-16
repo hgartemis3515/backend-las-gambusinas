@@ -22,6 +22,7 @@ const { construir, nombreArchivo, partesLima } = require('./ublBuilder');
 const { firmarXml, codigoQr } = require('./firmaService');
 const { formatearTicket } = require('../print/escposFormatter');
 const { imprimir, destinoDesdeEnv } = require('../print/imprimir');
+const { autorizarSupervisor } = require('./autorizarSupervisor');
 const { TIPO_DOCUMENTO, ESTADO_COMPROBANTE } = require('../constants/catalogosSunat');
 
 class ErrorEmision extends Error {
@@ -75,6 +76,7 @@ async function emitir(solicitud, deps = {}) {
         encolar = encolarFirmarEnviar,
         obtenerConfig = obtenerConfiguracionFiscal,
         ahora = () => new Date(),
+        autorizar = autorizarSupervisor,
     } = deps;
 
     const { tipo } = solicitud || {};
@@ -103,10 +105,19 @@ async function emitir(solicitud, deps = {}) {
         },
     });
 
+    const usuario = solicitud.cajero || 'sistema';
+    if (descuentoExigePin(calculo, cfg.topeDescuentoPct ?? 10)) {
+        await autorizar({
+            pin: solicitud.pinSupervisor,
+            accion: 'descuento',
+            motivo: solicitud.descuentoGlobal?.motivo || 'descuento global',
+            cajeroId: usuario,
+        });
+    }
+
     const receptor = validarCliente(tipo, solicitud.cliente, calculo.totales.importeTotal, cfg);
     const serie = (solicitud.serie || cfg.series[tipo] || '').toUpperCase();
     const fechaLimite = new Date(fechaEmision.getTime() + cfg.plazoEnvioDias * 24 * 3600 * 1000);
-    const usuario = solicitud.cajero || 'sistema';
 
     const mediosPago = calculo.mediosPago.map((m, i) => ({
         ...m,
@@ -198,7 +209,20 @@ async function emitir(solicitud, deps = {}) {
     };
 }
 
-module.exports = { emitir, ErrorEmision, firmarLocal };
+/**
+ * El descuento con IGV, medido sobre el total antes del descuento, pasa el tope.
+ * @param {{ descuentoGlobal?: { montoConIgv?: number }, totales?: { importeTotal?: number } }} calculo
+ * @param {number} [topePct]
+ */
+function descuentoExigePin(calculo, topePct = 10) {
+    const conIgv = Number(calculo?.descuentoGlobal?.montoConIgv || 0);
+    if (conIgv <= 0) return false;
+    const antes = Number(calculo?.totales?.importeTotal || 0) + conIgv;
+    if (antes <= 0) return false;
+    return (conIgv / antes) * 100 > Number(topePct) + 1e-6;
+}
+
+module.exports = { emitir, ErrorEmision, firmarLocal, descuentoExigePin };
 
 /**
  * Firma en el proceso si hay CERT_PATH. Sin certificado (tests, mock) no bloquea el cobro.

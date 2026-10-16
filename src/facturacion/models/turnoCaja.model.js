@@ -40,6 +40,18 @@ const turnoCajaSchema = new Schema({
         niubiz: { type: Number, default: 0 },
         izipay: { type: Number, default: 0 },
     },
+    movimientosCaja: {
+        type: [{
+            tipo: { type: String, enum: ['INGRESO', 'EGRESO'], required: true },
+            monto: { type: Number, required: true, min: 0.01 },
+            motivo: { type: String, required: true, trim: true },
+            medio: { type: String, default: 'efectivo' },
+            proveedorDoc: { type: String, default: '' },
+            registradoPor: { type: String, default: '' },
+            fecha: { type: Date, default: Date.now },
+        }],
+        default: [],
+    },
     justificacionDiferencia: { type: String, default: '' },
     autorizadoPor: { type: String, default: null },
 }, { timestamps: true, collection: 'turnos_caja' });

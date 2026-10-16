@@ -32,6 +32,22 @@ function totalesDesdeMovimientos(pagos = [], comprobantes = []) {
  * @param {{ efectivo: number, niubiz: number, izipay: number }} esperado
  * @param {{ efectivo: number, niubiz: number, izipay: number }} declarado
  */
+/**
+ * Efectivo que debe haber en la gaveta.
+ * Fondo + ventas en efectivo + ingresos de caja − egresos de caja.
+ * @param {{ fondoInicial?: number, ventasEfectivo?: number, movimientos?: {tipo: string, monto: number}[] }} datos
+ */
+function efectivoEnGaveta(datos = {}) {
+    const movimientos = datos.movimientos || [];
+    const totalIngresosCaja = n2(movimientos.filter((m) => m.tipo === 'INGRESO').reduce((s, m) => s + Number(m.monto), 0));
+    const totalEgresosCaja = n2(movimientos.filter((m) => m.tipo === 'EGRESO').reduce((s, m) => s + Number(m.monto), 0));
+    return {
+        totalIngresosCaja,
+        totalEgresosCaja,
+        efectivoEnGaveta: n2(Number(datos.fondoInicial || 0) + Number(datos.ventasEfectivo || 0) + totalIngresosCaja - totalEgresosCaja),
+    };
+}
+
 function cuadrarCierre(esperado, declarado) {
     const diferencias = {
         efectivo: n2(declarado.efectivo - esperado.efectivo),
@@ -42,4 +58,4 @@ function cuadrarCierre(esperado, declarado) {
     return { diferencias, requierePin };
 }
 
-module.exports = { totalesDesdeMovimientos, cuadrarCierre };
+module.exports = { totalesDesdeMovimientos, efectivoEnGaveta, cuadrarCierre };

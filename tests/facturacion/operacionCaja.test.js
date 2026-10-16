@@ -1,4 +1,4 @@
-const { totalesDesdeMovimientos, cuadrarCierre } = require('../../src/facturacion/services/turnoCajaService');
+const { totalesDesdeMovimientos, efectivoEnGaveta, cuadrarCierre } = require('../../src/facturacion/services/turnoCajaService');
 const { serieDeNota, validarMotivo, ErrorNota } = require('../../src/facturacion/services/notaCreditoService');
 const { coincideConsulta, firmarDescarga, leerDescarga } = require('../../src/facturacion/services/portalCpe');
 
@@ -25,6 +25,19 @@ describe('cuadre de turno', () => {
             totalPropinas: 7,
         });
         expect(t.conteo).toEqual({ boletas: 1, facturas: 1, notasCredito: 1, pendientesEnvio: 2, rechazados: 0 });
+    });
+
+    test('la gaveta suma fondo, ventas en efectivo, ingresos y resta egresos', () => {
+        const g = efectivoEnGaveta({
+            fondoInicial: 100,
+            ventasEfectivo: 40,
+            movimientos: [
+                { tipo: 'INGRESO', monto: 20 },
+                { tipo: 'EGRESO', monto: 15 },
+                { tipo: 'EGRESO', monto: 5 },
+            ],
+        });
+        expect(g).toEqual({ totalIngresosCaja: 20, totalEgresosCaja: 20, efectivoEnGaveta: 140 });
     });
 
     test('un descuadre pide PIN y un cierre exacto no', () => {

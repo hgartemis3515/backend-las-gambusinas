@@ -36,6 +36,7 @@ async function obtenerConfiguracionFiscal() {
             '03': cfg?.numeracion?.serieBoleta || 'B001',
         },
         limiteBoletaAnonima: Number(cfg?.facturacion?.limiteBoletaAnonima ?? process.env.FACTURACION_LIMITE_BOLETA_ANONIMA ?? 700),
+        topeDescuentoPct: Number(cfg?.facturacion?.topeDescuentoPct ?? process.env.FACTURACION_TOPE_DESCUENTO_PCT ?? 10),
         plazoEnvioDias: Number(cfg?.facturacion?.plazoEnvioDias ?? process.env.FACTURACION_PLAZO_ENVIO_DIAS ?? 3),
         afectacionCortesia: process.env.FACTURACION_AFECTACION_CORTESIA || '15',
     };

@@ -1,4 +1,5 @@
-const { emitir, ErrorEmision } = require('../../src/facturacion/services/emisionService');
+const { emitir, ErrorEmision, descuentoExigePin } = require('../../src/facturacion/services/emisionService');
+const { consultarPadron } = require('../../src/facturacion/services/padronService');
 const { validarCliente, esRucValido } = require('../../src/facturacion/services/validacionCliente');
 const { procesarFirmarEnviar, interpretarCdr } = require('../../src/facturacion/jobs/firmarEnviar.worker');
 const MockFiscalAdapter = require('../../src/facturacion/providers/mockFiscal.adapter');
@@ -98,6 +99,52 @@ describe('emisionService.emitir', () => {
             tipo: '03',
             items: [{ descripcion: 'Banquete', cantidad: 1, precioUnitario: 800 }],
         }, deps)).rejects.toMatchObject({ codigo: 'BOLETA_REQUIERE_DOCUMENTO' });
+    });
+
+    test('un pago mixto deja efectivo y tarjeta registrados', async () => {
+        const { deps, creados } = crearDeps();
+        await emitir({
+            tipo: '03',
+            items: [{ descripcion: 'Ceviche', cantidad: 2, precioUnitario: 35.5 }],
+            pagos: [
+                { medio: 'efectivo', monto: 40 },
+                { medio: 'tarjeta_credito', monto: 31 },
+            ],
+        }, deps);
+        expect(creados[0].mediosPago).toEqual([
+            expect.objectContaining({ medio: 'efectivo', codigoSunat: '001', monto: 40 }),
+            expect.objectContaining({ medio: 'tarjeta_credito', codigoSunat: '006', monto: 31 }),
+        ]);
+    });
+
+    test('un descuento sobre el tope exige PIN y, con PIN, emite el total neto', async () => {
+        const base = {
+            tipo: '03',
+            items: [{ descripcion: 'Ceviche', cantidad: 1, precioUnitario: 100 }],
+            descuentoGlobal: { porcentaje: 20 },
+            pagos: [{ medio: 'efectivo', monto: 80 }],
+        };
+        const sinPin = crearDeps();
+        sinPin.deps.obtenerConfig = async () => ({ ...CFG, topeDescuentoPct: 10 });
+        await expect(emitir(base, sinPin.deps)).rejects.toMatchObject({ codigo: 'PIN_INVALIDO' });
+
+        const conPin = crearDeps();
+        conPin.deps.obtenerConfig = async () => ({ ...CFG, topeDescuentoPct: 10 });
+        conPin.deps.autorizar = async () => ({ ok: true, supervisorId: 'sup' });
+        const r = await emitir({ ...base, pinSupervisor: '123456' }, conPin.deps);
+        expect(r.comprobante.totales.importeTotal).toBe(80);
+        expect(r.comprobante.descuentoGlobal.montoConIgv).toBe(20);
+        expect(descuentoExigePin(r.comprobante, 10)).toBe(true);
+    });
+});
+
+describe('padron', () => {
+    test('sin servicio externo deja la ficha en pendiente', async () => {
+        const previo = process.env.FACTURACION_PADRON_URL;
+        delete process.env.FACTURACION_PADRON_URL;
+        const r = await consultarPadron('1', '45678912');
+        expect(r).toMatchObject({ tipoDoc: '1', validacionPadron: 'pendiente', encontrado: false });
+        if (previo) process.env.FACTURACION_PADRON_URL = previo;
     });
 });
 
