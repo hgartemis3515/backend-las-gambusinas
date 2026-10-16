@@ -3,10 +3,13 @@
 		"@sentry/node": "^7.91.0",
 		"@socket.io/admin-ui": "^0.5.1",
 		"@socket.io/redis-adapter": "^8.2.1",
+		"adm-zip": "^0.6.1",
 		"blendy": "^0.0.1",
 		"body-parser": "^1.20.2",
+		"bullmq": "^5.81.5",
 		"cors": "^2.8.5",
 		"cropperjs": "^2.3.0",
+		"decimal.js": "^10.6.0",
 		"dotenv": "^16.4.5",
 		"exceljs": "^4.4.0",
 		"expo-server-sdk": "^6.1.0",
@@ -22,10 +25,12 @@
 		"mongoose": "^8.1.3",
 		"mongoose-sequence": "^6.0.1",
 		"multer": "^1.4.5-lts.1",
+		"node-forge": "^1.4.0",
 		"nodemon": "^3.0.3",
 		"open": "^11.0.0",
 		"pdfkit": "^0.14.0",
 		"pm2": "^5.3.0",
+		"qrcode": "^1.5.4",
 		"quill": "^2.0.3",
 		"sileo": "^0.1.5",
 		"socket.io": "^4.8.3",
@@ -33,7 +38,9 @@
 		"uuid": "^14.0.1",
 		"winston": "^3.19.0",
 		"winston-daily-rotate-file": "^5.0.0",
-		"xlsx": "^0.18.5"
+		"xlsx": "^0.18.5",
+		"xml-crypto": "^6.4.0",
+		"xmlbuilder2": "^4.0.3"
 	},
 	"scripts": {
 		"start": "node index.js",
@@ -56,7 +63,12 @@
 		"docker:logs": "docker-compose logs -f",
 		"docker:restart": "docker-compose restart backend",
 		"test": "jest --verbose",
-		"test:watch": "jest --watch"
+		"test:watch": "jest --watch",
+		"setup:cert:demo": "node scripts/setupCertificadoDemo.js",
+		"test:sunat:beta": "node scripts/probarEnvioSunatBeta.js",
+		"seed:fiscal": "node scripts/seedConfiguracionFiscal.js",
+		"mongo:caja": "docker compose --profile caja up -d mongodb-caja mongo-init",
+		"mongo:rs0": "node scripts/initReplicaSet.js"
 	},
 	"jest": {
 		"testEnvironment": "node",

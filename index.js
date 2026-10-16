@@ -312,6 +312,9 @@ app.use('/api', sosCocinerasRoutes);
 app.use('/api', noticiasRoutes);
 app.use('/api', asignacionAutomaticaRoutes);
 app.use('/api', asignacionAutomaticaGuarnicionesRoutes);
+// Rutas siempre montadas. Si no, la consola recibe 404 en /api/facturacion/*.
+// FACTURACION_HABILITADA solo enciende la emisión del boucher y los workers.
+require('./src/facturacion').montarFacturacion(app, logger);
 
 // Proxy al Gambusinas Monitor Hub (Electron en la PC de monitores, PC independiente).
 // La App Cocina POSTea a /api/hub/import (con auth) y el backend emite el layout

@@ -24,7 +24,7 @@ const CONFIGURACION_DEFAULT = {
     tipoCambioUsd: null, // null = no configurado; ej: 3.75
     
     // IGV e impuestos
-    igvPorcentaje: 18,
+    igvPorcentaje: 10.5,
     preciosIncluyenIGV: false,
     nombreImpuestoPrincipal: 'IGV',
     
@@ -326,6 +326,11 @@ const configuracionSistemaSchema = new mongoose.Schema({
         min: 0,
         max: 100,
         default: CONFIGURACION_DEFAULT.igvPorcentaje
+    },
+    facturacion: {
+        limiteBoletaAnonima: { type: Number, default: 700, min: 0 },
+        plazoEnvioDias: { type: Number, default: 3, min: 1 },
+        modoEnvio: { type: String, enum: ['inmediato', 'diferido', 'solo_firma'], default: 'inmediato' },
     },
     preciosIncluyenIGV: {
         type: Boolean,

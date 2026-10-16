@@ -841,6 +841,7 @@ async function procesarPagoBoucher(params) {
     aprobacionDirecta,
     esAbonoPorCantidad,
     totalCuenta,
+    comprobante: await emitirFiscalSiPiden(params, boucherCreado),
   };
 }
 
@@ -852,3 +853,24 @@ module.exports = {
   METODOS_PAGO_VALIDOS,
   METODO_PAGO_LABELS,
 };
+
+const MEDIO_FISCAL = { efectivo: 'efectivo', tarjeta: 'tarjeta_credito', digital: 'yape' };
+
+/** Emite boleta o factura solo si el cobro trae tipoComprobante e ítems. El pago ya quedó guardado. */
+async function emitirFiscalSiPiden(params, boucher) {
+  if (process.env.FACTURACION_HABILITADA !== 'true' || !params.tipoComprobante || !params.items?.length) return null;
+  try {
+    const { emitir } = require('../facturacion/services/emisionService');
+    const monto = Number(boucher.total ?? boucher.montoTotal ?? params.montoCobro ?? 0);
+    return await emitir({
+      tipo: params.tipoComprobante,
+      cliente: params.cliente,
+      items: params.items,
+      pagos: params.pagos || [{ medio: MEDIO_FISCAL[params.metodoPago] || 'efectivo', monto }],
+      origen: { boucher: boucher._id, mesa: params.mesaId, numMesa: boucher.numMesa },
+      cajero: params.cajero || params.usuario?.name || null,
+    });
+  } catch (err) {
+    return { error: err.message, codigo: err.codigo || 'EMISION_FALLIDA' };
+  }
+}
