@@ -405,23 +405,25 @@ router.post('/aprobacion/pago-en-partes', authMozoOpcional, async (req, res) => 
  * GET /api/aprobacion/comandas-imprimibles?desde&hasta
  * Comandas del período, incluidas las eliminadas, para el ticket de caja.
  */
-router.get('/aprobacion/comandas-imprimibles', ...rolesTablaTickets, async (req, res) => {
+router.get('/aprobacion/comandas-imprimibles', adminAuth, async (req, res) => {
   try {
     const rango = resolverRangoFechas(req.query.desde, req.query.hasta || req.query.desde);
     if (!rango) return res.status(400).json({ success: false, message: 'Fecha inválida' });
     const lista = await comandaModel.find({
       createdAt: { $gte: rango.desde, $lte: rango.hasta },
     })
-      .select('numeroComandaDia comandaNumber mesaNumero mozoNombre clienteNombre clienteNombreParaLlevar eliminada sinMesa status')
+      .select('numeroComandaDia comandaNumber revisionTicket mesaNumero mozoNombre clienteNombre clienteNombreParaLlevar eliminada sinMesa status createdAt')
       .sort({ numeroComandaDia: 1, comandaNumber: 1 })
       .lean();
     const comandas = lista.map((c) => ({
       _id: c._id,
       numero: c.numeroComandaDia || c.comandaNumber,
+      revisionTicket: Number(c.revisionTicket) || 0,
       mesa: c.sinMesa ? 'Sin mesa' : (c.mesaNumero != null ? `M${c.mesaNumero}` : ''),
       mozo: c.mozoNombre || '',
       clienteNombre: c.clienteNombre || c.clienteNombreParaLlevar || '',
-      eliminada: c.eliminada === true,
+      eliminada: c.eliminada === true || String(c.status || '').toLowerCase() === 'cancelado',
+      createdAt: c.createdAt,
     }));
     res.json({ success: true, comandas });
   } catch (error) {

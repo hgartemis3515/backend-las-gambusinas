@@ -238,7 +238,7 @@ async function obtenerTicketPorId(ticketId) {
   }
   return ticketAprobacionModel
     .findById(ticketId)
-    .populate('comandas', 'comandaNumber numeroComandaDia numeroComandaMozo mozoNombre revisionTicket status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
+    .populate('comandas', 'comandaNumber numeroComandaDia numeroComandaMozo mozoNombre revisionTicket status platos cantidades historialPlatos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate({ path: 'mesa', select: 'nummesa estado nombreCombinado nombreMesa area', populate: { path: 'area', select: 'nombre' } })
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('boucher')
@@ -778,6 +778,61 @@ async function reportarTicket(ticketId, motivo, usuarioId, usuarioNombre) {
   return { ticket, mesaEstado: 'reportado', motivo: motivoLimpio };
 }
 
+function nombreQuienEliminoLinea(comanda, linea) {
+  let usuario = String(linea?.eliminadoPorNombre || '').trim();
+  if (!usuario && linea?.eliminadoPor && typeof linea.eliminadoPor === 'object') {
+    usuario = String(linea.eliminadoPor.name || linea.eliminadoPor.nombre || '').trim();
+  }
+  const pid = linea?.platoId != null ? String(linea.platoId) : '';
+  const hist = comanda?.historialPlatos || [];
+  if (!usuario) {
+    for (let i = hist.length - 1; i >= 0; i -= 1) {
+      const h = hist[i];
+      if (!h) continue;
+      if (pid && h.platoId != null && String(h.platoId) !== pid) continue;
+      usuario = String(h.usuarioNombre || '').trim();
+      if (usuario) break;
+    }
+  }
+  return usuario || '—';
+}
+
+function lineasEliminadasDeComandas(comandas) {
+  const out = [];
+  const idsLinea = new Set();
+  for (const comanda of comandas || []) {
+    if (!comanda || typeof comanda !== 'object' || !comanda._id) continue;
+    const num = comanda.numeroComandaDia ?? comanda.comandaNumber;
+    const cid = String(comanda._id);
+    (comanda.platos || []).forEach((p, index) => {
+      if (!p || (p.eliminado !== true && p.anulado !== true)) return;
+      if (p._id) idsLinea.add(String(p._id));
+      const precio = Number(p.precioUnitario ?? p.precio) || 0;
+      const cantidad = Number(comanda.cantidades?.[index] || p.cantidad) || 1;
+      const plato = p.plato && typeof p.plato === 'object' ? p.plato : null;
+      out.push({
+        nombre: p.nombreCocinaPedido || p.nombre || plato?.nombreCocina || plato?.nombre || 'Plato',
+        nombreComercial: plato?.nombre || p.nombre || '',
+        nombreCocina: p.nombreCocinaPedido || plato?.nombreCocina || '',
+        cantidad,
+        precio,
+        subtotal: precio * cantidad,
+        tipoServicio: p.tipoServicio || 'mesa',
+        comandaNumber: num,
+        comandaId: cid,
+        platoLineaId: p._id || null,
+        eliminado: true,
+        lineaAnulada: {
+          usuario: nombreQuienEliminoLinea(comanda, p),
+          motivo: p.eliminadoRazon || p.anuladoRazon || '',
+        },
+        guarnicionesCambio: p.guarnicionesCambio || null,
+      });
+    });
+  }
+  return { lineas: out, idsLinea };
+}
+
 /**
  * Construye un payload plano mapeado para la plantilla de comanda (preview / impresión).
  * Reúne datos del ticket + boucher asociado (si viene) + configuración de moneda.
@@ -816,6 +871,9 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     precio,
     subtotal: subtotalLineaSnapshot(p),
     tipoServicio,
+    comandaNumber: p.comandaNumber,
+    comandaId: p.comandaId ? String(p.comandaId) : null,
+    platoLineaId: p.platoLineaId ? String(p.platoLineaId) : null,
     complementos: (p.complementosSeleccionados || []).map((c) => ({
       grupo: c.grupo,
       opcion: c.opcion,
@@ -837,6 +895,11 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     solo = imprimirSoloNombreComercial(config);
   } catch (_) { /* default ON */ }
   productos = aplicarOpcionesImpresionProductos(productos, { soloNombreComercial: solo });
+  const bajas = lineasEliminadasDeComandas(ticket.comandas);
+  if (bajas.idsLinea.size) {
+    productos = productos.filter((p) => !p.platoLineaId || !bajas.idsLinea.has(String(p.platoLineaId)));
+  }
+  productos = productos.concat(bajas.lineas);
 
   const dias = numerosDiaDeComandas(ticket.comandas);
   const comandasNumbers = dias.length
@@ -865,7 +928,7 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
       subtotal: ticket.subtotal,
       total: ticket.total,
     });
-    const sumaProd = Number(productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0).toFixed(2));
+    const sumaProd = Number(productos.reduce((s, p) => s + (p.lineaAnulada ? 0 : (Number(p.subtotal) || 0)), 0).toFixed(2));
     const montoDesc = Number(desc.montoDescuento) || 0;
     const totalImp = Number(desc.total);
     const totalFinal = (Number.isFinite(totalImp) && (totalImp > 0 || montoDesc > 0))

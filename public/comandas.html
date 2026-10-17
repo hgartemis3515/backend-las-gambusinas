@@ -8432,23 +8432,37 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  textoPlatoEliminado(quien, motivo) {
   return 'Plato eliminado por ' + (quien || 'Sin registro') + ', motivo: ' + (motivo || 'Sin motivo');
  },
+ mismaBajaPlato(h, item) {
+  if (!h || !item) return false;
+  const hid = h.platoId != null && h.platoId !== '' ? Number(h.platoId) : NaN;
+  const iid = item.platoId != null && item.platoId !== '' ? Number(item.platoId) : NaN;
+  if (Number.isFinite(hid) && Number.isFinite(iid) && hid === iid) return true;
+  const a = String(h.nombre || '').trim().toLowerCase();
+  const b = String(item.nombre || '').trim().toLowerCase();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const corto = a.length <= b.length ? a : b;
+  const largo = a.length <= b.length ? b : a;
+  return corto.length >= 8 && (largo === corto || largo.startsWith(corto + ' ') || largo.startsWith(corto));
+ },
  textosPlatosEliminados(c) {
   if (!c || c.eliminada) return [];
+  const items = (c.items || c.platos || []).filter((i) => i && i.eliminado);
+  const hist = c.historialBajas || [];
+  const usado = new Set();
   const out = [];
-  const cubiertos = new Set();
-  for (const h of c.historialBajas || []) {
-    const nombre = String(h.nombre || '').trim();
-    if (nombre) cubiertos.add(nombre.toLowerCase());
-    const prefijo = nombre ? (nombre + ': ') : '';
-    out.push(prefijo + this.textoPlatoEliminado(h.quien, h.motivo));
+  for (const item of items) {
+   hist.forEach((h, i) => { if (this.mismaBajaPlato(h, item)) usado.add(i); });
+   const nombre = String(item.nombre || '').trim();
+   const prefijo = nombre ? (nombre + ': ') : '';
+   out.push(prefijo + this.textoPlatoEliminado(item.eliminadoPorNombre, item.eliminadoRazon));
   }
-  for (const item of (c.items || c.platos || [])) {
-    if (!item || !item.eliminado) continue;
-    const nombre = String(item.nombre || '').trim();
-    if (nombre && cubiertos.has(nombre.toLowerCase())) continue;
-    const prefijo = nombre ? (nombre + ': ') : '';
-    out.push(prefijo + this.textoPlatoEliminado(item.eliminadoPorNombre, item.eliminadoRazon));
-  }
+  hist.forEach((h, i) => {
+   if (usado.has(i)) return;
+   const nombre = String(h.nombre || '').trim();
+   const prefijo = nombre ? (nombre + ': ') : '';
+   out.push(prefijo + this.textoPlatoEliminado(h.quien, h.motivo));
+  });
   return out;
  },
  lineasAuditoriaPlato(comanda, item) {
