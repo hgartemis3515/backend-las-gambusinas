@@ -636,6 +636,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         fechaEliminacion: 1,
         motivoEliminacion: 1,
         eliminadaPor: 1,
+        eliminadaPorNombre: 1,
         historialPlatos: 1,
         // Campos desnormalizados
         mozoNombre: 1,
@@ -1653,6 +1654,12 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
     const eraPendienteAprobacion = comandaSnapshot.status === 'pendiente_aprobar';
     const usuarioObjId = validarUsuarioId(usuarioId);
     const ts = moment.tz('America/Lima').toDate();
+    let eliminadaPorNombre = '';
+    if (usuarioObjId) {
+      const mozosModel = require('../database/models/mozos.model');
+      const mozo = await mozosModel.findById(usuarioObjId).select('name').lean();
+      eliminadaPorNombre = String(mozo?.name || '').trim();
+    }
 
     // Anular tickets de cocina pendientes vinculados (evita tickets huérfanos)
     await anularTicketsPendientesComanda(comandaId, motivo, {
@@ -1696,6 +1703,7 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
       estado: 'eliminado-completo',
       timestamp: ts,
       usuario: usuarioObjId,
+      usuarioNombre: eliminadaPorNombre || null,
       motivo: `comanda-${motivo}`,
     }));
 
@@ -1709,6 +1717,7 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
           fechaEliminacion: ts,
           motivoEliminacion: motivo,
           eliminadaPor: usuarioObjId,
+          eliminadaPorNombre: eliminadaPorNombre || null,
           IsActive: false,
           eliminada: true,
           status: 'cancelado',
