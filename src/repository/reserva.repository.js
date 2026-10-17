@@ -890,10 +890,12 @@ const crearReservaDesdeMozos = async (data) => {
                 totalPlatos += calc.total;
                 const tipoServicio = item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
                 const notaEspecial = typeof item.notaEspecial === 'string' ? item.notaEspecial : '';
+                const nombreLinea = String(calc.nombre || platoDoc.nombre || platoDoc.nombreCocina || '').trim().slice(0, 160);
+                const nombreCocinaLinea = linea.nombreCocinaPedido || calc.nombreCocinaPedido || '';
                 platosReserva.push({
                     plato: platoDoc._id, cantidad: calc.cantidad, tipoServicio,
                     complementosSeleccionados: calc.complementosSeleccionados, notaEspecial,
-                    nombreCocinaPedido: linea.nombreCocinaPedido || calc.nombreCocinaPedido || '',
+                    nombreCocinaPedido: nombreCocinaLinea,
                     variantePlato: linea.variantePlato || calc.variantePlato || undefined
                 });
                 platosComanda.push({
@@ -911,7 +913,8 @@ const crearReservaDesdeMozos = async (data) => {
                     numeroSerie: String(linea.numeroSerie || item.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
                     resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
                     notaEspecial, tipoServicio, cantidad: calc.cantidad,
-                    nombreCocinaPedido: linea.nombreCocinaPedido || calc.nombreCocinaPedido || '',
+                    nombre: nombreLinea,
+                    nombreCocinaPedido: nombreCocinaLinea,
                     variantePlato: linea.variantePlato || calc.variantePlato || undefined
                 });
             });

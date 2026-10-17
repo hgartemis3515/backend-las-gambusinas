@@ -208,6 +208,40 @@ services:
           cpus: '1'
           memory: 512M
 
+  # Caja local: un solo nodo. La app en el host usa mongodb://localhost:27017/?replicaSet=rs0
+  # Arranque: npm run mongo:caja
+  mongodb-caja:
+    image: mongo:7
+    container_name: lasgambusinas-mongodb-caja
+    profiles: ["caja"]
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-caja-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  mongo-init:
+    image: mongo:7
+    container_name: lasgambusinas-mongo-init
+    profiles: ["caja"]
+    depends_on:
+      mongodb-caja:
+        condition: service_healthy
+    network_mode: "service:mongodb-caja"
+    restart: "no"
+    entrypoint:
+      - mongosh
+      - --quiet
+      - --eval
+      - 'try { rs.status() } catch (e) { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "localhost:27017" }] }) }'
+
 # ============================================
 # Networks (Aislamiento de seguridad)
 # ============================================
@@ -237,5 +271,7 @@ volumes:
   redis-data:
     driver: local
   nginx-cache:
+    driver: local
+  mongodb-caja-data:
     driver: local
 

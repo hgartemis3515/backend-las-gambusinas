@@ -24,7 +24,7 @@ const CONFIGURACION_DEFAULT = {
     tipoCambioUsd: null, // null = no configurado; ej: 3.75
     
     // IGV e impuestos
-    igvPorcentaje: 18,
+    igvPorcentaje: 10.5,
     preciosIncluyenIGV: false,
     nombreImpuestoPrincipal: 'IGV',
     
@@ -204,7 +204,8 @@ const CONFIGURACION_DEFAULT = {
         bloquearSinCierreAnterior: false,
         requerirEfectivoInicial: true,
         cierreAutomatico: false,
-        horaCierreAutomatico: '04:00'
+        horaCierreAutomatico: '04:00',
+        etiquetasGrupoTicket: false
     },
 
     // Cobro directo del rol caja desde la app de mozos.
@@ -325,6 +326,11 @@ const configuracionSistemaSchema = new mongoose.Schema({
         min: 0,
         max: 100,
         default: CONFIGURACION_DEFAULT.igvPorcentaje
+    },
+    facturacion: {
+        limiteBoletaAnonima: { type: Number, default: 700, min: 0 },
+        plazoEnvioDias: { type: Number, default: 3, min: 1 },
+        modoEnvio: { type: String, enum: ['inmediato', 'diferido', 'solo_firma'], default: 'inmediato' },
     },
     preciosIncluyenIGV: {
         type: Boolean,
@@ -705,6 +711,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         horaCierreAutomatico: {
             type: String,
             default: CONFIGURACION_DEFAULT.cierreCaja.horaCierreAutomatico
+        },
+        etiquetasGrupoTicket: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cierreCaja.etiquetasGrupoTicket
         }
     },
 

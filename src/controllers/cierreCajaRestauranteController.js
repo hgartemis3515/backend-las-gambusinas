@@ -20,6 +20,7 @@ const {
 } = require('../utils/cierreCajaReversion');
 const { obtenerTurnosDia } = require('../utils/cierreCajaTurnosDia');
 const { letraRevisionTicket } = require('../utils/comandasNumbers');
+const configuracionRepository = require('../repository/configuracion.repository');
 const {
   montoDescuentoComandaNum,
   montoFilaReporte,
@@ -223,6 +224,8 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
       logger.warn('El cierre quedó guardado, pero no se reescribieron los JSON', { error: jsonErr.message });
     }
     
+    try { require('./noticiasController').invalidarTopSemana(); } catch (_) { /* el ranking se recalcula en la siguiente lectura */ }
+
     // Paso 15: Responder al frontend
     res.status(201).json({
       success: true,
@@ -386,6 +389,8 @@ router.put('/cierre-caja/:id/revertir', adminAuth, checkPermission('ejecutar-cie
       usuarioNombre,
       comandasLiberadas: liberado.comandasLiberadas
     });
+
+    try { require('./noticiasController').invalidarTopSemana(); } catch (_) { /* el ranking se recalcula en la siguiente lectura */ }
 
     res.json({
       success: true,
@@ -1498,7 +1503,38 @@ function numMesaComanda(c) {
   return m.nummesa ?? '';
 }
 
-/** Otras comandas del mismo pedido. Se imprimen debajo del número, no junto a la mesa. */
+function pedidoIdCierre(c) {
+  return c?.pedido ? String(c.pedido._id || c.pedido) : '';
+}
+
+function entraEnGrupoCierre(c) {
+  if (!c || !pedidoIdCierre(c)) return false;
+  if ((c.origenCreacion || '') === 'dashboard') return false;
+  if (String(c.status || '').toLowerCase() === 'cancelado') return false;
+  return true;
+}
+
+/** G1, G2… según el primer número de comanda de cada grupo. */
+function mapaGruposConsecutivosCierre(comandas) {
+  const validas = (comandas || []).filter(entraEnGrupoCierre);
+  const counts = new Map();
+  for (const c of validas) {
+    const pid = pedidoIdCierre(c);
+    counts.set(pid, (counts.get(pid) || 0) + 1);
+  }
+  const orden = [...validas].sort((a, b) => (Number(a.numeroComandaDia) || 0) - (Number(b.numeroComandaDia) || 0));
+  const mapa = new Map();
+  let n = 0;
+  for (const c of orden) {
+    const pid = pedidoIdCierre(c);
+    if ((counts.get(pid) || 0) < 2 || mapa.has(pid)) continue;
+    n += 1;
+    mapa.set(pid, 'G' + n);
+  }
+  return mapa;
+}
+
+/** Otras comandas del mismo pedido, en orden. Van en una línea bajo el número: (2, 3, 6, 8). */
 function sufijoAgrupadasCierre(c, todas) {
   const pid = c?.pedido ? String(c.pedido._id || c.pedido) : '';
   if (!pid) return '';
@@ -1595,6 +1631,13 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
     }
 
     await cargarConfigMonedaEstadisticas();
+    let usarEtiquetasGrupo = false;
+    try {
+      const cfg = await configuracionRepository.obtenerConfiguracion();
+      usarEtiquetasGrupo = cfg?.cierreCaja?.etiquetasGrupoTicket === true;
+    } catch (e) {
+      logger.warn('No se pudo leer la marca de grupos del ticket', { error: e.message });
+    }
     const encontradas = await cargarComandasParaTicketCierre(cierre);
     const vendidas = encontradas.filter(esComandaVendida);
     const comandas = vendidas.length ? vendidas : encontradas;
@@ -1612,7 +1655,9 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
         : (anulada ? '' : (c.comandaNumber ?? ''));
       const num = `${base}${base === '' ? '' : letraRevisionTicket(c.revisionTicket)}`;
       const mesaBase = String(numMesaComanda(c) || '—');
-      const suf = sufijoAgrupadasCierre(c, universo);
+      const suf = usarEtiquetasGrupo
+        ? (mapaGrupos.get(pedidoIdCierre(c)) || '')
+        : sufijoAgrupadasCierre(c, universo);
       const mesa = mesaBase;
       if (anulada) {
         return {
@@ -1657,6 +1702,7 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       : [];
     const idsVigentes = new Set(comandas.map((c) => String(c._id)));
     const universo = [...comandas, ...eliminadas.filter((c) => !idsVigentes.has(String(c._id)))];
+    const mapaGrupos = usarEtiquetasGrupo ? mapaGruposConsecutivosCierre(universo) : new Map();
     const lineas = [
       ...comandas.map((c) => lineaDe(c, false)),
       ...eliminadas.filter((c) => !idsVigentes.has(String(c._id))).map((c) => lineaDe(c, true)),

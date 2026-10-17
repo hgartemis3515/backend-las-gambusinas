@@ -541,7 +541,7 @@ async function rechazarTicket(ticketId, motivo, usuarioId, usuarioNombre) {
  * - Plato eliminado/anulado: no elegible
  * - Plato en recoger/entregado/pagado: no elegible (usar Pagar normal)
  * - Plato ya en TPA pendiente_aprobacion o aprobado: no elegible
- * - Plato en pedido/en_espera con tipoServicio para_llevar o mesa: elegible
+ * - Plato en pedido/en_espera/salio: elegible (salio también se cobra por adelantado)
  */
 function mesaIdEsValido(mesaId) {
   if (mesaId == null || mesaId === '' || mesaId === 'undefined' || mesaId === 'null') return false;
@@ -567,7 +567,7 @@ async function getComandasParaPagoAdelantado(mesaId, comandaIds) {
 
   const query = {
     IsActive: true,
-    status: { $in: ['en_espera', 'pedido', 'recoger'] },
+    status: { $in: ['en_espera', 'pedido', 'recoger', 'salio'] },
   };
   if (ids.length > 0) {
     query._id = { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) };

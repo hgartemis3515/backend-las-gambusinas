@@ -35,6 +35,17 @@ tailwind.config = {
 <!-- Cosmos Search Bar - Glassmorphism Style -->
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
 <style>
+  .filtro-solido {
+    color: #fff !important;
+    font-weight: 700;
+    border: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  }
+  .filtro-on {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+    filter: brightness(1.12);
+  }
   .tabla-platos-print-only { display: none; }
   #modal-tabla-platos tr.fila-contorno-rojo td {
     border-top: 2px solid #e74c3c;
@@ -225,13 +236,14 @@ tailwind.config = {
     </div>
 
     <!-- TABS -->
-    <div class="flex gap-1 mb-4 border-b border-[rgba(212,175,55,0.1)] pb-2">
-      <template x-for="t in ['General','Platos','Guarniciones','Mozos','Cocineros','Mesas','Clientes']" :key="t">
-        <button 
-          @click="setTab(t)" 
-          :class="repTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary hover:text-white'" 
-          class="px-4 py-2 text-sm font-medium transition" 
-          x-text="t">
+    <div class="flex flex-wrap gap-2 mb-4">
+      <template x-for="t in tabsReporte" :key="t.id">
+        <button
+          type="button"
+          @click="setTab(t.id)"
+          class="filtro-solido px-4 py-2 rounded-lg text-sm transition"
+          :class="[t.bg, repTab === t.id ? 'filtro-on' : '']"
+          x-text="t.id">
         </button>
       </template>
     </div>
@@ -1263,6 +1275,15 @@ function reportesApp() {
     loading: false,
     error: null,
     repTab: 'General',
+    tabsReporte: [
+      { id: 'General', bg: 'bg-[#1d4ed8]' },
+      { id: 'Platos', bg: 'bg-[#c2410c]' },
+      { id: 'Guarniciones', bg: 'bg-[#15803d]' },
+      { id: 'Mozos', bg: 'bg-[#0f766e]' },
+      { id: 'Cocineros', bg: 'bg-[#7e22ce]' },
+      { id: 'Mesas', bg: 'bg-[#0284c7]' },
+      { id: 'Clientes', bg: 'bg-[#be123c]' }
+    ],
     activeNav: 'reportes',
     pageTitle: 'Reportes',
     

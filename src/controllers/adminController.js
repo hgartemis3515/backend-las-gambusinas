@@ -106,6 +106,7 @@ router.post('/admin/auth', async (req, res) => {
         // Verificar si tiene acceso al dashboard (admin, supervisor o rol con gestión)
         const tieneAccesoDashboard = rol === 'admin'
             || rol === 'supervisor'
+            || rol === 'cajero'
             || permisos.includes('gestionar-roles')
             || permisos.includes('ver-reportes')
             || permisos.includes('ver-inventario')

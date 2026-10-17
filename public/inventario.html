@@ -235,6 +235,11 @@ tailwind.config = {
     </div>
 
     <section x-show="vistaTab === 'tabla'" class="mb-8">
+      <label class="relative block max-w-sm mb-3">
+        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted">⌕</span>
+        <input type="search" x-model="busqueda" placeholder="Buscar plato o producto" autocomplete="off"
+          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder:text-txt-muted focus:border-gold focus:outline-none">
+      </label>
       <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] overflow-hidden" :class="aprovechador ? 'rounded-none' : 'rounded-xl'">
         <div class="overflow-x-auto">
           <table class="tabla-inv tabla-principal w-full">
@@ -254,7 +259,10 @@ tailwind.config = {
               </tr>
             </thead>
             <tbody>
-              <template x-for="f in tablaProductos" :key="f.nombre">
+              <tr x-show="productosVisibles().length === 0">
+                <td colspan="10" class="px-3 py-4 text-center text-txt-muted text-sm">Ningún plato o producto coincide.</td>
+              </tr>
+              <template x-for="f in productosVisibles()" :key="f.nombre">
                 <tr class="border-b border-[rgba(212,175,55,0.1)]">
                   <td class="celda-producto px-2 py-0" x-text="f.nombre"></td>
                   <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1,true)">−</button><input class="caja-num" type="number" step="any" :value="f.saldoInicial" @change="fijar(f.clave,'cocido','ingreso', f.saldoInicial, $event.target.value, true)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1,true)">+</button></span></td>
@@ -459,7 +467,7 @@ tailwind.config = {
               </tr>
             </thead>
             <tbody>
-              <template x-for="f in tablaProductos" :key="'t'+f.nombre">
+              <template x-for="f in productosVisibles()" :key="'t'+f.nombre">
                 <tr>
                   <td class="font-semibold" x-text="f.nombre"></td>
                   <td class="text-right tabular-nums" x-text="f.saldoReal"></td>
@@ -488,7 +496,7 @@ tailwind.config = {
               </tr>
             </thead>
             <tbody>
-              <template x-for="f in tablaProductos" :key="'a'+f.nombre">
+              <template x-for="f in productosVisibles()" :key="'a'+f.nombre">
                 <tr>
                   <td class="font-semibold" x-text="f.nombre"></td>
                   <td class="text-right tabular-nums" x-text="f.saldoReal"></td>
@@ -529,7 +537,7 @@ tailwind.config = {
               </tr>
             </template>
             <tr x-show="historialDia().length === 0">
-              <td class="px-3 py-2 text-txt-muted" colspan="6">Este período no tiene registros.</td>
+              <td class="px-3 py-2 text-txt-muted" colspan="6" x-text="busqueda.trim() ? 'Ningún plato o producto coincide.' : 'Este período no tiene registros.'"></td>
             </tr>
           </tbody>
         </table>
@@ -675,6 +683,7 @@ function inventarioApp() {
     filas: [],
     carta: null,
     vistaTab: 'tabla',
+    busqueda: '',
     tablaProductos: [],
     transformaciones: [],
     filasTransformacion: [],
@@ -700,6 +709,17 @@ function inventarioApp() {
     corrAbierta: false,
     corr: { clave: '', nombre: '', ingreso: '', ingresoInfo: 0, base: 0, motivo: '', titulo: 'Corrección', clase: 'regulacion' },
     alta: { saleRubro: '', saleTipo: 'crudo', saleCantidad: '', ingresaRubro: '', ingresaTipo: 'cocido', ingresaCantidad: '', motivo: '' },
+    textoBusqueda() {
+      return String(this.busqueda || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    },
+    coincideBusqueda(nombre) {
+      const q = this.textoBusqueda();
+      if (!q) return true;
+      return String(nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q);
+    },
+    productosVisibles() {
+      return (this.tablaProductos || []).filter((f) => this.coincideBusqueda(f.nombre));
+    },
     filaRubro(clave, tipo) {
       return this.filas.find((f) => f.rubro === clave && f.tipoProducto === tipo) || {
         rubro: clave, tipoProducto: tipo, saldoInicial: 0, ingresos: 0, total: 0, egreso: 0, saldoFinal: 0, regulacion: 0, baja: 0, cierre: 0, umbral: 0, conteo: null, tieneConteo: false
@@ -905,7 +925,10 @@ function inventarioApp() {
         salida: v.cantidad,
         motivo: v.motivo || 'Venta (reportes)'
       }));
-      return manual.concat(ventas).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      const filas = manual.concat(ventas).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      const q = this.textoBusqueda();
+      if (!q) return filas;
+      return filas.filter((m) => this.coincideBusqueda(m.producto));
     },
     fechaCorta(iso) {
       if (!iso) return '';
