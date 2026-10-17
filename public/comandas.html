@@ -8760,6 +8760,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.guardandoGrupo = true;
  try {
  let hayEliminadosGrupo = false;
+ const anulacionesGrupo = [];
  for (const comanda of this.editGrupo.comandas) {
  const items = comanda.items || [];
  const indicesEliminados = this.indicesPlatosPendientesEliminar(items);
@@ -8770,18 +8771,23 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  });
  if (indicesEliminados.length > 0) {
- hayEliminadosGrupo = true;
  const resEliminar = await apiPut('/comanda/' + comanda._id + '/eliminar-platos', {
  platosAEliminar: indicesEliminados,
  motivo: 'Eliminado desde edición de grupo',
  mozoId: null,
- forzarAdmin: true
+ forzarAdmin: true,
+ sourceApp: 'dashboard'
  });
  if (resEliminar && (resEliminar.error || resEliminar.detalles)) {
   const errorMsg = resEliminar.detalles
    ? resEliminar.detalles.join('\n')
    : (resEliminar.message || 'Error al eliminar platos');
   throw new Error(errorMsg);
+ }
+ if (resEliminar?.comandaEliminadaCompleta && resEliminar?.ticketAnulacion) {
+  anulacionesGrupo.push(resEliminar);
+ } else {
+  hayEliminadosGrupo = true;
  }
  }
  if (platosConCambios.length > 0) {
@@ -8799,7 +8805,17 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  }
  if (this.socket && this.socket.connected) this.editGrupo.comandas.forEach(c => this.socket.emit('comandaActualizada', { _id: c._id }));
- if (hayEliminadosGrupo) await this.imprimirEposTrasCambio(this.editGrupo.comandas);
+ for (const res of anulacionesGrupo) {
+  if (typeof window.imprimirTicketAnulacionEpos === 'function') {
+   try { await window.imprimirTicketAnulacionEpos(res.comanda, res.ticketAnulacion); }
+   catch (printErr) { this.showToast(printErr.message || 'No se imprimió la anulación', 'error'); }
+  }
+ }
+ if (hayEliminadosGrupo) {
+  const idsAnuladas = new Set(anulacionesGrupo.map((r) => String(r.comanda?._id || '')));
+  const restantes = this.editGrupo.comandas.filter((c) => !idsAnuladas.has(String(c._id)));
+  if (restantes.length) await this.imprimirEposTrasCambio(restantes);
+ }
  await this.loadComandas();
  this.modal = null;
  this.showToast('Grupo actualizado correctamente');

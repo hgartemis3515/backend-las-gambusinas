@@ -203,13 +203,43 @@ function nombreLineaTicket(linea) {
   return '';
 }
 
-function productosDe(grupo, incluirEliminados = false) {
+function comandaViva(c) {
+  if (!c || c.eliminada === true) return false;
+  const st = String(c.status || c.estado || '').toLowerCase();
+  return st !== 'cancelado';
+}
+
+function datoAnulacionLinea(comanda, linea) {
+  const motivo = String(linea?.eliminadoRazon || linea?.anuladoRazon || '').trim();
+  let usuario = String(linea?.eliminadoPorNombre || '').trim();
+  if (!usuario && linea?.eliminadoPor && typeof linea.eliminadoPor === 'object') {
+    usuario = String(linea.eliminadoPor.name || linea.eliminadoPor.nombre || '').trim();
+  }
+  const pid = linea?.platoId != null ? String(linea.platoId) : '';
+  const hist = comanda?.historialPlatos || comanda?.historialBajas || [];
+  if (!usuario) {
+    for (let i = hist.length - 1; i >= 0; i -= 1) {
+      const h = hist[i];
+      if (!h) continue;
+      if (pid && h.platoId != null && String(h.platoId) !== pid) continue;
+      usuario = String(h.usuarioNombre || h.quien || '').trim();
+      if (usuario) break;
+    }
+  }
+  return { usuario: usuario || '—', motivo: motivo || '—' };
+}
+
+function productosDe(grupo, incluirEliminados = false, incluirLineasAnuladas = false) {
   const out = [];
   for (const c of grupo) {
     const lineas = c.platos || c.items || [];
     lineas.forEach((linea, index) => {
       if (!linea) return;
-      if (!incluirEliminados && (linea.eliminado === true || linea.anulado === true)) return;
+      const anulada = linea.eliminado === true || linea.anulado === true;
+      if (anulada && !incluirEliminados && !incluirLineasAnuladas) return;
+      const marca = anulada && incluirLineasAnuladas && !incluirEliminados
+        ? datoAnulacionLinea(c, linea)
+        : null;
       const nombre = nombreLineaTicket(linea) || 'Plato';
       const cant = Number(c.cantidades?.[index] || linea.cantidad) || 1;
       const unit = linea.precioUnitario != null
@@ -221,6 +251,8 @@ function productosDe(grupo, incluirEliminados = false) {
         precio: unit,
         tipoServicio: linea.tipoServicio || 'mesa',
         guarnicionesCambio: linea.guarnicionesCambio || null,
+        eliminado: marca ? true : undefined,
+        lineaAnulada: marca || undefined,
       });
     });
   }
@@ -241,8 +273,8 @@ async function postEpos(ip, xml, nombre) {
 }
 
 export async function imprimirTicketsEposAutomatico(comandas) {
-  const lista = (comandas || []).filter(Boolean);
-  const productos = productosDe(lista);
+  const lista = (comandas || []).filter(comandaViva);
+  const productos = productosDe(lista, false, true);
   if (!productos.length) return;
   const base = lista[0] || {};
   const desc = lista.reduce((s, c) => s + (Number(c.montoDescuento) || 0), 0);

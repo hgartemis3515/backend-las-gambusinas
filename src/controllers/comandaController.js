@@ -3543,6 +3543,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             const estado = (platoItem.estado || '').toLowerCase();
             platoItem.eliminado = true;
             platoItem.eliminadoPor = usuarioId;
+            platoItem.eliminadoPorNombre = actor.usuarioNombre || null;
             platoItem.eliminadoAt = ahora;
             platoItem.eliminadoRazon = motivo.trim();
             platoItem.estadoAlEliminar = platoItem.estado || null;

@@ -187,6 +187,12 @@ const comandaSchema = new mongoose.Schema({
             ref: 'mozos',
             default: null
         },
+        eliminadoPorNombre: {
+            type: String,
+            default: null,
+            trim: true,
+            maxlength: 120
+        },
         eliminadoAt: { 
             type: Date, 
             default: null
