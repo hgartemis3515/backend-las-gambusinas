@@ -162,8 +162,24 @@ function celdaLlena(value) {
   </td>`;
 }
 
+function productoEnTicket(p) {
+  return p && (p.lineaAnulada || (p.eliminado !== true && p.anulado !== true));
+}
+
+function htmlMarcaAnulado(p, anulacionTicket) {
+  if (p?.lineaAnulada) {
+    const usuario = escapeHtml(p.lineaAnulada.usuario || '—');
+    const motivo = escapeHtml(p.lineaAnulada.motivo || '—');
+    return `<span style="display:block;text-align:right;font-weight:900;line-height:1.15;white-space:nowrap;">Anulado<br/><span style="font-weight:700;font-size:10px;">${usuario}</span><br/><span style="font-weight:700;font-size:10px;">${motivo}</span></span>`;
+  }
+  if (anulacionTicket) {
+    return '<span style="font-weight:900;letter-spacing:0.4px;white-space:nowrap;">ANULADO</span>';
+  }
+  return '';
+}
+
 function filtrarProductos(datos, { filtrarComandaNumero, filtrarComandaId } = {}) {
-  let productos = (datos?.productos || []).filter((p) => p && !p.eliminado && !p.anulado);
+  let productos = (datos?.productos || []).filter(productoEnTicket);
   const num = filtrarComandaNumero != null && filtrarComandaNumero !== ''
     ? Number(filtrarComandaNumero)
     : null;
@@ -179,7 +195,7 @@ function filtrarProductos(datos, { filtrarComandaNumero, filtrarComandaId } = {}
 
 export function filtrarDatosTicketCocina(datos, filtro = {}) {
   const productos = filtrarProductos(datos, filtro);
-  const bruto = productos.reduce((s, p) => s + montoLinea(p), 0);
+  const bruto = productos.reduce((s, p) => s + (p.lineaAnulada ? 0 : montoLinea(p)), 0);
   const desc = Number(datos?.montoDescuento) || 0;
   const descAjustado = productos.length && (datos?.productos || []).length
     && productos.length < (datos.productos || []).length
@@ -207,7 +223,7 @@ export function filtrarDatosTicketCocina(datos, filtro = {}) {
 export function generarHtmlTicketCocina({ datos, cocina = true }) {
   const d = datos || {};
   const esCocina = cocina !== false;
-  const productos = (d.productos || []).filter((p) => p && !p.eliminado && !p.anulado);
+  const productos = (d.productos || []).filter(productoEnTicket);
   const simbolo = simboloDe(d);
   const letrero = d.comandaNumeroDisplay
     || (d.comandaNumero != null ? `#${d.comandaNumero}` : '#—');
@@ -227,15 +243,13 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     const cant = Number(p.cantidad) || 1;
     const unit = Number(p.precio ?? p.precioUnitario) || 0;
     const line = montoLinea(p);
-    bruto += line;
+    if (!p.lineaAnulada) bruto += line;
     const cuadro = esCocina
       ? `<td style="width:18px;padding:3px 2px;vertical-align:middle;">
         <span style="display:inline-block;width:${CUADRO_PX}px;height:${CUADRO_PX}px;border:1.6px solid #000;box-sizing:border-box;"></span>
       </td>`
       : '';
-    const marcaAnulado = d.anulacion
-      ? '<span style="font-weight:900;letter-spacing:0.4px;white-space:nowrap;">ANULADO</span>'
-      : '';
+    const marcaAnulado = htmlMarcaAnulado(p, d.anulacion);
     const nombreCelda = marcaAnulado
       ? `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><span>${escapeHtml(nombreProducto(p))}${esCocina ? htmlCambioGuarnicion(p) : ''}</span>${marcaAnulado}</div>`
       : `${escapeHtml(nombreProducto(p))}${esCocina ? htmlCambioGuarnicion(p) : ''}`;
@@ -295,7 +309,8 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     html += `<div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:1px;padding:10px 0 2px;">ANULADO X</div>`;
   }
 
-  const heightPx = 220 + productos.length * 28 + (d.esPrueba === true ? 24 : 0);
+  const anuladas = productos.filter((p) => p.lineaAnulada).length;
+  const heightPx = 220 + productos.length * 28 + anuladas * 22 + (d.esPrueba === true ? 24 : 0);
   const wrapOpts = { fontSizeBase: 11, lineHeightBase: 14, pageHeightPx: heightPx, title: 'Ticket cocina' };
   const full = envolverHtmlBoucherTicket(html, wrapOpts);
   return { html: full, heightPx, htmlInner: html };

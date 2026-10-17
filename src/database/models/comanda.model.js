@@ -187,6 +187,12 @@ const comandaSchema = new mongoose.Schema({
             ref: 'mozos',
             default: null
         },
+        eliminadoPorNombre: {
+            type: String,
+            default: null,
+            trim: true,
+            maxlength: 120
+        },
         eliminadoAt: { 
             type: Date, 
             default: null
@@ -521,6 +527,11 @@ const comandaSchema = new mongoose.Schema({
     eliminadaPor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'mozos',
+        default: null
+    },
+    /** Nombre ya resuelto. El listado en vivo no depende del populate de eliminadaPor. */
+    eliminadaPorNombre: {
+        type: String,
         default: null
     },
     historialPlatos: [{

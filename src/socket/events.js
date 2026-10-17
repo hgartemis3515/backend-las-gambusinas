@@ -674,6 +674,9 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           path: "platos.plato",
           model: "platos"
         })
+        .populate('eliminadaPor', 'name')
+        .populate('platos.eliminadoPor', 'name')
+        .populate('historialPlatos.usuario', 'name')
         .lean();
 
       if (!comanda) {
@@ -1254,7 +1257,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         .populate({
           path: "platos.plato",
           model: "platos"
-        });
+        })
+        .populate('eliminadaPor', 'name')
+        .populate('platos.eliminadoPor', 'name')
+        .populate('historialPlatos.usuario', 'name');
 
       if (!comanda) {
         logger.warn('Comanda no encontrada para emitir evento de eliminación');

@@ -1825,6 +1825,7 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
                 comanda.fechaEliminacion = new Date();
                 comanda.motivoEliminacion = 'Eliminación automática: todos los platos en pedido eliminados';
                 comanda.eliminadaPor = usuarioId;
+                comanda.eliminadaPorNombre = actor.usuarioNombre || null;
                 await comanda.save();
                 try {
                     const { desactivarBouchersDeComanda } = require('../repository/boucher.repository');
@@ -3542,6 +3543,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             const estado = (platoItem.estado || '').toLowerCase();
             platoItem.eliminado = true;
             platoItem.eliminadoPor = usuarioId;
+            platoItem.eliminadoPorNombre = actor.usuarioNombre || null;
             platoItem.eliminadoAt = ahora;
             platoItem.eliminadoRazon = motivo.trim();
             platoItem.estadoAlEliminar = platoItem.estado || null;
@@ -3586,6 +3588,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             comandaActualizar.fechaEliminacion = ahora;
             comandaActualizar.motivoEliminacion = motivo.trim();
             comandaActualizar.eliminadaPor = usuarioId;
+            comandaActualizar.eliminadaPorNombre = actor.usuarioNombre || null;
             if (todosPlatosEliminados && todosEliminadosEranPedido) {
                 console.log(`Comanda #${comandaActualizar.comandaNumber} eliminada automáticamente porque todos sus platos en estado pedido fueron eliminados. No quedan platos activos.`);
             }

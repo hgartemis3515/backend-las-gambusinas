@@ -237,18 +237,19 @@ router.get('/facturacion/mesas/:id/consumo', adminAuth, async (req, res) => {
         const comandas = await Comanda.find({
             mesas: req.params.id,
             IsActive: true,
-            status: { $nin: ['pagado', 'cancelado'] },
+            status: { $nin: ['pagado', 'completado', 'cancelado'] },
         }).populate('platos.plato', 'nombre precio').lean();
         const items = [];
         for (const comanda of comandas) {
             (comanda.platos || []).forEach((linea, i) => {
                 if (linea.estado === 'pagado') return;
-                const cantidad = Number(comanda.cantidades?.[i] || 1);
-                const precio = Number(linea.plato?.precio || 0);
+                const cantidad = Number(linea.cantidad || comanda.cantidades?.[i] || 1);
+                const precio = Number(linea.precio || linea.plato?.precio || 0);
                 items.push({
-                    descripcion: linea.plato?.nombre || 'Plato',
+                    descripcion: linea.nombre || linea.plato?.nombre || 'Plato',
                     cantidad,
                     precioUnitario: precio,
+                    nota: linea.notaEspecial || linea.nota || '',
                     tipoAfectacionIgv: '10',
                 });
             });

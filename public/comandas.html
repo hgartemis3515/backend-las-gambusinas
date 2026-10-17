@@ -4908,6 +4908,21 @@ this.socket.on('reportes:comanda-eliminada', () => this.scheduleRefreshVentasTot
     // parciales del socket no pueden borrarla (aquí se borraba y por eso el
     // rótulo desaparecía al rato).
     if (prev) {
+      if (!normalizada.eliminadaPorNombre && prev.eliminadaPorNombre) {
+        normalizada.eliminadaPorNombre = prev.eliminadaPorNombre;
+      }
+      if (!normalizada.motivoEliminacion && prev.motivoEliminacion) {
+        normalizada.motivoEliminacion = prev.motivoEliminacion;
+      }
+      if (!normalizada.fechaEliminacion && prev.fechaEliminacion) {
+        normalizada.fechaEliminacion = prev.fechaEliminacion;
+      }
+      if (prev.eliminada === true && normalizada.eliminada !== true) {
+        normalizada.eliminada = true;
+      }
+      if ((prev.historialBajas || []).length) {
+        normalizada.historialBajas = this.fusionarHistorialBajas(prev.historialBajas, normalizada.historialBajas);
+      }
       if (normalizada.esPrueba !== true && prev.esPrueba === true) {
         normalizada.esPrueba = true;
       }
@@ -5049,6 +5064,8 @@ fusionarTrazabilidadItems(prevItems, nextItems) {
       entregaAutomatica: estadoItem === 'entregado'
         ? (this.esFlagEntregaAuto(item.entregaAutomatica) || this.esFlagEntregaAuto(prev.entregaAutomatica))
         : false,
+      eliminadoPorNombre: item.eliminadoPorNombre || prev.eliminadoPorNombre || '',
+      eliminadoRazon: item.eliminadoRazon || prev.eliminadoRazon || null,
       complementosSeleccionados: complementosSeleccionados.length ? complementosSeleccionados : (item.complementosSeleccionados || prev.complementosSeleccionados || [])
     };
   });
@@ -5245,16 +5262,16 @@ async fetchAndAddComanda(comandaId) {
 },
 
 handleComandaEliminada(data) {
-const comandaId = this.normalizeObjectId(data.comandaId || data._id);
-const idx = this.comandas.findIndex(c => this.normalizeObjectId(c._id) === comandaId);
-if (idx !== -1) {
-this.comandas.splice(idx, 1);
-this.comandas = [...this.comandas];
-this.processGrouping();
-this.filterComandas();
+const comandaId = this.normalizeObjectId(data.comandaId || data._id || data.comanda?._id);
+const embebida = data && data.comanda;
+if (embebida && typeof embebida === 'object') {
+  embebida.eliminada = true;
+  if (!embebida.fechaEliminacion) embebida.fechaEliminacion = data.timestamp || new Date().toISOString();
+  this.handleComandaActualizada(embebida);
 }
-if (this.normalizeObjectId(this.selectedComanda?._id) === comandaId || this.normalizeObjectId(this.editComanda?._id) === comandaId) {
-this.modal = null;
+if (comandaId) this.scheduleComandaSync(comandaId);
+if (this.modal === 'editarComanda' && this.normalizeObjectId(this.editComanda?._id) === comandaId) {
+  this.modal = null;
 }
 this.scheduleRefreshVentasTotales();
  },
@@ -5728,7 +5745,7 @@ this.scheduleRefreshVentasTotales();
  estado: item.estado || 'en_espera',
         eliminado: item.eliminado || false,
         eliminadoRazon: item.eliminadoRazon || null,
-        eliminadoPorNombre: this.nombrePersona(item.eliminadoPor),
+        eliminadoPorNombre: String(item.eliminadoPorNombre || '').trim() || this.nombrePersona(item.eliminadoPor),
         eliminadoAt: item.eliminadoAt || null,
  notaEspecial: item.notaEspecial || '',
  complementosSeleccionados: item.complementosSeleccionados || [],
@@ -5880,7 +5897,7 @@ this.scheduleRefreshVentasTotales();
  eliminada: raw.eliminada === true || !!raw.fechaEliminacion,
  fechaEliminacion: raw.fechaEliminacion || null,
  motivoEliminacion: raw.motivoEliminacion || null,
- eliminadaPorNombre: this.nombrePersona(raw.eliminadaPor),
+ eliminadaPorNombre: String(raw.eliminadaPorNombre || '').trim() || this.nombreEliminador(raw),
  historialBajas: this.normalizarHistorialBajas(raw.historialPlatos),
  origenReserva: raw.origenReserva?._id || raw.origenReserva || null,
  programadaPorReserva: !!raw.programadaPorReserva,
@@ -7021,7 +7038,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  matchFilterEstado(estado, comanda) {
- if (this.filterEstado === 'eliminada') return this.comandaEsEliminada(comanda);
+ if (this.filterEstado === 'eliminada') return this.comandaEsEliminada(comanda) || this.comandaTienePlatosEliminados(comanda);
  const e = String(estado || '').toLowerCase();
  if (!this.filterEstado) return true;
  if (this.filterEstado === 'pagado' || this.filterEstado === 'completado') {
@@ -7033,6 +7050,12 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  comandaEsEliminada(c) {
   if (!c) return false;
   return c.eliminada === true || !!c.fechaEliminacion;
+ },
+
+ comandaTienePlatosEliminados(c) {
+  if (!c) return false;
+  if ((c.historialBajas || []).length > 0) return true;
+  return (c.items || c.platos || []).some((p) => p && p.eliminado === true);
  },
 
  puedeEliminarTicket(ticket) {
@@ -8344,6 +8367,32 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   if (typeof v === 'string') return '';
   return String(v.name || v.nombres || v.usuarioNombre || '').trim();
  },
+ nombreEliminador(raw) {
+  if (!raw) return '';
+  const deRef = this.nombrePersona(raw.eliminadaPor);
+  if (deRef) return deRef;
+  const hist = raw.historialPlatos || raw.historialBajas || [];
+  for (let i = hist.length - 1; i >= 0; i--) {
+    const h = hist[i];
+    if (!h) continue;
+    const n = String(h.usuarioNombre || h.quien || '').trim() || this.nombrePersona(h.usuario);
+    if (n) return n;
+  }
+  return '';
+ },
+ fusionarHistorialBajas(prev, next) {
+  const old = Array.isArray(prev) ? prev : [];
+  const list = Array.isArray(next) ? next : [];
+  if (!list.length) return old;
+  return list.map((h) => {
+    if (!h || h.quien) return h;
+    const match = old.find((p) => p && String(p.nombre || '') === String(h.nombre || '') && (
+      (h.cuando && p.cuando && String(h.cuando) === String(p.cuando))
+      || (h.motivo && String(h.motivo) === String(p.motivo || ''))
+    ));
+    return (match && match.quien) ? { ...h, quien: match.quien } : h;
+  });
+ },
  normalizarHistorialBajas(lista) {
   return (lista || []).filter((h) => h && (h.estado === 'eliminado' || h.estado === 'eliminado-completo' || Number(h.cantidadEliminada) > 0)).map((h) => ({
     platoId: h.platoId ?? null,
@@ -8711,6 +8760,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.guardandoGrupo = true;
  try {
  let hayEliminadosGrupo = false;
+ const anulacionesGrupo = [];
  for (const comanda of this.editGrupo.comandas) {
  const items = comanda.items || [];
  const indicesEliminados = this.indicesPlatosPendientesEliminar(items);
@@ -8721,18 +8771,23 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  });
  if (indicesEliminados.length > 0) {
- hayEliminadosGrupo = true;
  const resEliminar = await apiPut('/comanda/' + comanda._id + '/eliminar-platos', {
  platosAEliminar: indicesEliminados,
  motivo: 'Eliminado desde edición de grupo',
  mozoId: null,
- forzarAdmin: true
+ forzarAdmin: true,
+ sourceApp: 'dashboard'
  });
  if (resEliminar && (resEliminar.error || resEliminar.detalles)) {
   const errorMsg = resEliminar.detalles
    ? resEliminar.detalles.join('\n')
    : (resEliminar.message || 'Error al eliminar platos');
   throw new Error(errorMsg);
+ }
+ if (resEliminar?.comandaEliminadaCompleta && resEliminar?.ticketAnulacion) {
+  anulacionesGrupo.push(resEliminar);
+ } else {
+  hayEliminadosGrupo = true;
  }
  }
  if (platosConCambios.length > 0) {
@@ -8750,7 +8805,17 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  }
  if (this.socket && this.socket.connected) this.editGrupo.comandas.forEach(c => this.socket.emit('comandaActualizada', { _id: c._id }));
- if (hayEliminadosGrupo) await this.imprimirEposTrasCambio(this.editGrupo.comandas);
+ for (const res of anulacionesGrupo) {
+  if (typeof window.imprimirTicketAnulacionEpos === 'function') {
+   try { await window.imprimirTicketAnulacionEpos(res.comanda, res.ticketAnulacion); }
+   catch (printErr) { this.showToast(printErr.message || 'No se imprimió la anulación', 'error'); }
+  }
+ }
+ if (hayEliminadosGrupo) {
+  const idsAnuladas = new Set(anulacionesGrupo.map((r) => String(r.comanda?._id || '')));
+  const restantes = this.editGrupo.comandas.filter((c) => !idsAnuladas.has(String(c._id)));
+  if (restantes.length) await this.imprimirEposTrasCambio(restantes);
+ }
  await this.loadComandas();
  this.modal = null;
  this.showToast('Grupo actualizado correctamente');
@@ -9273,22 +9338,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  console.log('📥 Respuesta eliminacion:', res);
 
  if (res?.ok && !res.error) {
+ const idBorrada = this.comandaEliminar._id;
  const comandaNum = res.ticketAnulacion?.letrero || res.comanda?.comandaNumber || this.comandaEliminar.numComanda || this.comandaEliminar._id.slice(-6);
  if (res.ticketAnulacion && typeof window.imprimirTicketAnulacionEpos === 'function') {
    try { await window.imprimirTicketAnulacionEpos(res.comanda, res.ticketAnulacion); }
    catch (printErr) { this.showToast(printErr.message || 'No se imprimió la anulación', 'error'); }
  }
 
- if (this.socket && this.socket.connected) {
- this.socket.emit('comandaEliminada', { _id: this.comandaEliminar._id });
- }
-
- const idx = this.comandas.findIndex(c => c._id === this.comandaEliminar._id);
- if (idx !== -1) {
- this.comandas.splice(idx, 1);
- this.processGrouping();
- this.filterComandas();
- }
+ if (res.comanda) this.handleComandaActualizada(res.comanda);
+ else this.scheduleComandaSync(idBorrada);
 
  this.modal = null;
  this.comandaEliminar = null;
