@@ -24,6 +24,18 @@ function ymdOperativo(now = new Date()) {
     return m.format('YYYY-MM-DD');
 }
 
+/** Día calendario Lima (00:00–23:59). El inventario cierra a las 23:59. */
+function ymdCalendario(now = new Date()) {
+    return nowLima(now).format('YYYY-MM-DD');
+}
+
+function boundsDiaCalendario(ymdOrNow = new Date()) {
+    const ymd = esSoloFechaYMD(ymdOrNow) ? String(ymdOrNow).trim() : ymdCalendario(ymdOrNow);
+    const inicio = moment.tz(ymd, 'YYYY-MM-DD', TZ).startOf('day');
+    const fin = inicio.clone().endOf('day');
+    return { limaYMD: ymd, inicio: inicio.toDate(), fin: fin.toDate() };
+}
+
 /**
  * Ventana 04:00 → 03:59:59.999 del día siguiente (Lima).
  * `ymdOrNow` puede ser YYYY-MM-DD o un Date.
@@ -65,7 +77,9 @@ module.exports = {
     HORA_INICIO_CICLO,
     esSoloFechaYMD,
     ymdOperativo,
+    ymdCalendario,
     boundsDiaOperativo,
+    boundsDiaCalendario,
     parseLimaBound,
     rangoLima
 };

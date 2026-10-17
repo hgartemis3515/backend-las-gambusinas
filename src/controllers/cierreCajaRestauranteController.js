@@ -195,6 +195,19 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     } catch (auditErr) {
       logger.warn('No se registró auditoría CIERRE_CAJA_EJECUTADO', { error: auditErr.message });
     }
+
+    try {
+      const io = global.io;
+      if (io && typeof io.of === 'function') {
+        io.of('/admin').emit('inventario:cierre', {
+          cierreId: String(cierre._id),
+          periodoInicio: cierre.periodoInicio,
+          periodoFin: cierre.periodoFin
+        });
+      }
+    } catch (invErr) {
+      logger.warn('No se avisó el cierre al inventario', { error: invErr.message });
+    }
     
     logger.info('Cierre de caja completado exitosamente', {
       cierreId: cierre._id,

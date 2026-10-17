@@ -14,6 +14,16 @@ test('10 leñas del reporte son 10 de salida de pollo leña', () => {
     expect(porRubro.ceviche).toBeUndefined();
 });
 
+test('las ventas virtuales de reportes no bajan el saldo real', () => {
+    const guardados = [
+        { rubro: 'pollo-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 20, fecha: dia('2026-10-12', '12:00:00') }
+    ];
+    const fila = filasDeRubros(guardados, dia('2026-10-12', '04:00:00'), dia('2026-10-13', '03:59:59'), {})
+        .find((f) => f.rubro === 'pollo-lena' && f.tipoProducto === 'cocido');
+    expect(fila.egreso).toBe(0);
+    expect(fila.cierre).toBe(20);
+});
+
 test('la venta del día entra en salida y al día siguiente abre el saldo anterior', () => {
     const movs = [
         { rubro: 'pollo-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 20, fecha: dia('2026-10-12', '12:00:00') },

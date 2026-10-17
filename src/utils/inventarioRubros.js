@@ -60,7 +60,7 @@ const GRUPOS = [
     {
         id: 'pollo',
         nombre: 'Pollo',
-        hijos: ['filete', 'pollada', 'chicharron-pollo', 'presas-arroz-pollo', 'presas-pollo-olla']
+        hijos: ['pollada', 'presas-arroz-pollo', 'presas-pollo-olla']
     },
     {
         id: 'pescado',

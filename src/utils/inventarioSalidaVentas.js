@@ -3,7 +3,7 @@
 const moment = require('moment-timezone');
 const { matchComandasEstadisticas } = require('./estadisticasComandas');
 const { armarContadorPlatos } = require('./contadorPlatosReporte');
-const { ymdOperativo } = require('./diaOperativoRestaurante');
+const { ymdCalendario } = require('./diaOperativoRestaurante');
 const { claveDe } = require('./inventarioRubros');
 const logger = require('./logger');
 
@@ -93,7 +93,7 @@ async function egresosVentaHasta(hasta) {
         const porDia = new Map();
         for (const comanda of comandas || []) {
             if (!comanda || !comanda.createdAt) continue;
-            const ymd = ymdOperativo(comanda.createdAt);
+            const ymd = ymdCalendario(comanda.createdAt);
             const lineas = lineasDeComanda(comanda);
             if (!lineas.length) continue;
             if (!porDia.has(ymd)) porDia.set(ymd, []);

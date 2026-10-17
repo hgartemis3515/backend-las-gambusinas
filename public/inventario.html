@@ -29,7 +29,8 @@ tailwind.config = {
   input.caja-num,
   input.caja-num[type="number"],
   input.caja-num[type="text"],
-  button.caja-num {
+  button.caja-num,
+  span.caja-num {
     width: fit-content !important;
     min-width: 2.6ch !important;
     field-sizing: content;
@@ -46,6 +47,10 @@ tailwind.config = {
     line-height: 1.2;
   }
   button.caja-num { cursor: pointer; }
+  span.caja-num {
+    display: inline-block;
+    vertical-align: middle;
+  }
   .inv-titulo {
     font-size: 12px;
     letter-spacing: 0.12em;
@@ -82,6 +87,7 @@ tailwind.config = {
   .tabla-principal thead th.col-correccion { background: #fcd34d !important; }
   .tabla-principal thead th.col-ingreso-total { background: #f59e0b !important; }
   .tabla-principal thead th.col-salida { background: #fca5a5 !important; }
+  .tabla-principal thead th.col-salida-b { background: #fdba74 !important; }
   .tabla-principal thead th.col-saldo { background: #93c5fd !important; }
   .tabla-principal thead th.col-inventario { background: #c4b5fd !important; }
   .tabla-principal thead th.col-saldo-real { background: #fde68a !important; }
@@ -142,6 +148,35 @@ tailwind.config = {
     font-weight: 800;
     box-shadow: none !important;
   }
+  .tabla-totales thead th:last-child {
+    background: #12121a;
+    color: #cbb56a;
+    box-shadow: none;
+    font-weight: 700;
+  }
+  .tabla-totales tbody tr td:last-child,
+  .tabla-totales tbody tr:nth-child(even) td:last-child,
+  .tabla-totales tbody tr:hover td:last-child {
+    background: transparent;
+    color: inherit;
+    box-shadow: none;
+    font-weight: 600;
+  }
+  .tabla-totales tfoot td {
+    background: rgba(212, 175, 55, 0.14);
+    color: #fde68a;
+    font-weight: 800;
+    box-shadow: none;
+  }
+  .estado-pill {
+    display: inline-block;
+    min-width: 4.5rem;
+    text-align: center;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+  }
 </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="inventarioApp()" x-cloak>
@@ -177,16 +212,24 @@ tailwind.config = {
 
     <div class="flex items-center justify-between mb-5 gap-3 flex-wrap">
       <div class="flex gap-1 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
-        <button type="button" @click="vistaTab = 'tabla'" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Tabla</button>
-        <button type="button" @click="vistaTab = 'crudo'" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'crudo' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Crudo y cocido</button>
-        <button type="button" @click="vistaTab = 'transformacion'" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'transformacion' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Transformación</button>
+        <button type="button" @click="setVista('tabla')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Tabla</button>
+        <button type="button" @click="setVista('crudo')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'crudo' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Crudo y cocido</button>
+        <button type="button" @click="setVista('transformacion')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'transformacion' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Transformación</button>
       </div>
-      <div class="relative">
-        <button type="button" @click="configAbierta = !configAbierta" class="px-4 py-2 rounded-lg text-sm border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:text-gold">Configuración</button>
-        <div x-show="configAbierta" @click.outside="configAbierta = false" x-cloak class="absolute right-0 top-12 z-30 w-72 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-3 shadow-none">
-          <button type="button" @click="toggleAprovechador()" class="w-full px-4 py-2 rounded-lg text-sm font-medium transition text-left" :class="aprovechador ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-white hover:text-gold'">Aprovechador</button>
-          <p class="text-xs text-txt-muted mt-2 mb-3">Las comandas van en cuadros pegados, sin hueco entre tarjetas. El encabezado sigue en una fila.</p>
-          <button type="button" @click="configAbierta = false; borrarAbierta = true; error = ''" class="w-full px-4 py-2 rounded-lg text-sm font-medium text-left bg-red-500/15 text-red-300 hover:bg-red-500/25">Eliminar datos de hoy</button>
+      <div class="flex flex-col items-end gap-2">
+        <div class="relative">
+          <button type="button" @click="configAbierta = !configAbierta" class="px-4 py-2 rounded-lg text-sm border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:text-gold">Configuración</button>
+          <div x-show="configAbierta" @click.outside="configAbierta = false" x-cloak class="absolute right-0 top-12 z-30 w-72 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-3 shadow-none">
+            <button type="button" @click="toggleAprovechador()" class="w-full px-4 py-2 rounded-lg text-sm font-medium transition text-left" :class="aprovechador ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-white hover:text-gold'">Aprovechador</button>
+            <p class="text-xs text-txt-muted mt-2 mb-3">Las comandas van en cuadros pegados, sin hueco entre tarjetas. El encabezado sigue en una fila.</p>
+            <button type="button" @click="configAbierta = false; borrarAbierta = true; error = ''" class="w-full px-4 py-2 rounded-lg text-sm font-medium text-left bg-red-500/15 text-red-300 hover:bg-red-500/25">Eliminar datos de hoy</button>
+          </div>
+        </div>
+        <div x-show="vistaTab !== 'tabla'" class="flex items-center gap-2 flex-wrap justify-end">
+          <button type="button" @click="moverDia(-1)" class="px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.25)] text-gold">‹</button>
+          <input type="date" :value="diaTrabajo" @change="fijarDia($event.target.value)" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-sm text-txt-secondary">
+          <button type="button" @click="moverDia(1)" class="px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.25)] text-gold">›</button>
+          <span x-show="etiquetaDia()" class="px-3 py-1.5 rounded-lg text-sm" :class="etiquetaDia() === 'Hoy' ? 'bg-gold text-bg-primary font-semibold' : 'text-txt-secondary'" x-text="etiquetaDia()"></span>
         </div>
       </div>
     </div>
@@ -207,7 +250,8 @@ tailwind.config = {
                 <th class="col-h col-ingreso text-right">Ingreso</th>
                 <th class="col-h col-correccion text-right">Corrección</th>
                 <th class="col-h col-ingreso-total text-right">Ingreso Total</th>
-                <th class="col-h col-salida text-right">Salida</th>
+                <th class="col-h col-salida text-right leading-tight">Salida (A)<br>Venta</th>
+                <th class="col-h col-salida-b text-right leading-tight">Salida (B)<br>Transformación</th>
                 <th class="col-h col-saldo text-right">Saldo</th>
                 <th class="col-h col-inventario text-right">Inventario</th>
                 <th class="col-h col-saldo-real text-right">Saldo Real</th>
@@ -225,7 +269,8 @@ tailwind.config = {
                   <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.ingresos" @change="fijar(f.clave,'cocido','ingreso', f.ingresos, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','ingreso',1)">+</button></span></td>
                   <td class="px-1 py-0 text-right whitespace-nowrap"><button type="button" class="caja-num num-corr" @click="abrirCorreccion(f)" x-text="f.regulacion"></button><span x-show="Number(f.regulacion)" class="marca-num">#</span></td>
                   <td class="px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.ingresoTotal"></td>
-                  <td class="px-1 py-0 text-right"><span class="paso-num"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','egreso',-1)">−</button><input class="caja-num" type="number" step="any" :value="f.egreso" @change="fijar(f.clave,'cocido','egreso', f.egreso, $event.target.value)"><button type="button" class="flecha-num" @click="paso(f.clave,'cocido','egreso',1)">+</button></span></td>
+                  <td class="px-1 py-0 text-right"><input class="caja-num" type="number" step="any" :value="ventaDe(f)" @change="fijarVenta(f, $event.target.value)"></td>
+                  <td class="px-1 py-0 text-right whitespace-nowrap"><button type="button" class="caja-num" @click="abrirSalida(f)" x-text="transformacionDe(f)"></button><span x-show="rioLindoDe(f)" class="marca-num">R</span></td>
                   <td class="px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.saldo"></td>
                   <td class="px-1 py-0 text-right whitespace-nowrap"><button type="button" class="caja-num" @click="abrirCorreccion(f, 'Inventario')" x-text="f.inventario"></button><span x-show="f.tieneConteo" class="marca-num">#</span></td>
                   <td class="celda-saldo px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.saldoReal"></td>
@@ -264,6 +309,29 @@ tailwind.config = {
             </table>
           </div>
         </template>
+      </div>
+      <div class="mt-4 overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)] max-w-xl">
+        <table class="tabla-suave w-full">
+          <thead>
+            <tr>
+              <th class="text-left">Qué</th>
+              <th class="text-left">Producto</th>
+              <th class="text-right">Cantidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="h in historialCorto('stock')" :key="h.que + h.detalle">
+              <tr class="border-t border-white/5">
+                <td class="px-3 py-1" x-text="h.que"></td>
+                <td class="px-3 py-1 font-semibold" x-text="h.detalle"></td>
+                <td class="px-3 py-1 text-right" x-text="h.cantidad"></td>
+              </tr>
+            </template>
+            <tr x-show="historialCorto('stock').length === 0">
+              <td class="px-3 py-2 text-txt-muted" colspan="3">Registro no realizado</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -329,6 +397,27 @@ tailwind.config = {
           </table>
         </div>
       </div>
+      <div class="mt-4 overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)] max-w-xl">
+        <table class="tabla-suave w-full">
+          <thead>
+            <tr>
+              <th class="text-left">Transformación</th>
+              <th class="text-right">Cantidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="h in historialCorto('transforma')" :key="h.detalle">
+              <tr class="border-t border-white/5">
+                <td class="px-3 py-1 font-semibold" x-text="h.detalle"></td>
+                <td class="px-3 py-1 text-right" x-text="h.cantidad"></td>
+              </tr>
+            </template>
+            <tr x-show="historialCorto('transforma').length === 0">
+              <td class="px-3 py-2 text-txt-muted" colspan="2">Registro no realizado</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section x-show="vistaTab === 'tabla'" class="mb-8">
@@ -364,47 +453,56 @@ tailwind.config = {
         <input x-model="alta.motivo" type="text" placeholder="Motivo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-4" required>
         <button type="submit" class="md:col-span-2 text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold" :disabled="guardando" x-text="guardando ? 'Guardando…' : 'Guardar'"></button>
       </form>
-      <div class="flex flex-wrap items-start gap-4">
-        <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)] w-max">
-          <table class="tabla-suave">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+        <div class="rounded-xl border border-[rgba(212,175,55,0.2)] overflow-hidden bg-bg-card">
+          <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.15)]">
+            <p class="text-sm font-semibold text-gold">Cuánto queda</p>
+            <p class="text-xs text-txt-muted">Saldo real de cada producto en el período que estás viendo.</p>
+          </div>
+          <table class="tabla-suave tabla-totales w-full">
             <thead>
               <tr>
                 <th class="text-left">Producto</th>
-                <th class="text-right">Total</th>
+                <th class="text-right">Saldo real</th>
               </tr>
             </thead>
             <tbody>
               <template x-for="f in productosVisibles()" :key="'t'+f.nombre">
-                <tr class="border-t border-white/5">
-                  <td class="pl-2 pr-4 py-0.5 font-semibold whitespace-nowrap" x-text="f.nombre"></td>
-                  <td class="pl-2 pr-2 py-0.5 text-right" x-text="f.saldoReal"></td>
+                <tr>
+                  <td class="font-semibold" x-text="f.nombre"></td>
+                  <td class="text-right tabular-nums" x-text="f.saldoReal"></td>
                 </tr>
               </template>
             </tbody>
+            <tfoot>
+              <tr>
+                <td>Suma</td>
+                <td class="text-right tabular-nums" x-text="tablaProductos.reduce((a, f) => a + (Number(f.saldoReal) || 0), 0)"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
-        <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)] w-max">
-          <table class="tabla-suave">
+        <div class="rounded-xl border border-[rgba(212,175,55,0.2)] overflow-hidden bg-bg-card">
+          <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.15)]">
+            <p class="text-sm font-semibold text-gold">Estado del stock</p>
+            <p class="text-xs text-txt-muted">Crítico si queda <span x-text="stockMinimo"></span> o menos. Bajo hasta <span x-text="stockBajo"></span>. Normal si hay más.</p>
+          </div>
+          <table class="tabla-suave tabla-totales w-full">
             <thead>
               <tr>
-                <th class="text-left" colspan="5">Alerta crítica</th>
-              </tr>
-              <tr>
                 <th class="text-left">Producto</th>
-                <th class="text-right">Stock actual</th>
-                <th class="text-right">Stock mínimo</th>
-                <th class="text-right">Stock bajo</th>
-                <th class="text-left">Estado</th>
+                <th class="text-right">Saldo</th>
+                <th class="text-right">Estado</th>
               </tr>
             </thead>
             <tbody>
               <template x-for="f in productosVisibles()" :key="'a'+f.nombre">
-                <tr class="border-t border-white/5">
-                  <td class="pl-2 pr-3 py-0.5 font-semibold whitespace-nowrap" x-text="f.nombre"></td>
-                  <td class="px-2 py-0.5 text-right" x-text="f.saldoReal"></td>
-                  <td class="px-2 py-0.5 text-right" x-text="stockMinimo"></td>
-                  <td class="px-2 py-0.5 text-right" x-text="stockBajo"></td>
-                  <td class="pl-2 pr-2 py-0.5 font-semibold whitespace-nowrap" :class="estadoStock(f) === 'Crítico' ? 'text-red-400' : (estadoStock(f) === 'Bajo' ? 'text-amber-300' : 'text-emerald-400')" x-text="estadoStock(f)"></td>
+                <tr>
+                  <td class="font-semibold" x-text="f.nombre"></td>
+                  <td class="text-right tabular-nums" x-text="f.saldoReal"></td>
+                  <td class="text-right">
+                    <span class="estado-pill" :class="estadoStock(f) === 'Crítico' ? 'bg-red-500/20 text-red-300' : (estadoStock(f) === 'Bajo' ? 'bg-amber-400/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-300')" x-text="estadoStock(f)"></span>
+                  </td>
                 </tr>
               </template>
             </tbody>
@@ -471,11 +569,84 @@ tailwind.config = {
       </div>
     </template>
 
+    <template x-if="salidaAbierta && salidaInfo">
+      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" @click.self="salidaAbierta = false" @keydown.escape.window="salidaAbierta = false">
+        <div class="w-full max-w-md bg-bg-card border border-[rgba(212,175,55,0.35)] rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gold">Salida (B)</h3>
+            <button type="button" class="text-txt-muted hover:text-white text-xl leading-none px-1" @click="salidaAbierta = false" aria-label="Cerrar">×</button>
+          </div>
+          <p class="text-xs text-txt-muted">Producto</p>
+          <p class="text-base font-semibold mb-3" x-text="salidaInfo.nombre"></p>
+          <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+            <div>
+              <p class="text-xs text-txt-muted">Venta</p>
+              <p class="font-semibold text-gold" x-text="salidaInfo.venta"></p>
+            </div>
+            <div>
+              <p class="text-xs text-txt-muted mb-1">Transformación</p>
+              <input x-model="salidaInfo.transformar" type="number" step="any" min="0" placeholder="Monto" class="w-full bg-white text-black rounded-lg px-2 py-1.5 text-sm">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="block text-xs text-txt-muted mb-1">Se transforma en</label>
+            <select x-model="salidaInfo.destinoClave" class="w-full bg-bg-sidebar rounded-lg px-2 py-2 text-sm mb-2">
+              <template x-for="d in salidaInfo.destinos" :key="d.clave">
+                <option :value="d.clave" x-text="d.nombre"></option>
+              </template>
+            </select>
+            <input x-show="salidaInfo.destinoClave === 'otro'" x-model="salidaInfo.otroNombre" type="text" maxlength="80" placeholder="Escribe en qué se transformó" class="w-full bg-white text-black rounded-lg px-2 py-1.5 text-sm mb-2">
+            <p x-show="error" class="text-red-300 text-sm mb-2" x-text="error"></p>
+            <button type="button" @click="aplicarTransformacion()" class="w-full text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold" :disabled="guardando" x-text="guardando ? 'Guardando…' : 'Transformar'"></button>
+          </div>
+          <p class="text-xs text-txt-muted mb-2">Salida</p>
+          <p class="text-sm mb-2" x-show="salidaInfo.manual"><span class="font-semibold" x-text="salidaInfo.manual"></span> salida manual</p>
+          <template x-for="t in salidaInfo.transformado" :key="t.nombre">
+            <p class="text-sm mb-1"><span class="font-semibold" x-text="t.cantidad"></span> <span x-text="'transformado en ' + t.nombre"></span><span x-show="t.rio" class="marca-num">R</span></p>
+          </template>
+          <p class="text-sm text-txt-muted" x-show="!salidaInfo.transformado.length">Sin transformación</p>
+          <button type="button" @click="salidaAbierta = false" class="mt-4 w-full text-sm px-3 py-2 rounded-lg border border-[rgba(212,175,55,0.35)] text-txt-secondary">Cerrar</button>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="reporteAbierto && reporteCierre">
+      <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" @click.self="reporteAbierto = false" @keydown.escape.window="reporteAbierto = false">
+        <div class="w-full max-w-lg bg-bg-card border border-[rgba(212,175,55,0.35)] rounded-xl p-5 max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gold">Reporte de inventario</h3>
+            <button type="button" class="text-txt-muted hover:text-white text-xl leading-none px-1" @click="reporteAbierto = false" aria-label="Cerrar">×</button>
+          </div>
+          <p class="text-xs text-txt-muted uppercase mb-1">Correcciones</p>
+          <template x-for="(c, i) in reporteCierre.correcciones" :key="'c'+i">
+            <p class="text-sm mb-1" x-text="c.nombre + ' · ' + c.cantidad + (c.motivo ? ' · ' + c.motivo : '')"></p>
+          </template>
+          <p class="text-sm text-txt-muted mb-3" x-show="!reporteCierre.correcciones.length">Ninguna</p>
+          <p class="text-xs text-txt-muted uppercase mb-1">Salidas</p>
+          <template x-for="(s, i) in reporteCierre.salidas" :key="'s'+i">
+            <p class="text-sm mb-1" x-text="s.nombre + ' · ' + s.cantidad + ' ' + s.detalle"></p>
+          </template>
+          <p class="text-sm text-txt-muted mb-3" x-show="!reporteCierre.salidas.length">Ninguna</p>
+          <p class="text-xs text-txt-muted uppercase mb-1">Transformaciones</p>
+          <template x-for="(t, i) in reporteCierre.transformaciones" :key="'t'+i">
+            <p class="text-sm mb-1" x-text="t.origen + ' → ' + t.destino + ' · ' + t.cantidad"></p>
+          </template>
+          <p class="text-sm text-txt-muted mb-3" x-show="!reporteCierre.transformaciones.length">Ninguna</p>
+          <p class="text-xs text-txt-muted uppercase mb-1">Saldo real</p>
+          <template x-for="p in reporteCierre.saldos" :key="p.nombre">
+            <p class="text-sm mb-1" x-show="p.saldoReal !== 0"><span x-text="p.nombre"></span> <span class="font-semibold" x-text="p.saldoReal"></span></p>
+          </template>
+          <p class="text-sm text-txt-muted" x-show="!reporteCierre.saldos.some(p => p.saldoReal !== 0)">Todo en 0</p>
+          <button type="button" @click="reporteAbierto = false" class="mt-4 w-full text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold">Cerrar</button>
+        </div>
+      </div>
+    </template>
+
     <template x-if="borrarAbierta">
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" @click.self="borrarAbierta = false" @keydown.escape.window="borrarAbierta = false">
         <form @submit.prevent="eliminarHoy()" class="w-full max-w-md bg-bg-card border border-red-500/40 rounded-xl p-5">
           <h3 class="text-lg font-semibold text-red-300 mb-2">Eliminar datos de hoy</h3>
-          <p class="text-sm text-txt-secondary mb-4">Se borran los movimientos de inventario anotados hoy: ingresos, salidas manuales, correcciones, conteos y transformaciones. Queda registrado en auditoría.</p>
+          <p class="text-sm text-txt-secondary mb-4">Se ponen en 0 todas las cifras de las tablas: saldo anterior, ingresos, correcciones, ventas, transformaciones, inventario y saldo real. Queda registrado en auditoría.</p>
           <p x-show="error" class="text-red-300 text-sm mb-3" x-text="error"></p>
           <div class="flex gap-2">
             <button type="button" @click="borrarAbierta = false" class="flex-1 px-3 py-2 rounded-lg text-sm border border-[rgba(212,175,55,0.25)] text-txt-secondary">Cancelar</button>
@@ -499,6 +670,7 @@ function inventarioApp() {
     sidebarOpen: false,
     dia: hoy,
     periodo: 'hoy',
+    diaTrabajo: hoy,
     customDesde: hoy,
     customHasta: hoy,
     periodos: [
@@ -521,6 +693,10 @@ function inventarioApp() {
     opciones: [],
     configAbierta: false,
     borrarAbierta: false,
+    salidaAbierta: false,
+    salidaInfo: null,
+    reporteAbierto: false,
+    reporteCierre: null,
     aprovechador: false,
     movimientos: [],
     ventas: [],
@@ -579,6 +755,28 @@ function inventarioApp() {
       const meta = this.carta || { kardex: [], grupos: [], sueltos: [], opciones: [] };
       this.opciones = meta.opciones || [];
       const origenDe = { Pollo: 'pollo-origen', Pescado: 'pescado-origen' };
+      const destinosPollo = [
+        { clave: 'filete', nombre: 'Filete' },
+        { clave: 'chicharron-pollo', nombre: 'Chicharrón de pollo' },
+        { clave: 'pachamanca-pollo', nombre: 'Pachamanca' },
+        { clave: 'pollada', nombre: 'Pollada' },
+        { clave: 'menu', nombre: 'Menu' },
+        { clave: 'sandwiches', nombre: 'Sandwich' },
+        { clave: 'evento', nombre: 'Evento' },
+        { clave: 'beata', nombre: 'Beata' },
+        { clave: 'sr-juan', nombre: 'Sr. Juan' },
+        { clave: 'bubu', nombre: 'Bubu' }
+      ];
+      const destinosPescado = [
+        { origen: 'Pescado Tollo', origenClave: 'tollo-origen', clave: 'chicharron-pescado', obtenido: 'Chicharrón de pescado' },
+        { origen: 'Pescado Perico o ojo de uva', origenClave: 'perico-origen', clave: 'ceviche', obtenido: 'Ceviche' }
+      ];
+      this.destinosDe = {
+        'pollo-origen': destinosPollo.map((h) => ({ clave: h.clave, nombre: h.nombre, tipo: 'crudo', origenClave: 'pollo-origen', origen: 'Pollo' })),
+        'pescado-origen': destinosPescado.map((p) => ({ clave: p.clave, nombre: p.obtenido, tipo: 'cocido', origenClave: p.origenClave, origen: p.origen })),
+        'tollo-origen': [{ clave: 'chicharron-pescado', nombre: 'Chicharrón de pescado', tipo: 'cocido', origenClave: 'tollo-origen', origen: 'Pescado Tollo' }],
+        'perico-origen': [{ clave: 'ceviche', nombre: 'Ceviche', tipo: 'cocido', origenClave: 'perico-origen', origen: 'Pescado Perico o ojo de uva' }]
+      };
       const kardex = (meta.kardex || []).slice();
       Object.keys(origenDe).forEach((nombre) => {
         const clave = origenDe[nombre];
@@ -589,30 +787,36 @@ function inventarioApp() {
         const crudo = this.filaDe(claves, 'crudo');
         const cocido = this.filaDe(claves, 'cocido');
         const sumaCampo = (campo) => (crudo[campo] || 0) + (cocido[campo] || 0);
+        const filaVista = { clave: (k.suma && k.suma[0]) || k.clave, claves: claves };
         const saldoInicial = sumaCampo('saldoInicial');
-        const ingresos = sumaCampo('ingresos');
+        const ingresos = this.ingresosDe(filaVista);
         const regulacion = sumaCampo('regulacion');
-        const egreso = sumaCampo('egreso');
-        const hayCorreccion = Number(regulacion) !== 0;
-        const haySaldoAnterior = Number(saldoInicial) !== 0;
-        const ingresoTotal = hayCorreccion && haySaldoAnterior
-          ? saldoInicial + regulacion
-          : saldoInicial + ingresos + (haySaldoAnterior ? 0 : regulacion);
-        const saldo = ingresoTotal - egreso;
+        const venta = this.ventaDe(filaVista);
+        const transformacion = this.transformacionDe(filaVista);
         const tiene = !!(crudo.tieneConteo || cocido.tieneConteo);
-        const inventario = tiene
+        const hayActividad = ingresos !== 0 || regulacion !== 0 || venta !== 0 || transformacion !== 0 || tiene;
+        let ingresoTotal = saldoInicial + ingresos + regulacion;
+        let saldo = ingresoTotal - venta - transformacion;
+        let inventario = tiene
           ? (crudo.tieneConteo ? (Number(crudo.conteo) || 0) : 0) + (cocido.tieneConteo ? (Number(cocido.conteo) || 0) : 0)
           : saldo;
-        const saldoReal = (Number(crudo.cierre) || 0) + (Number(cocido.cierre) || 0);
+        let saldoReal = (Number(crudo.cierre) || 0) + (Number(cocido.cierre) || 0);
         const diferencia = tiene ? inventario - saldo : 0;
+        if (!hayActividad) {
+          ingresoTotal = 0;
+          saldo = 0;
+          inventario = 0;
+          saldoReal = 0;
+        }
         return {
           nombre: k.nombre,
-          clave: (k.suma && k.suma[0]) || k.clave,
+          clave: filaVista.clave,
+          claves: claves,
           saldoInicial,
           ingresos,
           regulacion,
           ingresoTotal,
-          egreso,
+          egreso: venta + transformacion,
           saldo,
           inventario,
           saldoReal,
@@ -645,18 +849,6 @@ function inventarioApp() {
       }));
       const orden = ['Pachamanca', 'Pollo', 'Pescado', 'Panceta', 'Arroz'];
       this.cuadros = deGrupos.concat(deSueltos).sort((a, b) => orden.indexOf(a.nombre) - orden.indexOf(b.nombre));
-      const destinosPollo = [
-        { clave: 'filete', nombre: 'Filete' },
-        { clave: 'chicharron-pollo', nombre: 'Chicharrón de pollo' },
-        { clave: 'pachamanca-pollo', nombre: 'Pachamanca' },
-        { clave: 'pollada', nombre: 'Pollada' },
-        { clave: 'menu', nombre: 'Menu' },
-        { clave: 'sandwiches', nombre: 'Sandwich' },
-        { clave: 'evento', nombre: 'Evento' },
-        { clave: 'beata', nombre: 'Beata' },
-        { clave: 'sr-juan', nombre: 'Sr. Juan' },
-        { clave: 'bubu', nombre: 'Bubu' }
-      ];
       const hijosPollo = destinosPollo.map((h) => ({
         origen: 'Pollo',
         origenClave: 'pollo-origen',
@@ -670,10 +862,6 @@ function inventarioApp() {
         aplicado: hijosPollo.reduce((a, h) => a + h.obtenida, 0),
         hijos: hijosPollo
       };
-      const destinosPescado = [
-        { origen: 'Pescado Tollo', origenClave: 'tollo-origen', clave: 'chicharron-pescado', obtenido: 'Chicharrón de pescado' },
-        { origen: 'Pescado Perico o ojo de uva', origenClave: 'perico-origen', clave: 'ceviche', obtenido: 'Ceviche' }
-      ];
       this.pescadoTrans = destinosPescado.map((p) => ({
         ...p,
         tipo: 'cocido',
@@ -744,7 +932,15 @@ function inventarioApp() {
     },
     fechaCorta(iso) {
       if (!iso) return '';
-      return new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+      return new Intl.DateTimeFormat('es-PE', {
+        timeZone: 'America/Lima',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).format(new Date(iso));
     },
     token() {
       return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') || '';
@@ -765,6 +961,7 @@ function inventarioApp() {
         return;
       }
       this.aprovechador = localStorage.getItem('inventario-aprovechador') === '1';
+      this.diaTrabajo = this.ymd(new Date());
       await this.cargar();
       this.initSocket();
       this.vigilarDia();
@@ -774,9 +971,10 @@ function inventarioApp() {
       setInterval(() => {
         const hoy = this.ymd(new Date());
         if (hoy === this._diaVisto) return;
+        if (this.diaTrabajo === this._diaVisto) this.diaTrabajo = hoy;
         this._diaVisto = hoy;
         this.cargar();
-      }, 60000);
+      }, 15000);
     },
     guardarAprovechador() {
       localStorage.setItem('inventario-aprovechador', this.aprovechador ? '1' : '0');
@@ -799,8 +997,6 @@ function inventarioApp() {
       this.guardarAprovechador();
     },
     ymd(fecha) {
-      const T = window.TurnosDiaNoche;
-      if (T && T.limaYMD) return T.limaYMD(fecha || new Date());
       return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(fecha || new Date());
     },
     sumarDias(ymd, n) {
@@ -825,14 +1021,72 @@ function inventarioApp() {
       return { desde: hoy, hasta: hoy };
     },
     diaEdicion() {
+      if (this.vistaTab !== 'tabla') return this.diaTrabajo;
       return this.rangoPeriodo().hasta;
     },
     fechaDelDia(ymd) {
+      if (ymd === this.ymd(new Date())) return new Date().toISOString();
       return ymd + 'T17:00:00.000Z';
     },
     setPeriodo(id) {
       this.periodo = id;
       this.cargar();
+    },
+    setVista(id) {
+      if (this.vistaTab === id) return;
+      this.vistaTab = id;
+      this.cargar();
+    },
+    moverDia(n) {
+      this.diaTrabajo = this.sumarDias(this.diaTrabajo, n);
+      if (this.vistaTab !== 'tabla') this.cargar();
+    },
+    fijarDia(valor) {
+      if (!valor) return;
+      this.diaTrabajo = valor;
+      if (this.vistaTab !== 'tabla') this.cargar();
+    },
+    irDiaHoy() {
+      this.diaTrabajo = this.ymd(new Date());
+      if (this.vistaTab !== 'tabla') this.cargar();
+    },
+    etiquetaDia() {
+      const hoy = this.ymd(new Date());
+      if (this.diaTrabajo === hoy) return 'Hoy';
+      if (this.diaTrabajo === this.sumarDias(hoy, -1)) return 'Ayer';
+      if (this.diaTrabajo === this.sumarDias(hoy, 1)) return 'Mañana';
+      if (this.historialCorto('stock').length === 0 && this.historialCorto('transforma').length === 0) return 'Registro no realizado';
+      return '';
+    },
+    historialCorto(modo) {
+      const dia = this.diaTrabajo;
+      const movs = (this.movimientos || []).filter((m) => m.fecha && this.ymd(new Date(m.fecha)) === dia);
+      if (modo === 'transforma') {
+        const map = {};
+        movs.forEach((m) => {
+          const motivo = String(m.motivo || '');
+          if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0) return;
+          const n = Number(m.cantidad) || 0;
+          if (n >= 0) return;
+          const detalle = (m.nombre || m.rubro) + ' → ' + motivo.slice(7);
+          map[detalle] = (map[detalle] || 0) + Math.abs(n);
+        });
+        return Object.keys(map).map((detalle) => ({ detalle: detalle, cantidad: map[detalle] }));
+      }
+      const map = {};
+      movs.forEach((m) => {
+        if (m.clase !== 'ingreso') return;
+        const motivo = String(m.motivo || '');
+        if (motivo.indexOf('Pasa a ') === 0 || motivo.indexOf('Sale de ') === 0) return;
+        if (m.tipoProducto !== 'crudo' && m.tipoProducto !== 'cocido') return;
+        const key = m.tipoProducto + '|' + (m.nombre || m.rubro);
+        map[key] = (map[key] || 0) + (Number(m.cantidad) || 0);
+      });
+      return Object.keys(map).filter((key) => map[key] !== 0).map((key) => {
+        const tipo = key.slice(0, key.indexOf('|'));
+        const detalle = key.slice(key.indexOf('|') + 1);
+        return { que: tipo === 'crudo' ? 'Crudo' : 'Cocido', detalle: detalle, cantidad: map[key] };
+      });
     },
     fechaAyer() {
       const d = new Date();
@@ -851,6 +1105,173 @@ function inventarioApp() {
       if (x > 0) return 'cuadro-pos';
       if (x < 0) return 'cuadro-neg';
       return '';
+    },
+    async fijarVenta(f, nuevo) {
+      const n = Number(String(nuevo).replace(',', '.'));
+      const a = Number(this.ventaDe(f)) || 0;
+      if (!f || !Number.isFinite(n) || n === a) return;
+      await this.paso(f.clave, 'cocido', 'egreso', n - a, false, 'Venta');
+    },
+    ventaDe(f) {
+      const claves = new Set(f.claves || [f.clave]);
+      return (this.movimientos || []).reduce((a, m) => {
+        if (!claves.has(m.rubro) || m.clase !== 'egreso') return a;
+        if (String(m.motivo || '').indexOf('Venta') !== 0) return a;
+        return a + (Number(m.cantidad) || 0);
+      }, 0);
+    },
+    ingresosDe(f) {
+      const claves = new Set(f.claves || [f.clave]);
+      return (this.movimientos || []).reduce((a, m) => {
+        if (!claves.has(m.rubro) || m.clase !== 'ingreso') return a;
+        if (String(m.motivo || '').indexOf('Pasa a ') === 0) return a;
+        return a + (Number(m.cantidad) || 0);
+      }, 0);
+    },
+    rioLindoDe(f) {
+      const claves = new Set(f.claves || [f.clave]);
+      return (this.movimientos || []).reduce((a, m) => {
+        if (!claves.has(m.rubro) || m.clase !== 'ingreso') return a;
+        if (String(m.motivo || '') !== 'Pasa a Río Lindo') return a;
+        const n = Number(m.cantidad) || 0;
+        return n < 0 ? a + Math.abs(n) : a;
+      }, 0);
+    },
+    transformacionDe(f) {
+      const claves = new Set(f.claves || [f.clave]);
+      return (this.movimientos || []).reduce((a, m) => {
+        if (!claves.has(m.rubro) || m.clase !== 'ingreso') return a;
+        if (String(m.motivo || '').indexOf('Pasa a ') !== 0) return a;
+        const n = Number(m.cantidad) || 0;
+        return n < 0 ? a + Math.abs(n) : a;
+      }, 0);
+    },
+    listaDestinos(f) {
+      const clave = (f.claves && f.claves[0]) || f.clave;
+      const origen = f.nombre || '';
+      const propios = [];
+      (f.claves || [f.clave]).forEach((c) => {
+        const d = this.destinosDe && this.destinosDe[c];
+        if (d && d.length && !propios.length) propios.push.apply(propios, d);
+      });
+      return propios.concat([
+        { clave: 'rio-lindo', nombre: 'Río Lindo', tipo: 'marca', origenClave: clave, origen: origen },
+        { clave: 'otro', nombre: 'Otros', tipo: 'marca', origenClave: clave, origen: origen }
+      ]);
+    },
+    abrirSalida(f, destinoClave) {
+      const destinos = this.listaDestinos(f);
+      const claves = new Set(f.claves || [f.clave]);
+      destinos.forEach((d) => { if (d.origenClave) claves.add(d.origenClave); });
+      let manual = 0;
+      const hechos = {};
+      (this.movimientos || []).forEach((m) => {
+        if (!claves.has(m.rubro)) return;
+        if (m.clase === 'egreso' && String(m.motivo || '').indexOf('Venta') !== 0) manual += Number(m.cantidad) || 0;
+        const motivo = String(m.motivo || '');
+        if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0) return;
+        const n = Number(m.cantidad) || 0;
+        if (n >= 0) return;
+        const nombre = motivo.slice(7);
+        const rio = nombre === 'Río Lindo';
+        if (!hechos[nombre]) hechos[nombre] = { nombre: nombre, cantidad: 0, rio: rio };
+        hechos[nombre].cantidad += Math.abs(n);
+      });
+      const elegido = destinos.find((d) => d.clave === destinoClave) || destinos[0];
+      this.error = '';
+      this.salidaInfo = {
+        nombre: f.nombre,
+        venta: this.ventaDe(f),
+        manual: manual,
+        transformado: Object.keys(hechos).map((nombre) => hechos[nombre]),
+        origenClave: (elegido && elegido.origenClave) || f.clave,
+        destinos: destinos,
+        destinoClave: elegido ? elegido.clave : 'rio-lindo',
+        otroNombre: '',
+        transformar: ''
+      };
+      this.salidaAbierta = true;
+    },
+    async aplicarTransformacion() {
+      const info = this.salidaInfo;
+      const dest = (info && info.destinos || []).find((d) => d.clave === info.destinoClave);
+      const origenClave = (dest && dest.origenClave) || (info && info.origenClave);
+      if (!info || !origenClave) return;
+      const n = Number(String(info.transformar).replace(',', '.'));
+      if (!info.destinoClave || !Number.isFinite(n) || n <= 0) {
+        this.error = 'Indica el monto a transformar';
+        return;
+      }
+      const nombre = info.nombre;
+      const tipo = dest && dest.tipo === 'cocido' ? 'cocido' : 'crudo';
+      if (info.destinoClave === 'rio-lindo') {
+        await this.paso(origenClave, tipo, 'ingreso', -n, false, 'Pasa a Río Lindo');
+      } else if (info.destinoClave === 'otro') {
+        const texto = String(info.otroNombre || '').trim();
+        if (!texto) {
+          this.error = 'Escribe en qué se transformó';
+          return;
+        }
+        await this.paso(origenClave, tipo, 'ingreso', -n, false, 'Pasa a ' + texto);
+      } else {
+        await this.trasladar({
+          origenClave: origenClave,
+          clave: dest.clave,
+          tipo: dest && dest.tipo ? dest.tipo : 'crudo',
+          obtenido: dest ? dest.nombre : info.destinoClave,
+          origen: dest && dest.origen ? dest.origen : info.nombre,
+          obtenida: 0
+        }, n);
+      }
+      const actual = (this.tablaProductos || []).find((p) => p.nombre === nombre);
+      if (actual && this.salidaAbierta) this.abrirSalida(actual, info.destinoClave);
+    },
+    armarReporteCierre(k, movimientos) {
+      const filas = (k && k.filas) || [];
+      const carta = (k && k.carta) || {};
+      const movs = movimientos || [];
+      const ventas = (k && k.ventas) || [];
+      const de = (clave, tipo) => filas.find((f) => f.rubro === clave && f.tipoProducto === tipo) || {};
+      const kardex = (carta.kardex || []).slice();
+      [{ clave: 'pollo-origen', nombre: 'Pollo' }, { clave: 'pescado-origen', nombre: 'Pescado' }].forEach((o) => {
+        if (!kardex.some((k) => k.clave === o.clave)) kardex.unshift(o);
+      });
+      const saldos = kardex.map((item) => {
+        const claves = item.suma && item.suma.length ? item.suma : [item.clave];
+        const saldoReal = claves.reduce((a, c) => a + (Number(de(c, 'crudo').cierre) || 0) + (Number(de(c, 'cocido').cierre) || 0), 0);
+        return { nombre: item.nombre, saldoReal: saldoReal };
+      });
+      const correcciones = movs.filter((m) => m.clase === 'regulacion').map((m) => ({
+        nombre: m.nombre, cantidad: m.cantidad, motivo: m.motivo || ''
+      }));
+      const salidas = ventas.map((v) => ({
+        nombre: v.nombre, cantidad: v.cantidad, detalle: 'venta'
+      })).concat(movs.filter((m) => m.clase === 'egreso' && Number(m.cantidad)).map((m) => ({
+        nombre: m.nombre, cantidad: m.cantidad, detalle: 'manual'
+      })));
+      const transformaciones = movs.filter((m) => m.clase === 'ingreso' && String(m.motivo || '').indexOf('Pasa a ') === 0 && Number(m.cantidad) < 0).map((m) => ({
+        origen: m.nombre,
+        destino: String(m.motivo).slice(7),
+        cantidad: Math.abs(Number(m.cantidad) || 0)
+      }));
+      return { correcciones: correcciones, salidas: salidas, transformaciones: transformaciones, saldos: saldos };
+    },
+    async abrirReporteCierre(payload) {
+      if (!payload || !payload.periodoInicio) return;
+      const desde = this.ymd(new Date(payload.periodoInicio));
+      let hasta = this.ymd(new Date(payload.periodoFin || payload.periodoInicio));
+      if (hasta < desde) hasta = desde;
+      try {
+        const q = '?carta=1&desde=' + desde + '&hasta=' + hasta;
+        const [k, m] = await Promise.all([
+          this.api('/inventario/kardex' + q),
+          this.api('/inventario/movimientos?desde=' + desde + '&hasta=' + hasta)
+        ]);
+        this.reporteCierre = this.armarReporteCierre(k, (m && m.movimientos) || []);
+        this.reporteAbierto = true;
+      } catch (e) {
+        this.error = e.message;
+      }
     },
     abrirCorreccion(f, titulo) {
       const inventario = titulo === 'Inventario';
@@ -951,7 +1372,7 @@ function inventarioApp() {
     async cargar() {
       this.error = '';
       try {
-        const r = this.rangoPeriodo();
+        const r = this.vistaTab === 'tabla' ? this.rangoPeriodo() : { desde: this.diaTrabajo, hasta: this.diaTrabajo };
         this.dia = r.hasta;
         const q = '?carta=1&desde=' + r.desde + '&hasta=' + r.hasta;
         const [k, m, a] = await Promise.all([
@@ -1029,6 +1450,7 @@ function inventarioApp() {
       socket.on('inventario:alerta', refrescar);
       socket.on('nueva-comanda', refrescar);
       socket.on('comanda-actualizada', refrescar);
+      socket.on('inventario:cierre', (payload) => this.abrirReporteCierre(payload));
     }
   };
 }

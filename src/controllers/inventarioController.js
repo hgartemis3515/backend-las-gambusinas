@@ -73,11 +73,11 @@ async function auditarDiaBorrado(req, data) {
             entidadTipo: 'inventario',
             usuario: objectIdUsuarioOrNull(admin.id),
             usuarioNombre: admin.name || null,
-            motivo: 'Eliminó los datos de inventario de hoy',
+            motivo: 'Eliminó los números del inventario',
             ip: req.ip || null,
             datosAntes: { eliminados: n, movimientos: lista },
             metadata: {
-                resumen: 'Inventario de hoy · ' + n + (n === 1 ? ' movimiento' : ' movimientos'),
+                resumen: 'Inventario · ' + n + (n === 1 ? ' movimiento borrado' : ' movimientos borrados'),
                 eliminados: n,
                 movimientos: lista
             }

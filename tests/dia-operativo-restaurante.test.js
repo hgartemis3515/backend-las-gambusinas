@@ -2,7 +2,8 @@
 
 const {
   ymdOperativo,
-  boundsDiaOperativo,
+  ymdCalendario,
+  boundsDiaCalendario,
   rangoLima
 } = require('../src/utils/diaOperativoRestaurante');
 const { matchComandasEstadisticas } = require('../src/utils/estadisticasComandas');
@@ -30,5 +31,17 @@ describe('diaOperativoRestaurante 04:00–04:00', () => {
     const m = matchComandasEstadisticas(inicio, fin);
     expect(m.createdAt.$gte).toEqual(inicio);
     expect(m.$or).toBeUndefined();
+  });
+});
+
+describe('inventario día calendario 00:00–23:59 Lima', () => {
+  test('00:30 Lima ya es el día nuevo', () => {
+    expect(ymdCalendario(new Date('2026-09-20T05:30:00.000Z'))).toBe('2026-09-20');
+  });
+
+  test('el día cierra a las 23:59 Lima', () => {
+    const { inicio, fin } = boundsDiaCalendario('2026-10-16');
+    expect(inicio.toISOString()).toBe('2026-10-16T05:00:00.000Z');
+    expect(fin.toISOString()).toBe('2026-10-17T04:59:59.999Z');
   });
 });
