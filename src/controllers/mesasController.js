@@ -150,16 +150,12 @@ router.get("/mesas/con-comandas", async (req, res) => {
     const startTime = Date.now();
     
     try {
-        const fechaInicio = moment().tz("America/Lima").startOf('day').toDate();
-        const fechaFin = moment().tz("America/Lima").endOf('day').toDate();
-        
-        // Agregación para obtener mesas con comandas activas
         const mesasConComandas = await comandaModel.aggregate([
             {
                 $match: {
-                    createdAt: { $gte: fechaInicio, $lte: fechaFin },
                     IsActive: true,
-                    status: { $nin: ['pagado', 'cancelado'] }
+                    status: { $nin: ['pagado', 'completado', 'cancelado'] },
+                    mesas: { $ne: null },
                 }
             },
             {
@@ -167,8 +163,11 @@ router.get("/mesas/con-comandas", async (req, res) => {
                     _id: '$mesas',
                     comandas: { $push: '$comandaNumber' },
                     totalPendiente: { $sum: '$precioTotal' },
+                    abiertaDesde: { $min: '$createdAt' },
+                    lineas: { $sum: { $size: { $ifNull: ['$platos', []] } } },
                     mozoId: { $first: '$mozos' },
-                    mozoNombre: { $first: '$mozoNombre' }
+                    mozoNombre: { $first: '$mozoNombre' },
+                    areaNombre: { $first: '$areaNombre' }
                 }
             },
             {
@@ -189,7 +188,10 @@ router.get("/mesas/con-comandas", async (req, res) => {
                     estado: '$mesaInfo.estado',
                     comandas: 1,
                     totalPendiente: 1,
-                    mozoNombre: 1
+                    abiertaDesde: 1,
+                    lineas: 1,
+                    mozoNombre: 1,
+                    areaNombre: 1
                 }
             },
             {
