@@ -3,7 +3,7 @@ const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
 const { claveDe, filasDeRubros, carta } = require('../utils/inventarioRubros');
-const { boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
+const { boundsDiaCalendario, ymdCalendario, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
 const Rubro = require('../database/models/inventarioRubro.model');
 const logger = require('../utils/logger');
@@ -21,13 +21,13 @@ function rango(desde, hasta) {
         err.statusCode = 400;
         throw err;
     }
-    const ini = boundsDiaOperativo(iniStr);
-    const fin = boundsDiaOperativo(finStr);
+    const ini = boundsDiaCalendario(iniStr);
+    const fin = boundsDiaCalendario(finStr);
     return { desde: ini.inicio, hasta: fin.fin };
 }
 
 function hoy() {
-    const d = ymdOperativo();
+    const d = ymdCalendario();
     return rango(d, d);
 }
 
@@ -70,7 +70,7 @@ async function listarMovimientos({ plato, tipo, desde, hasta }) {
     if (plato && mongoose.Types.ObjectId.isValid(plato)) filtro.plato = plato;
     const docs = await Movimiento.find(filtro)
         .sort({ fecha: -1 })
-        .limit(500)
+        .limit(3000)
         .populate('usuario', 'name')
         .lean();
     return docs.map((d) => ({
@@ -184,8 +184,7 @@ async function kardexCarta(desdeStr, hastaStr) {
         egresosVentaHasta(hasta),
         umbralesRubro()
     ]);
-    const movs = guardados.concat(ventasPack.movs);
-    const filas = filasDeRubros(movs, desde, hasta, umbrales);
+    const filas = filasDeRubros(guardados, desde, hasta, umbrales);
     const desdeMs = desde.getTime();
     const hastaMs = hasta.getTime();
     const ventas = (ventasPack.ventas || []).filter((v) => {
@@ -219,13 +218,10 @@ async function guardarUmbralRubro(clave, body) {
 
 async function alertasRubro() {
     const hasta = new Date();
-    const [guardados, ventasPack] = await Promise.all([
-        Movimiento.find({ rubro: { $nin: [null, ''] } })
-            .select('rubro tipoProducto clase cantidad fecha')
-            .lean(),
-        egresosVentaHasta(hasta)
-    ]);
-    const filas = filasDeRubros(guardados.concat(ventasPack.movs), new Date(0), hasta, await umbralesRubro());
+    const guardados = await Movimiento.find({ rubro: { $nin: [null, ''] } })
+        .select('rubro tipoProducto clase cantidad fecha')
+        .lean();
+    const filas = filasDeRubros(guardados, new Date(0), hasta, await umbralesRubro());
     return alertasDeFilas(filas);
 }
 
