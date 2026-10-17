@@ -2457,29 +2457,6 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-text="formatearNombreMesa(editComanda?.mesa)"></span>
  <template x-if="tieneMozoAsignado(editComanda)"><span> — <span x-text="nombreMozo(editComanda)"></span></span></template>
  </p>
- <div class="mt-3 p-3 rounded-xl bg-[#1e1b4b] border border-white/20" x-show="editComanda?._id && editComanda?.estado !== 'pagado' && editComanda?.estado !== 'cancelado' && !editComanda?.eliminada">
-  <p class="text-xs font-bold text-white mb-2">Mover de mesa</p>
-  <p class="text-[11px] text-white/80 mb-2">Marca esta comanda y, si quieres, otras del mismo grupo. Viajan juntas a la mesa destino.</p>
-  <div class="flex flex-wrap gap-1.5 mb-2">
-   <template x-for="c in comandasDelGrupoEdit()" :key="'mv-'+c._id">
-    <label class="filtro-solido text-[11px] px-2 py-1 rounded cursor-pointer bg-[#4338ca]" :class="moverIds.includes(String(c._id)) ? 'filtro-on' : ''">
-     <input type="checkbox" class="mr-1" :checked="moverIds.includes(String(c._id))" @change="toggleMoverId(c._id)">
-     <span x-text="etiquetaNumeroTabla(c)"></span>
-    </label>
-   </template>
-  </div>
-  <div class="flex flex-wrap gap-2 items-center">
-   <select x-model="mesaDestinoMover" class="filtro-campo border-[#3b82f6] rounded-lg px-3 py-2 text-sm min-w-[140px]">
-    <option value="">Mesa destino</option>
-    <template x-for="m in mesasParaMover" :key="'md-'+m._id">
-     <option :value="m._id" x-text="m.nombreMesa || ('M' + (m.nummesa ?? ''))"></option>
-    </template>
-   </select>
-   <button type="button" @click="moverComandasEdit()" class="filtro-solido px-3 py-2 rounded-lg text-xs bg-[#15803d]">
-    <span x-text="moverIds.length > 1 ? ('Mover ' + moverIds.length + ' comandas') : 'Mover esta comanda'"></span>
-   </button>
-  </div>
- </div>
  </div>
  <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
  </div>
@@ -2918,6 +2895,14 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  </div>
 
+ <button type="button"
+  x-show="editComanda?._id && editComanda?.estado !== 'pagado' && editComanda?.estado !== 'cancelado' && !editComanda?.eliminada"
+  @click="modalMoverMesa = true"
+  class="w-full text-left bg-[#1e1b4b] border border-white/20 rounded-xl p-4 hover:border-white/40 transition">
+  <p class="text-xs font-bold text-white uppercase tracking-wider">Mover mesa</p>
+  <p class="text-[11px] text-white/80 mt-1">Abre el formulario para llevar esta comanda, o varias del grupo, a otra mesa.</p>
+ </button>
+
  <!-- TIMELINE DE ESTADOS -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <p class="text-[10px] text-[#5a5a7a] uppercase mb-4 font-semibold tracking-wider">Historial de Estados</p>
@@ -2970,6 +2955,37 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </button>
  </div>
  </div>
+ </div>
+</div>
+
+<div x-show="modalMoverMesa && modal==='editarComanda'" x-transition.opacity class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80" @click.self="modalMoverMesa=false">
+ <div class="bg-[#1e1b4b] border border-white/20 rounded-2xl w-[480px] max-w-full p-5 shadow-2xl" @click.stop>
+  <div class="flex items-start justify-between gap-3 mb-3">
+   <div>
+    <p class="text-sm font-bold text-white">Mover de mesa</p>
+    <p class="text-[11px] text-white/80 mt-1">Marca esta comanda y, si quieres, otras del mismo grupo. Viajan juntas a la mesa destino.</p>
+   </div>
+   <button type="button" @click="modalMoverMesa=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 text-sm font-bold">✕</button>
+  </div>
+  <div class="flex flex-wrap gap-1.5 mb-3">
+   <template x-for="c in comandasDelGrupoEdit()" :key="'mv-'+c._id">
+    <label class="filtro-solido text-[11px] px-2 py-1 rounded cursor-pointer bg-[#4338ca]" :class="moverIds.includes(String(c._id)) ? 'filtro-on' : ''">
+     <input type="checkbox" class="mr-1" :checked="moverIds.includes(String(c._id))" @change="toggleMoverId(c._id)">
+     <span x-text="etiquetaNumeroTabla(c)"></span>
+    </label>
+   </template>
+  </div>
+  <div class="flex flex-wrap gap-2 items-center">
+   <select x-model="mesaDestinoMover" class="filtro-campo border-[#3b82f6] rounded-lg px-3 py-2 text-sm min-w-[140px] flex-1">
+    <option value="">Mesa destino</option>
+    <template x-for="m in mesasParaMover" :key="'md-'+m._id">
+     <option :value="m._id" x-text="m.nombreMesa || ('M' + (m.nummesa ?? ''))"></option>
+    </template>
+   </select>
+   <button type="button" @click="moverComandasEdit()" class="filtro-solido px-3 py-2 rounded-lg text-xs bg-[#15803d]">
+    <span x-text="moverIds.length > 1 ? ('Mover ' + moverIds.length + ' comandas') : 'Mover esta comanda'"></span>
+   </button>
+  </div>
  </div>
 </div>
 
@@ -3650,6 +3666,7 @@ function comandasApp() {
  mesasParaMover: [],
  moverIds: [],
  mesaDestinoMover: '',
+ modalMoverMesa: false,
  editPlatos: [],
 
  comandaTickets: [],
@@ -7956,6 +7973,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     return;
    }
    this.showToast(ids.length > 1 ? ('Movidas ' + ids.length + ' comandas') : 'Comanda movida', 'success');
+   this.modalMoverMesa = false;
    this.modal = null;
    await this.loadComandas();
   } catch (e) {
