@@ -5364,7 +5364,7 @@ this.scheduleRefreshVentasTotales();
     if (Number.isFinite(n)) nums.push(n);
   }
   const uniq = [...new Set(nums)].sort((a, b) => a - b);
-  return uniq.length ? ('(' + uniq.join(', ') + ')') : '';
+  return uniq.length ? ('Rela (' + uniq.join(', ') + ')') : '';
  },
 
  mapaGruposConsecutivos(lista) {
@@ -7900,6 +7900,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.editComanda = {
  _id: detalle._id,
  estado: detalle.estado,
+ estadoAlAbrir: detalle.estado,
  observaciones: detalle.observaciones || '',
  numComanda: detalle.numComanda,
  numeroComandaDia: detalle.numeroComandaDia,
@@ -7986,6 +7987,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.editComanda = {
  _id: this.selectedComanda._id,
  estado: this.selectedComanda.estado,
+ estadoAlAbrir: this.selectedComanda.estado,
  observaciones: this.selectedComanda.observaciones || '',
  numComanda: this.selectedComanda.numComanda,
  numeroComandaDia: this.selectedComanda.numeroComandaDia,
@@ -8162,6 +8164,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  // Clonar para no mutar y marcar estado original de cada ítem
  const clone = JSON.parse(JSON.stringify(grupo));
  (clone.comandas || []).forEach(c => {
+ c.estadoAlAbrir = c.estado;
  (c.items || []).forEach((item, i) => {
    item.estadoOriginal = item.estado;
    item.eliminadoOriginal = !!item.eliminado;
@@ -8832,7 +8835,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  throw new Error(resTipo?.message || 'Error al actualizar tipo de servicio');
  }
  }
- if (comanda.estado) {
+ if (comanda.estado && comanda.estado !== comanda.estadoAlAbrir) {
  await apiPut('/comanda/' + comanda._id + '/status', { nuevoStatus: comanda.estado, motivo: 'Edición desde grupo' });
  }
  }
@@ -9286,7 +9289,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  let res = { success: true, ok: true };
 
- if (this.editComanda.estado) {
+ if (this.editComanda.estado && this.editComanda.estado !== this.editComanda.estadoAlAbrir) {
  res = await apiPut('/comanda/' + this.editComanda._id + '/status', {
  nuevoStatus: this.editComanda.estado,
  motivo: 'Cambio de estado desde panel admin'

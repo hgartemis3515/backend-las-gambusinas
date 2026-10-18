@@ -25,6 +25,9 @@ const {
   reservaVisibleEnCocina,
   MINUTOS_LIMITE_COBRO_RESERVA,
   MOTIVO_RESERVA_NO_COBRADA,
+  reservaPuedeExpirarPorNoShow,
+  reservaRechazadaSoloPorExpiracion,
+  ventanaNoShowYaVencio,
 } = require('../src/repository/reserva.repository');
 
 describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
@@ -318,6 +321,40 @@ describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
       expect(platos[0].pagoAdelantado.estadoTicket).toBe('aprobado');
       expect(platos[1].pagoAdelantado.estadoTicket).toBe('aprobado');
       expect(platos[2].pagoAdelantado).toBeUndefined();
+    });
+  });
+
+  describe('no-show no corre mientras caja no aprueba', () => {
+    test('pendiente_aprobar no expira', () => {
+      expect(reservaPuedeExpirarPorNoShow({ estado: 'pendiente_aprobar' })).toBe(false);
+      expect(reservaPuedeExpirarPorNoShow({ estado: 'pendiente' })).toBe(true);
+      expect(reservaPuedeExpirarPorNoShow({ estado: 'activa' })).toBe(false);
+      expect(reservaPuedeExpirarPorNoShow({ estado: 'rechazada' })).toBe(false);
+    });
+
+    test('un rechazo por expiración se puede revivir al aprobar el pago', () => {
+      expect(reservaRechazadaSoloPorExpiracion({
+        estado: 'rechazada',
+        notas: '[RECHAZADA: Expiro tiempo de espera]'
+      })).toBe(true);
+      expect(reservaRechazadaSoloPorExpiracion({
+        estado: 'rechazada',
+        notas: '[RECHAZADA PPA: no corresponde] [RECHAZADA: Expiro tiempo de espera]'
+      })).toBe(false);
+      expect(reservaRechazadaSoloPorExpiracion({ estado: 'pendiente', notas: 'Expiro tiempo de espera' })).toBe(false);
+    });
+
+    test('la ventana de no-show ya venció si pasó fechaReserva + espera', () => {
+      const ahora = moment.tz('2026-10-17 14:04', 'America/Lima');
+      const reserva = {
+        fechaReserva: moment.tz('2026-10-17 13:00', 'America/Lima').toDate(),
+        tiempoEspera: 10
+      };
+      expect(ventanaNoShowYaVencio(reserva, ahora)).toBe(true);
+      expect(ventanaNoShowYaVencio({
+        fechaReserva: moment.tz('2026-10-17 18:00', 'America/Lima').toDate(),
+        tiempoEspera: 10
+      }, ahora)).toBe(false);
     });
   });
 });

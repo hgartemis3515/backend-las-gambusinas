@@ -1494,7 +1494,7 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
   };
 }
 
-const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo revisionTicket pedido origenCreacion totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion eliminadaPor';
+const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo revisionTicket pedido origenCreacion totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt eliminada fechaEliminacion eliminadaPor tiempoPagado esPrueba pagoOmitido';
 
 function numMesaComanda(c) {
   const m = c?.mesas;
@@ -1552,7 +1552,7 @@ function sufijoAgrupadasCierre(c, todas) {
     if (Number.isFinite(n)) nums.push(n);
   }
   const uniq = [...new Set(nums)].sort((a, b) => a - b);
-  return uniq.length ? `(${uniq.join(', ')})` : '';
+  return uniq.length ? `Rela (${uniq.join(', ')})` : '';
 }
 
 async function cargarComandasParaTicketCierre(cierre) {
@@ -1639,8 +1639,10 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       logger.warn('No se pudo leer la marca de grupos del ticket', { error: e.message });
     }
     const encontradas = await cargarComandasParaTicketCierre(cierre);
-    const vendidas = encontradas.filter(esComandaVendida);
-    const comandas = vendidas.length ? vendidas : encontradas;
+    // El registro suma todas las comandas del cierre (sumaMontosReporte),
+    // también una reserva que quedó en espera. El ticket tiene que usar
+    // el mismo conjunto: filtrar solo "vendidas" dejaba fuera ese monto.
+    const comandas = encontradas;
 
     if ((!cierre.comandasIds || !cierre.comandasIds.length) && encontradas.length) {
       CierreCajaRestaurante.updateOne(

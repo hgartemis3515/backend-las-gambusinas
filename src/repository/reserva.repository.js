@@ -494,6 +494,14 @@ const marcarReservaComoRechazada = async (id) => {
             throw new Error('Reserva no encontrada');
         }
         
+        if (!reservaPuedeExpirarPorNoShow(reserva)) {
+            logger.info('Expiración omitida: la reserva no está esperando al cliente', {
+                reservaId: id,
+                estado: reserva.estado
+            });
+            return { success: false, omitida: true, estado: reserva.estado };
+        }
+
         // Cambiar estado de la reserva
         reserva.estado = 'rechazada';
         reserva.notas = (reserva.notas || '') + ' [RECHAZADA: Expiro tiempo de espera]';
@@ -538,7 +546,7 @@ const obtenerReservasPendientesExpiracion = async () => {
             return {
                 ...r,
                 fechaExpiracion,
-                yaExpiro: fechaExpiracion <= ahora
+                yaExpiro: reservaPuedeExpirarPorNoShow(r) && fechaExpiracion <= ahora
             };
         });
         
@@ -696,6 +704,33 @@ const calcularFechaLimiteCobro = (desde = null, minutos = MINUTOS_LIMITE_COBRO_R
 
 /** Cocina (Reservadas y KDS) solo ve la reserva después de que caja la cobró. */
 const reservaVisibleEnCocina = (estado) => String(estado || '').toLowerCase() === 'pendiente';
+
+const NOTA_EXPIRACION_RESERVA = 'Expiro tiempo de espera';
+
+/**
+ * El no-show solo corre cuando caja ya aprobó y la reserva espera al cliente.
+ * pendiente_aprobar todavía no pasó por caja: expirarla deja la comanda cobrada
+ * en en_espera y el ticket de cierre no la suma.
+ */
+const reservaPuedeExpirarPorNoShow = (reserva) => {
+    return String(reserva?.estado || '').toLowerCase() === 'pendiente';
+};
+
+/** Rechazo automático de no-show, no un rechazo de caja (PPA). */
+const reservaRechazadaSoloPorExpiracion = (reserva) => {
+    if (String(reserva?.estado || '').toLowerCase() !== 'rechazada') return false;
+    const notas = String(reserva?.notas || '');
+    if (!notas.includes(NOTA_EXPIRACION_RESERVA)) return false;
+    if (/RECHAZADA PPA/i.test(notas)) return false;
+    return true;
+};
+
+const ventanaNoShowYaVencio = (reserva, ahora = null) => {
+    if (!reserva?.fechaReserva) return false;
+    const ref = ahora ? moment(ahora) : moment.tz('America/Lima');
+    const espera = Number(reserva.tiempoEspera) || 10;
+    return moment(reserva.fechaReserva).add(espera, 'minutes').isSameOrBefore(ref);
+};
 
 /** fechaCocina nula o ya vencida → empujar a KDS al aprobar, sin esperar el job. */
 const debeActivarCocinaAhora = (fechaCocina, ahora = null) => {
@@ -1066,10 +1101,12 @@ const aplicarBloqueoMesaReserva = async (reserva) => {
     return 'reservado';
 };
 
-const programarJobsExpiracionYBloqueo = (reserva, config) => {
+const programarJobsExpiracionYBloqueo = (reserva, config, opts = {}) => {
     const timeoutService = require('../services/timeoutService');
     try {
-        timeoutService.programarExpiracion(reserva._id, reserva.fechaReserva, reserva.tiempoEspera);
+        if (!opts.omitirNoShow) {
+            timeoutService.programarExpiracion(reserva._id, reserva.fechaReserva, reserva.tiempoEspera);
+        }
     } catch (e) {
         logger.error('Error al programar expiración de reserva', { error: e.message, reservaId: reserva._id });
     }
@@ -1086,9 +1123,9 @@ const programarJobsExpiracionYBloqueo = (reserva, config) => {
     }
 };
 
-const programarJobsReservaConfirmada = (reserva, config) => {
+const programarJobsReservaConfirmada = (reserva, config, opts = {}) => {
     const timeoutService = require('../services/timeoutService');
-    programarJobsExpiracionYBloqueo(reserva, config);
+    programarJobsExpiracionYBloqueo(reserva, config, opts);
     try {
         timeoutService.programarActivacion(
             reserva._id,
@@ -1109,11 +1146,15 @@ const confirmarReservaTrasAprobacionPPA = async (reservaId) => {
         logger.warn('No se pudo cancelar el límite de cobro', { error: e.message, reservaId });
     }
     const config = await leerConfigReservas();
-    const alreadyConfirmed = reserva.estado !== 'pendiente_aprobar';
+    const alreadyConfirmed = reserva.estado !== 'pendiente_aprobar'
+        && !reservaRechazadaSoloPorExpiracion(reserva);
+    const noShowYaVencio = ventanaNoShowYaVencio(reserva);
 
     // Siempre sincronizar ticket en reserva + platos (aunque un job/barrido
     // haya pasado la reserva a activa antes de la aprobación).
-    if (reserva.estado === 'pendiente_aprobar') {
+    // Si el no-show corrió mientras el ticket seguía en caja, se revive:
+    // el cobro ya está aprobado y la comanda tiene que entrar a cocina.
+    if (reserva.estado === 'pendiente_aprobar' || reservaRechazadaSoloPorExpiracion(reserva)) {
         reserva.estado = 'pendiente';
     }
     if (reserva.pagoAdelantado) {
@@ -1153,10 +1194,11 @@ const confirmarReservaTrasAprobacionPPA = async (reservaId) => {
             });
         }
     }
+    const jobsOpts = { omitirNoShow: noShowYaVencio };
     if (activarAhora && activada) {
-        programarJobsExpiracionYBloqueo(reserva, config);
+        programarJobsExpiracionYBloqueo(reserva, config, jobsOpts);
     } else {
-        programarJobsReservaConfirmada(reserva, config);
+        programarJobsReservaConfirmada(reserva, config, jobsOpts);
     }
 
     const reservaFinal = await Reserva.findById(reservaId);
@@ -1335,5 +1377,8 @@ module.exports = {
     anularReservaNoCobrada,
     idsReservasPendientesCobro,
     MINUTOS_LIMITE_COBRO_RESERVA,
-    MOTIVO_RESERVA_NO_COBRADA
+    MOTIVO_RESERVA_NO_COBRADA,
+    reservaPuedeExpirarPorNoShow,
+    reservaRechazadaSoloPorExpiracion,
+    ventanaNoShowYaVencio
 };
