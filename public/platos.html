@@ -3724,7 +3724,8 @@ tailwind.config = {
             anexarVarianteAlNombre: anexarNombre,
             saboresPorUnidad: anexarNombre && (g.modoSeleccion === 'cantidades' || seleccionMultiple) ? (this.numOpcionalGrupo(g.saboresPorUnidad) != null ? Math.min(8, Math.max(1, this.numOpcionalGrupo(g.saboresPorUnidad))) : null) : null,
             forzarVisibleTablaKds: !anexarNombre && !esMix && (g.forzarVisibleTablaKds === true || g.forzarVisibleTablaKds === 'true'),
-            seleccionFija
+            seleccionFija,
+            visualEnTablaPlatos: seleccionFija && (g.visualEnTablaPlatos === true || g.visualEnTablaPlatos === 'true')
           };
         });
 

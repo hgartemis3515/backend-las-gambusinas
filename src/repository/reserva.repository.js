@@ -858,7 +858,11 @@ const obtenerMesasDisponiblesParaReserva = async (fechaReserva, ventanaMinutos =
 
 const obtenerReservasProgramadasCocina = async (opts = {}) => {
     try {
-        const query = { estado: 'pendiente', comandaGenerada: { $ne: null } };
+        const query = {
+            estado: 'pendiente',
+            comandaGenerada: { $ne: null },
+            'pagoAdelantado.estadoTicket': { $nin: ['pendiente_aprobacion', 'rechazado'] },
+        };
         if (opts.cocineroId && mongoose.Types.ObjectId.isValid(opts.cocineroId)) {
             query.cocineroEncargado = new mongoose.Types.ObjectId(opts.cocineroId);
         }

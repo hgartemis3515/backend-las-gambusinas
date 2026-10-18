@@ -132,6 +132,7 @@ const crearComplementoPlantilla = async (data) => {
         saboresPorUnidad: (!data.esVariantePlato && data.anexarVarianteAlNombre === true && data.modoSeleccion === 'cantidades' && data.saboresPorUnidad >= 1 && data.saboresPorUnidad <= 8) ? Number(data.saboresPorUnidad) : null,
         forzarVisibleTablaKds: (data.esVariantePlato === true || data.anexarVarianteAlNombre === true) ? false : data.forzarVisibleTablaKds === true,
         seleccionFija: (data.esVariantePlato === true || data.anexarVarianteAlNombre === true) ? false : data.seleccionFija === true,
+        visualEnTablaPlatos: (data.esVariantePlato === true || data.anexarVarianteAlNombre === true || data.seleccionFija !== true) ? false : data.visualEnTablaPlatos === true,
         // ===== FIN NUEVOS CAMPOS =====
         categoria: data.categoria?.trim() || 'General',
         activo: data.activo !== false,
@@ -183,7 +184,7 @@ const actualizarComplementoPlantilla = async (id, newData) => {
         'categoria', 'activo',
         // ===== NUEVOS CAMPOS v2.0 =====
         'modoSeleccion', 'maxUnidadesGrupo', 'minUnidadesGrupo',
-        'maxUnidadesPorOpcion', 'permiteRepetirOpcion', 'esVariantePlato', 'deshabilitarSumaVariante', 'anexarVarianteAlNombre', 'saboresPorUnidad', 'forzarVisibleTablaKds', 'seleccionFija'
+        'maxUnidadesPorOpcion', 'permiteRepetirOpcion', 'esVariantePlato', 'deshabilitarSumaVariante', 'anexarVarianteAlNombre', 'saboresPorUnidad', 'forzarVisibleTablaKds', 'seleccionFija', 'visualEnTablaPlatos'
         // ===== FIN NUEVOS CAMPOS =====
     ];
     
@@ -201,6 +202,7 @@ const actualizarComplementoPlantilla = async (id, newData) => {
         complemento.seleccionFija = false;
         complemento.anexarVarianteAlNombre = false;
         complemento.forzarVisibleTablaKds = false;
+        complemento.visualEnTablaPlatos = false;
         complemento.deshabilitarSumaVariante = complemento.deshabilitarSumaVariante === true;
         complemento.saboresPorUnidad = null;
     } else if (complemento.anexarVarianteAlNombre) {
@@ -208,6 +210,7 @@ const actualizarComplementoPlantilla = async (id, newData) => {
         complemento.esVariantePlato = false;
         complemento.deshabilitarSumaVariante = false;
         complemento.forzarVisibleTablaKds = false;
+        complemento.visualEnTablaPlatos = false;
         if (complemento.modoSeleccion !== 'cantidades' || !(complemento.saboresPorUnidad >= 1 && complemento.saboresPorUnidad <= 8)) {
             complemento.saboresPorUnidad = null;
         }
@@ -215,6 +218,7 @@ const actualizarComplementoPlantilla = async (id, newData) => {
         complemento.deshabilitarSumaVariante = false;
         complemento.anexarVarianteAlNombre = false;
         complemento.forzarVisibleTablaKds = complemento.forzarVisibleTablaKds === true;
+        complemento.visualEnTablaPlatos = complemento.seleccionFija === true && complemento.visualEnTablaPlatos === true;
         complemento.saboresPorUnidad = null;
     }
 

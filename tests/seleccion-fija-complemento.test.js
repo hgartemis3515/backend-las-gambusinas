@@ -46,6 +46,23 @@ describe('seleccionFija en grupos de complemento', () => {
     expect(out[0].opciones[1]).toMatchObject({ nombre: 'Arroz', cantidadPreseleccion: 1 });
   });
 
+  test('sanitizar conserva visualEnTablaPlatos solo con Fijo', () => {
+    const ok = sanitizarComplementosParaGuardar([{
+      grupo: 'Guarnición',
+      seleccionFija: true,
+      visualEnTablaPlatos: true,
+      opciones: [{ nombre: 'Papa' }],
+    }]);
+    expect(ok[0].visualEnTablaPlatos).toBe(true);
+
+    const sinFijo = sanitizarComplementosParaGuardar([{
+      grupo: 'Guarnición',
+      visualEnTablaPlatos: true,
+      opciones: [{ nombre: 'Papa' }],
+    }]);
+    expect(sinFijo[0].visualEnTablaPlatos).toBe(false);
+  });
+
   test('sanitizar no deja MIX como fijo', () => {
     const out = sanitizarComplementosParaGuardar([{
       grupo: 'MIX',
