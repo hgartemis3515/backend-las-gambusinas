@@ -871,7 +871,7 @@ const obtenerReservasProgramadasCocina = async (opts = {}) => {
             .populate('mozo', 'name')
             .populate('cocineroEncargado', 'name alias')
             .populate('platos.plato', 'nombre precio')
-            .populate('comandaGenerada', 'comandaNumber status programadaPorReserva fechaCocinaProgramada prioridadOrden')
+            .populate('comandaGenerada', 'comandaNumber numeroComandaDia revisionTicket status programadaPorReserva fechaCocinaProgramada prioridadOrden')
             .sort({ fechaCocina: 1 })
             .lean();
         return reservas;

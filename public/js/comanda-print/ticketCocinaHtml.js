@@ -180,7 +180,7 @@ function htmlTachadoDoble(texto) {
 
 function htmlNombreEliminado(nombre, usuario) {
   const quien = escapeHtml(usuario || '—');
-  return `<span style="font-weight:900;">X</span> ${htmlTachado(nombre)} <span style="font-weight:900;">X</span> <span style="font-weight:700;">${quien}</span>`;
+  return `${htmlTachadoDoble(nombre)} <span style="font-size:11px;font-weight:900;">Anulado</span> <span style="font-weight:700;">${quien}</span>`;
 }
 
 function htmlMarcaAnulado(anulacionTicket) {
@@ -268,8 +268,8 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     const nombreCelda = marcaAnulado
       ? `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><span>${nombreBase}${cambioG}</span>${marcaAnulado}</div>`
       : `${nombreBase}${cambioG}`;
-    const unitHtml = p.lineaAnulada ? htmlTachadoDoble(fmt(unit)) : fmt(unit);
-    const lineHtml = p.lineaAnulada ? htmlTachadoDoble(fmt(line)) : fmt(line);
+    const unitHtml = p.lineaAnulada ? '' : fmt(unit);
+    const lineHtml = p.lineaAnulada ? '' : fmt(line);
     filas += `<tr class="prod-item">${cuadro}
       <td style="padding:3px 2px;text-align:center;font-weight:700;width:22px;">${cant}</td>
       <td style="padding:3px 2px;">${nombreCelda}</td>
@@ -284,9 +284,12 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     : Math.max(0, bruto - desc);
 
   let html = '';
-  html += `<div style="text-align:left;font-size:14px;font-weight:800;letter-spacing:1px;line-height:1.1;">${esCocina ? 'COCINA' : 'CAJA'}</div>`;
-  const clienteTicket = String(d.clienteNombre || d.cliente?.nombre || '').trim();
   const esReserva = d.reserva === true;
+  const tituloCanal = esReserva
+    ? (esCocina ? 'COCINA RESERVA' : 'CAJA RESERVA')
+    : (esCocina ? 'COCINA' : 'CAJA');
+  html += `<div style="text-align:left;font-size:14px;font-weight:800;letter-spacing:1px;line-height:1.1;">${tituloCanal}</div>`;
+  const clienteTicket = String(d.clienteNombre || d.cliente?.nombre || '').trim();
   const tipoTicket = tipoCuadroTicket(d.productos, {
     sinMesa: d.sinMesa === true || /^sin mesa$/i.test(String(d.mesa || '')),
     reserva: esReserva,

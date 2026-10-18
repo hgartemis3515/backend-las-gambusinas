@@ -411,7 +411,13 @@ router.get('/aprobacion/comandas-imprimibles', adminAuth, async (req, res) => {
     if (!rango) return res.status(400).json({ success: false, message: 'Fecha inválida' });
     const idsSinCobro = await require('../repository/reserva.repository').idsReservasPendientesCobro();
     const filtroComandas = { createdAt: { $gte: rango.desde, $lte: rango.hasta } };
-    if (idsSinCobro.length) filtroComandas.origenReserva = { $nin: idsSinCobro };
+    if (idsSinCobro.length) {
+      filtroComandas.$or = [
+        { origenReserva: { $nin: idsSinCobro } },
+        { eliminada: true },
+        { status: 'cancelado' },
+      ];
+    }
     const lista = await comandaModel.find(filtroComandas)
       .select('numeroComandaDia comandaNumber revisionTicket mesaNumero mozoNombre clienteNombre clienteNombreParaLlevar eliminada sinMesa status createdAt')
       .sort({ numeroComandaDia: 1, comandaNumber: 1 })
@@ -1086,6 +1092,7 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
           descuentos: descPPA.descuentos,
           cliente: { nombre: NOMBRE_CLIENTE_FALLBACK, dni: '' },
           voucherId: ticketPPA.voucherId || null,
+          reserva: ticketPPA.origen === 'reserva' || !!ticketPPA.reserva,
         }),
       });
     }
@@ -1182,6 +1189,9 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
         dni: boucher?.clienteDni || comanda.cliente?.dni || '',
       },
       voucherId: boucher?.voucherId || boucher?.boucherNumber || null,
+      reserva: comanda.origenCreacion === 'reserva'
+        || !!comanda.origenReserva
+        || comanda.programadaPorReserva === true,
     };
 
     res.json({ success: true, datos: imprimible });

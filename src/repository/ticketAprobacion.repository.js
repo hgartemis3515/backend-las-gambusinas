@@ -967,6 +967,11 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
       dni: ticket.clienteDni || boucherData?.clienteDni || '',
     },
     esPrueba: ticket.esPrueba === true,
+    reserva: ticket.origen === 'reserva'
+      || !!ticket.reserva
+      || (ticket.comandas || []).some((c) => c && (
+        c.origenCreacion === 'reserva' || c.origenReserva || c.programadaPorReserva === true
+      )),
     voucherId: ticket.voucherId || boucherData?.voucherId || boucherData?.boucherNumber || null,
     montoRecibido: ticket.montoRecibido ?? boucherData?.montoRecibido ?? null,
     vuelto: ticket.vuelto ?? boucherData?.vuelto ?? null,
