@@ -607,7 +607,7 @@ router.post('/reservas/desde-mozos', async (req, res) => {
                     ticket: resultado.ticketPPA,
                     mesaId: resultado.reserva.mesa,
                     origen: 'reserva',
-                    message: 'Reserva enviada. Esperando aprobación de cocina.',
+                    message: 'Reserva enviada. Pendiente de cobro en caja.',
                 };
                 io.of('/mozos').emit('ticket-ppa-creado', ticketMozos);
             } catch (e) {

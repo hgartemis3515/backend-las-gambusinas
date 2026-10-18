@@ -21,6 +21,10 @@ const {
   puedeActivarCocinaReserva,
   debeActivarCocinaAhora,
   marcarPagoAdelantadoAprobadoEnPlatos,
+  calcularFechaLimiteCobro,
+  reservaVisibleEnCocina,
+  MINUTOS_LIMITE_COBRO_RESERVA,
+  MOTIVO_RESERVA_NO_COBRADA,
 } = require('../src/repository/reserva.repository');
 
 describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
@@ -291,6 +295,16 @@ describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
       expect(debeActivarCocinaAhora(ahora.clone().subtract(1, 'minute'), ahora)).toBe(true);
       expect(debeActivarCocinaAhora(ahora.clone(), ahora)).toBe(true);
       expect(debeActivarCocinaAhora(ahora.clone().add(20, 'minutes'), ahora)).toBe(false);
+    });
+
+    test('caja tiene 60 minutos para cobrar; cocina no ve la reserva hasta entonces', () => {
+      const ahora = moment.tz('2026-10-17 21:00', 'America/Lima');
+      const limite = moment(calcularFechaLimiteCobro(ahora, MINUTOS_LIMITE_COBRO_RESERVA));
+      expect(limite.diff(ahora, 'minutes')).toBe(60);
+      expect(MOTIVO_RESERVA_NO_COBRADA).toBe('Reserva no cobrada');
+      expect(reservaVisibleEnCocina('pendiente_aprobar')).toBe(false);
+      expect(reservaVisibleEnCocina('pendiente')).toBe(true);
+      expect(puedeActivarCocinaReserva('pendiente_aprobar')).toBe(false);
     });
 
     test('marcarPagoAdelantadoAprobadoEnPlatos no deja pendiente_aprobacion', () => {

@@ -409,9 +409,10 @@ router.get('/aprobacion/comandas-imprimibles', adminAuth, async (req, res) => {
   try {
     const rango = resolverRangoFechas(req.query.desde, req.query.hasta || req.query.desde);
     if (!rango) return res.status(400).json({ success: false, message: 'Fecha inválida' });
-    const lista = await comandaModel.find({
-      createdAt: { $gte: rango.desde, $lte: rango.hasta },
-    })
+    const idsSinCobro = await require('../repository/reserva.repository').idsReservasPendientesCobro();
+    const filtroComandas = { createdAt: { $gte: rango.desde, $lte: rango.hasta } };
+    if (idsSinCobro.length) filtroComandas.origenReserva = { $nin: idsSinCobro };
+    const lista = await comandaModel.find(filtroComandas)
       .select('numeroComandaDia comandaNumber revisionTicket mesaNumero mozoNombre clienteNombre clienteNombreParaLlevar eliminada sinMesa status createdAt')
       .sort({ numeroComandaDia: 1, comandaNumber: 1 })
       .lean();

@@ -184,6 +184,14 @@ const reservaSchema = new mongoose.Schema({
         totalPlatos: { type: Number, default: 0 },
         montoPagado: { type: Number, default: 0 },
         montoPendiente: { type: Number, default: 0 }
+    },
+
+    // Límite para que caja cobre el ticket. Si vence en pendiente_aprobar,
+    // la reserva y su comanda se anulan con motivo "Reserva no cobrada".
+    fechaLimiteCobro: {
+        type: Date,
+        default: null,
+        index: true
     }
     // ========== FIN PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 ==========
 });

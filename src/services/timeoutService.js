@@ -135,7 +135,7 @@ const manejarAlertaProxima = async (reservaId) => {
 
         const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
 
-        if (reserva && (reserva.estado === 'pendiente' || reserva.estado === 'pendiente_aprobar')) {
+        if (reserva && reserva.estado === 'pendiente') {
             emitirEvento('reserva-alerta-expiracion', {
                 reservaId,
                 mesa: reserva.mesa?.nummesa,
@@ -164,7 +164,7 @@ const manejarBloqueoMesa = async (reservaId) => {
     try {
         const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
         if (!reserva) return;
-        if (reserva.estado !== 'pendiente' && reserva.estado !== 'pendiente_aprobar') return;
+        if (reserva.estado !== 'pendiente') return;
         const mesasModel = require('../database/models/mesas.model');
         const mesa = await mesasModel.findById(reserva.mesa?._id || reserva.mesa);
         if (mesa && mesa.estado === 'libre') {
@@ -417,9 +417,63 @@ const cancelarTimeout = (reservaId) => {
         if (timeouts.timeoutBloqueoMesa) {
             clearTimeout(timeouts.timeoutBloqueoMesa);
         }
+        if (timeouts.timeoutLimiteCobro) {
+            clearTimeout(timeouts.timeoutLimiteCobro);
+        }
         reservaTimeouts.delete(id);
         logger.debug('Timeouts cancelados', { reservaId: id });
     }
+};
+
+const manejarLimiteCobro = async (reservaId) => {
+    try {
+        logger.info('Límite de cobro de reserva vencido', { reservaId });
+        await getReservaRepository().anularReservaNoCobrada(reservaId);
+    } catch (error) {
+        logger.error('Error al anular reserva no cobrada', { error: error.message, reservaId });
+    }
+};
+
+/**
+ * Caja tiene 1 hora desde la creación para cobrar. Si vence, anula la reserva.
+ */
+const programarLimiteCobro = (reservaId, fechaLimiteCobro) => {
+    try {
+        if (!fechaLimiteCobro) return { programado: false, motivo: 'sin_fecha' };
+        const id = reservaId.toString();
+        const entry = reservaTimeouts.get(id) || {};
+        if (entry.timeoutLimiteCobro) {
+            clearTimeout(entry.timeoutLimiteCobro);
+            entry.timeoutLimiteCobro = null;
+        }
+        const delay = calcularDelay(fechaLimiteCobro);
+        if (delay > 0) {
+            entry.timeoutLimiteCobro = setTimeout(() => {
+                manejarLimiteCobro(reservaId);
+            }, delay);
+            logger.info('Límite de cobro de reserva programado', {
+                reservaId: id,
+                fechaLimiteCobro: new Date(fechaLimiteCobro).toISOString(),
+                delayMs: delay
+            });
+        } else {
+            setImmediate(() => manejarLimiteCobro(reservaId));
+        }
+        reservaTimeouts.set(id, entry);
+        return { programado: delay > 0, delayMs: delay };
+    } catch (error) {
+        logger.error('Error al programar límite de cobro', { error: error.message, reservaId });
+        return { programado: false, error: error.message };
+    }
+};
+
+const cancelarLimiteCobro = (reservaId) => {
+    const id = reservaId.toString();
+    const entry = reservaTimeouts.get(id);
+    if (!entry?.timeoutLimiteCobro) return;
+    clearTimeout(entry.timeoutLimiteCobro);
+    entry.timeoutLimiteCobro = null;
+    reservaTimeouts.set(id, entry);
 };
 
 /** Cancela solo el job de activación KDS (no-show y bloqueo de mesa siguen). */
@@ -452,6 +506,7 @@ const rehidratarTimeouts = async () => {
         expiradas: 0,
         reprogramadas: 0,
         activadasInmediato: 0,
+        cobrosVencidos: 0,
         errores: 0
     };
 
@@ -478,6 +533,19 @@ const rehidratarTimeouts = async () => {
             resultado.procesadas++;
 
             try {
+                if (reserva.estado === 'pendiente_aprobar') {
+                    const limite = reserva.fechaLimiteCobro
+                        || moment(reserva.creadoEn || reserva.createdAt).add(60, 'minutes').toDate();
+                    if (new Date(limite).getTime() <= Date.now()) {
+                        setImmediate(() => manejarLimiteCobro(reserva._id));
+                        resultado.cobrosVencidos++;
+                    } else {
+                        programarLimiteCobro(reserva._id, limite);
+                        resultado.reprogramadas++;
+                    }
+                    continue;
+                }
+
                 if (reserva.yaExpiro) {
                     // La reserva ya expiro, marcarla como rechazada
                     await manejarExpiracion(reserva._id);
@@ -535,6 +603,29 @@ const rehidratarTimeouts = async () => {
     }
 };
 
+const barrerCobrosVencidos = async () => {
+    try {
+        const Reserva = require('../database/models/reserva.model');
+        const ahora = new Date();
+        const haceUnaHora = moment().tz('America/Lima').subtract(60, 'minutes').toDate();
+        const vencidas = await Reserva.find({
+            estado: 'pendiente_aprobar',
+            $or: [
+                { fechaLimiteCobro: { $ne: null, $lte: ahora } },
+                { fechaLimiteCobro: null, creadoEn: { $lte: haceUnaHora } },
+                { fechaLimiteCobro: { $exists: false }, creadoEn: { $lte: haceUnaHora } }
+            ]
+        }).select('_id').lean();
+        if (!vencidas.length) return;
+        logger.info('Barrido: reservas sin cobro vencidas', { cantidad: vencidas.length });
+        for (const r of vencidas) {
+            await manejarLimiteCobro(r._id);
+        }
+    } catch (error) {
+        logger.error('Error en barrido de cobro de reservas', { error: error.message });
+    }
+};
+
 const barrerActivacionesVencidas = async () => {
     try {
         const Reserva = require('../database/models/reserva.model');
@@ -555,8 +646,12 @@ const barrerActivacionesVencidas = async () => {
 
 const iniciarBarridoActivaciones = () => {
     if (sweepInterval) return;
-    sweepInterval = setInterval(barrerActivacionesVencidas, SWEEP_ACTIVACION_MS);
+    sweepInterval = setInterval(() => {
+        barrerActivacionesVencidas();
+        barrerCobrosVencidos();
+    }, SWEEP_ACTIVACION_MS);
     setImmediate(barrerActivacionesVencidas);
+    setImmediate(barrerCobrosVencidos);
     logger.info('Barrido T−15 de reservas iniciado', { cadaMs: SWEEP_ACTIVACION_MS });
 };
 
@@ -593,6 +688,9 @@ const limpiarTodos = () => {
         if (timeouts.timeoutBloqueoMesa) {
             clearTimeout(timeouts.timeoutBloqueoMesa);
         }
+        if (timeouts.timeoutLimiteCobro) {
+            clearTimeout(timeouts.timeoutLimiteCobro);
+        }
     }
 
     reservaTimeouts.clear();
@@ -609,6 +707,8 @@ module.exports = {
     programarExpiracion,
     programarActivacion,
     programarBloqueoMesa,
+    programarLimiteCobro,
+    cancelarLimiteCobro,
     cancelarTimeout,
     cancelarActivacion,
     rehidratarTimeouts,

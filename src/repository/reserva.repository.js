@@ -684,6 +684,19 @@ const esReservaInmediata = (fechaReserva, minutosAntes = 15, ahora = null) => {
  */
 const puedeActivarCocinaReserva = (estado) => String(estado || '').toLowerCase() === 'pendiente';
 
+/** Minutos que tiene caja para cobrar la reserva antes de anularla. */
+const MINUTOS_LIMITE_COBRO_RESERVA = 60;
+const MOTIVO_RESERVA_NO_COBRADA = 'Reserva no cobrada';
+
+const calcularFechaLimiteCobro = (desde = null, minutos = MINUTOS_LIMITE_COBRO_RESERVA) => {
+    const base = desde ? moment(desde) : moment().tz('America/Lima');
+    const mins = Number(minutos) || MINUTOS_LIMITE_COBRO_RESERVA;
+    return base.clone().add(mins, 'minutes').toDate();
+};
+
+/** Cocina (Reservadas y KDS) solo ve la reserva después de que caja la cobró. */
+const reservaVisibleEnCocina = (estado) => String(estado || '').toLowerCase() === 'pendiente';
+
 /** fechaCocina nula o ya vencida → empujar a KDS al aprobar, sin esperar el job. */
 const debeActivarCocinaAhora = (fechaCocina, ahora = null) => {
     if (!fechaCocina) return true;
@@ -810,7 +823,7 @@ const obtenerMesasDisponiblesParaReserva = async (fechaReserva, ventanaMinutos =
 
 const obtenerReservasProgramadasCocina = async (opts = {}) => {
     try {
-        const query = { estado: { $in: ['pendiente', 'pendiente_aprobar'] }, comandaGenerada: { $ne: null } };
+        const query = { estado: 'pendiente', comandaGenerada: { $ne: null } };
         if (opts.cocineroId && mongoose.Types.ObjectId.isValid(opts.cocineroId)) {
             query.cocineroEncargado = new mongoose.Types.ObjectId(opts.cocineroId);
         }
@@ -931,7 +944,8 @@ const crearReservaDesdeMozos = async (data) => {
             creadoPor: data.mozo,
             cocineroEncargado: data.cocineroEncargado && mongoose.Types.ObjectId.isValid(data.cocineroEncargado)
                 ? new mongoose.Types.ObjectId(data.cocineroEncargado) : null,
-            estado: 'pendiente_aprobar'
+            estado: 'pendiente_aprobar',
+            fechaLimiteCobro: calcularFechaLimiteCobro(ahora, MINUTOS_LIMITE_COBRO_RESERVA)
         });
         reservaCreada = reserva;
 
@@ -1026,9 +1040,12 @@ const crearReservaDesdeMozos = async (data) => {
             reservaId: reserva._id, comandaId: comanda._id, mesaId: mesa._id,
             fechaReserva: reserva.fechaReserva, montoPagado, ticketId: ticketPPA._id
         });
-        // No programar activación KDS aquí: el barrido / job no debe empujar
-        // comandas con ticket aún pendiente_aprobacion (rompe KDS y ComandaDetalle).
-        programarJobsExpiracionYBloqueo(reserva, config);
+        // Sin cobro no hay KDS, no-show ni bloqueo de mesa. Solo corre la hora de caja.
+        try {
+            require('../services/timeoutService').programarLimiteCobro(reserva._id, reserva.fechaLimiteCobro);
+        } catch (e) {
+            logger.error('Error al programar límite de cobro de reserva', { error: e.message, reservaId: reserva._id });
+        }
         return { reserva, comanda, ticketPPA, config, activacionInmediata, esperandoAprobacion: true };
     } catch (error) {
         logger.error('Error en crearReservaDesdeMozos', { error: error.message, stack: error.stack });
@@ -1086,6 +1103,11 @@ const programarJobsReservaConfirmada = (reserva, config) => {
 const confirmarReservaTrasAprobacionPPA = async (reservaId) => {
     const reserva = await Reserva.findById(reservaId);
     if (!reserva) throw new Error('Reserva no encontrada');
+    try {
+        require('../services/timeoutService').cancelarLimiteCobro(reserva._id);
+    } catch (e) {
+        logger.warn('No se pudo cancelar el límite de cobro', { error: e.message, reservaId });
+    }
     const config = await leerConfigReservas();
     const alreadyConfirmed = reserva.estado !== 'pendiente_aprobar';
 
@@ -1154,6 +1176,108 @@ const confirmarReservaTrasAprobacionPPA = async (reservaId) => {
     };
 };
 
+const idsReservasPendientesCobro = async () => {
+    const rows = await Reserva.find({ estado: 'pendiente_aprobar' }).select('_id').lean();
+    return rows.map((r) => r._id);
+};
+
+const emitirAnulacionReservaNoCobrada = async (reserva, ticketId) => {
+    try {
+        if (global.emitReservaCancelada) await global.emitReservaCancelada(reserva._id, MOTIVO_RESERVA_NO_COBRADA);
+        if (global.emitReservaActualizada) {
+            await global.emitReservaActualizada(reserva._id, {
+                estado: 'cancelada',
+                motivo: MOTIVO_RESERVA_NO_COBRADA
+            });
+        }
+        if (global.emitMesaActualizada) await global.emitMesaActualizada(reserva.mesa);
+    } catch (e) {
+        logger.warn('No se pudo emitir anulación de reserva no cobrada', { error: e.message });
+    }
+    try {
+        const io = global.io;
+        if (!io || !ticketId) return;
+        const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+        const payload = {
+            ticketId,
+            motivo: MOTIVO_RESERVA_NO_COBRADA,
+            origen: 'reserva',
+            reservaId: reserva._id,
+            estado: 'rechazado',
+            message: MOTIVO_RESERVA_NO_COBRADA
+        };
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-rechazado', payload);
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-actualizado', payload);
+        io.of('/mozos').emit('ticket-ppa-rechazado', payload);
+    } catch (e) {
+        logger.warn('No se pudo emitir rechazo del ticket de reserva', { error: e.message });
+    }
+};
+
+/**
+ * Caja no cobró dentro de la hora. Anula reserva, comanda y ticket.
+ * No usa rechazarTicket: ese camino marca la reserva como rechazada por cocina.
+ */
+const anularReservaNoCobrada = async (reservaId) => {
+    const reserva = await Reserva.findById(reservaId);
+    if (!reserva) return { anulada: false, motivo: 'no_encontrada' };
+    if (reserva.estado !== 'pendiente_aprobar') {
+        return { anulada: false, motivo: 'ya_no_espera_cobro', estado: reserva.estado };
+    }
+
+    const ahora = moment().tz('America/Lima').toDate();
+    reserva.estado = 'cancelada';
+    reserva.notas = `${reserva.notas || ''} [CANCELADA: ${MOTIVO_RESERVA_NO_COBRADA}]`.trim();
+    if (reserva.pagoAdelantado) {
+        reserva.pagoAdelantado.estadoTicket = 'rechazado';
+        reserva.markModified('pagoAdelantado');
+    }
+    await reserva.save();
+
+    await getComandaModel().updateMany(
+        { origenReserva: reserva._id, status: { $nin: ['pagado', 'completado'] } },
+        {
+            $set: {
+                status: 'cancelado',
+                IsActive: false,
+                eliminada: true,
+                fechaEliminacion: ahora,
+                motivoEliminacion: MOTIVO_RESERVA_NO_COBRADA,
+                programadaPorReserva: false
+            }
+        }
+    );
+
+    const ticketId = reserva.pagoAdelantado?.ticketId || null;
+    if (ticketId) {
+        await getTicketPagoAdelantadoModel().updateOne(
+            { _id: ticketId, estado: 'pendiente_aprobacion' },
+            {
+                $set: {
+                    estado: 'rechazado',
+                    motivoRechazo: MOTIVO_RESERVA_NO_COBRADA,
+                    fechaRechazo: ahora
+                }
+            }
+        );
+    }
+
+    await mesasModel.updateOne(
+        { _id: reserva.mesa, estado: 'pendiente_aprobar' },
+        { $set: { estado: 'libre' } }
+    );
+
+    try {
+        require('../services/timeoutService').cancelarTimeout(reserva._id);
+    } catch (e) {
+        logger.warn('No se pudieron cancelar jobs tras reserva no cobrada', { error: e.message });
+    }
+
+    await emitirAnulacionReservaNoCobrada(reserva, ticketId);
+    logger.info('Reserva anulada por falta de cobro', { reservaId: reserva._id, ticketId });
+    return { anulada: true, reservaId: reserva._id, mesaId: reserva.mesa, motivo: MOTIVO_RESERVA_NO_COBRADA };
+};
+
 const rechazarReservaTrasPPA = async (reservaId, motivo) => {
     const reserva = await Reserva.findById(reservaId);
     if (!reserva) return { mesaId: null, comandaId: null };
@@ -1205,5 +1329,11 @@ module.exports = {
     parseFechaAtencionLima,
     puedeActivarCocinaReserva,
     debeActivarCocinaAhora,
-    marcarPagoAdelantadoAprobadoEnPlatos
+    marcarPagoAdelantadoAprobadoEnPlatos,
+    calcularFechaLimiteCobro,
+    reservaVisibleEnCocina,
+    anularReservaNoCobrada,
+    idsReservasPendientesCobro,
+    MINUTOS_LIMITE_COBRO_RESERVA,
+    MOTIVO_RESERVA_NO_COBRADA
 };
