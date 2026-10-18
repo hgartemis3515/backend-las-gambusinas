@@ -2148,7 +2148,7 @@ function cierreApp() {
         if (typeof window.imprimirCierreTicket !== 'function') {
           throw new Error('Módulo de impresión no cargado');
         }
-        await window.imprimirCierreTicket(id);
+        await window.imprimirCierreTicket(id, { canal: 'CAJA' });
       } catch (e) {
         this.showToast(e.message || 'No se pudo imprimir el ticket', 'error');
       }
@@ -2177,7 +2177,7 @@ function cierreApp() {
 </script>
 <!-- Page Transitions JS -->
 <script src="/assets/js/page-transitions.js"></script>
-<script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261012a"></script>
+<script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261018a"></script>
 <!-- Cosmos Search Bar - Command Palette -->
 <script src="/assets/js/cosmos-search.js"></script>
 <script src="/socket.io/socket.io.js"></script>

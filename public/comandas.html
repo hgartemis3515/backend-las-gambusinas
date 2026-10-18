@@ -25,7 +25,7 @@
 <script src="/socket.io/socket.io.js"></script>
  <script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
  <script type="module" src="/js/comanda-print/imprimirTicketsEpos.js"></script>
- <script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261012a"></script>
+ <script type="module" src="/js/cierre-print/cierreTicketPrint.js?v=20261018a"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -5473,7 +5473,7 @@ this.scheduleRefreshVentasTotales();
     this.showToast('Módulo de impresión no cargado', 'error');
     return;
   }
-  this.vistaPreviaHtml = window.generarHtmlCierreTicket(datos, { vistaPrevia: true });
+  this.vistaPreviaHtml = window.generarHtmlCierreTicket(datos, { vistaPrevia: true, canal: 'COCINA' });
   this.vistaPreviaAbierta = true;
  },
 
@@ -5488,7 +5488,7 @@ this.scheduleRefreshVentasTotales();
     return;
   }
   try {
-    window.imprimirTicketDesdeDatos(datos);
+    window.imprimirTicketDesdeDatos(datos, { canal: 'COCINA' });
   } catch (e) {
     this.showToast(e.message || 'No se pudo imprimir', 'error');
   }
@@ -5629,7 +5629,7 @@ this.scheduleRefreshVentasTotales();
       this.showToast('No se pudo armar el ticket', 'error');
       return;
     }
-    window.imprimirTicketDesdeDatos(datos);
+    window.imprimirTicketDesdeDatos(datos, { canal: 'COCINA' });
   } catch (e) {
     this.showToast(e.message || 'No se pudo imprimir', 'error');
   } finally {
