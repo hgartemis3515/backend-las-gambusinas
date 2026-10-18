@@ -270,7 +270,7 @@ tailwind.config = {
                   <td class="px-1 py-0 text-right whitespace-nowrap"><button type="button" class="caja-num num-corr" @click="abrirCorreccion(f)" x-text="f.regulacion"></button><span x-show="Number(f.regulacion)" class="marca-num">#</span></td>
                   <td class="px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.ingresoTotal"></td>
                   <td class="px-1 py-0 text-right"><input class="caja-num" type="number" step="any" :value="ventaDe(f)" @change="fijarVenta(f, $event.target.value)"></td>
-                  <td class="px-1 py-0 text-right whitespace-nowrap"><button type="button" class="caja-num" @click="abrirSalida(f)" x-text="transformacionDe(f)"></button><span x-show="rioLindoDe(f)" class="marca-num">R</span></td>
+                  <td class="px-1 py-0 text-right whitespace-nowrap"><button type="button" class="caja-num" @click="abrirSalida(f)" x-text="transformacionDe(f)"></button><template x-for="letra in marcasTransformacion(f)" :key="f.nombre + '-' + letra"><span class="marca-num" x-text="letra"></span></template></td>
                   <td class="px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.saldo"></td>
                   <td class="px-1 py-0 text-right whitespace-nowrap"><button type="button" class="caja-num" @click="abrirCorreccion(f, 'Inventario')" x-text="f.inventario"></button><span x-show="f.tieneConteo" class="marca-num">#</span></td>
                   <td class="celda-saldo px-1 py-0 text-right"><input class="caja-num font-semibold" type="text" readonly :value="f.saldoReal"></td>
@@ -457,7 +457,7 @@ tailwind.config = {
         <div class="rounded-xl border border-[rgba(212,175,55,0.2)] overflow-hidden bg-bg-card">
           <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.15)]">
             <p class="text-sm font-semibold text-gold">Cuánto queda</p>
-            <p class="text-xs text-txt-muted">Saldo real de cada producto en el período que estás viendo.</p>
+            <p class="text-xs text-txt-muted">Lo que queda de cada producto. Conserva lo de antes, aunque este período no tenga movimientos. Si el número es negativo, falta esa cantidad.</p>
           </div>
           <table class="tabla-suave tabla-totales w-full">
             <thead>
@@ -470,14 +470,14 @@ tailwind.config = {
               <template x-for="f in productosVisibles()" :key="'t'+f.nombre">
                 <tr>
                   <td class="font-semibold" x-text="f.nombre"></td>
-                  <td class="text-right tabular-nums" x-text="f.saldoReal"></td>
+                  <td class="text-right tabular-nums" x-text="f.queda"></td>
                 </tr>
               </template>
             </tbody>
             <tfoot>
               <tr>
                 <td>Suma</td>
-                <td class="text-right tabular-nums" x-text="tablaProductos.reduce((a, f) => a + (Number(f.saldoReal) || 0), 0)"></td>
+                <td class="text-right tabular-nums" x-text="tablaProductos.reduce((a, f) => a + (Number(f.queda) || 0), 0)"></td>
               </tr>
             </tfoot>
           </table>
@@ -499,7 +499,7 @@ tailwind.config = {
               <template x-for="f in productosVisibles()" :key="'a'+f.nombre">
                 <tr>
                   <td class="font-semibold" x-text="f.nombre"></td>
-                  <td class="text-right tabular-nums" x-text="f.saldoReal"></td>
+                  <td class="text-right tabular-nums" x-text="f.queda"></td>
                   <td class="text-right">
                     <span class="estado-pill" :class="estadoStock(f) === 'Crítico' ? 'bg-red-500/20 text-red-300' : (estadoStock(f) === 'Bajo' ? 'bg-amber-400/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-300')" x-text="estadoStock(f)"></span>
                   </td>
@@ -794,20 +794,21 @@ function inventarioApp() {
         const venta = this.ventaDe(filaVista);
         const transformacion = this.transformacionDe(filaVista);
         const tiene = !!(crudo.tieneConteo || cocido.tieneConteo);
-        const hayActividad = ingresos !== 0 || regulacion !== 0 || venta !== 0 || transformacion !== 0 || tiene;
-        let ingresoTotal = saldoInicial + ingresos + regulacion;
-        let saldo = ingresoTotal - venta - transformacion;
-        let inventario = tiene
-          ? (crudo.tieneConteo ? (Number(crudo.conteo) || 0) : 0) + (cocido.tieneConteo ? (Number(cocido.conteo) || 0) : 0)
-          : saldo;
-        let saldoReal = (Number(crudo.cierre) || 0) + (Number(cocido.cierre) || 0);
-        const diferencia = tiene ? inventario - saldo : 0;
-        if (!hayActividad) {
-          ingresoTotal = 0;
-          saldo = 0;
-          inventario = 0;
-          saldoReal = 0;
+        const hayDia = ingresos !== 0 || regulacion !== 0 || venta !== 0 || transformacion !== 0 || tiene;
+        let ingresoTotal = 0;
+        let saldo = 0;
+        let inventario = 0;
+        let saldoReal = 0;
+        if (hayDia) {
+          ingresoTotal = regulacion !== 0 ? saldoInicial + regulacion : saldoInicial + ingresos;
+          saldo = ingresoTotal - venta - transformacion;
+          inventario = tiene
+            ? (crudo.tieneConteo ? (Number(crudo.conteo) || 0) : 0) + (cocido.tieneConteo ? (Number(cocido.conteo) || 0) : 0)
+            : saldo;
+          saldoReal = tiene ? inventario : saldo;
         }
+        const queda = hayDia ? saldoReal : saldoInicial;
+        const diferencia = tiene ? inventario - saldo : 0;
         return {
           nombre: k.nombre,
           clave: filaVista.clave,
@@ -820,6 +821,7 @@ function inventarioApp() {
           saldo,
           inventario,
           saldoReal,
+          queda,
           stockMinimo: sumaCampo('umbral'),
           tieneConteo: tiene,
           diferencia
@@ -1095,7 +1097,7 @@ function inventarioApp() {
       return d.toISOString();
     },
     estadoStock(f) {
-      const actual = Number(f.saldoReal) || 0;
+      const actual = Number(f.queda) || 0;
       if (actual <= this.stockMinimo) return 'Crítico';
       if (actual <= this.stockBajo) return 'Bajo';
       return 'Normal';
@@ -1128,23 +1130,38 @@ function inventarioApp() {
         return a + (Number(m.cantidad) || 0);
       }, 0);
     },
-    rioLindoDe(f) {
-      const claves = new Set(f.claves || [f.clave]);
-      return (this.movimientos || []).reduce((a, m) => {
-        if (!claves.has(m.rubro) || m.clase !== 'ingreso') return a;
-        if (String(m.motivo || '') !== 'Pasa a Río Lindo') return a;
-        const n = Number(m.cantidad) || 0;
-        return n < 0 ? a + Math.abs(n) : a;
-      }, 0);
-    },
     transformacionDe(f) {
+      return this.partesTransformacion(f).reduce((a, p) => a + p.cantidad, 0);
+    },
+    inicialProducto(nombre) {
+      const limpio = String(nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      return limpio ? limpio.charAt(0).toUpperCase() : '';
+    },
+    partesTransformacion(f) {
       const claves = new Set(f.claves || [f.clave]);
-      return (this.movimientos || []).reduce((a, m) => {
-        if (!claves.has(m.rubro) || m.clase !== 'ingreso') return a;
-        if (String(m.motivo || '').indexOf('Pasa a ') !== 0) return a;
+      const map = {};
+      (this.movimientos || []).forEach((m) => {
+        if (!claves.has(m.rubro) || m.clase !== 'ingreso') return;
+        const motivo = String(m.motivo || '');
+        if (motivo.indexOf('Pasa a ') !== 0) return;
         const n = Number(m.cantidad) || 0;
-        return n < 0 ? a + Math.abs(n) : a;
-      }, 0);
+        if (n >= 0) return;
+        const nombre = motivo.slice(7);
+        if (!map[nombre]) map[nombre] = { nombre: nombre, cantidad: 0 };
+        map[nombre].cantidad += Math.abs(n);
+      });
+      return Object.keys(map).map((nombre) => map[nombre]).filter((p) => p.cantidad);
+    },
+    marcasTransformacion(f) {
+      const letras = [];
+      const ya = {};
+      this.partesTransformacion(f).forEach((p) => {
+        const letra = this.inicialProducto(p.nombre);
+        if (!letra || ya[letra]) return;
+        ya[letra] = true;
+        letras.push(letra);
+      });
+      return letras;
     },
     listaDestinos(f) {
       const clave = (f.claves && f.claves[0]) || f.clave;
