@@ -178,6 +178,10 @@ function htmlTachadoDoble(texto) {
   return `<span style="position:relative;display:inline-block;white-space:nowrap;">${escapeHtml(texto)}${raya('34%')}${raya('64%')}</span>`;
 }
 
+function htmlTachadoTriple(texto) {
+  return `<span style="position:relative;display:inline-block;white-space:nowrap;">${escapeHtml(texto)}${raya('22%')}${raya('50%')}${raya('78%')}</span>`;
+}
+
 function htmlNombreEliminado(nombre, usuario) {
   const quien = escapeHtml(usuario || '—');
   return `${htmlTachadoDoble(nombre)} <span style="font-size:11px;font-weight:900;">Anulado</span> <span style="font-weight:700;">${quien}</span>`;
@@ -268,8 +272,8 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     const nombreCelda = marcaAnulado
       ? `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><span>${nombreBase}${cambioG}</span>${marcaAnulado}</div>`
       : `${nombreBase}${cambioG}`;
-    const unitHtml = p.lineaAnulada ? '' : fmt(unit);
-    const lineHtml = p.lineaAnulada ? '' : fmt(line);
+    const unitHtml = p.lineaAnulada ? htmlTachadoTriple(fmt(unit)) : fmt(unit);
+    const lineHtml = p.lineaAnulada ? htmlTachadoTriple(fmt(line)) : fmt(line);
     filas += `<tr class="prod-item">${cuadro}
       <td style="padding:3px 2px;text-align:center;font-weight:700;width:22px;">${cant}</td>
       <td style="padding:3px 2px;">${nombreCelda}</td>
