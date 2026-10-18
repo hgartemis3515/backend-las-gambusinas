@@ -2930,9 +2930,16 @@ const validarTransicionPlato = (estadoActual, nuevoEstado) => {
  * @param {string} nuevoEstado - Nuevo estado solicitado
  * @returns {boolean} true si la transición es válida
  */
-const validarTransicionEstado = (estadoActual, nuevoEstado) => {
+const ESTADOS_STATUS_ADMIN = ['en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado', 'pendiente_aprobar', 'completado'];
+
+const validarTransicionEstado = (estadoActual, nuevoEstado, options = {}) => {
   // Permitir mantener el mismo estado
   if (estadoActual === nuevoEstado) {
+    return true;
+  }
+
+  // El panel puede dejar la comanda en el estado elegido (p. ej. en_espera → pagado).
+  if (options.sourceApp === 'dashboard' && ESTADOS_STATUS_ADMIN.includes(nuevoEstado)) {
     return true;
   }
   
@@ -2978,7 +2985,7 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus, options = {}) => {
       const estadoActual = comandaActual.status;
       
       // Validar transición de estado
-      if (!validarTransicionEstado(estadoActual, nuevoStatus)) {
+      if (!validarTransicionEstado(estadoActual, nuevoStatus, options)) {
         const error = new AppError(
           `Transición inválida: no se puede cambiar de "${estadoActual}" a "${nuevoStatus}"`,
           400
