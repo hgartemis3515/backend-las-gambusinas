@@ -2,8 +2,7 @@
  * Baja de cantidad al eliminar un plato.
  * Sin cantidad (o >= la línea) = se elimina la línea entera.
  * Menor = queda el resto en cantidades[index].
- * Cada baja (parcial o total, si la comanda sigue) sube revisionTicket:
- * 1 → b, 2 → c, … El ticket de cocina se reimprime con lo que queda.
+ * Si la comanda sigue, la baja sube dos letras: eliminados y luego restantes.
  */
 
 function planBajaLinea({ cantidadLinea, cantidadQuitar } = {}) {

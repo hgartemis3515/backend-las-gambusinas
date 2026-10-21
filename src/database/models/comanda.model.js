@@ -417,6 +417,18 @@ const comandaSchema = new mongoose.Schema({
         default: 0,
         min: 0
     },
+    /** Foto de cada letra (#1, #1b, #1c) para reimprimir. */
+    historialLetrasTicket: [{
+        revision: { type: Number, default: 0 },
+        tipo: { type: String, enum: ['original', 'eliminados', 'restantes'] },
+        letrero: { type: String, default: '' },
+        sinTotal: { type: Boolean, default: false },
+        total: { type: Number, default: null },
+        creadoAt: { type: Date, default: Date.now },
+        usuarioNombre: { type: String, default: null },
+        motivo: { type: String, default: null },
+        datos: { type: mongoose.Schema.Types.Mixed, default: null },
+    }],
     /** YYYY-MM-DD del día operativo al que pertenece numeroComandaDia. */
     diaOperativo: {
         type: String,
@@ -541,6 +553,8 @@ const comandaSchema = new mongoose.Schema({
         cantidadFinal: { type: Number },
         /** Unidades dadas de baja. En una baja parcial (5 → 3) es 2, no la línea entera. */
         cantidadEliminada: { type: Number, default: null },
+        /** Índice de la línea en platos[] al momento de la baja. */
+        lineaIndex: { type: Number, default: null },
         estado: { 
             type: String,
             enum: ['activo', 'eliminado', 'modificado', 'eliminado-completo', 'anulado'],

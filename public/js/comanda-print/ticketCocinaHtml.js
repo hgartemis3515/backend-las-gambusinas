@@ -324,12 +324,14 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     <tbody>${filas}</tbody>
   </table>`;
 
-  if (desc > 0) {
-    const mot = d.descuentos?.[0]?.motivo ? ` (${escapeHtml(d.descuentos[0].motivo)})` : '';
-    html += `<div style="text-align:right;padding:4px 0 0;font-size:11px;">Descuento${mot}: -${escapeHtml(simbolo)}${fmt(desc)}</div>`;
+  if (d.sinTotal !== true) {
+    if (desc > 0) {
+      const mot = d.descuentos?.[0]?.motivo ? ` (${escapeHtml(d.descuentos[0].motivo)})` : '';
+      html += `<div style="text-align:right;padding:4px 0 0;font-size:11px;">Descuento${mot}: -${escapeHtml(simbolo)}${fmt(desc)}</div>`;
+    }
+    html += `<div style="text-align:right;font-size:14px;font-weight:800;padding:4px 0 2px;border-top:1px solid #000;margin-top:4px;">TOTAL ${escapeHtml(simbolo)}${fmt(neto)}</div>`;
   }
-  html += `<div style="text-align:right;font-size:14px;font-weight:800;padding:4px 0 2px;border-top:1px solid #000;margin-top:4px;">TOTAL ${escapeHtml(simbolo)}${fmt(neto)}</div>`;
-  if (d.anulacion) {
+  if (d.anulacion && d.sinTotal !== true) {
     html += `<div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:1px;padding:10px 0 2px;">ANULADO X</div>`;
   }
 

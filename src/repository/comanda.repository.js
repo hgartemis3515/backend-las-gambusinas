@@ -16,6 +16,7 @@ const mongoose = require('mongoose');
 // FASE 5: Redis Cache para comandas activas
 const redisCache = require('../utils/redisCache');
 const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
+const { datosTicketVivos, registrarParejaBaja, registrarLetraRestantes, bajaPlatoLetrasActiva } = require('../utils/historialLetrasTicket');
 const calculosPrecios = require('../utils/calculosPrecios');
 const { calcularTotalesConDescuento, comandaTieneDescuento } = require('../utils/descuentoComanda');
 const {
@@ -5229,7 +5230,7 @@ const recalcularEstadoComandaPorPlatos = async (comandaId, opciones = {}) => {
  * @param {String} sourceApp - App origen (cocina, admin, etc.)
  * @returns {Object} Comanda actualizada y datos del plato anulado
  */
-const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuarioId, sourceApp = 'cocina') => {
+const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuarioId, sourceApp = 'cocina', usuarioNombre = '') => {
   const logPrefix = `[anularPlato] ${comandaId} index=${platoIndex}`;
   logger.info(logPrefix, { motivo, observaciones, usuarioId, sourceApp });
 
@@ -5271,11 +5272,13 @@ const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuario
     const ahora = moment.tz("America/Lima").toDate();
     const estadoAlAnular = plato.estado;
     const razonCompleta = observaciones ? `${motivo} - ${observaciones}` : motivo;
+    const datosAntes = datosTicketVivos(comanda);
 
     // 🔥 IMPORTANTE: Marcar como ELIMINADO (igual que eliminación desde app mozos)
     // Esto asegura que el sistema de pagos lo excluya correctamente
     plato.eliminado = true;
     plato.eliminadoPor = usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null;
+    plato.eliminadoPorNombre = usuarioNombre || null;
     plato.eliminadoAt = ahora;
     plato.eliminadoRazon = razonCompleta;
     plato.estadoAlEliminar = estadoAlAnular;
@@ -5301,21 +5304,34 @@ const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuario
     const nombrePlato = plato.plato?.nombre || 'Plato desconocido';
     comanda.historialPlatos.push({
       platoId: plato.platoId,
+      lineaIndex: index,
       nombreOriginal: nombrePlato,
       cantidadOriginal: comanda.cantidades[index] || 1,
       cantidadFinal: 0,
+      cantidadEliminada: comanda.cantidades[index] || 1,
       estado: 'eliminado', // Usar 'eliminado' para consistencia con app mozos
       timestamp: ahora,
       usuario: usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null,
+      usuarioNombre: usuarioNombre || null,
       motivo: razonCompleta,
       anuladoPor: usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null,
       anuladoSourceApp: sourceApp,
       tipoAnulacion: motivo
     });
 
-    // Incrementar versión
+    // Incrementar versión. Si quedan platos, dos letras; si no, una (anulación completa).
     comanda.version = (comanda.version || 1) + 1;
-    bumpRevisionTicketOnDoc(comanda);
+    const quedanTrasAnular = comanda.platos.some((p) => p && !p.eliminado && !p.anulado);
+    let ticketsBaja = null;
+    if (quedanTrasAnular && await bajaPlatoLetrasActiva()) {
+      ticketsBaja = registrarParejaBaja(comanda, {
+        datosAntes,
+        usuario: usuarioNombre,
+        motivo: razonCompleta,
+      });
+    } else {
+      bumpRevisionTicketOnDoc(comanda);
+    }
     await comanda.save();
 
     try {
@@ -5366,6 +5382,7 @@ const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuario
 
     return {
       comanda: comandaActualizada,
+      ticketsBaja: ticketsBaja || null,
       platoAnulado: {
         index,
         platoId: plato.platoId,
@@ -5660,6 +5677,8 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
       precioTotal: comanda.precioTotal || subtotalActual
     };
 
+    const datosAntesDescuento = datosTicketVivos(comanda);
+
     // 9. Actualizar la comanda
     comanda.descuento = descuentoNum;
     comanda.descuentoMontoFijo = calc.descuentoMontoFijo;
@@ -5675,7 +5694,15 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
 
     if (Number(valoresAnteriores.descuento) !== descuentoNum
       || Number(valoresAnteriores.descuentoMontoFijo) !== Number(calc.descuentoMontoFijo || 0)) {
-      bumpRevisionTicketOnDoc(comanda);
+      if (await bajaPlatoLetrasActiva()) {
+        registrarLetraRestantes(comanda, {
+          datosAntes: datosAntesDescuento,
+          usuario: opciones.usuarioNombre || '',
+          motivo: motivoFinal || 'Descuento',
+        });
+      } else {
+        bumpRevisionTicketOnDoc(comanda);
+      }
     }
 
     await comanda.save();

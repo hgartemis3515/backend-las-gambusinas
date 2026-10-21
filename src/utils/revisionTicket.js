@@ -1,5 +1,5 @@
 /**
- * Contador de revisiones del ticket impreso (baja de plato / descuento).
+ * Contador de revisiones del ticket. Cada llamada suma 1.
  */
 function bumpRevisionTicketOnDoc(comanda) {
   if (!comanda) return 0;

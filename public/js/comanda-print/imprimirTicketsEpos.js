@@ -272,26 +272,8 @@ async function postEpos(ip, xml, nombre) {
   if (!res.ok) throw new Error(data.message || `No se pudo imprimir el ticket de ${nombre}.`);
 }
 
-export async function imprimirTicketsEposAutomatico(comandas) {
-  const lista = (comandas || []).filter(comandaViva);
-  const productos = productosDe(lista, false, true);
-  if (!productos.length) return;
-  const base = lista[0] || {};
-  const desc = lista.reduce((s, c) => s + (Number(c.montoDescuento) || 0), 0);
-  const motivo = lista.map((c) => c.motivoDescuento).find(Boolean) || '';
-  const datos = {
-    comandaNumeroDisplay: formatLetreroTicket(lista),
-    productos,
-    mozo: etiquetaMozosLista(lista) || base.mozoNombre || (typeof base.mozo === 'string' ? base.mozo : base.mozo?.name) || '',
-    mesa: mesaLabel(base),
-    sinMesa: lista.some((c) => c?.sinMesa === true),
-    area: base.areaNombre || base.mesas?.area?.nombre || base.mesa?.area || '',
-    fechaPedido: base.createdAt,
-    montoDescuento: desc,
-    descuentos: motivo ? [{ motivo }] : [],
-    total: 0,
-    esPrueba: lista.some((c) => c?.esPrueba === true),
-  };
+async function enviarDatosTicket(datos) {
+  if (!datos || (!(datos.productos || []).length && !datos.anulacion)) return;
   let detenerCocina = false;
   let detenerCaja = false;
   try {
@@ -323,6 +305,34 @@ export async function imprimirTicketsEposAutomatico(comandas) {
     if (j.status === 'rejected') fallos.push(j.reason?.message || 'Error de impresión');
   });
   if (fallos.length) throw new Error(fallos.join('\n'));
+}
+
+export async function imprimirDatosTicketEpos(datos) {
+  await enviarDatosTicket(datos);
+}
+
+export async function imprimirTicketsEposAutomatico(comandas, opts = {}) {
+  const lista = (comandas || []).filter(comandaViva);
+  const conAnuladas = opts.incluirLineasAnuladas !== false;
+  const productos = productosDe(lista, false, conAnuladas);
+  if (!productos.length) return;
+  const base = lista[0] || {};
+  const desc = lista.reduce((s, c) => s + (Number(c.montoDescuento) || 0), 0);
+  const motivo = lista.map((c) => c.motivoDescuento).find(Boolean) || '';
+  const datos = {
+    comandaNumeroDisplay: formatLetreroTicket(lista),
+    productos,
+    mozo: etiquetaMozosLista(lista) || base.mozoNombre || (typeof base.mozo === 'string' ? base.mozo : base.mozo?.name) || '',
+    mesa: mesaLabel(base),
+    sinMesa: lista.some((c) => c?.sinMesa === true),
+    area: base.areaNombre || base.mesas?.area?.nombre || base.mesa?.area || '',
+    fechaPedido: base.createdAt,
+    montoDescuento: desc,
+    descuentos: motivo ? [{ motivo }] : [],
+    total: 0,
+    esPrueba: lista.some((c) => c?.esPrueba === true),
+  };
+  await enviarDatosTicket(datos);
 }
 
 function nombreClienteDe(c) {
@@ -349,38 +359,9 @@ async function imprimirTicketAnulacionEpos(comanda, ticketAnulacion) {
     anulacion: ticketAnulacion,
     esPrueba: comanda?.esPrueba === true,
   };
-  let detenerCocina = false;
-  let detenerCaja = false;
-  try {
-    const resCfg = await fetch('/api/configuracion/impresion-automatica');
-    const cfg = await resCfg.json();
-    detenerCocina = cfg?.detenerImpresionCocina === true;
-    detenerCaja = cfg?.detenerImpresionCaja === true;
-  } catch {
-    detenerCocina = false;
-    detenerCaja = false;
-  }
-  if (datos.esPrueba === true) {
-    detenerCocina = false;
-    detenerCaja = false;
-  }
-  if (detenerCocina && detenerCaja) return;
-  const trabajos = [];
-  if (!detenerCocina) {
-    trabajos.push(rasterizarHtmlTicket(generarHtmlTicketCocina({ datos, cocina: true }).htmlInner)
-      .then((img) => postEpos(IP_COCINA, xmlImagenEpos(img), 'cocina')));
-  }
-  if (!detenerCaja) {
-    trabajos.push(rasterizarHtmlTicket(generarHtmlTicketCocina({ datos, cocina: false }).htmlInner)
-      .then((img) => postEpos(IP_CAJA, xmlImagenEpos(img), 'caja')));
-  }
-  const fallos = [];
-  const jobs = await Promise.allSettled(trabajos);
-  jobs.forEach((j) => {
-    if (j.status === 'rejected') fallos.push(j.reason?.message || 'Error de impresión');
-  });
-  if (fallos.length) throw new Error(fallos.join('\n'));
+  await enviarDatosTicket(datos);
 }
 
 window.imprimirTicketsEposAutomatico = imprimirTicketsEposAutomatico;
+window.imprimirDatosTicketEpos = imprimirDatosTicketEpos;
 window.imprimirTicketAnulacionEpos = imprimirTicketAnulacionEpos;

@@ -696,7 +696,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 <div class="flex gap-1.5 justify-center">
 <button @click.stop="openGrupoModal(row)" class="cmd-accion bg-[#2563eb]" title="Ver grupo">👁</button>
 <button @click.stop="openEditGrupoModal(row)" class="cmd-accion bg-[#d97706]" title="Editar grupo">✏️</button>
-<button @click.stop="imprimirComanda(row.comandas?.[0] || row.comanda, row)" class="cmd-accion bg-[#0f766e]" title="Imprimir comanda">🖨️</button>
+<button @click.stop="imprimirComanda(row.comandas?.[0] || row.comanda, row)" class="cmd-accion bg-[#0f766e]" title="Imprimir grupo de comandas">🖨️</button>
 <button @click.stop="confirmarEliminarGrupo(row)" class="cmd-accion bg-[#dc2626]" title="Eliminar grupo">🗑️</button>
 </div>
 </template>
@@ -808,7 +808,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex gap-1.5 justify-center">
  <button @click.stop="openDetailModal(comanda)" class="cmd-accion bg-[#2563eb]" title="Ver detalle">👁</button>
  <button @click.stop="openEditModal(comanda)" class="cmd-accion bg-[#d97706]" title="Editar">✏️</button>
- <button @click.stop="imprimirComanda(comanda, row)" class="cmd-accion bg-[#0f766e]" title="Imprimir comanda">🖨️</button>
+ <button @click.stop="imprimirComanda(comanda, null, { soloEsta: true })" class="cmd-accion bg-[#0f766e]" title="Imprimir solo esta comanda">🖨️</button>
  </div>
  </td>
  </tr>
@@ -1704,7 +1704,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
   <button type="button" @click="setVistaComanda('basica')" :class="vistaComanda==='basica' ? 'bg-gold text-bg-primary' : 'text-txt-secondary'" class="px-2.5 py-1.5">Básica</button>
   <button type="button" @click="setVistaComanda('avanzada')" :class="vistaComanda==='avanzada' ? 'bg-gold text-bg-primary' : 'text-txt-secondary'" class="px-2.5 py-1.5">Avanzada</button>
  </div>
- <button @click="imprimirComanda(selectedGrupo?.comandas?.[0], selectedGrupo)" class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-1.5" title="Imprimir primera comanda del grupo">🖨️ Imprimir</button>
+ <button @click="imprimirComanda(selectedGrupo?.comandas?.[0], selectedGrupo)" class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-1.5" title="Imprimir grupo de comandas">🖨️ Imprimir</button>
  <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
  </div>
  </div>
@@ -1955,7 +1955,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </template>
  <template x-if="!tieneMozoAsignado(comanda)"><span>Sin asignar</span></template>
  <span x-text="horaCorta(comanda.createdAt)"></span>
- <button @click="imprimirComanda(comanda, selectedGrupo)" class="text-gold hover:text-white transition" title="Imprimir comanda">🖨️</button>
+ <button @click="imprimirComanda(comanda, null, { soloEsta: true })" class="text-gold hover:text-white transition" title="Imprimir solo esta comanda">🖨️</button>
  <button @click="openDetailModal(comanda)" class="text-gold hover:text-white transition" title="Ver comanda">👁</button>
  <button @click="openEditModal(comanda)" class="text-gold hover:text-white transition">✏️ Editar</button>
  </div>
@@ -3027,7 +3027,8 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span class="text-3xl">🗑️</span>
  </div>
  <h3 class="text-lg font-bold mb-2 text-center">Eliminar plato</h3>
- <p class="text-txt-secondary text-sm mb-2 text-center">Se elimina la cantidad, no el plato entero. La comanda pasará a <span class="text-gold font-bold" x-text="letraTrasBaja(editComanda)"></span> y se imprime el ticket en cocina y caja.</p>
+ <p class="text-txt-secondary text-sm mb-2 text-center" x-show="ticketsBajaPlatoLetras !== false">Se elimina la cantidad, no el plato entero. La comanda pasará a <span class="text-gold font-bold" x-text="letraTrasBaja(editComanda)"></span>. Se imprimen el ticket de eliminados y el de lo que queda, en cocina y caja.</p>
+ <p class="text-txt-secondary text-sm mb-2 text-center" x-show="ticketsBajaPlatoLetras === false">Se elimina la cantidad, no el plato entero. La comanda pasará a <span class="text-gold font-bold" x-text="letraTrasBaja(editComanda)"></span> y se imprime el ticket en cocina y caja.</p>
  <div class="mb-3 space-y-1">
   <template x-for="b in bajasCantidadPendientes" :key="b.index">
    <p class="text-xs text-white text-center" x-text="b.quitar + ' × ' + b.nombre + ' (había ' + b.original + ', quedan ' + b.quedan + ')'"></p>
@@ -3757,6 +3758,7 @@ function comandasApp() {
  previewZoomComanda: 100,
  configMoneda: { igvPorcentaje: 18, preciosIncluyenIGV: false },
  ocultarTiempoEntrega: true,
+ ticketsBajaPlatoLetras: true,
  etiquetasGrupoTicket: false,
  ETIQUETAS_DEFAULT_COMANDA: {
    comandaNumero: 'Comanda',
@@ -4398,6 +4400,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
  const data = await apiGet('/configuracion');
  const cfg = data?.configuracion || data || {};
  this.ocultarTiempoEntrega = cfg.mozos?.ocultarTiempoEntrega !== false;
+ this.ticketsBajaPlatoLetras = cfg.cocina?.ticketsBajaPlatoLetras !== false;
  this.etiquetasGrupoTicket = cfg.cierreCaja?.etiquetasGrupoTicket === true;
  } catch (e) {
  this.ocultarTiempoEntrega = true;
@@ -4616,7 +4619,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
    return id ? [comandaId] : [];
  },
 
- async imprimirEposTrasCambio(comandaIdOLista) {
+ async imprimirEposTrasCambio(comandaIdOLista, opts) {
    if (typeof window.imprimirTicketsEposAutomatico !== 'function') return;
    const ids = Array.isArray(comandaIdOLista)
      ? comandaIdOLista.map((x) => x && (x._id || x)).filter(Boolean)
@@ -4629,9 +4632,19 @@ formatearNombreMesa(mesa, mesaObj = null) {
    }
    if (!docs.length) return;
    try {
-     await window.imprimirTicketsEposAutomatico(docs);
+     await window.imprimirTicketsEposAutomatico(docs, opts || {});
    } catch (e) {
      this.showToast(e.message || 'No se pudo imprimir el ticket', 'error');
+   }
+ },
+
+ async imprimirEliminadosBaja(ticketsBaja) {
+   const datos = ticketsBaja && ticketsBaja.eliminados && ticketsBaja.eliminados.datos;
+   if (!datos || typeof window.imprimirDatosTicketEpos !== 'function') return;
+   try {
+     await window.imprimirDatosTicketEpos(datos);
+   } catch (e) {
+     this.showToast(e.message || 'No se imprimió el ticket de eliminados', 'error');
    }
  },
 
@@ -4652,24 +4665,28 @@ formatearNombreMesa(mesa, mesaObj = null) {
    if (!ok) this.showToast('Error al imprimir vista previa', 'error');
  },
 
- async imprimirComanda(comanda, contextoGrupo) {
+ async imprimirComanda(comanda, contextoGrupo, opts) {
    if (!comanda) return;
    if (typeof window.imprimirComandaWeb !== 'function') {
      this.showToast('Módulo de impresión no disponible', 'error');
      return;
    }
    try {
-     const comandasNumbersGrupo = contextoGrupo?.comandas
-       ?.map(c => c.numComanda || c.comandaNumber).filter(n => n != null)
-       || (comanda.comandaNumber ? [comanda.comandaNumber] : []);
-     const idsGrupo = contextoGrupo?.comandas
-       ?.map(c => c._id)
-       .filter(Boolean);
+     const soloEsta = opts?.soloEsta === true;
+     const comandasNumbersGrupo = soloEsta
+       ? []
+       : (contextoGrupo?.comandas
+         ?.map(c => c.numComanda || c.comandaNumber).filter(n => n != null)
+         || (comanda.comandaNumber ? [comanda.comandaNumber] : []));
+     const idsGrupo = soloEsta
+       ? []
+       : (contextoGrupo?.comandas?.map(c => c._id).filter(Boolean) || []);
 
      const ok = await window.imprimirComandaWeb({
        comandaId: comanda._id || null,
-       comandaIds: idsGrupo && idsGrupo.length > 1 ? idsGrupo : null,
-       datos: comanda._id ? null : window.mapComandaATicket(comanda),
+       comandaIds: idsGrupo.length > 1 ? idsGrupo : null,
+       soloComanda: soloEsta,
+       datos: (soloEsta || comanda._id) ? null : window.mapComandaATicket(comanda),
        plantilla: this.plantillaComanda,
        usarPlantillaLocal: false,
        serverOrigin: window.location.origin,
@@ -8068,7 +8085,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  letraTrasBaja(c) {
   const n = c && c.numComanda != null && c.numComanda !== '' ? c.numComanda : (c && c.numeroComandaDia != null ? c.numeroComandaDia : '—');
-  const rev = Math.max(0, Math.floor(Number(c && c.revisionTicket) || 0)) + 1;
+  const paso = this.ticketsBajaPlatoLetras === false ? 1 : 2;
+  const rev = Math.max(0, Math.floor(Number(c && c.revisionTicket) || 0)) + paso;
   return '#' + n + this.letraRevComanda(rev);
  },
 
@@ -8796,6 +8814,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  try {
  let hayEliminadosGrupo = false;
  const anulacionesGrupo = [];
+ const bajasGrupo = [];
  for (const comanda of this.editGrupo.comandas) {
  const items = comanda.items || [];
  const indicesEliminados = this.indicesPlatosPendientesEliminar(items);
@@ -8823,6 +8842,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   anulacionesGrupo.push(resEliminar);
  } else {
   hayEliminadosGrupo = true;
+  if (resEliminar?.ticketsBaja) bajasGrupo.push(resEliminar.ticketsBaja);
  }
  }
  if (platosConCambios.length > 0) {
@@ -8847,9 +8867,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   }
  }
  if (hayEliminadosGrupo) {
+  for (const tb of bajasGrupo) await this.imprimirEliminadosBaja(tb);
   const idsAnuladas = new Set(anulacionesGrupo.map((r) => String(r.comanda?._id || '')));
   const restantes = this.editGrupo.comandas.filter((c) => !idsAnuladas.has(String(c._id)));
-  if (restantes.length) await this.imprimirEposTrasCambio(restantes);
+  if (restantes.length) await this.imprimirEposTrasCambio(restantes, { incluirLineasAnuladas: false });
  }
  await this.loadComandas();
  this.modal = null;
@@ -9326,7 +9347,14 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.showToast(letreroBaja
   ? ('✅ Comanda ' + letreroBaja + ' — cantidad eliminada. Ticket a cocina y caja')
   : ('✅ Comanda actualizada - ' + platosMantenidos.length + ' plato(s), ' + indicesEliminados.length + ' eliminado(s)'));
- if (indicesQuitar.length) await this.imprimirEposTrasCambio(this.editComanda._id);
+ if (indicesQuitar.length) {
+  if (resEliminar?.ticketsBaja) {
+   await this.imprimirEliminadosBaja(resEliminar.ticketsBaja);
+   await this.imprimirEposTrasCambio(this.editComanda._id, { incluirLineasAnuladas: false });
+  } else {
+   await this.imprimirEposTrasCambio(this.editComanda._id);
+  }
+ }
  } else {
  throw new Error(res?.message || 'Error desconocido');
  }
