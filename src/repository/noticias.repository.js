@@ -92,6 +92,12 @@ function noticiaPublica(doc) {
         imagenes: doc.imagenes || [],
         autor: doc.autor || {},
         vigente: doc.vigente !== false,
+        destinos: doc.destinos?.length ? doc.destinos : ['cocina', 'mozos'],
+        cocinaAlcance: doc.cocinaAlcance || 'todas',
+        pantallas: doc.pantallas || [],
+        mozosAlcance: doc.mozosAlcance || 'todos',
+        mozoIds: doc.mozoIds || [],
+        segundosEnPantalla: Number(doc.segundosEnPantalla) || 15,
         createdAt: doc.createdAt,
     };
 }
@@ -124,6 +130,40 @@ function armarCuerpo(body) {
     return { titulo, cuerpoHtml, imagenes };
 }
 
+function destinoDe(body = {}) {
+    const quien = body.destinatario || 'ambos';
+    const cocina = quien === 'cocina' || quien === 'ambos';
+    const mozos = quien === 'mozos' || quien === 'ambos';
+    const crudo = body.cocinaDestino || 'todas';
+    const cocinaAlcance = !cocina ? 'ninguna' : (crudo === 'hub' ? 'pantallas' : (crudo === 'kds' ? 'kds' : 'todas'));
+    const pantallas = (body.pantallas || body.cocinerasHub || [])
+        .map((x) => Number(typeof x === 'object' ? (x.numero || x.numeroPantalla) : x))
+        .filter((n) => Number.isFinite(n));
+    const mozosAlcance = !mozos ? 'ninguno' : (body.mozosModo === 'seleccion' ? 'algunos' : 'todos');
+    const mozoIds = (body.mozoIds || body.mozosSeleccionados || []).map(String).filter(Boolean);
+    let segundos = Number(body.segundosCocina ?? body.segundosEnPantalla ?? 15);
+    if (!Number.isFinite(segundos)) segundos = 15;
+    segundos = Math.min(120, Math.max(5, Math.round(segundos)));
+    if (cocina && cocinaAlcance === 'pantallas' && !pantallas.length) {
+        const err = new Error('Elige al menos una pantalla');
+        err.status = 400;
+        throw err;
+    }
+    if (mozos && mozosAlcance === 'algunos' && !mozoIds.length) {
+        const err = new Error('Elige al menos un mozo');
+        err.status = 400;
+        throw err;
+    }
+    return {
+        destinos: [cocina && 'cocina', mozos && 'mozos'].filter(Boolean),
+        cocinaAlcance,
+        pantallas,
+        mozosAlcance,
+        mozoIds,
+        segundosEnPantalla: segundos,
+    };
+}
+
 function prepararTemporal(body, autor) {
     const campos = armarCuerpo(body);
     return {
@@ -131,6 +171,7 @@ function prepararTemporal(body, autor) {
         cuerpoHtml: campos.cuerpoHtml,
         autor: { nombre: String(autor?.nombre || '') },
         temporal: true,
+        ...destinoDe(body),
     };
 }
 
@@ -145,12 +186,13 @@ async function crearNoticia(body, autor) {
             rol: String(autor?.rol || ''),
         },
         vigente: true,
+        ...destinoDe(body),
     });
     return noticiaPublica(doc.toObject());
 }
 
 async function actualizarNoticia(id, body) {
-    const campos = armarCuerpo(body);
+    const campos = { ...armarCuerpo(body), ...destinoDe(body) };
     const doc = await Noticia.findByIdAndUpdate(id, campos, { new: true }).lean();
     if (!doc) {
         const err = new Error('Noticia no encontrada');

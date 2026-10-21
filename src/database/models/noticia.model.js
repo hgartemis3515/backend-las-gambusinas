@@ -13,6 +13,12 @@ const noticiaSchema = new mongoose.Schema({
         rol: { type: String, default: '' },
     },
     vigente: { type: Boolean, default: true, index: true },
+    destinos: { type: [String], default: ['cocina', 'mozos'] },
+    cocinaAlcance: { type: String, default: 'todas' },
+    pantallas: { type: [Number], default: [] },
+    mozosAlcance: { type: String, default: 'todos' },
+    mozoIds: { type: [String], default: [] },
+    segundosEnPantalla: { type: Number, default: 15 },
 }, { timestamps: true });
 
 noticiaSchema.index({ fechaOperativa: 1, vigente: 1, createdAt: -1 });

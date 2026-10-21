@@ -53,12 +53,32 @@ function puedePublicar(req, res, next) {
     return checkPermission('publicar-noticias')(req, res, next);
 }
 
-function emitirEnApps(evento, payload) {
+function emitirDirigido(evento, payload, destino = {}) {
     const io = global.io;
     if (!io) return;
+    const aviso = { ...payload, ...destino };
+    const cocina = io.of('/cocina');
+    const mozos = io.of('/mozos');
     try {
-        io.of('/mozos').emit(evento, payload);
-        io.of('/cocina').emit(evento, payload);
+        const alcance = destino.cocinaAlcance || 'todas';
+        if ((destino.destinos || ['cocina']).includes('cocina')) {
+            if (alcance === 'kds' || alcance === 'todas') {
+                cocina.emit(evento, { ...aviso, canal: alcance === 'kds' ? 'kds' : 'todas' });
+            }
+            if (alcance === 'pantallas') {
+                (destino.pantallas || []).forEach((n) => {
+                    cocina.to(`pantalla-${n}`).emit(evento, { ...aviso, canal: 'pantallas', pantalla: n });
+                });
+            }
+        }
+        const quienes = destino.mozosAlcance || 'todos';
+        if ((destino.destinos || ['mozos']).includes('mozos')) {
+            if (quienes === 'algunos') {
+                (destino.mozoIds || []).forEach((id) => mozos.to(`mozo-${id}`).emit(evento, aviso));
+            } else if (quienes !== 'ninguno') {
+                mozos.emit(evento, aviso);
+            }
+        }
     } catch (error) {
         logger.warn('No se avisó la noticia', { error: error.message });
     }
@@ -70,8 +90,15 @@ function emitirNoticia(accion = 'creada', noticia = null) {
         accion,
         noticiaId: noticia?._id ? String(noticia._id) : null,
         titulo: noticia?.titulo || '',
+        cuerpoHtml: noticia?.cuerpoHtml || '',
+        segundosEnPantalla: noticia?.segundosEnPantalla || 15,
+        destinos: noticia?.destinos || ['cocina', 'mozos'],
+        cocinaAlcance: noticia?.cocinaAlcance || 'todas',
+        pantallas: noticia?.pantallas || [],
+        mozosAlcance: noticia?.mozosAlcance || 'todos',
+        mozoIds: noticia?.mozoIds || [],
     };
-    emitirEnApps('noticia-publicada', payload);
+    emitirDirigido('noticia-publicada', payload, payload);
 }
 
 function autorDe(req) {
@@ -91,7 +118,17 @@ router.get('/noticias/top-semana', requireJwt, async (req, res) => {
 router.get('/noticias/hoy', requireJwt, async (req, res) => {
     try {
         res.set('Cache-Control', 'no-store');
-        res.json(await repo.listarHoy());
+        const data = await repo.listarHoy();
+        const app = req.usuario?.app;
+        const id = String(req.usuario?.id || req.usuario?._id || '');
+        data.noticias = (data.noticias || []).filter((n) => {
+            const dest = n.destinos?.length ? n.destinos : ['cocina', 'mozos'];
+            if (app === 'cocina') return dest.includes('cocina');
+            if (!dest.includes('mozos')) return false;
+            if ((n.mozosAlcance || 'todos') === 'algunos') return (n.mozoIds || []).map(String).includes(id);
+            return true;
+        });
+        res.json(data);
     } catch (error) {
         logger.error('Error noticias de hoy', { error: error.message });
         res.status(500).json({ error: 'No se pudieron leer las noticias' });
@@ -118,7 +155,7 @@ router.post('/noticias/imagen', adminAuth, puedePublicar, (req, res) => {
 router.post('/noticias/temporal', adminAuth, puedePublicar, (req, res) => {
     try {
         const aviso = repo.prepararTemporal(req.body, autorDe(req));
-        emitirEnApps('noticia-temporal', aviso);
+        emitirDirigido('noticia-temporal', aviso, aviso);
         res.json({ enviado: true });
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo enviar' });
