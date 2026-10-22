@@ -20,9 +20,12 @@ function estiloSeguro(raw) {
         const k = part.slice(0, idx).trim().toLowerCase();
         const v = part.slice(idx + 1).trim();
         if (k === 'font-size') {
-            const m = /^(\d{1,2})px$/.exec(v);
-            const n = m ? Number(m[1]) : 0;
-            if (n >= 12 && n <= 36) out.push(`font-size:${n}px`);
+            if (v === '1.4em') out.push('font-size:1.4em');
+            else {
+                const m = /^(\d{1,3})px$/.exec(v);
+                const n = m ? Number(m[1]) : 0;
+                if (n >= 12 && n <= 72) out.push(`font-size:${n}px`);
+            }
         } else if (k === 'font-family' && FAMILIAS.test(v)) {
             out.push(`font-family:${v}`);
         } else if (k === 'color') {
@@ -79,7 +82,23 @@ function sanitizarHtmlNoticia(html) {
         }
         return bits.length ? `<${t} ${bits.join(' ')}>` : `<${t}>`;
     });
-    return s;
+    return envolverEmojis(s);
+}
+
+const EMOJI_RE = /\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*[\u{1F3FB}-\u{1F3FF}]?/gu;
+
+function envolverEmojis(html) {
+    const partes = String(html || '').split(/(<[^>]+>)/g);
+    let profundidad = 0;
+    return partes.map((p) => {
+        if (p.startsWith('<')) {
+            if (/^<span\b[^>]*font-size\s*:\s*1\.4em/i.test(p)) profundidad += 1;
+            else if (/^<\/span\b/i.test(p) && profundidad) profundidad -= 1;
+            return p;
+        }
+        if (profundidad || !p) return p;
+        return p.replace(EMOJI_RE, (e) => `<span style="font-size:1.4em">${e}</span>`);
+    }).join('');
 }
 
 function textoPlanoNoticia(html) {
@@ -101,4 +120,4 @@ function imagenesDeHtml(html) {
     return out;
 }
 
-module.exports = { sanitizarHtmlNoticia, textoPlanoNoticia, imagenesDeHtml };
+module.exports = { sanitizarHtmlNoticia, textoPlanoNoticia, imagenesDeHtml, envolverEmojis };

@@ -5,7 +5,7 @@ const Comanda = require('../database/models/comanda.model');
 const Noticia = require('../database/models/noticia.model');
 const { matchComandasEstadisticas } = require('../utils/estadisticasComandas');
 const { ymdOperativo, boundsDiaOperativo, TZ } = require('../utils/diaOperativoRestaurante');
-const { sanitizarHtmlNoticia, textoPlanoNoticia, imagenesDeHtml } = require('../utils/sanitizarHtmlNoticia');
+const { sanitizarHtmlNoticia, textoPlanoNoticia, imagenesDeHtml, envolverEmojis } = require('../utils/sanitizarHtmlNoticia');
 
 let cacheTop = null;
 
@@ -88,7 +88,7 @@ function noticiaPublica(doc) {
         _id: doc._id,
         fechaOperativa: doc.fechaOperativa,
         titulo: doc.titulo,
-        cuerpoHtml: doc.cuerpoHtml || '',
+        cuerpoHtml: envolverEmojis(doc.cuerpoHtml || ''),
         imagenes: doc.imagenes || [],
         autor: doc.autor || {},
         vigente: doc.vigente !== false,
@@ -203,7 +203,7 @@ async function actualizarNoticia(id, body) {
 }
 
 async function retirarNoticia(id) {
-    const doc = await Noticia.findByIdAndUpdate(id, { vigente: false }, { new: true }).lean();
+    const doc = await Noticia.findByIdAndDelete(id).lean();
     if (!doc) {
         const err = new Error('Noticia no encontrada');
         err.status = 404;

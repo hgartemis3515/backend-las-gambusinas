@@ -77,16 +77,110 @@
     position: absolute; right: 6px; top: 10px; width: 14px !important; height: 14px !important;
   }
 
+  .composer {
+    background: #141420;
+    border: 1px solid rgba(212,175,55,0.35);
+    border-radius: 16px;
+    overflow: visible;
+  }
+  .composer-titulo {
+    display: block; width: 100%; box-sizing: border-box;
+    background: transparent; border: 0;
+    border-bottom: 1px solid rgba(212,175,55,0.22);
+    border-radius: 16px 16px 0 0;
+    color: #ffffff; font-size: 36px; font-weight: 800; line-height: 1.2;
+    padding: 16px 16px 12px; outline: none;
+  }
+  .composer-titulo::placeholder { color: rgba(255,255,255,0.4); font-weight: 700; }
+  .composer #toolbar.ql-toolbar.ql-snow {
+    border: 0; border-radius: 0;
+  }
+  .composer-barra {
+    display: flex; align-items: stretch;
+    border-bottom: 1px solid rgba(212,175,55,0.22);
+    background: #12121a;
+  }
+  .composer-barra #toolbar.ql-toolbar.ql-snow {
+    flex: 1; border: 0; border-radius: 0; background: transparent;
+  }
+  .btn-emoji {
+    flex: none; align-self: center; margin: 0 10px 0 0;
+    height: 34px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(212,175,55,0.45); background: #1a1a28;
+    color: #ffffff; font-weight: 800; font-size: 14px;
+  }
+  .btn-emoji[aria-expanded="true"] { background: rgba(212,175,55,0.22); color: #d4af37; }
+  .btn-tool {
+    flex: none; align-self: center; margin: 0 0 0 0;
+    width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(212,175,55,0.45); background: #1a1a28;
+    color: #ffffff; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .btn-tool:hover { color: #d4af37; border-color: #d4af37; }
+  .btn-tool svg { width: 18px; height: 18px; display: block; }
+  .mozo-busca {
+    width: 100%; background: #1a1a28; color: #fff; border: 1px solid rgba(212,175,55,0.35);
+    border-radius: 12px; padding: 10px 12px; font-size: 14px; outline: none;
+  }
+  .mozo-busca:focus { border-color: #d4af37; }
+  .mozo-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px; max-height: 280px; overflow: auto; padding-top: 4px;
+  }
+  .mozo-chip {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 8px 6px 10px; border-radius: 16px; border: 1px solid transparent;
+    background: transparent; color: #fff; cursor: pointer;
+  }
+  .mozo-chip:hover { background: rgba(255,255,255,0.04); }
+  .mozo-chip.is-on { background: rgba(212,175,55,0.14); border-color: rgba(212,175,55,0.65); }
+  .mozo-ava {
+    width: 56px; height: 56px; border-radius: 50%; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 20px; overflow: visible;
+    border: 2px solid rgba(255,255,255,0.22); background: #1a1a28;
+  }
+  .mozo-chip.is-on .mozo-ava { border-color: #d4af37; box-shadow: 0 0 0 3px rgba(212,175,55,0.4); }
+  .mozo-ava img { width: 100%; height: 100%; object-fit: cover; }
+  .mozo-ok {
+    position: absolute; right: -2px; bottom: -2px; width: 20px; height: 20px; border-radius: 50%;
+    background: #d4af37; color: #0a0a0f; font-size: 12px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center; border: 2px solid #12121a;
+  }
+  .mozo-nom { font-size: 12px; font-weight: 700; text-align: center; line-height: 1.2; }
+
   #editor.ql-container.ql-snow {
     border: 1px solid rgba(212,175,55,0.3); border-radius: 0 0 14px 14px;
     background: #141420; color: #ffffff;
-    font-family: 'Inter', system-ui, sans-serif; font-size: 15px; height: auto !important;
+    font-family: 'Inter', system-ui, sans-serif; font-size: 30px; height: auto !important;
   }
-  #editor .ql-editor { height: auto !important; min-height: 80px; max-height: 240px; padding: 14px 16px; line-height: 1.6; overflow-y: auto; color: #ffffff; }
-  #editor .ql-editor.ql-blank::before { color: rgba(255,255,255,0.55); font-style: normal; left: 16px; }
+  .composer #editor.ql-container.ql-snow {
+    border: 0; border-radius: 0 0 16px 16px; background: transparent;
+  }
+  #editor .ql-editor { height: auto !important; min-height: 140px; max-height: 360px; padding: 14px 16px; line-height: 1.45; overflow-y: auto; color: #ffffff; font-size: 30px; }
+  #editor .ql-editor.ql-blank::before { color: rgba(255,255,255,0.55); font-style: normal; left: 16px; font-size: 30px; }
+  #editor .ql-editor .noticia-emoji { font-size: 1.4em; line-height: 1; }
   #editor .ql-editor img { max-width: 100%; height: auto; border-radius: 12px; margin: 10px 0; border: 1px solid rgba(212,175,55,0.3); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-  #editor .ql-editor h2 { font-size: 22px; font-weight: 800; margin: 8px 0; color: #ffffff; }
-  #editor .ql-editor h3 { font-size: 18px; font-weight: 700; margin: 6px 0; color: #ffffff; }
+  #editor .ql-editor h2 { font-size: 44px; font-weight: 800; margin: 8px 0; color: #ffffff; }
+  #editor .ql-editor h3 { font-size: 36px; font-weight: 700; margin: 6px 0; color: #ffffff; }
+  .emoji-ancla { position: relative; z-index: 8; }
+  .emoji-panel {
+    position: absolute; z-index: 40; top: 8px; left: 12px; right: 12px;
+    display: flex; flex-wrap: wrap; gap: 4px;
+    background: #1a1a28; border: 1px solid rgba(212,175,55,0.45);
+    border-radius: 14px; padding: 10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    max-height: 220px; overflow: auto;
+  }
+  .emoji-panel button {
+    width: 44px; height: 44px; border: 0; border-radius: 10px;
+    background: transparent; font-size: 26px; line-height: 1; cursor: pointer;
+  }
+  .emoji-panel button:hover { background: rgba(212,175,55,0.2); }
+  .input-foto {
+    position: fixed; left: 0; bottom: 0;
+    width: 1px; height: 1px; opacity: 0; overflow: hidden;
+  }
   
   .ql-snow .ql-stroke { stroke: #ffffff; }
   .ql-snow .ql-fill, .ql-snow .ql-stroke.ql-fill { fill: #ffffff; }
@@ -117,12 +211,12 @@
   .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="2"]::before, .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="2"]::before { content: 'Título'; font-weight: 800; }
   .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="3"]::before, .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::before { content: 'Subtítulo'; font-weight: 700; }
   .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: 'Normal'; }
-  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: 'Chico'; font-size: 13px; }
-  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: 'Grande'; font-size: 17px; }
-  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: 'Muy grande'; font-size: 21px; }
-  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before { content: 'Muy grande'; }
-  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before { content: 'Enorme'; font-size: 26px; }
-  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before { content: 'Enorme'; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: 'Chico'; font-size: 13px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: 'Grande'; font-size: 17px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="48px"]::before { content: 'Muy grande'; font-size: 21px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="48px"]::before { content: 'Muy grande'; }
+  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="64px"]::before { content: 'Enorme'; font-size: 26px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="64px"]::before { content: 'Enorme'; }
   .ql-snow .ql-tooltip { display: none; }
 
   /* Teléfono de vista previa */
@@ -139,33 +233,22 @@
   }
   .phone-screen { position: absolute; inset: 0; padding: 48px 14px 18px; overflow: hidden; display: flex; flex-direction: column; }
   .phone-sheet { background: #1a1a28; border: 1px solid rgba(212,175,55,0.4); border-radius: 18px; padding: 14px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .phone-body { flex: 1; min-height: 0; overflow: auto; color: #ffffff; font-size: 13px; line-height: 1.5; word-break: break-word; }
-  .phone-body h2 { font-size: 17px; font-weight: 800; margin: 0 0 8px; color: #ffffff; }
-  .phone-body h3 { font-size: 15px; font-weight: 700; margin: 0 0 6px; color: #ffffff; }
+  .phone-body { flex: 1; min-height: 0; overflow: auto; color: #ffffff; font-size: 26px; line-height: 1.4; word-break: break-word; }
+  .phone-body h2 { font-size: 34px; font-weight: 800; margin: 0 0 8px; color: #ffffff; line-height: 1.15; }
+  .phone-body h3 { font-size: 30px; font-weight: 700; margin: 0 0 6px; color: #ffffff; }
   .phone-body p { margin: 0 0 8px; color: #ffffff; }
   .phone-body img { max-width: 100%; height: auto; border-radius: 10px; margin: 8px 0; border: 1px solid rgba(212,175,55,0.3); }
   .phone-body ul, .phone-body ol { padding-left: 20px; margin: 0 0 8px; color: #ffffff; }
   .phone-body::-webkit-scrollbar { width: 4px; }
   .phone-body::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 4px; }
-  .phone-listo {
-    margin-top: 12px; height: 42px; border-radius: 12px;
-    background: #d4af37; color: #0a0a0f; font-weight: 800;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em;
-  }
-
-  /* Cropper Centrado y Visible Completo */
+  /* Cropper: el lienzo ocupa el hueco; la foto la mide Cropper, no el CSS */
   #cropper-host {
-    width: 100%; height: 380px; border-radius: 14px; overflow: hidden;
+    width: 100%; height: min(380px, 52vh); border-radius: 14px; overflow: hidden;
     background: #06060a; border: 1px solid rgba(212,175,55,0.3);
-    display: flex; align-items: center; justify-content: center; position: relative;
+    position: relative;
   }
   #cropper-host cropper-canvas {
-    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #06060a;
-  }
-  #cropper-host cropper-image {
-    width: 100%;
-    height: 100%;
+    width: 100%; height: 100%; background: #06060a;
   }
   #cropper-host cropper-selection {
     outline: 2px solid #d4af37; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
@@ -206,7 +289,7 @@
         
         <!-- Header del Formulario -->
         <div class="flex items-center justify-between gap-3 mb-2">
-          <label class="block text-xs uppercase tracking-wider text-white font-bold" for="titulo">Título de la noticia</label>
+          <label class="block text-xs uppercase tracking-wider text-white font-bold" for="titulo">Noticia</label>
           <div class="flex items-center gap-2">
             <span x-show="editandoId" class="chip bg-blue-500/25 text-white border border-blue-400/40">Editando</span>
             <span x-show="borradorRecuperado" class="chip bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/40">
@@ -217,9 +300,10 @@
           </div>
         </div>
 
-        <input id="titulo" x-model="titulo" maxlength="120" @input="actualizarPreview()" class="w-full bg-[#12121a] border border-[rgba(212,175,55,0.35)] rounded-xl px-4 py-3.5 text-lg font-bold text-white mb-4 focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] focus:outline-none placeholder-white/40 transition" placeholder="Ej. Hoy hay lomo saltado en promoción">
+        <div class="composer mb-1">
+        <input id="titulo" x-model="titulo" maxlength="120" @input="actualizarPreview()" class="composer-titulo" placeholder="Título de la noticia" autocomplete="off">
 
-        <!-- Editor Quill -->
+        <div class="composer-barra">
         <div id="toolbar">
           <span class="ql-formats">
             <select class="ql-header" title="Jerarquía">
@@ -228,11 +312,11 @@
               <option selected></option>
             </select>
             <select class="ql-size" title="Tamaño">
-              <option value="14px"></option>
-              <option selected></option>
-              <option value="18px"></option>
               <option value="24px"></option>
-              <option value="32px"></option>
+              <option selected></option>
+              <option value="36px"></option>
+              <option value="48px"></option>
+              <option value="64px"></option>
             </select>
           </span>
           <span class="ql-formats">
@@ -263,11 +347,27 @@
             <button class="ql-list" value="ordered" title="Lista numerada"></button>
           </span>
           <span class="ql-formats">
-            <button class="ql-image" id="btn-imagen" title="Insertar imagen"></button>
+            <button class="ql-image" id="btn-imagen" title="Insertar la foto completa"></button>
             <button class="ql-clean" title="Quitar formato"></button>
           </span>
         </div>
+        <button type="button" class="btn-tool" title="Recortar una foto" @click="elegirRecorte()" aria-label="Recortar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M6 3v12a3 3 0 0 0 3 3h12"/><path d="M6 8h9a3 3 0 0 1 3 3v10"/><path d="M15 3v4"/><path d="M3 6h4"/>
+          </svg>
+        </button>
+        <button type="button" class="btn-emoji" @mousedown.prevent @click.stop="emojiAbierto = !emojiAbierto" :aria-expanded="emojiAbierto ? 'true' : 'false'">Emoji</button>
+        </div>
+        <div class="emoji-ancla">
+          <div x-show="emojiAbierto" x-cloak class="fixed inset-0 z-30" @click="emojiAbierto = false"></div>
+          <div x-show="emojiAbierto" x-cloak class="emoji-panel" @click.stop>
+            <template x-for="e in emojis" :key="e">
+              <button type="button" @mousedown.prevent @click="insertarEmoji(e)" x-text="e" :aria-label="'Insertar ' + e"></button>
+            </template>
+          </div>
+        </div>
         <div id="editor"></div>
+        </div>
 
         <div class="flex items-center justify-between gap-3 mt-3 flex-wrap">
           <div class="flex items-center gap-3 text-xs text-white/80">
@@ -350,7 +450,7 @@
             </div>
 
             <!-- Chips con número y nombre de la cocinera -->
-            <div x-show="cocinaDestino === 'hub' || cocinaDestino === 'todas'" class="flex items-center gap-2 flex-wrap pt-1">
+            <div x-show="(cocinaDestino === 'hub' || cocinaDestino === 'todas') && cocinerasHub.length" class="flex items-center gap-2 flex-wrap pt-1">
               <span class="text-xs text-white/70 w-full mb-1">Cocinera / Monitor:</span>
               <template x-for="c in cocinerasHub" :key="c.id">
                 <button type="button"
@@ -362,6 +462,7 @@
                 </button>
               </template>
             </div>
+            <p x-show="cocinaDestino === 'hub' && !cocinerasHub.length" class="text-xs text-white">No hay pantallas activas del Monitor Hub.</p>
 
             <!-- Control numérico: Segundos en cocina -->
             <div class="pt-3 border-t border-[rgba(212,175,55,0.18)] flex items-center justify-between flex-wrap gap-4">
@@ -388,13 +489,27 @@
               </div>
             </div>
 
-            <div x-show="mozosModo === 'seleccion'" class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2">
-              <template x-for="m in listaMozos" :key="m.id">
-                <label class="flex items-center gap-2.5 p-2 rounded-xl bg-[#1a1a28] border border-white/15 hover:border-[#d4af37] cursor-pointer transition">
-                  <input type="checkbox" :value="m.id" x-model="mozosSeleccionados" class="w-4 h-4 accent-[#d4af37] rounded">
-                  <span class="text-xs text-white font-medium" x-text="m.nombre"></span>
-                </label>
-              </template>
+            <p x-show="mozosModo === 'seleccion' && mozosCargando" class="text-xs text-white pt-1">Cargando mozos…</p>
+            <p x-show="mozosModo === 'seleccion' && !mozosCargando && mozosAviso" class="text-xs text-[#ff6b6b] pt-1" x-text="mozosAviso"></p>
+            <p x-show="mozosModo === 'seleccion' && !mozosCargando && !mozosAviso && !listaMozos.length" class="text-xs text-white pt-1">No hay mozos activos para elegir.</p>
+            <div x-show="mozosModo === 'seleccion' && listaMozos.length" class="flex flex-col gap-2 pt-1">
+              <div class="flex items-center gap-2">
+                <input type="search" class="mozo-busca" x-model="buscaMozo" placeholder="Buscar mozo" autocomplete="off">
+                <span class="text-xs text-[#d4af37] font-bold shrink-0" x-text="mozosSeleccionados.length + ' elegidos'"></span>
+              </div>
+              <div class="mozo-grid">
+                <template x-for="m in mozosFiltrados" :key="m.id">
+                  <button type="button" class="mozo-chip" :class="mozosSeleccionados.includes(m.id) ? 'is-on' : ''" @click="toggleMozo(m.id)">
+                    <span class="mozo-ava" :style="m.estilo">
+                      <img x-show="m.foto" :src="m.foto" alt="">
+                      <span x-show="!m.foto" x-text="m.ini"></span>
+                      <span class="mozo-ok" x-show="mozosSeleccionados.includes(m.id)" x-cloak>✓</span>
+                    </span>
+                    <span class="mozo-nom" x-text="m.corto"></span>
+                  </button>
+                </template>
+              </div>
+              <p x-show="buscaMozo.trim() && !mozosFiltrados.length" class="text-xs text-white">Ningún mozo con ese nombre.</p>
             </div>
           </div>
         </div>
@@ -462,13 +577,13 @@
                 <div class="flex items-center gap-2 shrink-0">
                   <template x-if="confirmRetirarId !== n._id">
                     <div class="flex gap-2">
-                      <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-[rgba(212,175,55,0.35)] text-white hover:border-[#d4af37] hover:text-[#d4af37] transition cursor-pointer" @click="editar(n)">Editar</button>
-                      <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-red-400/50 text-red-300 hover:bg-red-500/20 transition cursor-pointer" x-show="n.vigente" @click="confirmRetirarId = n._id">Retirar</button>
+                      <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-[rgba(212,175,55,0.35)] text-white hover:border-[#d4af37] hover:text-[#d4af37] transition cursor-pointer" x-show="n.vigente" @click="editar(n)">Editar</button>
+                      <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-red-400/50 text-red-300 hover:bg-red-500/20 transition cursor-pointer" @click="confirmRetirarId = n._id">Eliminar</button>
                     </div>
                   </template>
                   <template x-if="confirmRetirarId === n._id">
                     <div class="flex items-center gap-2 text-xs">
-                      <span class="text-white font-bold">¿Retirar?</span>
+                      <span class="text-white font-bold">¿Eliminar?</span>
                       <button type="button" class="px-3 py-2 rounded-lg bg-red-600 text-white font-bold cursor-pointer" @click="retirar(n)">Sí</button>
                       <button type="button" class="px-3 py-2 rounded-lg border border-white/30 text-white cursor-pointer" @click="confirmRetirarId = null">No</button>
                     </div>
@@ -507,7 +622,6 @@
                     <p class="text-white/60">Lo que escribas en el editor aparece aquí en tiempo real.</p>
                   </div>
                 </div>
-                <div class="phone-listo">Listo</div>
               </div>
             </div>
           </div>
@@ -584,7 +698,7 @@
   </div>
 </div>
 
-<input type="file" id="input-imagen" accept="image/jpeg,image/png,image/webp" class="hidden" @change="archivoElegido($event)">
+<input type="file" id="input-imagen" accept="image/*" class="input-foto" @change="archivoElegido($event)">
 
 <!-- Toast de Notificación -->
 <div x-ref="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[95] px-6 py-3 rounded-xl text-sm font-black shadow-2xl pointer-events-none opacity-0" :class="toast.tipo === 'error' ? 'bg-red-600 text-white' : 'bg-[#d4af37] text-[#0a0a0f]'" x-text="toast.msg"></div>
@@ -610,7 +724,7 @@ async function leerJson(res) {
 }
 
 const CROPPER_TEMPLATE = `
-<cropper-canvas background style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+<cropper-canvas background>
   <cropper-image rotatable scalable translatable initial-center-size="contain"></cropper-image>
   <cropper-shade hidden></cropper-shade>
   <cropper-handle action="select" plain></cropper-handle>
@@ -649,9 +763,125 @@ function protegerSeleccionQuill(quill) {
 function htmlParaGuardar(quill) {
   let html = quill.getSemanticHTML();
   html = html.replace(/<(p|div|h[1-3]|li)([^>]*?)\sclass="ql-align-(center|right|left)"([^>]*)>/gi, '<$1$2 style="text-align:$3"$4>');
+  html = html.replace(/<span\b([^>]*)>/gi, (full, attrs) => (
+    /noticia-emoji/.test(attrs) || /font-size\s*:\s*1\.4em/i.test(attrs) ? '<span style="font-size:1.4em">' : full
+  ));
+  html = envolverEmojis(html);
   html = html.replace(/\sclass="[^"]*"/gi, '');
   html = html.replace(/&nbsp;/g, ' ');
   return html;
+}
+
+const EMOJI_RE = /\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*[\u{1F3FB}-\u{1F3FF}]?/gu;
+const EMOJIS = ['😀','😃','😄','😁','😊','😉','😍','😘','😋','😎','🤩','😅','😂','🤣','😢','😡','🤔','😴','🤗','🥳','👍','👏','🙏','💪','❤️','🔥','✨','⭐','✅','⚠️','🎉','💯','🍽️','🍕','🍔','🍟','🌮','🍜','🍣','🥗','🍖','🍗','🥩','🍝','🍞','🍰','☕','🍺','🍷','🥤','👨‍🍳','🧾','🛎️','🕐','📦','💰'];
+const ROLES_MOZO = new Set(['mozos', 'mozo', 'capitanmozos', 'capitan']);
+const FOTO_LADO = 2000;
+
+function envolverEmojis(html) {
+  const partes = String(html || '').split(/(<[^>]+>)/g);
+  let profundidad = 0;
+  return partes.map((p) => {
+    if (p.startsWith('<')) {
+      if (/^<span\b[^>]*font-size\s*:\s*1\.4em/i.test(p)) profundidad += 1;
+      else if (/^<\/span\b/i.test(p) && profundidad) profundidad -= 1;
+      return p;
+    }
+    if (profundidad || !p) return p;
+    return p.replace(EMOJI_RE, (e) => `<span style="font-size:1.4em">${e}</span>`);
+  }).join('');
+}
+
+function esArchivoImagen(file) {
+  const tipo = String(file?.type || '').toLowerCase();
+  if (tipo.startsWith('image/')) return true;
+  return /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(file?.name || '');
+}
+
+function blobDeCanvas(canvas, calidad) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo preparar la foto'))), 'image/jpeg', calidad);
+  });
+}
+
+async function prepararFoto(file) {
+  if (!file) throw new Error('No llegó la foto');
+  if (!esArchivoImagen(file)) throw new Error('Ese archivo no es una imagen');
+  if (file.size > 25 * 1024 * 1024) throw new Error('La foto pesa más de 25 MB');
+  const tipo = String(file.type || '').toLowerCase();
+  const heic = tipo.includes('heic') || tipo.includes('heif') || /\.hei[cf]$/i.test(file.name || '');
+  let bmp = null;
+  try {
+    bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch (_) {
+    try { bmp = await createImageBitmap(file); }
+    catch (_) {
+      throw new Error(heic
+        ? 'El teléfono mandó HEIC. En la cámara usa “Más compatible” o elige un JPG.'
+        : 'No se pudo leer la foto del teléfono');
+    }
+  }
+  const escala = Math.min(1, FOTO_LADO / Math.max(bmp.width, bmp.height));
+  const w = Math.max(1, Math.round(bmp.width * escala));
+  const h = Math.max(1, Math.round(bmp.height * escala));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(bmp, 0, 0, w, h);
+  if (bmp.close) bmp.close();
+  return blobDeCanvas(canvas, 0.86);
+}
+
+async function jpegDentroDeLimite(blob) {
+  if (blob.size <= MAX_BYTES) return blob;
+  const img = await createImageBitmap(blob);
+  const esc = Math.min(1, 1280 / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.width * esc));
+  canvas.height = Math.max(1, Math.round(img.height * esc));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  if (img.close) img.close();
+  const chico = await blobDeCanvas(canvas, 0.72);
+  if (chico.size > MAX_BYTES) throw new Error('La foto sigue siendo muy pesada. Prueba con otra.');
+  return chico;
+}
+
+function colorDeNombre(nombre) {
+  const pal = ['#8b6914', '#3d6b4f', '#6b3d4a', '#3d4f6b', '#6b5a3d', '#4a3d6b', '#3d6b62', '#6b3d3d'];
+  let n = 0;
+  const s = String(nombre || '');
+  for (let i = 0; i < s.length; i += 1) n = (n + s.charCodeAt(i)) % pal.length;
+  return pal[n];
+}
+function colorHex(v) {
+  const s = String(v || '').trim();
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s) ? s : '';
+}
+function nombreDePantalla(p) {
+  const persona = (c) => (c && typeof c === 'object' ? (c.alias || c.nombre || c.name || '') : '');
+  const quienes = [persona(p.cocineroId), ...(Array.isArray(p.cocineroIds) ? p.cocineroIds.map(persona) : [])].filter(Boolean);
+  const base = p.nombre || ('Pantalla ' + p.numeroPantalla);
+  return quienes.length ? base + ' · ' + quienes.join(', ') : base;
+}
+
+function registrarEmojiQuill() {
+  if (registrarEmojiQuill.hecho || typeof Quill === 'undefined') return;
+  const Inline = Quill.import('blots/inline');
+  class EmojiNoticia extends Inline {
+    static formats(domNode) {
+      return domNode && domNode.classList && domNode.classList.contains('noticia-emoji') ? true : undefined;
+    }
+  }
+  EmojiNoticia.blotName = 'emoji';
+  EmojiNoticia.tagName = 'SPAN';
+  EmojiNoticia.className = 'noticia-emoji';
+  Quill.register(EmojiNoticia, true);
+  registrarEmojiQuill.hecho = true;
 }
 
 function noticiasApp() {
@@ -676,27 +906,20 @@ function noticiasApp() {
     confirmRetirarId: null,
     modalRecorte: false,
     recorte: { url: '', ratio: 'libre', subiendo: false, error: '' },
+    emojiAbierto: false,
+    emojis: EMOJIS,
 
-    // NUEVO: Estado del bloque "A quién llega"
-    destinatario: 'ambos', // 'cocina' | 'mozos' | 'ambos'
-    cocinaDestino: 'todas', // 'todas' | 'kds' | 'hub'
-    cocinerasHub: [
-      { id: 'c1', numero: '1', nombre: 'María (Parrilla)' },
-      { id: 'c2', numero: '2', nombre: 'Rosa (Frituras)' },
-      { id: 'c3', numero: '3', nombre: 'Carmen (Calientes)' },
-      { id: 'c4', numero: '4', nombre: 'Teresa (Postres)' },
-    ],
-    cocinerasSeleccionadas: ['c1', 'c2', 'c3', 'c4'],
+    destinatario: 'ambos',
+    cocinaDestino: 'todas',
+    cocinerasHub: [],
+    cocinerasSeleccionadas: [],
     segundosCocina: 15,
-    mozosModo: 'todos', // 'todos' | 'seleccion'
-    listaMozos: [
-      { id: 'm1', nombre: 'Carlos Mendoza' },
-      { id: 'm2', nombre: 'Lucía Vargas' },
-      { id: 'm3', nombre: 'David Silva' },
-      { id: 'm4', nombre: 'Ana Ramos' },
-      { id: 'm5', nombre: 'Jorge Peña' },
-    ],
-    mozosSeleccionados: ['m1', 'm2', 'm3'],
+    mozosModo: 'todos',
+    listaMozos: [],
+    mozosSeleccionados: [],
+    buscaMozo: '',
+    mozosCargando: false,
+    mozosAviso: '',
 
     ratios: [
       { id: 'libre', label: 'Libre', valor: NaN },
@@ -712,6 +935,11 @@ function noticiasApp() {
     _toastTween: null,
     _borradorTimer: null,
 
+    get mozosFiltrados() {
+      const q = String(this.buscaMozo || '').trim().toLowerCase();
+      if (!q) return this.listaMozos;
+      return this.listaMozos.filter((m) => m.nombre.toLowerCase().includes(q));
+    },
     get puedePublicar() {
       return this.titulo.trim().length > 0 && this.tieneContenido;
     },
@@ -722,32 +950,90 @@ function noticiasApp() {
       if (idx > -1) this.cocinerasSeleccionadas.splice(idx, 1);
       else this.cocinerasSeleccionadas.push(id);
     },
+    toggleMozo(id) {
+      const i = this.mozosSeleccionados.indexOf(id);
+      if (i >= 0) this.mozosSeleccionados.splice(i, 1);
+      else this.mozosSeleccionados.push(id);
+    },
+    aplicarDestino(n) {
+      const dest = n?.destinos?.length ? n.destinos : ['cocina', 'mozos'];
+      const cocina = dest.includes('cocina');
+      const mozos = dest.includes('mozos');
+      this.destinatario = cocina && mozos ? 'ambos' : (cocina ? 'cocina' : 'mozos');
+      const alcance = n?.cocinaAlcance || 'todas';
+      this.cocinaDestino = alcance === 'kds' ? 'kds' : (alcance === 'pantallas' ? 'hub' : 'todas');
+      if (Array.isArray(n?.pantallas) && n.pantallas.length) {
+        this.cocinerasSeleccionadas = n.pantallas.map(String);
+      }
+      this.segundosCocina = Number(n?.segundosEnPantalla) || 15;
+      this.mozosModo = n?.mozosAlcance === 'algunos' ? 'seleccion' : 'todos';
+      this.mozosSeleccionados = (n?.mozoIds || []).map(String);
+    },
+    resetDestino() {
+      this.destinatario = 'ambos';
+      this.cocinaDestino = 'todas';
+      this.segundosCocina = 15;
+      this.mozosModo = 'todos';
+      this.mozosSeleccionados = [];
+      this.buscaMozo = '';
+      this.cocinerasSeleccionadas = this.cocinerasHub.map((c) => c.id);
+      this.emojiAbierto = false;
+    },
     async cargarDestinos() {
+      this.mozosCargando = true;
+      this.mozosAviso = '';
       try {
-        const [pan, moz] = await Promise.all([
-          fetch('/api/pantallas-cocina/activas', { headers: this.headers(false) }),
-          fetch('/api/mozos', { headers: this.headers(false) }),
-        ]);
+        const pan = await fetch('/api/pantallas-cocina/activas', { headers: this.headers(false) });
         if (pan.ok) {
           const data = await leerJson(pan);
           const lista = data.data || [];
           this.cocinerasHub = lista.map((p) => ({
             id: String(p.numeroPantalla),
             numero: String(p.numeroPantalla),
-            nombre: p.nombre || ('Pantalla ' + p.numeroPantalla),
+            nombre: nombreDePantalla(p),
           }));
           this.cocinerasSeleccionadas = this.cocinerasHub.map((c) => c.id);
+        } else {
+          this.cocinerasHub = [];
+          this.cocinerasSeleccionadas = [];
         }
-        if (moz.ok) {
-          const data = await leerJson(moz);
-          const arr = Array.isArray(data) ? data : (data.mozos || data.data || []);
-          this.listaMozos = arr.filter((m) => m && m._id && (!m.rol || m.rol === 'mozo' || m.rol === 'capitan')).map((m) => ({
+      } catch (_) {
+        this.cocinerasHub = [];
+        this.cocinerasSeleccionadas = [];
+      }
+      try {
+        const moz = await fetch('/api/mozos', { headers: this.headers(false) });
+        if (!moz.ok) {
+          this.listaMozos = [];
+          this.mozosAviso = 'No se pudo cargar la lista de mozos.';
+          return;
+        }
+        const data = await leerJson(moz);
+        const arr = Array.isArray(data) ? data : (data.mozos || data.data || []);
+        this.listaMozos = arr.filter((m) => {
+          if (!m || !m._id || m.activo === false) return false;
+          return ROLES_MOZO.has(String(m.rol || '').toLowerCase());
+        }).map((m) => {
+          const nombre = m.name || [m.nombres, m.apellidos].filter(Boolean).join(' ') || 'Mozo';
+          const fondo = colorHex(m.colorPerfil) || colorDeNombre(nombre);
+          const letra = colorHex(m.colorLetraPerfil) || '#ffffff';
+          const foto = m.fotoUrl || m.foto || '';
+          return {
             id: String(m._id),
-            nombre: m.name || m.nombre || 'Mozo',
-          }));
-          this.mozosSeleccionados = [];
-        }
-      } catch (_) {}
+            nombre,
+            corto: nombre.split(' ').slice(0, 2).join(' '),
+            ini: (nombre.trim()[0] || 'M').toUpperCase(),
+            foto: /^https?:\/\//i.test(foto) || foto.startsWith('/') ? foto : (foto ? '/' + foto : ''),
+            estilo: 'background:' + fondo + ';color:' + letra,
+          };
+        }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+        this.mozosSeleccionados = this.mozosSeleccionados.filter((id) => this.listaMozos.some((m) => m.id === id));
+      } catch (_) {
+        this.listaMozos = [];
+        this.mozosAviso = 'No se pudo cargar la lista de mozos.';
+      } finally {
+        this.mozosCargando = false;
+      }
     },
     payloadDestino() {
       const segundos = Math.min(120, Math.max(5, Number(this.segundosCocina) || 15));
@@ -871,19 +1157,22 @@ function noticiasApp() {
     // ---------- editor ----------
     montarEditor() {
       if (typeof Quill === 'undefined') return;
+      registrarEmojiQuill();
       const SizeStyle = Quill.import('attributors/style/size');
-      SizeStyle.whitelist = ['14px', '18px', '24px', '32px'];
+      SizeStyle.whitelist = ['24px', '36px', '48px', '64px'];
       Quill.register(SizeStyle, true);
       const AlignStyle = Quill.import('attributors/style/align');
       Quill.register(AlignStyle, true);
 
       this.quill = new Quill('#editor', {
         theme: 'snow',
-        placeholder: 'Escribe la noticia del día. Puedes poner imágenes, títulos y colores.',
+        placeholder: 'Escribe el texto de la noticia. El título va en la misma hoja, arriba.',
         modules: {
           toolbar: {
             container: '#toolbar',
-            handlers: { image: () => this.elegirImagen() },
+            handlers: {
+              image: () => this.elegirImagen(),
+            },
           },
           keyboard: {
             bindings: {
@@ -891,7 +1180,16 @@ function noticiasApp() {
             },
           },
         },
-        formats: ['bold', 'italic', 'underline', 'header', 'size', 'color', 'align', 'list', 'image'],
+        formats: ['bold', 'italic', 'underline', 'header', 'size', 'color', 'align', 'list', 'image', 'emoji'],
+      });
+      this.quill.clipboard.addMatcher('SPAN', (node, delta) => {
+        const size = (node.style && node.style.fontSize) || '';
+        const esEmoji = node.classList?.contains('noticia-emoji') || size === '1.4em';
+        if (!esEmoji) return delta;
+        (delta.ops || []).forEach((op) => {
+          if (typeof op.insert === 'string') op.attributes = { ...(op.attributes || {}), emoji: true };
+        });
+        return delta;
       });
       protegerSeleccionQuill(this.quill);
       this.quill.on('text-change', () => {
@@ -900,6 +1198,16 @@ function noticiasApp() {
         this.programarBorrador();
       });
       this.sincronizarEstado();
+    },
+    insertarEmoji(ch) {
+      const q = this.quill;
+      if (!q || !ch) return;
+      q.focus();
+      const range = q.getSelection(true) || { index: Math.max(0, q.getLength() - 1), length: 0 };
+      const index = range.index;
+      q.insertText(index, ch, { emoji: true }, 'user');
+      q.setSelection(index + ch.length, 0, 'silent');
+      q.format('emoji', false, 'silent');
     },
     sincronizarEstado() {
       if (!this.quill) return;
@@ -929,11 +1237,13 @@ function noticiasApp() {
       this.sincronizarEstado();
       this.actualizarPreview();
       this.borrarBorrador();
+      this.resetDestino();
       this.quill?.focus();
     },
     editar(n) {
       this.editandoId = n._id;
       this.titulo = n.titulo || '';
+      this.aplicarDestino(n);
       this.borradorRecuperado = false;
       this.quill.setContents([], 'silent');
       this.quill.clipboard.dangerouslyPasteHTML(0, n.cuerpoHtml || '', 'silent');
@@ -1009,21 +1319,6 @@ function noticiasApp() {
         this.top = data.platos || [];
         this.topRango = data.desde && data.hasta ? data.desde.slice(5) + ' → ' + data.hasta.slice(5) : '';
       } catch (_) {}
-    },
-    destinoValido() {
-      const vaCocina = this.destinatario === 'cocina' || this.destinatario === 'ambos';
-      const vaMozos = this.destinatario === 'mozos' || this.destinatario === 'ambos';
-      if (vaCocina && this.cocinaDestino === 'hub' && !this.cocinerasSeleccionadas.length) {
-        this.estado = 'Elige al menos una pantalla del Monitor Hub.';
-        this.estadoTipo = 'error';
-        return false;
-      }
-      if (vaMozos && this.mozosModo === 'seleccion' && !this.mozosSeleccionados.length) {
-        this.estado = 'Elige al menos un mozo.';
-        this.estadoTipo = 'error';
-        return false;
-      }
-      return true;
     },
     async publicar() {
       if (this.guardando) return;
@@ -1111,14 +1406,31 @@ function noticiasApp() {
     async retirar(n) {
       this.confirmRetirarId = null;
       try {
-        await fetch('/api/noticias/' + n._id + '/retirar', { method: 'PATCH', headers: this.headers() });
-      } catch (_) {}
-      n.vigente = false;
-      this.mostrarToast('Retirada. Ya no se ve en los teléfonos.');
+        const res = await fetch('/api/noticias/' + n._id + '/retirar', { method: 'PATCH', headers: this.headers() });
+        const data = await leerJson(res);
+        if (!res.ok) {
+          this.mostrarToast(data.error || 'No se pudo eliminar', 'error');
+          return;
+        }
+        this.noticias = this.noticias.filter((x) => String(x._id) !== String(n._id));
+        if (String(this.editandoId) === String(n._id)) this.nueva();
+        await this.cargarHoy();
+        this.mostrarToast('Publicación eliminada.');
+      } catch (_) {
+        this.mostrarToast('Sin conexión con el servidor', 'error');
+      }
     },
 
     // ---------- imágenes ----------
     elegirImagen() {
+      this._modoFoto = 'completa';
+      this.abrirSelectorFoto();
+    },
+    elegirRecorte() {
+      this._modoFoto = 'recorte';
+      this.abrirSelectorFoto();
+    },
+    abrirSelectorFoto() {
       if (this.imagenes >= MAX_IMAGENES) {
         this.estado = 'Máximo ' + MAX_IMAGENES + ' imágenes por noticia.';
         this.estadoTipo = 'error';
@@ -1131,11 +1443,21 @@ function noticiasApp() {
       const file = ev.target.files && ev.target.files[0];
       ev.target.value = '';
       if (!file) return;
-      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) {
-        this.mostrarToast('Solo imágenes JPEG, PNG o WebP', 'error');
+      if (!esArchivoImagen(file)) {
+        this.mostrarToast('Elige una foto (JPG, PNG o WebP)', 'error');
         return;
       }
-      this.abrirRecorte(file);
+      if (this._modoFoto === 'recorte') this.abrirRecorte(file);
+      else this.insertarCompleta(file);
+    },
+    async insertarCompleta(file) {
+      try {
+        let blob = await prepararFoto(file);
+        blob = await jpegDentroDeLimite(blob);
+        await this.subirYInsertar(blob);
+      } catch (e) {
+        this.mostrarToast(e.message || 'No se pudo subir la foto', 'error');
+      }
     },
     cropperCtor() {
       const C = window.Cropper;
@@ -1144,20 +1466,29 @@ function noticiasApp() {
       return C.default || C.Cropper || null;
     },
     async abrirRecorte(file) {
+      let preparado;
+      try { preparado = await prepararFoto(file); }
+      catch (e) { this.mostrarToast(e.message || 'No se pudo leer la foto', 'error'); return; }
+      this._fotoLista = preparado;
       const Ctor = this.cropperCtor();
       if (!Ctor) {
-        try { await this.subirYInsertar(file); } catch (e) { this.mostrarToast(e.message || 'No se pudo subir', 'error'); }
+        try { await this.subirYInsertar(preparado); }
+        catch (e) { this.mostrarToast(e.message || 'No se pudo subir', 'error'); }
+        this._fotoLista = null;
         return;
       }
-      this.recorte = { url: URL.createObjectURL(file), ratio: 'libre', subiendo: false, error: '' };
+      if (this.recorte.url) URL.revokeObjectURL(this.recorte.url);
+      const url = URL.createObjectURL(preparado);
+      this.recorte = { url, ratio: 'libre', subiendo: false, error: '' };
       this.modalRecorte = true;
       await this.$nextTick();
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const host = document.getElementById('cropper-host');
       if (!host) return;
-      host.innerHTML = '';
+      host.replaceChildren();
       const img = new Image();
       img.alt = '';
-      img.src = this.recorte.url;
+      img.src = url;
       try {
         await new Promise((resolve, reject) => {
           if (img.complete && img.naturalWidth) return resolve();
@@ -1171,17 +1502,14 @@ function noticiasApp() {
       host.appendChild(img);
       try {
         this.cropper = new Ctor(img, { template: CROPPER_TEMPLATE });
-        await this.$nextTick();
         const image = this.cropper.getCropperImage?.();
-        const sel = this.cropper.getCropperSelection?.();
-        image?.$center?.('contain');
-        sel?.$center?.();
+        if (image?.$ready) {
+          try { await image.$ready(); } catch (_) {}
+        }
+        await image?.$center?.('contain');
+        this.cropper.getCropperSelection?.()?.$center?.();
       } catch (e) {
-        this.recorte.error = 'No se pudo abrir el recorte: ' + (e.message || e);
-      }
-      const btn = document.getElementById('btn-imagen');
-      if (this.anima && window.BlendyWrapper && btn && this.$refs.modalRecorte) {
-        BlendyWrapper.morph(btn, this.$refs.modalRecorte);
+        this.recorte.error = 'No se pudo abrir el recorte. Puedes subir la foto completa.';
       }
     },
     setRatio(id) {
@@ -1201,37 +1529,66 @@ function noticiasApp() {
     },
     cerrarRecorte() {
       if (this.recorte.subiendo) return;
-      const btn = document.getElementById('btn-imagen');
-      const fin = () => {
-        this.modalRecorte = false;
-        try { this.cropper?.destroy(); } catch (_) {}
-        this.cropper = null;
-        const host = document.getElementById('cropper-host');
-        if (host) host.innerHTML = '';
-        if (this.recorte.url) URL.revokeObjectURL(this.recorte.url);
-        this.recorte = { url: '', ratio: 'libre', subiendo: false, error: '' };
-        if (window.BlendyWrapper && btn) BlendyWrapper.restoreSource(btn);
-      };
-      if (this.anima && window.BlendyWrapper && btn && this.$refs.modalRecorte) {
-        BlendyWrapper.unmorph(btn, this.$refs.modalRecorte, { onDone: fin });
-      } else {
-        fin();
-      }
+      this.modalRecorte = false;
+      try { this.cropper?.destroy(); } catch (_) {}
+      this.cropper = null;
+      const host = document.getElementById('cropper-host');
+      if (host) host.replaceChildren();
+      if (this.recorte.url) URL.revokeObjectURL(this.recorte.url);
+      this._fotoLista = null;
+      this.recorte = { url: '', ratio: 'libre', subiendo: false, error: '' };
+    },
+    async subirYInsertar(blob) {
+      const archivo = blob instanceof File ? blob : new File([blob], 'noticia.jpg', { type: blob.type || 'image/jpeg' });
+      const fd = new FormData();
+      fd.append('imagen', archivo);
+      const res = await fetch('/api/noticias/imagen', { method: 'POST', headers: this.headers(false), body: fd });
+      const data = await leerJson(res);
+      if (!res.ok || !data.url) throw new Error(data.error || 'No se pudo subir la imagen');
+      const q = this.quill;
+      if (!q) throw new Error('El editor no está listo');
+      const range = q.getSelection(true);
+      const index = range ? range.index : Math.max(0, q.getLength() - 1);
+      q.insertEmbed(index, 'image', data.url, 'user');
+      q.setSelection(index + 1, 0, 'silent');
+      this.sincronizarEstado();
+      this.actualizarPreview();
+      this.estado = 'Imagen insertada.';
+      this.estadoTipo = 'info';
+      this.mostrarToast('Imagen insertada');
     },
     async usarRecorte() {
+      if (this.recorte.subiendo) return;
       this.recorte.subiendo = true;
+      this.recorte.error = '';
       try {
-        const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
-        this.quill.insertEmbed(range.index, 'image', this.recorte.url, 'user');
-        this.quill.setSelection(range.index + 1, 0, 'silent');
-        this.estado = 'Imagen insertada.';
-        this.estadoTipo = 'info';
-        this.mostrarToast('Imagen insertada');
+        let blob = this._fotoLista;
+        const sel = this.cropper?.getCropperSelection?.();
+        if (sel?.$toCanvas) {
+          let canvas = await sel.$toCanvas();
+          const lado = Math.max(canvas.width, canvas.height);
+          if (lado > 1600) {
+            const esc = 1600 / lado;
+            const out = document.createElement('canvas');
+            out.width = Math.max(1, Math.round(canvas.width * esc));
+            out.height = Math.max(1, Math.round(canvas.height * esc));
+            const ctx = out.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, out.width, out.height);
+            ctx.drawImage(canvas, 0, 0, out.width, out.height);
+            canvas = out;
+          }
+          blob = await blobDeCanvas(canvas, 0.86);
+        }
+        if (!blob) throw new Error('No hay foto para subir');
+        blob = await jpegDentroDeLimite(blob);
+        await this.subirYInsertar(blob);
         this.recorte.subiendo = false;
         this.cerrarRecorte();
       } catch (e) {
         this.recorte.subiendo = false;
-        this.recorte.error = 'Error al insertar imagen';
+        this.recorte.error = e.message || 'No se pudo subir la imagen';
+        this.mostrarToast(this.recorte.error, 'error');
       }
     }
   };
