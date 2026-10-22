@@ -5,7 +5,7 @@ const Comanda = require('../database/models/comanda.model');
 const Noticia = require('../database/models/noticia.model');
 const { matchComandasEstadisticas } = require('../utils/estadisticasComandas');
 const { ymdOperativo, boundsDiaOperativo, TZ } = require('../utils/diaOperativoRestaurante');
-const { sanitizarHtmlNoticia, textoPlanoNoticia, imagenesDeHtml, envolverEmojis } = require('../utils/sanitizarHtmlNoticia');
+const { sanitizarHtmlNoticia, imagenesDeHtml, envolverEmojis } = require('../utils/sanitizarHtmlNoticia');
 
 let cacheTop = null;
 
@@ -117,16 +117,6 @@ function armarCuerpo(body) {
     const titulo = String(body?.titulo || '').replace(/<[^>]+>/g, '').trim().slice(0, 120);
     const cuerpoHtml = sanitizarHtmlNoticia(body?.cuerpoHtml || '');
     const imagenes = imagenesDeHtml(cuerpoHtml);
-    if (!titulo) {
-        const err = new Error('La noticia necesita un título');
-        err.status = 400;
-        throw err;
-    }
-    if (!textoPlanoNoticia(cuerpoHtml) && imagenes.length === 0) {
-        const err = new Error('La noticia necesita texto o una imagen');
-        err.status = 400;
-        throw err;
-    }
     return { titulo, cuerpoHtml, imagenes };
 }
 
@@ -202,6 +192,15 @@ async function actualizarNoticia(id, body) {
     return noticiaPublica(doc);
 }
 
+async function idsMozosActivosHoy(now = new Date()) {
+    const dia = ymdOperativo(now);
+    const ids = await Comanda.distinct('mozos', {
+        diaOperativo: dia,
+        mozos: { $ne: null },
+    });
+    return ids.filter(Boolean).map(String);
+}
+
 async function retirarNoticia(id) {
     const doc = await Noticia.findByIdAndDelete(id).lean();
     if (!doc) {
@@ -220,5 +219,6 @@ module.exports = {
     prepararTemporal,
     crearNoticia,
     actualizarNoticia,
+    idsMozosActivosHoy,
     retirarNoticia,
 };

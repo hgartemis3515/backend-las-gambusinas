@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 
 const noticiaSchema = new mongoose.Schema({
     fechaOperativa: { type: String, required: true, index: true },
-    titulo: { type: String, required: true, maxlength: 120, trim: true },
+    titulo: { type: String, default: '', maxlength: 120, trim: true },
     cuerpoHtml: { type: String, default: '' },
     imagenes: { type: [String], default: [] },
     autor: {

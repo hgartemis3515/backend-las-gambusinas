@@ -148,6 +148,12 @@
     display: flex; align-items: center; justify-content: center; border: 2px solid #12121a;
   }
   .mozo-nom { font-size: 12px; font-weight: 700; text-align: center; line-height: 1.2; }
+  .mozo-activo {
+    min-height: 16px; padding: 0 6px; border-radius: 999px;
+    font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    line-height: 16px; color: transparent;
+  }
+  .mozo-activo.is-on { color: #052e1a; background: #34d399; }
 
   #editor.ql-container.ql-snow {
     border: 1px solid rgba(212,175,55,0.3); border-radius: 0 0 14px 14px;
@@ -161,8 +167,25 @@
   #editor .ql-editor.ql-blank::before { color: rgba(255,255,255,0.55); font-style: normal; left: 16px; font-size: 30px; }
   #editor .ql-editor .noticia-emoji { font-size: 1.4em; line-height: 1; }
   #editor .ql-editor img { max-width: 100%; height: auto; border-radius: 12px; margin: 10px 0; border: 1px solid rgba(212,175,55,0.3); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-  #editor .ql-editor h2 { font-size: 44px; font-weight: 800; margin: 8px 0; color: #ffffff; }
-  #editor .ql-editor h3 { font-size: 36px; font-weight: 700; margin: 6px 0; color: #ffffff; }
+  #editor .ql-editor h2 { font-size: 52px !important; font-weight: 800; margin: 8px 0; color: #ffffff; line-height: 1.15; }
+  #editor .ql-editor h3 { font-size: 40px !important; font-weight: 700; margin: 6px 0; color: #ffffff; line-height: 1.2; }
+  #editor .ql-editor .ql-size-24px,
+  .phone-body .ql-size-24px { font-size: 24px !important; }
+  #editor .ql-editor .ql-size-36px,
+  .phone-body .ql-size-36px { font-size: 36px !important; }
+  #editor .ql-editor .ql-size-48px,
+  .phone-body .ql-size-48px { font-size: 48px !important; }
+  #editor .ql-editor .ql-size-64px,
+  .phone-body .ql-size-64px { font-size: 64px !important; }
+  #editor .ql-editor span[style*="24px"],
+  .phone-body span[style*="24px"] { font-size: 24px !important; }
+  #editor .ql-editor span[style*="36px"],
+  .phone-body span[style*="36px"] { font-size: 36px !important; }
+  #editor .ql-editor span[style*="48px"],
+  .phone-body span[style*="48px"] { font-size: 48px !important; }
+  #editor .ql-editor span[style*="64px"],
+  .phone-body span[style*="64px"] { font-size: 64px !important; }
+  #toolbar .ql-image { position: relative; overflow: hidden; }
   .emoji-ancla { position: relative; z-index: 8; }
   .emoji-panel {
     position: absolute; z-index: 40; top: 8px; left: 12px; right: 12px;
@@ -178,8 +201,12 @@
   }
   .emoji-panel button:hover { background: rgba(212,175,55,0.2); }
   .input-foto {
-    position: fixed; left: 0; bottom: 0;
-    width: 1px; height: 1px; opacity: 0; overflow: hidden;
+    position: fixed; left: -10000px; top: 0;
+    width: 160px; height: 48px; opacity: 0; font-size: 16px;
+  }
+  #toolbar .ql-image .input-foto {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    opacity: 0; z-index: 3; cursor: pointer;
   }
   
   .ql-snow .ql-stroke { stroke: #ffffff; }
@@ -234,8 +261,8 @@
   .phone-screen { position: absolute; inset: 0; padding: 48px 14px 18px; overflow: hidden; display: flex; flex-direction: column; }
   .phone-sheet { background: #1a1a28; border: 1px solid rgba(212,175,55,0.4); border-radius: 18px; padding: 14px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .phone-body { flex: 1; min-height: 0; overflow: auto; color: #ffffff; font-size: 26px; line-height: 1.4; word-break: break-word; }
-  .phone-body h2 { font-size: 34px; font-weight: 800; margin: 0 0 8px; color: #ffffff; line-height: 1.15; }
-  .phone-body h3 { font-size: 30px; font-weight: 700; margin: 0 0 6px; color: #ffffff; }
+  .phone-body h2 { font-size: 40px !important; font-weight: 800; margin: 0 0 8px; color: #ffffff; line-height: 1.15; }
+  .phone-body h3 { font-size: 32px !important; font-weight: 700; margin: 0 0 6px; color: #ffffff; }
   .phone-body p { margin: 0 0 8px; color: #ffffff; }
   .phone-body img { max-width: 100%; height: auto; border-radius: 10px; margin: 8px 0; border: 1px solid rgba(212,175,55,0.3); }
   .phone-body ul, .phone-body ol { padding-left: 20px; margin: 0 0 8px; color: #ffffff; }
@@ -300,8 +327,37 @@
           </div>
         </div>
 
+        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+          <div class="flex-1 flex flex-col gap-1">
+            <button type="button" id="btn-publicar"
+              class="btn-touch w-full bg-[#d4af37] text-[#0a0a0f] px-6 py-3.5 rounded-xl text-sm font-extrabold disabled:opacity-50 inline-flex items-center justify-center gap-2.5 hover:brightness-110 active:scale-[0.98] transition shadow-lg shadow-[#d4af37]/25 cursor-pointer"
+              :disabled="guardando"
+              @click="publicar()">
+              <span x-show="guardando" class="w-4 h-4 border-2 border-[#0a0a0f] border-t-transparent rounded-full animate-spin"></span>
+              <span class="text-base" x-show="!guardando">💾</span>
+              <span x-text="guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Publicar ahora')"></span>
+            </button>
+            <span class="text-[11px] text-white/70 text-center font-medium">Guarda en el archivo del día. Queda visible.</span>
+          </div>
+          <div class="flex-1 flex flex-col gap-1">
+            <button type="button"
+              class="btn-touch w-full bg-[#12121a] border-2 border-[#d4af37] text-white px-6 py-3.5 rounded-xl text-sm font-extrabold hover:bg-[#d4af37]/15 active:scale-[0.98] transition disabled:opacity-50 inline-flex items-center justify-center gap-2.5 cursor-pointer"
+              :disabled="guardando"
+              @click="enviarUnaVez()">
+              <span class="text-base">⚡</span>
+              <span>Enviar una vez</span>
+            </button>
+            <span class="text-[11px] text-white/70 text-center font-medium">Aviso inmediato en pantalla. No queda en el archivo.</span>
+          </div>
+          <button type="button"
+            class="btn-touch px-4 py-3.5 rounded-xl text-sm border border-white/20 text-white hover:border-white transition cursor-pointer self-start"
+            @click="nueva()"
+            x-text="editandoId ? 'Cancelar edición' : 'Limpiar'">
+          </button>
+        </div>
+
         <div class="composer mb-1">
-        <input id="titulo" x-model="titulo" maxlength="120" @input="actualizarPreview()" class="composer-titulo" placeholder="Título de la noticia" autocomplete="off">
+        <input id="titulo" x-model="titulo" maxlength="120" @input="actualizarPreview()" class="composer-titulo" placeholder="Título (opcional)" autocomplete="off">
 
         <div class="composer-barra">
         <div id="toolbar">
@@ -428,7 +484,7 @@
 
             <div class="flex items-center gap-2 flex-wrap">
               <button type="button"
-                @click="cocinaDestino = 'todas'"
+                @click="alternarTodas()"
                 class="px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition cursor-pointer"
                 :class="cocinaDestino === 'todas' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.3)] hover:border-[#d4af37]'">
                 Todas
@@ -442,15 +498,15 @@
               </button>
 
               <button type="button"
-                @click="cocinaDestino = 'hub'"
+                @click="alternarHub()"
                 class="px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition cursor-pointer"
-                :class="cocinaDestino === 'hub' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.3)] hover:border-[#d4af37]'">
+                :class="hubTodas ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.3)] hover:border-[#d4af37]'">
                 Pantallas del Monitor Hub
               </button>
             </div>
 
             <!-- Chips con número y nombre de la cocinera -->
-            <div x-show="(cocinaDestino === 'hub' || cocinaDestino === 'todas') && cocinerasHub.length" class="flex items-center gap-2 flex-wrap pt-1">
+            <div x-show="cocinaDestino !== 'kds' && cocinerasHub.length" class="flex items-center gap-2 flex-wrap pt-1">
               <span class="text-xs text-white/70 w-full mb-1">Cocinera / Monitor:</span>
               <template x-for="c in cocinerasHub" :key="c.id">
                 <button type="button"
@@ -500,6 +556,7 @@
               <div class="mozo-grid">
                 <template x-for="m in mozosFiltrados" :key="m.id">
                   <button type="button" class="mozo-chip" :class="mozosSeleccionados.includes(m.id) ? 'is-on' : ''" @click="toggleMozo(m.id)">
+                    <span class="mozo-activo" :class="m.activo ? 'is-on' : ''" x-text="m.activo ? 'Activo' : ''"></span>
                     <span class="mozo-ava" :style="m.estilo">
                       <img x-show="m.foto" :src="m.foto" alt="">
                       <span x-show="!m.foto" x-text="m.ini"></span>
@@ -512,41 +569,6 @@
               <p x-show="buscaMozo.trim() && !mozosFiltrados.length" class="text-xs text-white">Ningún mozo con ese nombre.</p>
             </div>
           </div>
-        </div>
-
-        <!-- Botones de Acción Diferenciados -->
-        <div class="flex flex-col sm:flex-row gap-3 mt-6">
-          <!-- Publicar ahora: Guarda el día -->
-          <div class="flex-1 flex flex-col gap-1">
-            <button type="button" id="btn-publicar"
-              class="btn-touch w-full bg-[#d4af37] text-[#0a0a0f] px-6 py-3.5 rounded-xl text-sm font-extrabold disabled:opacity-50 inline-flex items-center justify-center gap-2.5 hover:brightness-110 active:scale-[0.98] transition shadow-lg shadow-[#d4af37]/25 cursor-pointer"
-              :disabled="guardando || !puedePublicar"
-              @click="publicar()">
-              <span x-show="guardando" class="w-4 h-4 border-2 border-[#0a0a0f] border-t-transparent rounded-full animate-spin"></span>
-              <span class="text-base" x-show="!guardando">💾</span>
-              <span x-text="guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Publicar ahora')"></span>
-            </button>
-            <span class="text-[11px] text-white/70 text-center font-medium">Guarda en el archivo del día. Queda visible.</span>
-          </div>
-
-          <!-- Enviar una vez: Aviso efímero que no queda -->
-          <div class="flex-1 flex flex-col gap-1">
-            <button type="button"
-              class="btn-touch w-full bg-[#12121a] border-2 border-[#d4af37] text-white px-6 py-3.5 rounded-xl text-sm font-extrabold hover:bg-[#d4af37]/15 active:scale-[0.98] transition disabled:opacity-50 inline-flex items-center justify-center gap-2.5 cursor-pointer"
-              :disabled="guardando || !puedePublicar"
-              @click="enviarUnaVez()">
-              <span class="text-base">⚡</span>
-              <span>Enviar una vez</span>
-            </button>
-            <span class="text-[11px] text-white/70 text-center font-medium">Aviso inmediato en pantalla. No queda en el archivo.</span>
-          </div>
-
-          <!-- Limpiar / Cancelar -->
-          <button type="button"
-            class="btn-touch px-4 py-3.5 rounded-xl text-sm border border-white/20 text-white hover:border-white transition cursor-pointer self-start"
-            @click="nueva()"
-            x-text="editandoId ? 'Cancelar edición' : 'Limpiar'">
-          </button>
         </div>
 
         <!-- Lista del Archivo de Publicaciones -->
@@ -773,7 +795,7 @@ function htmlParaGuardar(quill) {
 }
 
 const EMOJI_RE = /\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*[\u{1F3FB}-\u{1F3FF}]?/gu;
-const EMOJIS = ['😀','😃','😄','😁','😊','😉','😍','😘','😋','😎','🤩','😅','😂','🤣','😢','😡','🤔','😴','🤗','🥳','👍','👏','🙏','💪','❤️','🔥','✨','⭐','✅','⚠️','🎉','💯','🍽️','🍕','🍔','🍟','🌮','🍜','🍣','🥗','🍖','🍗','🥩','🍝','🍞','🍰','☕','🍺','🍷','🥤','👨‍🍳','🧾','🛎️','🕐','📦','💰'];
+const EMOJIS = ['😀','😃','😄','😁','😊','😉','😍','😘','😋','😎','🤩','😅','😂','🤣','😢','😡','🤔','😴','🤗','🥳','👍','👎','👏','🙏','💪','❤️','🔥','✨','⭐','✅','⚠️','🎉','💯','🍽️','🍕','🍔','🍟','🌮','🍜','🍣','🥗','🍖','🍗','🥩','🍝','🍞','🍰','☕','🍺','🍷','🥤','👨‍🍳','🧾','🛎️','🕐','📦','💰'];
 const ROLES_MOZO = new Set(['mozos', 'mozo', 'capitanmozos', 'capitan']);
 const FOTO_LADO = 2000;
 
@@ -793,8 +815,25 @@ function envolverEmojis(html) {
 
 function esArchivoImagen(file) {
   const tipo = String(file?.type || '').toLowerCase();
-  if (tipo.startsWith('image/')) return true;
+  if (!tipo || tipo === 'application/octet-stream' || tipo.startsWith('image/')) return true;
   return /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(file?.name || '');
+}
+
+function cargarImagen(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (!img.naturalWidth) reject(new Error('La foto llegó vacía'));
+      else resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('No se pudo leer la foto'));
+    };
+    img.src = url;
+  });
 }
 
 function blobDeCanvas(canvas, calidad) {
@@ -809,38 +848,52 @@ async function prepararFoto(file) {
   if (file.size > 25 * 1024 * 1024) throw new Error('La foto pesa más de 25 MB');
   const tipo = String(file.type || '').toLowerCase();
   const heic = tipo.includes('heic') || tipo.includes('heif') || /\.hei[cf]$/i.test(file.name || '');
-  let bmp = null;
+  let fuente = null;
+  const porBitmap = () => {
+    if (typeof createImageBitmap !== 'function') return Promise.reject(new Error('sin bitmap'));
+    return createImageBitmap(file);
+  };
   try {
-    bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    fuente = await Promise.race([
+      porBitmap(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('t')), 2500)),
+    ]);
   } catch (_) {
-    try { bmp = await createImageBitmap(file); }
-    catch (_) {
+    try { fuente = await cargarImagen(file); }
+    catch (e) {
+      if (!heic && file.size <= MAX_BYTES && (!tipo || /jpe?g|png|webp/.test(tipo))) return file;
       throw new Error(heic
-        ? 'El teléfono mandó HEIC. En la cámara usa “Más compatible” o elige un JPG.'
-        : 'No se pudo leer la foto del teléfono');
+        ? 'El iPhone mandó HEIC. En Ajustes, Cámara, Formatos elige Más compatible y vuelve a elegir la foto.'
+        : (e.message || 'No se pudo leer la foto'));
     }
   }
-  const escala = Math.min(1, FOTO_LADO / Math.max(bmp.width, bmp.height));
-  const w = Math.max(1, Math.round(bmp.width * escala));
-  const h = Math.max(1, Math.round(bmp.height * escala));
+  const w0 = fuente.naturalWidth || fuente.width;
+  const h0 = fuente.naturalHeight || fuente.height;
+  const escala = Math.min(1, FOTO_LADO / Math.max(w0, h0));
+  const w = Math.max(1, Math.round(w0 * escala));
+  const h = Math.max(1, Math.round(h0 * escala));
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(bmp, 0, 0, w, h);
-  if (bmp.close) bmp.close();
+  ctx.drawImage(fuente, 0, 0, w, h);
+  if (fuente.close) fuente.close();
   return blobDeCanvas(canvas, 0.86);
 }
 
 async function jpegDentroDeLimite(blob) {
   if (blob.size <= MAX_BYTES) return blob;
-  const img = await createImageBitmap(blob);
-  const esc = Math.min(1, 1280 / Math.max(img.width, img.height));
+  let img;
+  try { img = await createImageBitmap(blob); }
+  catch (_) { img = await cargarImagen(blob); }
+  const ancho = img.naturalWidth || img.width;
+  const alto = img.naturalHeight || img.height;
+  const esc = Math.min(1, 1280 / Math.max(ancho, alto));
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(img.width * esc));
-  canvas.height = Math.max(1, Math.round(img.height * esc));
+  canvas.width = Math.max(1, Math.round(ancho * esc));
+  canvas.height = Math.max(1, Math.round(alto * esc));
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -940,12 +993,38 @@ function noticiasApp() {
       if (!q) return this.listaMozos;
       return this.listaMozos.filter((m) => m.nombre.toLowerCase().includes(q));
     },
-    get puedePublicar() {
-      return this.titulo.trim().length > 0 && this.tieneContenido;
+    get hubTodas() {
+      return this.cocinaDestino === 'hub'
+        && this.cocinerasHub.length > 0
+        && this.cocinerasSeleccionadas.length === this.cocinerasHub.length;
     },
-
+    idsCocineras() {
+      return this.cocinerasHub.map((c) => c.id);
+    },
+    alternarTodas() {
+      if (this.cocinaDestino === 'todas') {
+        this.cocinaDestino = 'hub';
+        this.cocinerasSeleccionadas = [];
+        return;
+      }
+      this.cocinaDestino = 'todas';
+      this.cocinerasSeleccionadas = this.idsCocineras();
+    },
+    alternarHub() {
+      if (this.cocinaDestino === 'todas' || this.hubTodas) {
+        this.cocinaDestino = 'hub';
+        this.cocinerasSeleccionadas = [];
+        return;
+      }
+      this.cocinaDestino = 'hub';
+      this.cocinerasSeleccionadas = this.idsCocineras();
+    },
     toggleCocinera(id) {
-      if (this.cocinaDestino === 'todas') this.cocinaDestino = 'hub';
+      if (this.cocinaDestino === 'todas') {
+        this.cocinaDestino = 'hub';
+        this.cocinerasSeleccionadas = [id];
+        return;
+      }
       const idx = this.cocinerasSeleccionadas.indexOf(id);
       if (idx > -1) this.cocinerasSeleccionadas.splice(idx, 1);
       else this.cocinerasSeleccionadas.push(id);
@@ -1009,6 +1088,14 @@ function noticiasApp() {
           return;
         }
         const data = await leerJson(moz);
+        let activos = new Set();
+        try {
+          const act = await fetch('/api/noticias/mozos-activos', { headers: this.headers(false), cache: 'no-store' });
+          if (act.ok) {
+            const extra = await leerJson(act);
+            activos = new Set((extra.ids || []).map(String));
+          }
+        } catch (_) {}
         const arr = Array.isArray(data) ? data : (data.mozos || data.data || []);
         this.listaMozos = arr.filter((m) => {
           if (!m || !m._id || m.activo === false) return false;
@@ -1025,6 +1112,7 @@ function noticiasApp() {
             ini: (nombre.trim()[0] || 'M').toUpperCase(),
             foto: /^https?:\/\//i.test(foto) || foto.startsWith('/') ? foto : (foto ? '/' + foto : ''),
             estilo: 'background:' + fondo + ';color:' + letra,
+            activo: activos.has(String(m._id)),
           };
         }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
         this.mozosSeleccionados = this.mozosSeleccionados.filter((id) => this.listaMozos.some((m) => m.id === id));
@@ -1164,6 +1252,11 @@ function noticiasApp() {
       const AlignStyle = Quill.import('attributors/style/align');
       Quill.register(AlignStyle, true);
 
+      const SizeClass = Quill.import('attributors/class/size');
+      const tamanos = ['24px', '36px', '48px', '64px'];
+      if (SizeClass) SizeClass.whitelist = tamanos;
+      if (SizeStyle) SizeStyle.whitelist = tamanos;
+
       this.quill = new Quill('#editor', {
         theme: 'snow',
         placeholder: 'Escribe el texto de la noticia. El título va en la misma hoja, arriba.',
@@ -1171,7 +1264,9 @@ function noticiasApp() {
           toolbar: {
             container: '#toolbar',
             handlers: {
-              image: () => this.elegirImagen(),
+              image: () => {},
+              size: (value) => this.aplicarTamano(value),
+              header: (value) => this.aplicarJerarquia(value),
             },
           },
           keyboard: {
@@ -1192,12 +1287,75 @@ function noticiasApp() {
         return delta;
       });
       protegerSeleccionQuill(this.quill);
+      this._rango = { index: 0, length: 0 };
+      this.quill.on('selection-change', (range) => {
+        if (range) this._rango = { index: range.index, length: range.length };
+      });
+      const barra = this.quill.getModule('toolbar')?.container;
+      if (barra) {
+        barra.addEventListener('mousedown', (ev) => {
+          if (ev.target.closest('.ql-picker')) ev.preventDefault();
+        });
+      }
+      const btnFoto = document.getElementById('btn-imagen');
+      const inputFoto = document.getElementById('input-imagen');
+      if (btnFoto && inputFoto) {
+        btnFoto.appendChild(inputFoto);
+        inputFoto.addEventListener('pointerdown', () => { this._modoFoto = 'completa'; });
+      }
+      if (barra) {
+        const elegirFormato = (item) => {
+          const picker = item.closest('.ql-picker');
+          const valor = item.getAttribute('data-value');
+          if (picker?.classList.contains('ql-size')) this.aplicarTamano(valor || false);
+          if (picker?.classList.contains('ql-header')) this.aplicarJerarquia(valor || false);
+        };
+        barra.addEventListener('click', (ev) => {
+          const item = ev.target.closest?.('.ql-picker-item');
+          if (item) elegirFormato(item);
+        });
+        barra.addEventListener('touchend', (ev) => {
+          const item = ev.target.closest?.('.ql-picker-item');
+          if (!item) return;
+          ev.preventDefault();
+          elegirFormato(item);
+        }, { passive: false });
+      }
       this.quill.on('text-change', () => {
         this.sincronizarEstado();
         this.actualizarPreview();
         this.programarBorrador();
       });
       this.sincronizarEstado();
+    },
+    rangoEditor() {
+      const q = this.quill;
+      if (!q) return null;
+      return q.getSelection() || this._rango || { index: Math.max(0, q.getLength() - 1), length: 0 };
+    },
+    aplicarJerarquia(value) {
+      const q = this.quill;
+      const range = this.rangoEditor();
+      if (!q || !range) return;
+      const nivel = value ? Number(value) : false;
+      q.formatLine(range.index, Math.max(range.length, 1), 'header', nivel || false, 'user');
+    },
+    aplicarTamano(value) {
+      const q = this.quill;
+      const range = this.rangoEditor();
+      if (!q || !range) return;
+      const v = value || false;
+      let index = range.index;
+      let length = range.length;
+      if (!length) {
+        const linea = q.getLine(index);
+        if (linea && linea[0]) {
+          index = Math.max(0, index - linea[1]);
+          length = Math.max(0, linea[0].length() - 1);
+        }
+      }
+      if (length > 0) q.formatText(index, length, 'size', v, 'user');
+      else q.format('size', v, 'user');
     },
     insertarEmoji(ch) {
       const q = this.quill;
@@ -1322,18 +1480,6 @@ function noticiasApp() {
     },
     async publicar() {
       if (this.guardando) return;
-      if (!this.titulo.trim()) {
-        this.estado = 'Ponle un título a la noticia.';
-        this.estadoTipo = 'error';
-        document.getElementById('titulo')?.focus();
-        return;
-      }
-      if (!this.tieneContenido) {
-        this.estado = 'Escribe algo o agrega una imagen.';
-        this.estadoTipo = 'error';
-        this.quill?.focus();
-        return;
-      }
       if (!this.destinoValido()) return;
       const cuerpoHtml = htmlParaGuardar(this.quill);
       this.guardando = true;
@@ -1370,11 +1516,6 @@ function noticiasApp() {
     },
     async enviarUnaVez() {
       if (this.guardando) return;
-      if (!this.titulo.trim() || !this.tieneContenido) {
-        this.estado = 'Ponle título y texto o imagen.';
-        this.estadoTipo = 'error';
-        return;
-      }
       if (!this.destinoValido()) return;
       this.guardando = true;
       this.estado = '';
@@ -1440,15 +1581,17 @@ function noticiasApp() {
       document.getElementById('input-imagen')?.click();
     },
     archivoElegido(ev) {
-      const file = ev.target.files && ev.target.files[0];
-      ev.target.value = '';
-      if (!file) return;
-      if (!esArchivoImagen(file)) {
-        this.mostrarToast('Elige una foto (JPG, PNG o WebP)', 'error');
-        return;
-      }
-      if (this._modoFoto === 'recorte') this.abrirRecorte(file);
-      else this.insertarCompleta(file);
+      const input = ev.target;
+      const file = input.files && input.files[0];
+      const seguro = file
+        ? new File([file], file.name || 'foto.jpg', { type: file.type || 'image/jpeg', lastModified: file.lastModified })
+        : null;
+      setTimeout(() => { input.value = ''; }, 400);
+      if (!seguro) return;
+      this.estado = 'Preparando la foto…';
+      this.estadoTipo = 'info';
+      if (this._modoFoto === 'recorte') this.abrirRecorte(seguro);
+      else this.insertarCompleta(seguro);
     },
     async insertarCompleta(file) {
       try {

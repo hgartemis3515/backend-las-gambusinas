@@ -66,9 +66,14 @@ function emitirDirigido(evento, payload, destino = {}) {
                 cocina.emit(evento, { ...aviso, canal: alcance === 'kds' ? 'kds' : 'todas' });
             }
             if (alcance === 'pantallas') {
-                (destino.pantallas || []).forEach((n) => {
-                    cocina.to(`pantalla-${n}`).emit(evento, { ...aviso, canal: 'pantallas', pantalla: n });
-                });
+                const pantallas = (destino.pantallas || [])
+                    .map((n) => Number(n))
+                    .filter((n) => Number.isFinite(n));
+                if (pantallas.length) {
+                    // Las ventanas del Monitor Hub entran con el usuario de cocina,
+                    // no con el JWT de TV, así que no están en la room pantalla-N.
+                    cocina.emit(evento, { ...aviso, canal: 'pantallas', pantallas });
+                }
             }
         }
         const quienes = destino.mozosAlcance || 'todos';
@@ -132,6 +137,16 @@ router.get('/noticias/hoy', requireJwt, async (req, res) => {
     } catch (error) {
         logger.error('Error noticias de hoy', { error: error.message });
         res.status(500).json({ error: 'No se pudieron leer las noticias' });
+    }
+});
+
+router.get('/noticias/mozos-activos', adminAuth, puedePublicar, async (req, res) => {
+    try {
+        res.set('Cache-Control', 'no-store');
+        res.json({ ids: await repo.idsMozosActivosHoy() });
+    } catch (error) {
+        logger.error('Error mozos activos', { error: error.message });
+        res.status(500).json({ error: 'No se pudo leer quién está activo' });
     }
 });
 
