@@ -163,10 +163,15 @@
   .composer #editor.ql-container.ql-snow {
     border: 0; border-radius: 0 0 16px 16px; background: transparent;
   }
-  #editor .ql-editor { height: auto !important; min-height: 140px; max-height: 360px; padding: 14px 16px; line-height: 1.45; overflow-y: auto; color: #ffffff; font-size: 30px; }
+  #editor .ql-editor { height: auto !important; min-height: 140px; max-height: 70vh; padding: 14px 16px; line-height: 1.45; overflow-y: auto; color: #ffffff; font-size: 30px; }
   #editor .ql-editor.ql-blank::before { color: rgba(255,255,255,0.55); font-style: normal; left: 16px; font-size: 30px; }
   #editor .ql-editor .noticia-emoji { font-size: 1.4em; line-height: 1; }
-  #editor .ql-editor img { max-width: 100%; height: auto; border-radius: 12px; margin: 10px 0; border: 1px solid rgba(212,175,55,0.3); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  #editor .ql-editor img {
+    display: block; width: 100%; max-width: 100%; height: auto;
+    max-height: 420px; object-fit: contain; object-position: center;
+    border-radius: 12px; margin: 10px 0; background: #0a0a0f;
+    border: 1px solid rgba(212,175,55,0.3); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
   #editor .ql-editor h2 { font-size: 52px !important; font-weight: 800; margin: 8px 0; color: #ffffff; line-height: 1.15; }
   #editor .ql-editor h3 { font-size: 40px !important; font-weight: 700; margin: 6px 0; color: #ffffff; line-height: 1.2; }
   #editor .ql-editor .ql-size-24px,
@@ -194,7 +199,10 @@
     height: 44px;
     flex: none;
     align-self: center;
+    border: 2px solid #d4af37;
     border-radius: 8px;
+    background: #1a1a28;
+    box-sizing: border-box;
     cursor: pointer;
   }
   .foto-disparador svg { width: 18px; height: 18px; pointer-events: none; }
@@ -277,7 +285,7 @@
   .phone-body h2 { font-size: 40px !important; font-weight: 800; margin: 0 0 8px; color: #ffffff; line-height: 1.15; }
   .phone-body h3 { font-size: 32px !important; font-weight: 700; margin: 0 0 6px; color: #ffffff; }
   .phone-body p { margin: 0 0 8px; color: #ffffff; }
-  .phone-body img { max-width: 100%; height: auto; border-radius: 10px; margin: 8px 0; border: 1px solid rgba(212,175,55,0.3); }
+  .phone-body img { display: block; width: 100%; max-width: 100%; height: auto; max-height: 280px; object-fit: contain; border-radius: 10px; margin: 8px 0; border: 1px solid rgba(212,175,55,0.3); background: #0a0a0f; }
   .phone-body ul, .phone-body ol { padding-left: 20px; margin: 0 0 8px; color: #ffffff; }
   .phone-body::-webkit-scrollbar { width: 4px; }
   .phone-body::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 4px; }
