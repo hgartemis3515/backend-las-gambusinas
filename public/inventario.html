@@ -177,6 +177,81 @@ tailwind.config = {
     font-size: 12px;
     font-weight: 700;
   }
+  .panel-resumen {
+    border: 1px solid rgba(212, 175, 55, 0.32);
+    border-radius: 16px;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(212, 175, 55, 0.1), transparent 88px),
+      #1a1a28;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  }
+  .tabla-resumen { border-collapse: separate; border-spacing: 0; font-size: 15px; }
+  .tabla-resumen thead th {
+    background: transparent;
+    color: #cbb56a;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 20px 12px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.22);
+  }
+  .resumen-cols {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 900px) {
+    .resumen-cols { grid-template-columns: 1fr 1fr; }
+    .resumen-cols > table + table { border-left: 1px solid rgba(212, 175, 55, 0.2); }
+  }
+  .tabla-resumen tbody td {
+    padding: 8px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.045);
+    background: transparent;
+    box-shadow: none;
+    font-weight: 600;
+    color: #fff;
+  }
+  .tabla-resumen tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.03); }
+  .tabla-resumen tbody tr:hover td { background: rgba(212, 175, 55, 0.09); }
+  .tabla-resumen tfoot td {
+    padding: 13px 20px;
+    background: #d4af37;
+    color: #1a1200;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 13px;
+  }
+  .chip-saldo {
+    display: inline-block;
+    min-width: 3.4rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip-saldo.pos { background: rgba(134, 239, 172, 0.16); color: #bbf7d0; }
+  .chip-saldo.neg { background: rgba(248, 113, 113, 0.18); color: #fecaca; }
+  .chip-saldo.cero { background: rgba(255, 255, 255, 0.06); color: #a0a0b8; }
+  .estado-pill.grande {
+    min-width: 6.2rem;
+    padding: 5px 12px 5px 10px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+  .estado-pill.grande::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 999px;
+    background: currentColor;
+    vertical-align: 1px;
+  }
 </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="inventarioApp()" x-cloak>
@@ -215,6 +290,8 @@ tailwind.config = {
         <button type="button" @click="setVista('tabla')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Tabla</button>
         <button type="button" @click="setVista('crudo')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'crudo' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Crudo y cocido</button>
         <button type="button" @click="setVista('transformacion')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'transformacion' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Transformación</button>
+        <button type="button" @click="setVista('total')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'total' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Total</button>
+        <button type="button" @click="setVista('stock')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'stock' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Stock</button>
       </div>
       <div class="flex flex-col items-end gap-2">
         <div class="relative">
@@ -225,7 +302,7 @@ tailwind.config = {
             <button type="button" @click="configAbierta = false; borrarAbierta = true; error = ''" class="w-full px-4 py-2 rounded-lg text-sm font-medium text-left bg-red-500/15 text-red-300 hover:bg-red-500/25">Eliminar datos de hoy</button>
           </div>
         </div>
-        <div x-show="vistaTab !== 'tabla'" class="flex items-center gap-2 flex-wrap justify-end">
+        <div x-show="vistaPorDia()" class="flex items-center gap-2 flex-wrap justify-end">
           <button type="button" @click="moverDia(-1)" class="px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.25)] text-gold">‹</button>
           <input type="date" :value="diaTrabajo" @change="fijarDia($event.target.value)" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-sm text-txt-secondary">
           <button type="button" @click="moverDia(1)" class="px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.25)] text-gold">›</button>
@@ -420,9 +497,88 @@ tailwind.config = {
       </div>
     </section>
 
+    <section x-show="vistaTab === 'total'" class="mb-8">
+      <div class="panel-resumen">
+        <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
+          <div>
+            <p class="inv-titulo">Total</p>
+            <p class="text-lg font-semibold text-white mt-1">Cuánto queda</p>
+            <p class="text-xs text-txt-muted mt-1 max-w-md">Lo que queda de cada producto. Conserva lo de antes, aunque este período no tenga movimientos. Si el número es negativo, falta esa cantidad.</p>
+          </div>
+          <p class="shrink-0 text-xs text-txt-muted tabular-nums pt-1" x-text="productosVisibles().length + ' productos'"></p>
+        </div>
+        <p x-show="productosVisibles().length === 0" class="px-5 pb-5 text-sm text-txt-muted">No hay productos en este período.</p>
+        <div x-show="productosVisibles().length > 0" class="resumen-cols">
+          <template x-for="(col, ci) in mitadesProductos()" :key="'tot-col'+ci">
+            <table class="tabla-resumen w-full" x-show="col.length">
+              <thead>
+                <tr>
+                  <th class="text-left">Producto</th>
+                  <th class="text-right">Saldo real</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="f in col" :key="'t'+ci+f.nombre">
+                  <tr>
+                    <td class="font-semibold" x-text="f.nombre"></td>
+                    <td class="text-right">
+                      <span class="chip-saldo" :class="Number(f.queda) < 0 ? 'neg' : (Number(f.queda) > 0 ? 'pos' : 'cero')" x-text="f.queda"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </template>
+        </div>
+        <div x-show="productosVisibles().length > 0" class="flex items-center justify-between px-5 py-3 bg-[#d4af37] text-[#1a1200] font-extrabold text-sm uppercase tracking-wide">
+          <span>Suma</span>
+          <span class="normal-case tabular-nums" x-text="productosVisibles().reduce((a, f) => a + (Number(f.queda) || 0), 0)"></span>
+        </div>
+      </div>
+    </section>
+
+    <section x-show="vistaTab === 'stock'" class="mb-8">
+      <div class="panel-resumen">
+        <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
+          <div>
+            <p class="inv-titulo">Stock</p>
+            <p class="text-lg font-semibold text-white mt-1">Estado del stock</p>
+            <p class="text-xs text-txt-muted mt-1">Crítico si queda <span x-text="stockMinimo"></span> o menos. Bajo hasta <span x-text="stockBajo"></span>. Normal si hay más.</p>
+          </div>
+          <p class="shrink-0 text-xs text-txt-muted tabular-nums pt-1" x-text="productosVisibles().length + ' productos'"></p>
+        </div>
+        <p x-show="productosVisibles().length === 0" class="px-5 pb-5 text-sm text-txt-muted">No hay productos en este período.</p>
+        <div x-show="productosVisibles().length > 0" class="resumen-cols">
+          <template x-for="(col, ci) in mitadesProductos()" :key="'stk-col'+ci">
+            <table class="tabla-resumen w-full" x-show="col.length">
+              <thead>
+                <tr>
+                  <th class="text-left">Producto</th>
+                  <th class="text-right">Saldo</th>
+                  <th class="text-right">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="f in col" :key="'a'+ci+f.nombre">
+                  <tr>
+                    <td class="font-semibold" x-text="f.nombre"></td>
+                    <td class="text-right">
+                      <span class="chip-saldo" :class="Number(f.queda) < 0 ? 'neg' : (Number(f.queda) > 0 ? 'pos' : 'cero')" x-text="f.queda"></span>
+                    </td>
+                    <td class="text-right">
+                      <span class="estado-pill grande" :class="estadoStock(f) === 'Crítico' ? 'bg-red-500/20 text-red-300' : (estadoStock(f) === 'Bajo' ? 'bg-amber-400/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-300')" x-text="estadoStock(f)"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </template>
+        </div>
+      </div>
+    </section>
+
     <section x-show="vistaTab === 'tabla'" class="mb-8">
-      <div class="flex items-center justify-between mb-2">
-        <h2 class="inv-titulo">Totales</h2>
+      <div class="flex items-center justify-end mb-2">
         <button type="button" @click="formulario = !formulario" class="text-xs px-3 py-1.5 rounded-lg bg-gold text-black font-semibold">Anotar movimiento</button>
       </div>
       <form x-show="formulario" @submit.prevent="guardarMovimiento()" class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-3">
@@ -453,62 +609,6 @@ tailwind.config = {
         <input x-model="alta.motivo" type="text" placeholder="Motivo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-4" required>
         <button type="submit" class="md:col-span-2 text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold" :disabled="guardando" x-text="guardando ? 'Guardando…' : 'Guardar'"></button>
       </form>
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
-        <div class="rounded-xl border border-[rgba(212,175,55,0.2)] overflow-hidden bg-bg-card">
-          <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.15)]">
-            <p class="text-sm font-semibold text-gold">Cuánto queda</p>
-            <p class="text-xs text-txt-muted">Lo que queda de cada producto. Conserva lo de antes, aunque este período no tenga movimientos. Si el número es negativo, falta esa cantidad.</p>
-          </div>
-          <table class="tabla-suave tabla-totales w-full">
-            <thead>
-              <tr>
-                <th class="text-left">Producto</th>
-                <th class="text-right">Saldo real</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="f in productosVisibles()" :key="'t'+f.nombre">
-                <tr>
-                  <td class="font-semibold" x-text="f.nombre"></td>
-                  <td class="text-right tabular-nums" x-text="f.queda"></td>
-                </tr>
-              </template>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>Suma</td>
-                <td class="text-right tabular-nums" x-text="tablaProductos.reduce((a, f) => a + (Number(f.queda) || 0), 0)"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <div class="rounded-xl border border-[rgba(212,175,55,0.2)] overflow-hidden bg-bg-card">
-          <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.15)]">
-            <p class="text-sm font-semibold text-gold">Estado del stock</p>
-            <p class="text-xs text-txt-muted">Crítico si queda <span x-text="stockMinimo"></span> o menos. Bajo hasta <span x-text="stockBajo"></span>. Normal si hay más.</p>
-          </div>
-          <table class="tabla-suave tabla-totales w-full">
-            <thead>
-              <tr>
-                <th class="text-left">Producto</th>
-                <th class="text-right">Saldo</th>
-                <th class="text-right">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="f in productosVisibles()" :key="'a'+f.nombre">
-                <tr>
-                  <td class="font-semibold" x-text="f.nombre"></td>
-                  <td class="text-right tabular-nums" x-text="f.queda"></td>
-                  <td class="text-right">
-                    <span class="estado-pill" :class="estadoStock(f) === 'Crítico' ? 'bg-red-500/20 text-red-300' : (estadoStock(f) === 'Bajo' ? 'bg-amber-400/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-300')" x-text="estadoStock(f)"></span>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </section>
 
     <section x-show="vistaTab === 'tabla'" class="mb-8">
@@ -719,6 +819,11 @@ function inventarioApp() {
     },
     productosVisibles() {
       return (this.tablaProductos || []).filter((f) => this.coincideBusqueda(f.nombre));
+    },
+    mitadesProductos() {
+      const lista = this.productosVisibles();
+      const medio = Math.ceil(lista.length / 2);
+      return [lista.slice(0, medio), lista.slice(medio)];
     },
     filaRubro(clave, tipo) {
       return this.filas.find((f) => f.rubro === clave && f.tipoProducto === tipo) || {
@@ -1022,8 +1127,11 @@ function inventarioApp() {
       }
       return { desde: hoy, hasta: hoy };
     },
+    vistaPorDia() {
+      return this.vistaTab === 'crudo' || this.vistaTab === 'transformacion';
+    },
     diaEdicion() {
-      if (this.vistaTab !== 'tabla') return this.diaTrabajo;
+      if (this.vistaPorDia()) return this.diaTrabajo;
       return this.rangoPeriodo().hasta;
     },
     fechaDelDia(ymd) {
@@ -1041,16 +1149,16 @@ function inventarioApp() {
     },
     moverDia(n) {
       this.diaTrabajo = this.sumarDias(this.diaTrabajo, n);
-      if (this.vistaTab !== 'tabla') this.cargar();
+      if (this.vistaPorDia()) this.cargar();
     },
     fijarDia(valor) {
       if (!valor) return;
       this.diaTrabajo = valor;
-      if (this.vistaTab !== 'tabla') this.cargar();
+      if (this.vistaPorDia()) this.cargar();
     },
     irDiaHoy() {
       this.diaTrabajo = this.ymd(new Date());
-      if (this.vistaTab !== 'tabla') this.cargar();
+      if (this.vistaPorDia()) this.cargar();
     },
     etiquetaDia() {
       const hoy = this.ymd(new Date());
@@ -1413,7 +1521,7 @@ function inventarioApp() {
     async cargar() {
       this.error = '';
       try {
-        const r = this.vistaTab === 'tabla' ? this.rangoPeriodo() : { desde: this.diaTrabajo, hasta: this.diaTrabajo };
+        const r = this.vistaPorDia() ? { desde: this.diaTrabajo, hasta: this.diaTrabajo } : this.rangoPeriodo();
         this.dia = r.hasta;
         const q = '?carta=1&desde=' + r.desde + '&hasta=' + r.hasta;
         const [k, m, a] = await Promise.all([
