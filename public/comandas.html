@@ -3595,6 +3595,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script src="/assets/js/turnosDiaNoche.js"></script>
+<script src="/assets/js/totalesVistaComanda.js"></script>
   <script>
   // Debounce helper
 function debounce(func, wait) {
@@ -5801,6 +5802,7 @@ this.scheduleRefreshVentasTotales();
 
  const totalPlatos = platosNorm.filter(p => !p.eliminado);
  const totalActivos = totalPlatos.reduce((sum, p) => sum + p.subtotal, 0);
+ const totalTodos = platosNorm.reduce((sum, p) => sum + (Number(p.subtotal) || 0), 0);
  const hayEliminados = platosNorm.some(p => p.eliminado);
  const ptRaw = raw.precioTotal != null ? raw.precioTotal : raw.total;
  const pt = Number(ptRaw);
@@ -5810,14 +5812,24 @@ this.scheduleRefreshVentasTotales();
  const hayDesc = this.comandaTieneDescuentoFront(raw);
  const brutoGuardado = Number(raw.totalSinDescuento) || 0;
  const tcOk = Number.isFinite(tcRaw) && (hayDesc ? tcRaw >= 0 : tcRaw > 0);
+ const ajusteEliminados = (window.TotalesVistaComanda && window.TotalesVistaComanda.ajustePorEliminados)
+   ? window.TotalesVistaComanda.ajustePorEliminados({
+       totalActivos,
+       totalTodos,
+       precioTotal: ptValido ? pt : 0,
+       brutoGuardado,
+       hayEliminados,
+       tasaIgv: this.factorIgvCatalogo(),
+     })
+   : { bruto: brutoGuardado, ratio: 1, escalado: false };
  let totalNeto = tcOk ? tcRaw : (ptValido && (hayDesc ? pt >= 0 : pt > 0) ? pt : totalActivos);
- if (hayEliminados && ptValido && pt > 0 && totalActivos >= 0 && Math.abs(pt - totalActivos) > 0.05) {
-   totalNeto = Number((totalNeto * (totalActivos / pt)).toFixed(2));
+ if (ajusteEliminados.escalado) {
+   totalNeto = Number((totalNeto * ajusteEliminados.ratio).toFixed(2));
  } else if (!tcOk && !hayDesc) {
    totalNeto = totalActivos || totalNeto;
  }
- const brutoMostrar = (hayEliminados && brutoGuardado > 0 && ptValido && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
-   ? Number((brutoGuardado * (totalActivos / pt)).toFixed(2))
+ const brutoMostrar = ajusteEliminados.escalado
+   ? ajusteEliminados.bruto
    : (brutoGuardado || totalActivos || (Number(totalNeto) || 0) + md);
  if (hayDesc) {
    const bruto = Number(brutoMostrar || totalActivos || (ptValido && pt > 0 ? pt : 0) || 0);
@@ -5911,7 +5923,7 @@ this.scheduleRefreshVentasTotales();
  descuentoAplicadoPor: raw.descuentoAplicadoPor || null,
  descuentoAplicadoPorNombre: this.nombrePersona(raw.descuentoAplicadoPor),
  descuentoAplicadoAt: raw.descuentoAplicadoAt || null,
- montoDescuento: esPrueba ? 0 : ((hayEliminados && ptValido && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
+ montoDescuento: esPrueba ? 0 : (ajusteEliminados.escalado
    ? Number(Math.max(0, Number(brutoMostrar || 0) - Number(totalNeto || 0)).toFixed(2))
    : (Number(raw.montoDescuento) || 0)),
  descuentoMontoFijo: Number(raw.descuentoMontoFijo) || 0,
@@ -8275,8 +8287,13 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const tc = Number(this.editComanda?.totalCalculado);
  const pt = Number(this.editComanda?.precioTotal) || 0;
  const brutoGuardado = sin > 0 ? sin : ((Number.isFinite(tc) ? tc : 0) + md);
- if (brutoGuardado > 0 && pt > 0 && suma > 0 && Math.abs(suma - pt) > 0.05) {
-   return Number((suma * (brutoGuardado / pt)).toFixed(2));
+ if (window.TotalesVistaComanda && window.TotalesVistaComanda.brutoParaDescuento) {
+   return window.TotalesVistaComanda.brutoParaDescuento({
+     sumaLineas: suma,
+     brutoGuardado,
+     precioTotal: pt,
+     tasaIgv: this.factorIgvCatalogo(),
+   });
  }
  if (brutoGuardado > 0) return brutoGuardado;
  return suma;
