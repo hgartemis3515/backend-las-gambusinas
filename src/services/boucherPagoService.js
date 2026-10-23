@@ -14,6 +14,7 @@ const { comandaTieneDescuento, montoDescuentoDeComanda } = require('../utils/des
 const { crearBoucher } = require('../repository/boucher.repository');
 const ticketAprobacionRepository = require('../repository/ticketAprobacion.repository');
 const { resolverComandasNumbers } = require('../utils/comandasNumbers');
+const { nombreClientePreferido } = require('../constants/clienteDefaults');
 const {
   validarComandasParaPagar,
   validarPlatosSeleccionadosParaPago,
@@ -759,7 +760,11 @@ async function procesarPagoBoucher(params) {
         montoRecibido: boucherCreado.montoRecibido ?? null,
         vuelto: boucherCreado.vuelto ?? null,
         cliente: clienteId || null,
-        clienteNombre: clienteDoc?.nombre || null,
+        clienteNombre: nombreClientePreferido(
+          ...comandasValidas.map((c) => c.clienteNombre),
+          ...comandasValidas.map((c) => c.clienteNombreParaLlevar),
+          clienteDoc?.nombre,
+        ),
         clienteDni: clienteDoc?.dni || null,
         observaciones: observaciones || '',
         sourceApp: 'mozos',

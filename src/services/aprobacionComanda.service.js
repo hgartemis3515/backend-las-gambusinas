@@ -19,6 +19,7 @@ const { resolverComandasNumbers } = require('../utils/comandasNumbers');
 const { anotarTicketsDeComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
 const { anularTicketDuplicadoEnModelo } = require('../utils/anularTicketDuplicado');
 const { comandaOmiteTicketAlta } = require('../utils/omiteTicketAltaComanda');
+const { nombreClientePreferido } = require('../constants/clienteDefaults');
 
 const { aplicarDescuentoAVistaTicket } = require('../utils/descuentoTicketSnapshot');
 
@@ -147,7 +148,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
     omitirPago: { $ne: true },
     status: { $in: ESTADOS_POR_COBRAR },
   })
-    .select('numeroComandaDia numeroComandaMozo comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago esPrueba tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
+    .select('numeroComandaDia numeroComandaMozo comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago esPrueba tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre clienteNombreParaLlevar origenCreacion createdByDashboard')
     .populate({ path: 'mesas', select: 'nummesa numero nombreCombinado estado', options: { lean: true } })
     .populate({ path: 'platos.plato', select: 'nombre nombreCocina precio', options: { lean: true } })
     .sort({ createdAt: -1, comandaNumber: -1 })
@@ -196,7 +197,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
   };
 }
 
-const SELECT_COMANDA_COBRO = 'numeroComandaDia numeroComandaMozo comandaNumber status createdAt updatedAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado tiempoEnEspera tiempoRecoger tiempoEntregado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard';
+const SELECT_COMANDA_COBRO = 'numeroComandaDia numeroComandaMozo comandaNumber status createdAt updatedAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado tiempoEnEspera tiempoRecoger tiempoEntregado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre clienteNombreParaLlevar origenCreacion createdByDashboard';
 
 function idsDeRelacionComandas(docs) {
   const out = [];
@@ -628,7 +629,7 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
     moneda: 'PEN',
     metodoPago: 'efectivo',
     cliente: comanda.cliente?._id || comanda.cliente || null,
-    clienteNombre: comanda.cliente?.nombre || comanda.clienteNombre || comanda.clienteNombreParaLlevar || null,
+    clienteNombre: nombreClientePreferido(comanda.clienteNombre, comanda.clienteNombreParaLlevar, comanda.cliente?.nombre),
     clienteDni: comanda.cliente?.dni || null,
     observaciones: 'Comanda creada — pago pendiente',
     mozoId,
@@ -1069,7 +1070,7 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
     montoRecibido: boucher?.montoRecibido ?? null,
     vuelto: boucher?.vuelto ?? null,
     cliente: comanda.cliente?._id || comanda.cliente || null,
-    clienteNombre: comanda.cliente?.nombre || comanda.clienteNombre || comanda.clienteNombreParaLlevar || null,
+    clienteNombre: nombreClientePreferido(comanda.clienteNombre, comanda.clienteNombreParaLlevar, comanda.cliente?.nombre),
     clienteDni: comanda.cliente?.dni || null,
     origen: 'pago',
     observaciones: comanda.observaciones || 'Ticket creado desde dashboard (ya aprobado)',
