@@ -1330,8 +1330,32 @@ function inventarioApp() {
         return;
       }
       const cantidad = this.corr.clase === 'inventario' ? nuevo : delta;
-      const ok = await this.paso(this.corr.clave, 'cocido', this.corr.clase || 'regulacion', cantidad, false, motivo);
-      if (ok) this.corrAbierta = false;
+      if (this.corr.clase !== 'inventario') {
+        const ok = await this.paso(this.corr.clave, 'cocido', this.corr.clase || 'regulacion', cantidad, false, motivo);
+        if (ok) this.corrAbierta = false;
+        return;
+      }
+      this.guardando = true;
+      this.error = '';
+      try {
+        const fecha = this.fechaDelDia(this.diaEdicion());
+        const cuerpo = (tipo, cant) => ({
+          rubro: this.corr.clave,
+          tipoProducto: tipo,
+          clase: 'inventario',
+          cantidad: cant,
+          motivo: motivo,
+          fecha: fecha
+        });
+        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify(cuerpo('cocido', nuevo)) });
+        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify(cuerpo('crudo', 0)) });
+        this.corrAbierta = false;
+        await this.cargar();
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.guardando = false;
+      }
     },
     async fijar(rubro, tipo, clase, actual, nuevo, ayer) {
       const n = Number(String(nuevo).replace(',', '.'));
