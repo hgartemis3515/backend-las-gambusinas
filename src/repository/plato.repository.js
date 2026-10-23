@@ -308,6 +308,7 @@ function sanitizarComplementosParaGuardar(complementos) {
         const deshabilitarSumaVariante = esVariantePlato && flagTrue(g.deshabilitarSumaVariante);
         const forzarVisibleTablaKds = !esVariantePlato && !anexarVarianteAlNombre && flagTrue(g.forzarVisibleTablaKds);
         const seleccionFija = !esVariantePlato && !anexarVarianteAlNombre && flagTrue(g.seleccionFija);
+        const visualEnTablaPlatos = seleccionFija && flagTrue(g.visualEnTablaPlatos);
         const modo = g.modoSeleccion === 'cantidades' || seleccionFija || seleccionMultiple
             ? 'cantidades'
             : (g.modoSeleccion === 'opciones' ? 'opciones' : (seleccionMultiple ? 'cantidades' : 'opciones'));
@@ -330,6 +331,7 @@ function sanitizarComplementosParaGuardar(complementos) {
             saboresPorUnidad: saboresU != null && saboresU >= 1 && saboresU <= 8 ? saboresU : null,
             forzarVisibleTablaKds,
             seleccionFija,
+            visualEnTablaPlatos,
             opciones: ops
         };
     }).filter(Boolean);

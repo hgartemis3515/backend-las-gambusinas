@@ -178,14 +178,13 @@ function htmlTachadoDoble(texto) {
   return `<span style="position:relative;display:inline-block;white-space:nowrap;">${escapeHtml(texto)}${raya('34%')}${raya('64%')}</span>`;
 }
 
-function htmlNombreEliminado(nombre, usuario) {
-  const quien = escapeHtml(usuario || '—');
-  return `<span style="font-weight:900;">X</span> ${htmlTachado(nombre)} <span style="font-weight:900;">X</span> <span style="font-weight:700;">${quien}</span>`;
+function htmlTachadoTriple(texto) {
+  return `<span style="position:relative;display:inline-block;white-space:nowrap;">${escapeHtml(texto)}${raya('22%')}${raya('50%')}${raya('78%')}</span>`;
 }
 
-function htmlMarcaAnulado(anulacionTicket) {
-  if (!anulacionTicket) return '';
-  return '<span style="font-weight:900;letter-spacing:0.4px;white-space:nowrap;">ANULADO</span>';
+function htmlNombreEliminado(nombre, usuario) {
+  const quien = escapeHtml(usuario || '—');
+  return `${htmlTachadoDoble(nombre)} <span style="font-size:11px;font-weight:900;">Anulado</span> <span style="font-weight:700;">${quien}</span>`;
 }
 
 function filtrarProductos(datos, { filtrarComandaNumero, filtrarComandaId } = {}) {
@@ -260,16 +259,14 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
         <span style="display:inline-block;width:${CUADRO_PX}px;height:${CUADRO_PX}px;border:1.6px solid #000;box-sizing:border-box;"></span>
       </td>`
       : '';
-    const marcaAnulado = p.lineaAnulada ? '' : htmlMarcaAnulado(d.anulacion);
+    const marcaLinea = p.lineaAnulada || (!p.lineaAnulada && d.anulacion);
     const cambioG = esCocina ? htmlCambioGuarnicion(p) : '';
-    const nombreBase = p.lineaAnulada
-      ? htmlNombreEliminado(nombreProducto(p), p.lineaAnulada.usuario)
+    const nombreBase = marcaLinea
+      ? htmlNombreEliminado(nombreProducto(p), (p.lineaAnulada && p.lineaAnulada.usuario) || (d.anulacion && d.anulacion.usuario))
       : escapeHtml(nombreProducto(p));
-    const nombreCelda = marcaAnulado
-      ? `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><span>${nombreBase}${cambioG}</span>${marcaAnulado}</div>`
-      : `${nombreBase}${cambioG}`;
-    const unitHtml = p.lineaAnulada ? htmlTachadoDoble(fmt(unit)) : fmt(unit);
-    const lineHtml = p.lineaAnulada ? htmlTachadoDoble(fmt(line)) : fmt(line);
+    const nombreCelda = `${nombreBase}${cambioG}`;
+    const unitHtml = marcaLinea ? htmlTachadoTriple(fmt(unit)) : fmt(unit);
+    const lineHtml = marcaLinea ? htmlTachadoTriple(fmt(line)) : fmt(line);
     filas += `<tr class="prod-item">${cuadro}
       <td style="padding:3px 2px;text-align:center;font-weight:700;width:22px;">${cant}</td>
       <td style="padding:3px 2px;">${nombreCelda}</td>
@@ -284,9 +281,15 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     : Math.max(0, bruto - desc);
 
   let html = '';
-  html += `<div style="text-align:left;font-size:14px;font-weight:800;letter-spacing:1px;line-height:1.1;">${esCocina ? 'COCINA' : 'CAJA'}</div>`;
-  const clienteTicket = String(d.clienteNombre || d.cliente?.nombre || '').trim();
   const esReserva = d.reserva === true;
+  const tituloCanal = esReserva
+    ? (esCocina ? 'COCINA RESERVA' : 'CAJA RESERVA')
+    : (esCocina ? 'COCINA' : 'CAJA');
+  html += `<div style="text-align:left;font-size:14px;font-weight:800;letter-spacing:1px;line-height:1.1;">${tituloCanal}</div>`;
+  if (d.sinTotal === true || (d.anulacion && d.sinTotal !== true)) {
+    html += '<div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:1px;padding:6px 0 0;">ANULADO X</div>';
+  }
+  const clienteTicket = String(d.clienteNombre || d.cliente?.nombre || '').trim();
   const tipoTicket = tipoCuadroTicket(d.productos, {
     sinMesa: d.sinMesa === true || /^sin mesa$/i.test(String(d.mesa || '')),
     reserva: esReserva,
@@ -317,13 +320,12 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     <tbody>${filas}</tbody>
   </table>`;
 
-  if (desc > 0) {
-    const mot = d.descuentos?.[0]?.motivo ? ` (${escapeHtml(d.descuentos[0].motivo)})` : '';
-    html += `<div style="text-align:right;padding:4px 0 0;font-size:11px;">Descuento${mot}: -${escapeHtml(simbolo)}${fmt(desc)}</div>`;
-  }
-  html += `<div style="text-align:right;font-size:14px;font-weight:800;padding:4px 0 2px;border-top:1px solid #000;margin-top:4px;">TOTAL ${escapeHtml(simbolo)}${fmt(neto)}</div>`;
-  if (d.anulacion) {
-    html += `<div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:1px;padding:10px 0 2px;">ANULADO X</div>`;
+  if (d.sinTotal !== true) {
+    if (desc > 0) {
+      const mot = d.descuentos?.[0]?.motivo ? ` (${escapeHtml(d.descuentos[0].motivo)})` : '';
+      html += `<div style="text-align:right;padding:4px 0 0;font-size:11px;">Descuento${mot}: -${escapeHtml(simbolo)}${fmt(desc)}</div>`;
+    }
+    html += `<div style="text-align:right;font-size:14px;font-weight:800;padding:4px 0 2px;border-top:1px solid #000;margin-top:4px;">TOTAL ${escapeHtml(simbolo)}${fmt(neto)}</div>`;
   }
 
   const heightPx = 220 + productos.length * 28 + (d.esPrueba === true ? 24 : 0);

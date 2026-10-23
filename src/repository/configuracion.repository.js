@@ -262,6 +262,9 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             if (datosFiltrados.cocina.detenerImpresionCaja !== undefined) {
                 datosFiltrados.cocina.detenerImpresionCaja = datosFiltrados.cocina.detenerImpresionCaja === true;
             }
+            if (datosFiltrados.cocina.ticketsBajaPlatoLetras !== undefined) {
+                datosFiltrados.cocina.ticketsBajaPlatoLetras = datosFiltrados.cocina.ticketsBajaPlatoLetras === true;
+            }
         }
 
         if (datosFiltrados.apariencia && typeof datosFiltrados.apariencia === 'object') {
@@ -310,6 +313,9 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             }
             if (datosFiltrados.cocina.detenerImpresionCaja !== undefined) {
                 parada['cocina.detenerImpresionCaja'] = datosFiltrados.cocina.detenerImpresionCaja === true;
+            }
+            if (datosFiltrados.cocina.ticketsBajaPlatoLetras !== undefined) {
+                parada['cocina.ticketsBajaPlatoLetras'] = datosFiltrados.cocina.ticketsBajaPlatoLetras === true;
             }
             if (Object.keys(parada).length) {
                 await ConfiguracionSistema.updateOne({ _id: 'configuracion_unica' }, { $set: parada });

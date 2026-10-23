@@ -182,8 +182,8 @@ async function obtenerPantallasActivas() {
         return await PantallaCocina.find({ activo: true })
             .sort({ numeroPantalla: 1 })
             .populate('vistaCocinaId', 'nombre descripcion color icono filtrosPlatos configVisual ordenamiento configCronometro')
-            .populate('cocineroId', 'nombre alias')
-            .populate('cocineroIds', 'nombre alias')
+            .populate('cocineroId', 'nombre alias name')
+            .populate('cocineroIds', 'nombre alias name')
             .populate('perfilVerCocinaId', 'nombre')
             .lean();
     } catch (error) {

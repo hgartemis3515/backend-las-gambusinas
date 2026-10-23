@@ -4,162 +4,387 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Noticias — Las Gambusinas</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/assets/css/tw-noticias.css">
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script>
-tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
-        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
-        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
-      },
-      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
-    }
-  }
-}
-</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/dashboard.css">
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
 <link rel="stylesheet" href="/assets/vendor/quill/quill.snow.css">
 <style>
   [x-cloak] { display: none !important; }
 
-  /* La lupa del buscador y los iconos de Quill no deben heredar el reset de Tailwind (svg a ancho completo). */
-  .cosmos-search-icon svg { width: 18px; height: 18px; display: block; }
-  #toolbar.ql-toolbar.ql-snow svg { width: 16px !important; height: 16px !important; max-width: 16px; display: block; flex: none; }
+  :root {
+    --bg-dark: #0a0a0f;
+    --card-dark: #1a1a28;
+    --bar-dark: #12121a;
+    --gold: #d4af37;
+    --text-pure: #ffffff;
+  }
 
-  /* Barra en una fila, iconos del mismo tamaño */
+  body {
+    background-color: #0a0a0f !important;
+    color: #ffffff !important;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* La lupa del buscador y los iconos de Quill no deben heredar el reset de Tailwind */
+  .cosmos-search-icon svg { width: 18px; height: 18px; display: block; }
+  #toolbar.ql-toolbar.ql-snow svg { width: 18px !important; height: 18px !important; max-width: 18px; display: block; flex: none; }
+
+  /* Barra en una fila, iconos con toques cómodos */
   #toolbar.ql-toolbar.ql-snow {
-    display: flex; flex-wrap: nowrap; align-items: center; gap: 4px;
-    overflow-x: auto;
-    border: 1px solid rgba(212,175,55,0.22); border-bottom: 0; border-radius: 12px 12px 0 0;
-    background: #12121a; padding: 6px 8px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    overflow: visible;
+    position: relative;
+    z-index: 5;
+    border: 1px solid rgba(212,175,55,0.3); border-bottom: 0; border-radius: 14px 14px 0 0;
+    background: #12121a; padding: 10px 12px;
   }
   #toolbar .ql-formats {
-    display: inline-flex; align-items: center; gap: 1px;
-    margin: 0; padding: 0 6px 0 0;
-    border-right: 1px solid rgba(212,175,55,0.16);
+    display: inline-flex; align-items: center; gap: 2px;
+    margin: 0; padding: 0 8px 0 0;
+    border-right: 1px solid rgba(212,175,55,0.22);
     float: none; flex: none;
   }
   #toolbar .ql-formats:last-child { border-right: 0; padding-right: 0; }
   #toolbar.ql-snow button,
   #toolbar.ql-snow .ql-picker {
-    float: none; height: 30px;
+    float: none; height: 34px;
   }
   #toolbar.ql-snow button {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 30px; padding: 0; border-radius: 8px;
+    width: 34px; padding: 0; border-radius: 8px; color: #ffffff;
   }
-  #toolbar.ql-snow button.ql-active { background: rgba(212,175,55,0.16); }
+  #toolbar.ql-snow button.ql-active { background: rgba(212,175,55,0.22); }
   #toolbar.ql-snow .ql-picker.ql-header,
   #toolbar.ql-snow .ql-picker.ql-size { width: auto; }
   #toolbar.ql-snow .ql-picker-label {
     display: inline-flex; align-items: center;
-    height: 30px; border-radius: 8px; padding: 0 8px;
-    border: 1px solid transparent;
+    height: 34px; border-radius: 8px; padding: 0 10px;
+    border: 1px solid transparent; color: #ffffff; font-weight: 500;
   }
   #toolbar.ql-snow .ql-picker.ql-header .ql-picker-label,
-  #toolbar.ql-snow .ql-picker.ql-size .ql-picker-label { padding-right: 22px; }
+  #toolbar.ql-snow .ql-picker.ql-size .ql-picker-label { padding-right: 24px; }
   #toolbar.ql-snow .ql-picker.ql-color,
-  #toolbar.ql-snow .ql-picker.ql-align { width: 30px; }
+  #toolbar.ql-snow .ql-picker.ql-align { width: 34px; }
   #toolbar.ql-snow .ql-picker.ql-color .ql-picker-label,
   #toolbar.ql-snow .ql-picker.ql-align .ql-picker-label {
-    width: 30px; padding: 0; justify-content: center;
+    width: 34px; padding: 0; justify-content: center;
   }
   #toolbar.ql-snow .ql-picker-label svg { position: static; margin: 0; }
   #toolbar.ql-snow .ql-picker.ql-header .ql-picker-label svg,
   #toolbar.ql-snow .ql-picker.ql-size .ql-picker-label svg {
-    position: absolute; right: 4px; top: 8px; width: 12px !important; height: 12px !important;
+    position: absolute; right: 6px; top: 10px; width: 14px !important; height: 14px !important;
   }
 
-  #editor.ql-container.ql-snow { border: 1px solid rgba(212,175,55,0.22); border-radius: 0 0 12px 12px; background: #141414; color: #f5f5f5; font-family: 'Inter', system-ui, sans-serif; font-size: 15px; height: auto !important; }
-  #editor .ql-editor { height: auto !important; min-height: 44px; max-height: 220px; padding: 10px 14px; line-height: 1.5; overflow-y: auto; }
-  #editor .ql-editor.ql-blank::before { color: #5a5a7a; font-style: normal; left: 18px; }
-  #editor .ql-editor img { max-width: 100%; height: auto; border-radius: 10px; margin: 8px 0; box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
-  #editor .ql-editor h2 { font-size: 22px; font-weight: 800; margin: 6px 0; }
-  #editor .ql-editor h3 { font-size: 18px; font-weight: 700; margin: 4px 0; }
-  .ql-snow .ql-stroke { stroke: #a0a0b8; }
-  .ql-snow .ql-fill, .ql-snow .ql-stroke.ql-fill { fill: #a0a0b8; }
-  .ql-snow .ql-picker { color: #a0a0b8; font-size: 13px; }
+  .composer {
+    background: #141420;
+    border: 1px solid rgba(212,175,55,0.35);
+    border-radius: 16px;
+    overflow: visible;
+  }
+  .composer-titulo {
+    display: block; width: 100%; box-sizing: border-box;
+    background: transparent; border: 0;
+    border-bottom: 1px solid rgba(212,175,55,0.22);
+    border-radius: 16px 16px 0 0;
+    color: #ffffff; font-size: 36px; font-weight: 800; line-height: 1.2;
+    padding: 16px 16px 12px; outline: none;
+  }
+  .composer-titulo::placeholder { color: rgba(255,255,255,0.4); font-weight: 700; }
+  .composer #toolbar.ql-toolbar.ql-snow {
+    border: 0; border-radius: 0;
+  }
+  .composer-barra {
+    display: flex; align-items: stretch;
+    border-bottom: 1px solid rgba(212,175,55,0.22);
+    background: #12121a;
+  }
+  .composer-barra #toolbar.ql-toolbar.ql-snow {
+    flex: 1; border: 0; border-radius: 0; background: transparent;
+  }
+  .btn-emoji {
+    flex: none; align-self: center; margin: 0 10px 0 0;
+    height: 34px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(212,175,55,0.45); background: #1a1a28;
+    color: #ffffff; font-weight: 800; font-size: 14px;
+  }
+  .btn-emoji[aria-expanded="true"] { background: rgba(212,175,55,0.22); color: #d4af37; }
+  .btn-tool {
+    flex: none; align-self: center; margin: 0 0 0 0;
+    width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(212,175,55,0.45); background: #1a1a28;
+    color: #ffffff; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .btn-tool:hover { color: #d4af37; border-color: #d4af37; }
+  .btn-tool svg { width: 18px; height: 18px; display: block; }
+  .mozo-busca {
+    width: 100%; background: #1a1a28; color: #fff; border: 1px solid rgba(212,175,55,0.35);
+    border-radius: 12px; padding: 10px 12px; font-size: 14px; outline: none;
+  }
+  .mozo-busca:focus { border-color: #d4af37; }
+  .mozo-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px; max-height: 280px; overflow: auto; padding-top: 4px;
+  }
+  .mozo-chip {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 8px 6px 10px; border-radius: 16px; border: 1px solid transparent;
+    background: transparent; color: #fff; cursor: pointer;
+  }
+  .mozo-chip:hover { background: rgba(255,255,255,0.04); }
+  .mozo-chip.is-on { background: rgba(212,175,55,0.14); border-color: rgba(212,175,55,0.65); }
+  .mozo-ava {
+    width: 56px; height: 56px; border-radius: 50%; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 20px; overflow: visible;
+    border: 2px solid rgba(255,255,255,0.22); background: #1a1a28;
+  }
+  .mozo-chip.is-on .mozo-ava { border-color: #d4af37; box-shadow: 0 0 0 3px rgba(212,175,55,0.4); }
+  .mozo-ava img { width: 100%; height: 100%; object-fit: cover; }
+  .mozo-ok {
+    position: absolute; right: -2px; bottom: -2px; width: 20px; height: 20px; border-radius: 50%;
+    background: #d4af37; color: #0a0a0f; font-size: 12px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center; border: 2px solid #12121a;
+  }
+  .mozo-nom { font-size: 12px; font-weight: 700; text-align: center; line-height: 1.2; }
+  .mozo-activo {
+    min-height: 16px; padding: 0 6px; border-radius: 999px;
+    font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    line-height: 16px; color: transparent;
+  }
+  .mozo-activo.is-on { color: #052e1a; background: #34d399; }
+
+  #editor.ql-container.ql-snow {
+    border: 1px solid rgba(212,175,55,0.3); border-radius: 0 0 14px 14px;
+    background: #141420; color: #ffffff;
+    font-family: 'Inter', system-ui, sans-serif; font-size: 30px; height: auto !important;
+  }
+  .composer #editor.ql-container.ql-snow {
+    border: 0; border-radius: 0 0 16px 16px; background: transparent;
+  }
+  #editor .ql-editor { height: auto !important; min-height: 140px; max-height: 70vh; padding: 14px 16px; line-height: 1.45; overflow-y: auto; color: #ffffff; font-size: 30px; }
+  #editor .ql-editor.ql-blank::before { color: rgba(255,255,255,0.55); font-style: normal; left: 16px; font-size: 30px; }
+  #editor .ql-editor .noticia-emoji { font-size: 1.4em; line-height: 1; }
+  #editor .ql-editor img {
+    display: block; width: 100%; max-width: 100%; height: auto;
+    max-height: 420px; object-fit: contain; object-position: center;
+    border-radius: 12px; margin: 10px 0; background: #0a0a0f;
+    border: 1px solid rgba(212,175,55,0.3); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  #editor .ql-editor h2 { font-size: 52px !important; font-weight: 800; margin: 8px 0; color: #ffffff; line-height: 1.15; }
+  #editor .ql-editor h3 { font-size: 40px !important; font-weight: 700; margin: 6px 0; color: #ffffff; line-height: 1.2; }
+  #editor .ql-editor .ql-size-24px,
+  .phone-body .ql-size-24px { font-size: 24px !important; }
+  #editor .ql-editor .ql-size-36px,
+  .phone-body .ql-size-36px { font-size: 36px !important; }
+  #editor .ql-editor .ql-size-48px,
+  .phone-body .ql-size-48px { font-size: 48px !important; }
+  #editor .ql-editor .ql-size-64px,
+  .phone-body .ql-size-64px { font-size: 64px !important; }
+  #editor .ql-editor span[style*="24px"],
+  .phone-body span[style*="24px"] { font-size: 24px !important; }
+  #editor .ql-editor span[style*="36px"],
+  .phone-body span[style*="36px"] { font-size: 36px !important; }
+  #editor .ql-editor span[style*="48px"],
+  .phone-body span[style*="48px"] { font-size: 48px !important; }
+  #editor .ql-editor span[style*="64px"],
+  .phone-body span[style*="64px"] { font-size: 64px !important; }
+  .foto-disparador {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: none;
+    align-self: center;
+    border: 2px solid #d4af37;
+    border-radius: 8px;
+    background: #1a1a28;
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+  .foto-disparador svg { width: 18px; height: 18px; pointer-events: none; }
+  .input-foto {
+    position: absolute; left: -10000px; top: 0;
+    width: 44px; height: 44px; opacity: 0; font-size: 16px;
+  }
+  .foto-disparador .input-foto {
+    position: absolute; left: 0; top: 0; inset: auto;
+    width: 44px; height: 44px; margin: 0; padding: 0;
+    opacity: 0; z-index: 5; cursor: pointer; font-size: 16px;
+  }
+  .emoji-ancla { position: relative; z-index: 8; }
+  .emoji-panel {
+    position: absolute; z-index: 40; top: 8px; left: 12px; right: 12px;
+    display: flex; flex-wrap: wrap; gap: 4px;
+    background: #1a1a28; border: 1px solid rgba(212,175,55,0.45);
+    border-radius: 14px; padding: 10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    max-height: 220px; overflow: auto;
+  }
+  .emoji-panel button {
+    width: 44px; height: 44px; border: 0; border-radius: 10px;
+    background: transparent; font-size: 26px; line-height: 1; cursor: pointer;
+  }
+  .emoji-panel button:hover { background: rgba(212,175,55,0.2); }
+  
+  .ql-snow .ql-stroke { stroke: #ffffff; }
+  .ql-snow .ql-fill, .ql-snow .ql-stroke.ql-fill { fill: #ffffff; }
+  .ql-snow .ql-picker { color: #ffffff; font-size: 13px; }
   .ql-snow.ql-toolbar button:hover .ql-stroke, .ql-snow.ql-toolbar button.ql-active .ql-stroke,
   .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke, .ql-snow.ql-toolbar .ql-picker-label.ql-active .ql-stroke { stroke: #d4af37; }
   .ql-snow.ql-toolbar button:hover .ql-fill, .ql-snow.ql-toolbar button.ql-active .ql-fill { fill: #d4af37; }
   .ql-snow.ql-toolbar button:hover, .ql-snow.ql-toolbar .ql-picker-label:hover, .ql-snow.ql-toolbar .ql-picker-label.ql-active { color: #d4af37; }
-  .ql-snow .ql-picker-options { background: #1a1a28; border-color: rgba(212,175,55,0.3) !important; border-radius: 10px; padding: 6px; }
+  .ql-snow .ql-picker-options {
+    background: #1a1a28; border-color: rgba(212,175,55,0.4) !important; border-radius: 10px; padding: 6px;
+    z-index: 40;
+    max-height: none;
+    overflow: visible;
+  }
+  #toolbar.ql-snow .ql-picker.ql-expanded { z-index: 40; }
+  #toolbar.ql-snow .ql-picker.ql-expanded .ql-picker-options {
+    display: block;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 9rem;
+  }
+  .ql-snow .ql-picker-item { color: #ffffff; }
   .ql-snow .ql-picker-item:hover, .ql-snow .ql-picker-item.ql-selected { color: #d4af37; }
-  .ql-snow .ql-picker.ql-expanded .ql-picker-label { border-color: rgba(212,175,55,0.4); }
+  .ql-snow .ql-picker.ql-expanded .ql-picker-label { border-color: rgba(212,175,55,0.5); }
 
   /* Etiquetas en español */
   .ql-snow .ql-picker.ql-header .ql-picker-label::before, .ql-snow .ql-picker.ql-header .ql-picker-item::before { content: 'Texto'; }
   .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="2"]::before, .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="2"]::before { content: 'Título'; font-weight: 800; }
   .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="3"]::before, .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::before { content: 'Subtítulo'; font-weight: 700; }
   .ql-snow .ql-picker.ql-size .ql-picker-label::before, .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: 'Normal'; }
-  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: 'Chico'; font-size: 13px; }
-  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: 'Grande'; font-size: 17px; }
-  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: 'Muy grande'; font-size: 21px; }
-  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before { content: 'Muy grande'; }
-  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before { content: 'Enorme'; font-size: 26px; }
-  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before { content: 'Enorme'; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: 'Chico'; font-size: 13px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: 'Grande'; font-size: 17px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="48px"]::before { content: 'Muy grande'; font-size: 21px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="48px"]::before { content: 'Muy grande'; }
+  .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="64px"]::before { content: 'Enorme'; font-size: 26px; }
+  .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="64px"]::before { content: 'Enorme'; }
   .ql-snow .ql-tooltip { display: none; }
 
   /* Teléfono de vista previa */
-  .phone { width: 100%; max-width: 300px; aspect-ratio: 9 / 18; border-radius: 34px; background: #050507; border: 6px solid #23232f; box-shadow: 0 24px 60px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.05); position: relative; overflow: hidden; margin: 0 auto; }
-  .phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 86px; height: 22px; border-radius: 12px; background: #0f0f14; z-index: 2; }
-  .phone-screen { position: absolute; inset: 0; padding: 44px 14px 16px; overflow: hidden; display: flex; flex-direction: column; }
-  .phone-sheet { background: #1c1c1c; border: 1px solid rgba(212,175,55,0.35); border-radius: 16px; padding: 12px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .phone-body { flex: 1; min-height: 0; overflow: auto; color: #f5f5f5; font-size: 12.5px; line-height: 1.45; word-break: break-word; }
-  .phone-body h2 { font-size: 16px; font-weight: 800; margin: 0 0 6px; }
-  .phone-body h3 { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
-  .phone-body p { margin: 0 0 6px; }
-  .phone-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 6px 0; }
-  .phone-body ul, .phone-body ol { padding-left: 18px; margin: 0 0 6px; }
+  .phone {
+    width: 100%; max-width: 320px; aspect-ratio: 9 / 18;
+    border-radius: 36px; background: #050508;
+    border: 7px solid #252538;
+    box-shadow: 0 28px 70px rgba(0,0,0,0.65), 0 0 0 1px rgba(212,175,55,0.25);
+    position: relative; overflow: hidden; margin: 0 auto;
+  }
+  .phone::before {
+    content: ''; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 22px; border-radius: 12px; background: #12121a; z-index: 2;
+  }
+  .phone-screen { position: absolute; inset: 0; padding: 48px 14px 18px; overflow: hidden; display: flex; flex-direction: column; }
+  .phone-sheet { background: #1a1a28; border: 1px solid rgba(212,175,55,0.4); border-radius: 18px; padding: 14px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .phone-body { flex: 1; min-height: 0; overflow: auto; color: #ffffff; font-size: 26px; line-height: 1.4; word-break: break-word; }
+  .phone-body h2 { font-size: 40px !important; font-weight: 800; margin: 0 0 8px; color: #ffffff; line-height: 1.15; }
+  .phone-body h3 { font-size: 32px !important; font-weight: 700; margin: 0 0 6px; color: #ffffff; }
+  .phone-body p { margin: 0 0 8px; color: #ffffff; }
+  .phone-body img { display: block; width: 100%; max-width: 100%; height: auto; max-height: 280px; object-fit: contain; border-radius: 10px; margin: 8px 0; border: 1px solid rgba(212,175,55,0.3); background: #0a0a0f; }
+  .phone-body ul, .phone-body ol { padding-left: 20px; margin: 0 0 8px; color: #ffffff; }
   .phone-body::-webkit-scrollbar { width: 4px; }
-  .phone-body::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.4); border-radius: 4px; }
-  .phone-listo { margin-top: 10px; height: 36px; border-radius: 10px; background: #d4af37; color: #1a1a1a; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 13px; }
-
-  /* Cropper */
-  #cropper-host cropper-canvas { width: 100%; height: 380px; border-radius: 12px; overflow: hidden; background: #050507; }
-  #cropper-host cropper-selection { outline: none; }
+  .phone-body::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 4px; }
+  /* Cropper: el lienzo ocupa el hueco; la foto la mide Cropper, no el CSS */
+  #cropper-host {
+    width: 100%; height: min(380px, 52vh); border-radius: 14px; overflow: hidden;
+    background: #06060a; border: 1px solid rgba(212,175,55,0.3);
+    position: relative;
+  }
+  #cropper-host cropper-canvas {
+    width: 100%; height: 100%; background: #06060a;
+  }
+  #cropper-host cropper-selection {
+    outline: 2px solid #d4af37; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
+  }
 
   .fila-noticia { will-change: transform; }
-  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+
+  /* Touch buttons large targets */
+  .btn-touch { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 </style>
 </head>
-<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="noticiasApp()" x-init="init()" x-cloak>
+<body class="bg-[#0a0a0f] text-white font-sans antialiased min-h-screen" x-data="noticiasApp()" x-init="init()" x-cloak>
 <div id="topbar-container"></div>
 <div class="flex pt-[72px] min-h-screen">
   <div id="sidebar-container"></div>
-  <main :class="$store.layout.sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+  <main :class="$store.layout?.sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6 bg-[#0a0a0f]">
 
-    <div class="flex items-end justify-between mb-5 gap-4 flex-wrap" data-anim="card">
+    <!-- Encabezado con marca Las Gambusinas -->
+    <div class="flex items-end justify-between mb-6 gap-4 flex-wrap" data-anim="card">
       <div>
-        <h1 class="text-xl font-bold">Noticias del día</h1>
-        <p class="text-txt-muted text-sm mt-1">Lo que publiques lo ven mozos y cocina durante el día operativo <span class="text-gold font-semibold" x-text="fechaOperativa || '…'"></span>.</p>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2.5 h-2.5 rounded-full bg-[#d4af37]"></span>
+          <span class="text-xs uppercase tracking-widest text-[#d4af37] font-bold">Las Gambusinas · Comunicación Operativa</span>
+        </div>
+        <h1 class="text-2xl font-extrabold text-white tracking-tight">Noticias del día</h1>
+        <p class="text-white/80 text-sm mt-1">Lo que publiques lo ven mozos y cocina durante el día operativo <span class="text-[#d4af37] font-bold" x-text="fechaOperativa || 'Hoy'"></span>.</p>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="chip bg-gold-20 text-gold border border-gold/30" x-show="vigentesHoy > 0" x-text="vigentesHoy + (vigentesHoy === 1 ? ' vigente hoy' : ' vigentes hoy')"></span>
-        <button type="button" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" @click="nueva()">+ Nueva</button>
+      <div class="flex items-center gap-3">
+        <span class="chip bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/40" x-show="vigentesHoy > 0" x-text="vigentesHoy + (vigentesHoy === 1 ? ' vigente hoy' : ' vigentes hoy')"></span>
+        <button type="button" class="btn-touch bg-[#d4af37] text-[#0a0a0f] px-5 py-2.5 rounded-xl text-sm font-extrabold hover:brightness-110 active:scale-95 transition shadow-lg shadow-[#d4af37]/20 cursor-pointer" @click="nueva()">+ Nueva</button>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-stretch">
-      <section class="xl:col-span-2 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-2xl p-4 flex flex-col min-h-0" data-anim="card">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
+      <!-- Columna Principal: Editor y Archivo -->
+      <section class="xl:col-span-2 bg-[#1a1a28] border border-[rgba(212,175,55,0.28)] rounded-2xl p-6 flex flex-col min-h-0 shadow-2xl" data-anim="card">
+        
+        <!-- Header del Formulario -->
         <div class="flex items-center justify-between gap-3 mb-2">
-          <label class="block text-xs text-txt-muted" for="titulo">Título</label>
+          <label class="block text-xs uppercase tracking-wider text-white font-bold" for="titulo">Noticia</label>
           <div class="flex items-center gap-2">
-            <span x-show="editandoId" class="chip bg-blue-500/15 text-blue-300 border border-blue-400/30">Editando</span>
-            <span x-show="borradorRecuperado" class="chip bg-gold-20 text-gold border border-gold/30">
+            <span x-show="editandoId" class="chip bg-blue-500/25 text-white border border-blue-400/40">Editando</span>
+            <span x-show="borradorRecuperado" class="chip bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/40">
               Borrador recuperado
-              <button type="button" class="ml-1 underline" @click="descartarBorrador()">descartar</button>
+              <button type="button" class="ml-1 underline text-white font-bold cursor-pointer" @click="descartarBorrador()">descartar</button>
             </span>
-            <span class="text-[11px] text-txt-muted tabular-nums" x-text="titulo.length + '/120'"></span>
+            <span class="text-xs text-white/80 font-mono" x-text="titulo.length + '/120'"></span>
           </div>
         </div>
-        <input id="titulo" x-model="titulo" maxlength="120" @input="actualizarPreview()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-4 py-3 text-base font-semibold mb-3 focus:border-gold focus:outline-none placeholder-txt-muted" placeholder="Ej. Hoy hay lomo saltado en promoción">
 
+        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+          <div class="flex-1 flex flex-col gap-1">
+            <button type="button" id="btn-publicar"
+              class="btn-touch w-full bg-[#d4af37] text-[#0a0a0f] px-6 py-3.5 rounded-xl text-sm font-extrabold disabled:opacity-50 inline-flex items-center justify-center gap-2.5 hover:brightness-110 active:scale-[0.98] transition shadow-lg shadow-[#d4af37]/25 cursor-pointer"
+              :disabled="guardando"
+              @click="publicar()">
+              <span x-show="guardando" class="w-4 h-4 border-2 border-[#0a0a0f] border-t-transparent rounded-full animate-spin"></span>
+              <span class="text-base" x-show="!guardando">💾</span>
+              <span x-text="guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Publicar ahora')"></span>
+            </button>
+            <span class="text-[11px] text-white/70 text-center font-medium">Guarda en el archivo del día. Queda visible.</span>
+          </div>
+          <div class="flex-1 flex flex-col gap-1">
+            <button type="button"
+              class="btn-touch w-full bg-[#12121a] border-2 border-[#d4af37] text-white px-6 py-3.5 rounded-xl text-sm font-extrabold hover:bg-[#d4af37]/15 active:scale-[0.98] transition disabled:opacity-50 inline-flex items-center justify-center gap-2.5 cursor-pointer"
+              :disabled="guardando || esperaReenvio > 0"
+              @click="enviarUnaVez()">
+              <span class="text-base">⚡</span>
+              <span x-text="esperaReenvio > 0 ? ('Espera ' + esperaReenvio + ' s') : 'Enviar una vez'"></span>
+            </button>
+            <span class="text-[11px] text-white/70 text-center font-medium">Aviso inmediato en pantalla. No queda en el archivo.</span>
+            <div class="mt-1 flex items-center justify-center gap-2 text-[#d4af37]">
+              <span class="text-[11px] uppercase tracking-wider font-extrabold text-white/80" x-text="restaPantalla != null ? 'Quedan' : 'En pantalla'"></span>
+              <span class="font-black tabular-nums text-lg" x-text="relojMensaje"></span>
+            </div>
+          </div>
+          <button type="button"
+            class="btn-touch px-4 py-3.5 rounded-xl text-sm border border-white/20 text-white hover:border-white transition cursor-pointer self-start"
+            @click="nueva()"
+            x-text="editandoId ? 'Cancelar edición' : 'Limpiar'">
+          </button>
+        </div>
+
+        <div class="composer mb-1">
+        <input id="titulo" x-model="titulo" maxlength="120" @input="actualizarPreview()" class="composer-titulo" placeholder="Título (opcional)" autocomplete="off">
+
+        <div class="composer-barra">
         <div id="toolbar">
           <span class="ql-formats">
             <select class="ql-header" title="Jerarquía">
@@ -168,11 +393,11 @@ tailwind.config = {
               <option selected></option>
             </select>
             <select class="ql-size" title="Tamaño">
-              <option value="14px"></option>
-              <option selected></option>
-              <option value="18px"></option>
               <option value="24px"></option>
-              <option value="32px"></option>
+              <option selected></option>
+              <option value="36px"></option>
+              <option value="48px"></option>
+              <option value="64px"></option>
             </select>
           </span>
           <span class="ql-formats">
@@ -203,111 +428,274 @@ tailwind.config = {
             <button class="ql-list" value="ordered" title="Lista numerada"></button>
           </span>
           <span class="ql-formats">
-            <button class="ql-image" id="btn-imagen" title="Insertar imagen"></button>
+            <button class="ql-image" id="btn-imagen" title="Insertar la foto completa"></button>
             <button class="ql-clean" title="Quitar formato"></button>
           </span>
         </div>
+        <button type="button" class="btn-tool" title="Recortar una foto" @click="elegirRecorte()" aria-label="Recortar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M6 3v12a3 3 0 0 0 3 3h12"/><path d="M6 8h9a3 3 0 0 1 3 3v10"/><path d="M15 3v4"/><path d="M3 6h4"/>
+          </svg>
+        </button>
+        <button type="button" class="btn-emoji" @mousedown.prevent @click.stop="emojiAbierto = !emojiAbierto" :aria-expanded="emojiAbierto ? 'true' : 'false'">Emoji</button>
+        </div>
+        <div class="emoji-ancla">
+          <div x-show="emojiAbierto" x-cloak class="fixed inset-0 z-30" @click="emojiAbierto = false"></div>
+          <div x-show="emojiAbierto" x-cloak class="emoji-panel" @click.stop>
+            <template x-for="e in emojis" :key="e">
+              <button type="button" @mousedown.prevent.stop @click.stop="insertarEmoji(e)" x-text="e" :aria-label="'Insertar ' + e"></button>
+            </template>
+          </div>
+        </div>
         <div id="editor"></div>
+        </div>
 
         <div class="flex items-center justify-between gap-3 mt-3 flex-wrap">
-          <div class="flex items-center gap-3 text-[11px] text-txt-muted">
-            <span x-text="imagenes + '/8 imágenes'" :class="imagenes >= 8 ? 'text-[#ffa502]' : ''"></span>
+          <div class="flex items-center gap-3 text-xs text-white/80">
+            <span x-text="imagenes + '/8 imágenes'" :class="imagenes >= 8 ? 'text-[#ffa502] font-bold' : ''"></span>
+            <span class="text-white/40">·</span>
             <span x-text="caracteres + ' caracteres'"></span>
-            <span class="hidden sm:inline">Ctrl + Enter publica</span>
+            <span class="text-white/40 hidden sm:inline">·</span>
+            <span class="hidden sm:inline text-white/90">Ctrl + Enter publica</span>
           </div>
-          <p class="text-xs" :class="estadoTipo === 'error' ? 'text-[#ff6b6b]' : 'text-txt-muted'" x-text="estado"></p>
+          <p class="text-xs font-semibold" :class="estadoTipo === 'error' ? 'text-[#ff6b6b]' : 'text-white'" x-text="estado"></p>
         </div>
 
-        <div class="flex gap-2 mt-4">
-          <button type="button" id="btn-publicar" class="bg-gold text-bg-primary px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 inline-flex items-center gap-2 hover:brightness-110 transition" :disabled="guardando || !puedePublicar" @click="publicar()">
-            <span x-show="guardando" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></span>
-            <span x-text="guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Publicar ahora')"></span>
-          </button>
-          <button type="button" class="px-4 py-2.5 rounded-xl text-sm border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:text-white transition" @click="nueva()" x-text="editandoId ? 'Cancelar edición' : 'Limpiar'"></button>
-          <button type="button" class="px-4 py-2.5 rounded-xl text-sm border border-gold/40 text-gold hover:bg-gold-20 transition disabled:opacity-50" :disabled="guardando || !puedePublicar" @click="enviarUnaVez()">Enviar una vez</button>
-        </div>
-        <p class="text-[11px] text-txt-muted mt-2">Enviar una vez llega a mozos y cocina ahora y no queda en el archivo.</p>
-
-        <div class="mt-4 pt-4 border-t border-[rgba(212,175,55,0.15)] flex-1 min-h-[180px] flex flex-col">
-          <div class="flex items-center justify-between mb-2 shrink-0">
-            <h2 class="font-semibold">Publicaciones</h2>
-            <span class="text-[11px] text-txt-muted" x-text="noticias.length + ' en el archivo'"></span>
+        <!-- ========================================== -->
+        <!-- BLOQUE NUEVO: "A quién llega"               -->
+        <!-- ========================================== -->
+        <div class="mt-6 pt-5 pb-5 px-5 bg-[#12121a] border border-[rgba(212,175,55,0.32)] rounded-2xl flex flex-col gap-5">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <h3 class="text-sm font-extrabold uppercase tracking-wider text-white">A quién llega</h3>
+            </div>
+            <span class="text-xs text-white/70">Selecciona el destino del aviso</span>
           </div>
-          <div x-ref="lista" class="flex-1 min-h-0 overflow-y-auto">
+
+          <!-- Selector principal de 3 opciones grandes -->
+          <div class="grid grid-cols-3 gap-3">
+            <button type="button"
+              @click="destinatario = 'cocina'"
+              class="btn-touch px-4 py-3.5 rounded-xl border-2 font-bold text-sm text-center transition flex flex-col sm:flex-row items-center justify-center gap-2 cursor-pointer"
+              :class="destinatario === 'cocina' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37] shadow-lg shadow-[#d4af37]/25' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.25)] hover:border-[#d4af37]'">
+              <span class="text-lg">🍳</span>
+              <span>Cocina</span>
+            </button>
+
+            <button type="button"
+              @click="destinatario = 'mozos'"
+              class="btn-touch px-4 py-3.5 rounded-xl border-2 font-bold text-sm text-center transition flex flex-col sm:flex-row items-center justify-center gap-2 cursor-pointer"
+              :class="destinatario === 'mozos' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37] shadow-lg shadow-[#d4af37]/25' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.25)] hover:border-[#d4af37]'">
+              <span class="text-lg">🤵</span>
+              <span>Mozos</span>
+            </button>
+
+            <button type="button"
+              @click="destinatario = 'ambos'"
+              class="btn-touch px-4 py-3.5 rounded-xl border-2 font-bold text-sm text-center transition flex flex-col sm:flex-row items-center justify-center gap-2 cursor-pointer"
+              :class="destinatario === 'ambos' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37] shadow-lg shadow-[#d4af37]/25' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.25)] hover:border-[#d4af37]'">
+              <span class="text-lg">⚡</span>
+              <span>Los dos</span>
+            </button>
+          </div>
+
+          <!-- Opciones condicionales: SI HAY COCINA (Cocina o Los dos) -->
+          <div x-show="destinatario === 'cocina' || destinatario === 'ambos'" x-transition.opacity.duration.250ms class="pt-4 border-t border-[rgba(212,175,55,0.2)] flex flex-col gap-4">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <span class="text-xs uppercase font-extrabold text-[#d4af37] tracking-wider">Destino en Cocina</span>
+              <span class="text-xs text-white/80">Pantallas receptoras</span>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+              <button type="button"
+                @click="alternarTodas()"
+                class="px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition cursor-pointer"
+                :class="cocinaDestino === 'todas' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.3)] hover:border-[#d4af37]'">
+                Todas
+              </button>
+
+              <button type="button"
+                @click="cocinaDestino = 'kds'"
+                class="px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition cursor-pointer"
+                :class="cocinaDestino === 'kds' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.3)] hover:border-[#d4af37]'">
+                Tabla KDS
+              </button>
+
+              <button type="button"
+                @click="alternarHub()"
+                class="px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition cursor-pointer"
+                :class="hubTodas ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'bg-[#1a1a28] text-white border-[rgba(212,175,55,0.3)] hover:border-[#d4af37]'">
+                Pantallas del Monitor Hub
+              </button>
+            </div>
+
+            <!-- Chips con número y nombre de la cocinera -->
+            <div x-show="cocinaDestino !== 'kds' && cocinerasHub.length" class="flex items-center gap-2 flex-wrap pt-1">
+              <span class="text-xs text-white/70 w-full mb-1">Cocinera / Monitor:</span>
+              <template x-for="c in cocinerasHub" :key="c.id">
+                <button type="button"
+                  @click="toggleCocinera(c.id)"
+                  class="px-3.5 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer"
+                  :class="cocinerasSeleccionadas.includes(c.id) || cocinaDestino === 'todas' ? 'bg-[#d4af37]/25 text-white border-[#d4af37]' : 'bg-[#1a1a28] text-white/80 border-white/20 hover:border-white'">
+                  <span class="w-5 h-5 rounded-full bg-[#d4af37] text-[#0a0a0f] text-[10px] font-extrabold flex items-center justify-center" x-text="c.numero"></span>
+                  <span x-text="c.nombre"></span>
+                </button>
+              </template>
+            </div>
+            <p x-show="cocinaDestino === 'hub' && !cocinerasHub.length" class="text-xs text-white">No hay pantallas activas del Monitor Hub.</p>
+
+            <!-- Control numérico: Segundos en cocina -->
+            <div class="pt-3 border-t border-[rgba(212,175,55,0.18)] flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <label class="block text-xs uppercase tracking-wider text-white font-extrabold" for="segundos-cocina">Segundos en cocina</label>
+                <p class="text-xs text-white/80 mt-0.5">Se cierra solo. También se puede cerrar a mano.</p>
+              </div>
+              <div class="flex items-center gap-2 bg-[#1a1a28] border border-[rgba(212,175,55,0.35)] rounded-xl p-1.5">
+                <button type="button" @click="segundosCocina = Math.max(5, segundosCocina - 5)" class="w-10 h-10 rounded-lg bg-[#12121a] text-white font-black text-lg hover:text-[#d4af37] border border-white/10 active:scale-95 transition cursor-pointer">－</button>
+                <input id="segundos-cocina" type="number" min="5" max="120" step="1" x-model.number="segundosCocina" class="w-16 text-center bg-transparent text-lg font-black text-[#d4af37] focus:outline-none tabular-nums">
+                <span class="text-xs text-white/70 pr-2">seg</span>
+                <button type="button" @click="segundosCocina = Math.min(120, segundosCocina + 5)" class="w-10 h-10 rounded-lg bg-[#12121a] text-white font-black text-lg hover:text-[#d4af37] border border-white/10 active:scale-95 transition cursor-pointer">＋</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Opciones condicionales: SI HAY MOZOS (Mozos o Los dos) -->
+          <div x-show="destinatario === 'mozos' || destinatario === 'ambos'" x-transition.opacity.duration.250ms class="pt-4 border-t border-[rgba(212,175,55,0.2)] flex flex-col gap-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <span class="text-xs uppercase font-extrabold text-[#d4af37] tracking-wider">Destino en Mozos</span>
+              <div class="flex items-center gap-2">
+                <button type="button" @click="mozosModo = 'todos'" class="text-xs px-3 py-1.5 rounded-lg border font-bold cursor-pointer transition" :class="mozosModo === 'todos' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'bg-[#1a1a28] text-white border-white/20'">Todos</button>
+                <button type="button" @click="mozosModo = 'seleccion'" class="text-xs px-3 py-1.5 rounded-lg border font-bold cursor-pointer transition" :class="mozosModo === 'seleccion' ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'bg-[#1a1a28] text-white border-white/20'">Por mozo</button>
+              </div>
+            </div>
+
+            <p x-show="mozosModo === 'seleccion' && mozosCargando" class="text-xs text-white pt-1">Cargando mozos…</p>
+            <p x-show="mozosModo === 'seleccion' && !mozosCargando && mozosAviso" class="text-xs text-[#ff6b6b] pt-1" x-text="mozosAviso"></p>
+            <p x-show="mozosModo === 'seleccion' && !mozosCargando && !mozosAviso && !listaMozos.length" class="text-xs text-white pt-1">No hay mozos activos para elegir.</p>
+            <div x-show="mozosModo === 'seleccion' && listaMozos.length" class="flex flex-col gap-2 pt-1">
+              <div class="flex items-center gap-2">
+                <input type="search" class="mozo-busca" x-model="buscaMozo" placeholder="Buscar mozo" autocomplete="off">
+                <span class="text-xs text-[#d4af37] font-bold shrink-0" x-text="mozosSeleccionados.length + ' elegidos'"></span>
+              </div>
+              <div class="mozo-grid">
+                <template x-for="m in mozosFiltrados" :key="m.id">
+                  <button type="button" class="mozo-chip" :class="mozosSeleccionados.includes(m.id) ? 'is-on' : ''" @click="toggleMozo(m.id)">
+                    <span class="mozo-activo" :class="m.activo ? 'is-on' : ''" x-text="m.activo ? 'Activo' : ''"></span>
+                    <span class="mozo-ava" :style="m.estilo">
+                      <img x-show="m.foto" :src="m.foto" alt="">
+                      <span x-show="!m.foto" x-text="m.ini"></span>
+                      <span class="mozo-ok" x-show="mozosSeleccionados.includes(m.id)" x-cloak>✓</span>
+                    </span>
+                    <span class="mozo-nom" x-text="m.corto"></span>
+                  </button>
+                </template>
+              </div>
+              <p x-show="buscaMozo.trim() && !mozosFiltrados.length" class="text-xs text-white">Ningún mozo con ese nombre.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista del Archivo de Publicaciones -->
+        <div class="mt-8 pt-6 border-t border-[rgba(212,175,55,0.25)] flex-1 min-h-[220px] flex flex-col">
+          <div class="flex items-center justify-between mb-3 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <h2 class="font-extrabold text-white text-base">Publicaciones del archivo</h2>
+            </div>
+            <span class="text-xs text-white/80 font-mono" x-text="noticias.length + ' en el archivo'"></span>
+          </div>
+
+          <div x-ref="lista" class="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
             <template x-for="n in noticias" :key="n._id">
-              <article class="fila-noticia border-b border-[rgba(212,175,55,0.12)] last:border-0 py-3 px-2 rounded-lg flex gap-3 items-center" :data-flip-id="n._id" data-fila-noticia>
-                <div class="w-12 h-12 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] overflow-hidden shrink-0 flex items-center justify-center">
+              <article class="fila-noticia bg-[#12121a] border border-[rgba(212,175,55,0.18)] hover:border-[#d4af37]/60 py-3.5 px-4 rounded-xl flex gap-3.5 items-center transition" :data-flip-id="n._id" data-fila-noticia>
+                <div class="w-12 h-12 rounded-xl bg-[#0a0a0f] border border-[rgba(212,175,55,0.3)] overflow-hidden shrink-0 flex items-center justify-center">
                   <img x-show="n.imagenes && n.imagenes.length" :src="n.imagenes && n.imagenes[0]" alt="" class="w-full h-full object-cover">
-                  <span x-show="!(n.imagenes && n.imagenes.length)" class="text-txt-muted text-lg">📰</span>
+                  <span x-show="!(n.imagenes && n.imagenes.length)" class="text-white text-lg">📰</span>
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
-                    <p class="font-semibold truncate" x-text="n.titulo"></p>
-                    <span class="chip" :class="n.vigente ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30' : 'bg-white/5 text-txt-muted border border-white/10'" x-text="n.vigente ? 'vigente' : 'retirada'"></span>
-                    <span class="chip bg-gold-20 text-gold border border-gold/30" x-show="n.fechaOperativa === fechaOperativa">hoy</span>
+                    <p class="font-bold text-white truncate text-sm" x-text="n.titulo"></p>
+                    <span class="chip" :class="n.vigente ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/40' : 'bg-white/10 text-white/70 border border-white/20'" x-text="n.vigente ? 'vigente' : 'retirada'"></span>
+                    <span class="chip bg-[#d4af37]/25 text-[#d4af37] border border-[#d4af37]/40" x-show="n.fechaOperativa === fechaOperativa">hoy</span>
                   </div>
-                  <p class="text-xs text-txt-muted mt-0.5 truncate" x-text="n.fechaOperativa + ' · ' + (n.autor?.nombre || 'sin autor') + (n.imagenes && n.imagenes.length ? ' · ' + n.imagenes.length + (n.imagenes.length === 1 ? ' imagen' : ' imágenes') : '')"></p>
+                  <p class="text-xs text-white/80 mt-1 truncate" x-text="n.fechaOperativa + ' · ' + (n.autor?.nombre || 'sin autor') + (n.imagenes && n.imagenes.length ? ' · ' + n.imagenes.length + (n.imagenes.length === 1 ? ' imagen' : ' imágenes') : '')"></p>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                   <template x-if="confirmRetirarId !== n._id">
                     <div class="flex gap-2">
-                      <button type="button" class="text-sm px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.25)] hover:border-gold hover:text-gold transition" @click="editar(n)">Editar</button>
-                      <button type="button" class="text-sm px-3 py-1.5 rounded-lg border border-red-400/40 text-red-300 hover:bg-red-500/10 transition" x-show="n.vigente" @click="confirmRetirarId = n._id">Retirar</button>
+                      <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-[rgba(212,175,55,0.35)] text-white hover:border-[#d4af37] hover:text-[#d4af37] transition cursor-pointer" x-show="n.vigente" @click="editar(n)">Editar</button>
+                      <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-red-400/50 text-red-300 hover:bg-red-500/20 transition cursor-pointer" @click="confirmRetirarId = n._id">Eliminar</button>
                     </div>
                   </template>
                   <template x-if="confirmRetirarId === n._id">
-                    <div class="flex items-center gap-2 text-sm">
-                      <span class="text-txt-secondary">¿Retirar?</span>
-                      <button type="button" class="px-3 py-1.5 rounded-lg bg-red-500 text-white font-semibold" @click="retirar(n)">Sí</button>
-                      <button type="button" class="px-3 py-1.5 rounded-lg border border-txt-muted/40 text-txt-secondary" @click="confirmRetirarId = null">No</button>
+                    <div class="flex items-center gap-2 text-xs">
+                      <span class="text-white font-bold">¿Eliminar?</span>
+                      <button type="button" class="px-3 py-2 rounded-lg bg-red-600 text-white font-bold cursor-pointer" @click="retirar(n)">Sí</button>
+                      <button type="button" class="px-3 py-2 rounded-lg border border-white/30 text-white cursor-pointer" @click="confirmRetirarId = null">No</button>
                     </div>
                   </template>
                 </div>
               </article>
             </template>
           </div>
-          <p x-show="!noticias.length" class="text-txt-muted text-sm">Todavía no hay noticias. Escribe la primera arriba.</p>
+          <p x-show="!noticias.length" class="text-white/70 text-sm mt-3">Todavía no hay noticias guardadas. Escribe la primera arriba.</p>
         </div>
       </section>
 
-      <aside class="flex flex-col gap-5">
-        <section class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-2xl p-4" data-anim="card">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-semibold">Así lo ve el mozo</h2>
-            <span class="text-[11px] text-txt-muted">en vivo</span>
+      <!-- Columna Lateral: Vista Previa Móvil y TOP Semanal -->
+      <aside class="flex flex-col gap-6">
+        
+        <!-- Teléfono Mozo (Vista en vivo) -->
+        <section class="bg-[#1a1a28] border border-[rgba(212,175,55,0.28)] rounded-2xl p-5 shadow-2xl" data-anim="card">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <h2 class="font-extrabold text-white text-sm">Así lo ve el mozo</h2>
+            </div>
+            <span class="chip bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/40">en vivo</span>
           </div>
+
           <div class="phone" x-ref="phone">
             <div class="phone-screen">
               <div class="phone-sheet">
-                <p class="text-[#f5f5f5] font-extrabold text-[15px] leading-tight mb-2">Noticias de hoy</p>
+                <div class="flex items-center justify-between mb-2 pb-1 border-b border-white/10">
+                  <p class="text-white font-black text-xs uppercase tracking-wider">Las Gambusinas</p>
+                  <span class="text-[10px] text-[#d4af37] font-bold">HOY</span>
+                </div>
                 <div class="phone-body">
                   <h2 x-text="titulo || 'Título de hoy'"></h2>
-                  <div x-ref="previewBody" class="text-[#f5f5f5]"><p class="text-[#5a5a7a]">Lo que escribas aparece aquí.</p></div>
+                  <div x-ref="previewBody" class="text-white">
+                    <p class="text-white/60">Lo que escribas en el editor aparece aquí en tiempo real.</p>
+                  </div>
                 </div>
-                <div class="phone-listo">Listo</div>
               </div>
             </div>
           </div>
         </section>
 
-        <section class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-2xl p-4" data-anim="card">
-          <div class="flex items-center justify-between mb-2">
-            <h2 class="font-semibold">TOP de la semana</h2>
-            <span class="text-[11px] text-txt-muted" x-text="topRango"></span>
+        <!-- TOP de la semana -->
+        <section class="bg-[#1a1a28] border border-[rgba(212,175,55,0.28)] rounded-2xl p-5 shadow-2xl" data-anim="card">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <h2 class="font-extrabold text-white text-sm">TOP de la semana</h2>
+            </div>
+            <span class="text-xs text-white/80 font-mono" x-text="topRango"></span>
           </div>
-          <div x-ref="topLista">
+          <div x-ref="topLista" class="space-y-1">
             <template x-for="p in top" :key="p.puesto">
-              <div class="flex items-center gap-3 text-sm py-2 border-b border-[rgba(212,175,55,0.1)] last:border-0" data-top-fila>
-                <span class="w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0" :style="estiloPuesto(p.puesto)" x-text="p.puesto"></span>
+              <div class="flex items-center gap-3 text-sm py-2.5 px-2 rounded-lg border-b border-[rgba(212,175,55,0.12)] last:border-0 hover:bg-[#12121a]/60 transition" data-top-fila>
+                <span class="w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs shrink-0" :style="estiloPuesto(p.puesto)" x-text="p.puesto"></span>
                 <div class="flex-1 min-w-0">
-                  <p class="truncate font-medium" x-text="p.nombre"></p>
-                  <p class="text-[10px] text-txt-muted" x-text="(p.codigo ? p.codigo + ' · ' : '') + 'S/ ' + Number(p.soles || 0).toFixed(2)"></p>
+                  <p class="truncate font-bold text-white" x-text="p.nombre"></p>
+                  <p class="text-[11px] text-white/70" x-text="(p.codigo ? p.codigo + ' · ' : '') + 'S/ ' + Number(p.soles || 0).toFixed(2)"></p>
                 </div>
-                <span class="text-gold font-bold tabular-nums" x-text="p.cantidad"></span>
+                <span class="text-[#d4af37] font-extrabold tabular-nums text-base" x-text="p.cantidad"></span>
               </div>
             </template>
           </div>
-          <p x-show="!top.length" class="text-txt-muted text-sm">Sin ventas esta semana.</p>
+          <p x-show="!top.length" class="text-white/70 text-sm mt-2">Sin ventas registradas esta semana.</p>
         </section>
       </aside>
     </div>
@@ -315,47 +703,59 @@ tailwind.config = {
   </main>
 </div>
 
-<!-- Recorte de imagen -->
-<div x-show="modalRecorte" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/75" @click.self="!recorte.subiendo && cerrarRecorte()">
-  <div data-blendy-to="btn-imagen" class="bg-bg-card border border-[rgba(212,175,55,0.3)] rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]" @click.stop x-ref="modalRecorte">
-    <div class="px-5 py-4 border-b border-[rgba(212,175,55,0.15)] flex items-center justify-between">
+<!-- Modal Recorte de Imagen Centrado y Completo -->
+<div x-show="modalRecorte" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" @click.self="!recorte.subiendo && cerrarRecorte()">
+  <div data-blendy-to="btn-imagen" class="bg-[#1a1a28] border-2 border-[rgba(212,175,55,0.45)] rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]" @click.stop x-ref="modalRecorte">
+    <div class="px-6 py-4 border-b border-[rgba(212,175,55,0.2)] flex items-center justify-between">
       <div>
-        <h2 class="text-lg font-bold">Recortar imagen</h2>
-        <p class="text-[11px] text-txt-muted mt-0.5">Arrastra para mover. Rueda del mouse para acercar. Se guarda hasta 1200 px.</p>
+        <h2 class="text-lg font-extrabold text-white">Recortar imagen</h2>
+        <p class="text-xs text-white/80 mt-0.5">La foto se visualiza centrada y completa. Mueve el recuadro o haz zoom.</p>
       </div>
-      <button type="button" class="text-txt-secondary hover:text-white text-sm" @click="cerrarRecorte()" :disabled="recorte.subiendo">Cerrar</button>
+      <button type="button" class="btn-touch text-white/80 hover:text-white text-sm font-bold cursor-pointer" @click="cerrarRecorte()" :disabled="recorte.subiendo">✕ Cerrar</button>
     </div>
-    <div class="px-5 py-4 space-y-3 overflow-y-auto">
+
+    <div class="px-6 py-4 space-y-4 overflow-y-auto">
+      <!-- Contenedor cropper con centering contain -->
       <div id="cropper-host"></div>
-      <div class="flex items-center justify-between gap-2 flex-wrap">
-        <div class="flex gap-1.5">
+
+      <!-- Controles de recorte -->
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex gap-2">
           <template x-for="r in ratios" :key="r.id">
-            <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition" :class="recorte.ratio === r.id ? 'bg-gold text-bg-primary border-gold' : 'border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white'" @click="setRatio(r.id)" x-text="r.label"></button>
+            <button type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold border-2 transition cursor-pointer" :class="recorte.ratio === r.id ? 'bg-[#d4af37] text-[#0a0a0f] border-[#d4af37]' : 'border-[rgba(212,175,55,0.3)] text-white hover:border-[#d4af37]'" @click="setRatio(r.id)" x-text="r.label"></button>
           </template>
         </div>
-        <div class="flex gap-1.5">
-          <button type="button" class="px-3 py-1.5 rounded-lg text-xs border border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white" @click="rotar(-90)" title="Girar a la izquierda">⟲ 90°</button>
-          <button type="button" class="px-3 py-1.5 rounded-lg text-xs border border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white" @click="rotar(90)" title="Girar a la derecha">⟳ 90°</button>
-          <button type="button" class="px-3 py-1.5 rounded-lg text-xs border border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white" @click="zoom(0.15)">＋</button>
-          <button type="button" class="px-3 py-1.5 rounded-lg text-xs border border-[rgba(212,175,55,0.3)] text-txt-secondary hover:text-white" @click="zoom(-0.15)">－</button>
+        <div class="flex gap-2">
+          <button type="button" class="px-3 py-2 rounded-xl text-xs font-bold border border-white/25 text-white hover:border-[#d4af37] cursor-pointer" @click="rotar(-90)" title="Girar a la izquierda">⟲ 90°</button>
+          <button type="button" class="px-3 py-2 rounded-xl text-xs font-bold border border-white/25 text-white hover:border-[#d4af37] cursor-pointer" @click="rotar(90)" title="Girar a la derecha">⟳ 90°</button>
+          <button type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold border border-white/25 text-white hover:border-[#d4af37] cursor-pointer" @click="zoom(0.15)">＋</button>
+          <button type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold border border-white/25 text-white hover:border-[#d4af37] cursor-pointer" @click="zoom(-0.15)">－</button>
         </div>
       </div>
-      <p x-show="recorte.error" class="text-xs text-[#ff6b6b]" x-text="recorte.error"></p>
+      <p x-show="recorte.error" class="text-xs text-[#ff6b6b] font-bold" x-text="recorte.error"></p>
     </div>
-    <div class="px-5 py-4 border-t border-[rgba(212,175,55,0.1)] flex justify-end gap-2">
-      <button type="button" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:text-white disabled:opacity-40" @click="cerrarRecorte()" :disabled="recorte.subiendo">Cancelar</button>
-      <button type="button" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-60" @click="usarRecorte()" :disabled="recorte.subiendo">
-        <span x-show="recorte.subiendo" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></span>
+
+    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.2)] flex justify-end gap-3">
+      <button type="button" class="btn-touch px-5 py-2.5 border border-white/30 rounded-xl text-sm font-bold text-white hover:bg-white/10 disabled:opacity-40 cursor-pointer" @click="cerrarRecorte()" :disabled="recorte.subiendo">Cancelar</button>
+      <button type="button" class="btn-touch px-6 py-2.5 bg-[#d4af37] text-[#0a0a0f] rounded-xl text-sm font-black inline-flex items-center gap-2 disabled:opacity-60 hover:brightness-110 cursor-pointer shadow-lg shadow-[#d4af37]/25" @click="usarRecorte()" :disabled="recorte.subiendo">
+        <span x-show="recorte.subiendo" class="w-4 h-4 border-2 border-[#0a0a0f] border-t-transparent rounded-full animate-spin"></span>
         <span x-text="recorte.subiendo ? 'Subiendo…' : 'Usar imagen'"></span>
       </button>
     </div>
   </div>
 </div>
 
-<input type="file" id="input-imagen" accept="image/jpeg,image/png,image/webp" class="hidden" @change="archivoElegido($event)">
+<input type="file" id="input-imagen" accept="image/*" class="input-foto">
 
-<!-- Toast -->
-<div x-ref="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[95] px-4 py-2.5 rounded-xl text-sm font-semibold shadow-2xl pointer-events-none opacity-0" :class="toast.tipo === 'error' ? 'bg-red-500 text-white' : 'bg-gold text-bg-primary'" x-text="toast.msg"></div>
+<!-- Toast de Notificación -->
+<div x-show="guardando" x-cloak class="fixed inset-0 z-[100] bg-black/75 flex items-center justify-center p-6">
+  <div class="bg-[#1a1a28] border-2 border-[#d4af37] rounded-2xl px-8 py-7 text-center shadow-2xl max-w-sm">
+    <div class="mx-auto mb-4 w-10 h-10 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
+    <p class="text-white font-extrabold text-lg" x-text="avisoCarga || 'Enviando…'"></p>
+    <p class="text-white/70 text-sm mt-1">Espera un momento. No cierres esta pantalla.</p>
+  </div>
+</div>
+<div x-ref="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[95] px-6 py-3 rounded-xl text-sm font-black shadow-2xl pointer-events-none opacity-0" :class="toast.tipo === 'error' ? 'bg-red-600 text-white' : 'bg-[#d4af37] text-[#0a0a0f]'" x-text="toast.msg"></div>
 
 <script src="/assets/js/shared.js"></script>
 <script src="/assets/js/cosmos-search.js"></script>
@@ -363,6 +763,7 @@ tailwind.config = {
 <script src="/assets/js/blendy-wrapper.js"></script>
 <script src="/assets/vendor/gsap/gsap.min.js"></script>
 <script src="/assets/vendor/gsap/Flip.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script src="/assets/vendor/quill/quill.js"></script>
 <script src="/assets/vendor/cropper/cropper.min.js"></script>
 <script>
@@ -370,15 +771,22 @@ const BORRADOR_KEY = 'noticias_borrador_v1';
 const MAX_IMAGENES = 8;
 const MAX_BYTES = 2 * 1024 * 1024;
 
+async function leerJson(res) {
+  const text = await res.text();
+  if (!text) return {};
+  try { return JSON.parse(text); }
+  catch { return { error: 'El servidor no respondió JSON (' + res.status + ')' }; }
+}
+
 const CROPPER_TEMPLATE = `
 <cropper-canvas background>
   <cropper-image rotatable scalable translatable initial-center-size="contain"></cropper-image>
   <cropper-shade hidden></cropper-shade>
   <cropper-handle action="select" plain></cropper-handle>
-  <cropper-selection initial-coverage="0.9" movable resizable zoomable outlined>
+  <cropper-selection initial-coverage="0.85" movable resizable zoomable outlined>
     <cropper-grid role="grid" bordered covered></cropper-grid>
     <cropper-crosshair centered></cropper-crosshair>
-    <cropper-handle action="move" theme-color="rgba(255,255,255,0.3)"></cropper-handle>
+    <cropper-handle action="move" theme-color="rgba(212,175,55,0.7)"></cropper-handle>
     <cropper-handle action="n-resize"></cropper-handle>
     <cropper-handle action="e-resize"></cropper-handle>
     <cropper-handle action="s-resize"></cropper-handle>
@@ -390,13 +798,223 @@ const CROPPER_TEMPLATE = `
   </cropper-selection>
 </cropper-canvas>`;
 
-/** El sanitizador del servidor solo guarda estilos en línea. Quill escribe algunas cosas con clases. */
+function protegerSeleccionQuill(quill) {
+  const sel = quill.selection;
+  if (!sel || sel.__noticias) return;
+  sel.__noticias = true;
+  const leer = sel.getRange.bind(sel);
+  sel.getRange = function () {
+    try {
+      const rango = leer();
+      if (rango && rango[0] && !Number.isFinite(rango[0].index)) return [null, null];
+      if (rango && rango[0] && rango[0].index < 0) return [null, null];
+      return rango;
+    } catch (err) {
+      if (!err || (err.name !== 'IndexSizeError' && String(err.message || '').indexOf('offset') === -1)) throw err;
+      return [null, null];
+    }
+  };
+  const foco = quill.focus.bind(quill);
+  quill.focus = function () {
+    try { return foco(); }
+    catch (err) {
+      if (!err || err.name !== 'IndexSizeError') throw err;
+      try { quill.root?.focus({ preventScroll: true }); } catch (_) {}
+    }
+  };
+}
+
 function htmlParaGuardar(quill) {
   let html = quill.getSemanticHTML();
   html = html.replace(/<(p|div|h[1-3]|li)([^>]*?)\sclass="ql-align-(center|right|left)"([^>]*)>/gi, '<$1$2 style="text-align:$3"$4>');
+  html = html.replace(/<span\b([^>]*)>/gi, (full, attrs) => (
+    /noticia-emoji/.test(attrs) || /font-size\s*:\s*1\.4em/i.test(attrs) ? '<span style="font-size:1.4em">' : full
+  ));
+  html = envolverEmojis(html);
   html = html.replace(/\sclass="[^"]*"/gi, '');
   html = html.replace(/&nbsp;/g, ' ');
   return html;
+}
+
+const EMOJI_RE = /\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*[\u{1F3FB}-\u{1F3FF}]?/gu;
+const EMOJIS = ['😀','😃','😄','😁','😊','😉','😍','😘','😋','😎','🤩','😅','😂','🤣','😢','😡','🤔','😴','🤗','🥳','👍','👎','👏','🙏','💪','❤️','🔥','✨','⭐','✅','⚠️','🎉','💯','🍽️','🍕','🍔','🍟','🌮','🍜','🍣','🥗','🍖','🍗','🥩','🍝','🍞','🍰','☕','🍺','🍷','🥤','👨‍🍳','🧾','🛎️','🕐','📦','💰'];
+const ROLES_MOZO = new Set(['mozos', 'mozo', 'capitanmozos', 'capitan']);
+const FOTO_LADO = 2000;
+
+function envolverEmojis(html) {
+  const partes = String(html || '').split(/(<[^>]+>)/g);
+  let profundidad = 0;
+  return partes.map((p) => {
+    if (p.startsWith('<')) {
+      if (/^<span\b[^>]*font-size\s*:\s*1\.4em/i.test(p)) profundidad += 1;
+      else if (/^<\/span\b/i.test(p) && profundidad) profundidad -= 1;
+      return p;
+    }
+    if (profundidad || !p) return p;
+    return p.replace(EMOJI_RE, (e) => `<span style="font-size:1.4em">${e}</span>`);
+  }).join('');
+}
+
+function esArchivoImagen(file) {
+  const tipo = String(file?.type || '').toLowerCase();
+  if (!tipo || tipo === 'application/octet-stream' || tipo.startsWith('image/')) return true;
+  return /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(file?.name || '');
+}
+
+function cargarImagen(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (!img.naturalWidth) reject(new Error('La foto llegó vacía'));
+      else resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('No se pudo leer la foto'));
+    };
+    img.src = url;
+  });
+}
+
+function blobDeCanvas(canvas, calidad) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo preparar la foto'))), 'image/jpeg', calidad);
+  });
+}
+
+async function prepararFoto(file) {
+  if (!file) throw new Error('No llegó la foto');
+  if (!esArchivoImagen(file)) throw new Error('Ese archivo no es una imagen');
+  if (file.size > 25 * 1024 * 1024) throw new Error('La foto pesa más de 25 MB');
+  const tipo = String(file.type || '').toLowerCase();
+  const heic = tipo.includes('heic') || tipo.includes('heif') || /\.hei[cf]$/i.test(file.name || '');
+  let fuente = null;
+  const porBitmap = () => {
+    if (typeof createImageBitmap !== 'function') return Promise.reject(new Error('sin bitmap'));
+    return createImageBitmap(file);
+  };
+  try {
+    fuente = await Promise.race([
+      porBitmap(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('t')), 2500)),
+    ]);
+  } catch (_) {
+    try { fuente = await cargarImagen(file); }
+    catch (e) {
+      if (!heic && file.size <= MAX_BYTES && (!tipo || /jpe?g|png|webp/.test(tipo))) return file;
+      throw new Error(heic
+        ? 'El iPhone mandó HEIC. En Ajustes, Cámara, Formatos elige Más compatible y vuelve a elegir la foto.'
+        : (e.message || 'No se pudo leer la foto'));
+    }
+  }
+  const w0 = fuente.naturalWidth || fuente.width;
+  const h0 = fuente.naturalHeight || fuente.height;
+  const escala = Math.min(1, FOTO_LADO / Math.max(w0, h0));
+  const w = Math.max(1, Math.round(w0 * escala));
+  const h = Math.max(1, Math.round(h0 * escala));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(fuente, 0, 0, w, h);
+  if (fuente.close) fuente.close();
+  return blobDeCanvas(canvas, 0.86);
+}
+
+async function jpegDentroDeLimite(blob) {
+  if (blob.size <= MAX_BYTES) return blob;
+  let img;
+  try { img = await createImageBitmap(blob); }
+  catch (_) { img = await cargarImagen(blob); }
+  const ancho = img.naturalWidth || img.width;
+  const alto = img.naturalHeight || img.height;
+  const esc = Math.min(1, 1280 / Math.max(ancho, alto));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(ancho * esc));
+  canvas.height = Math.max(1, Math.round(alto * esc));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  if (img.close) img.close();
+  const chico = await blobDeCanvas(canvas, 0.72);
+  if (chico.size > MAX_BYTES) throw new Error('La foto sigue siendo muy pesada. Prueba con otra.');
+  return chico;
+}
+
+function colorDeNombre(nombre) {
+  const pal = ['#8b6914', '#3d6b4f', '#6b3d4a', '#3d4f6b', '#6b5a3d', '#4a3d6b', '#3d6b62', '#6b3d3d'];
+  let n = 0;
+  const s = String(nombre || '');
+  for (let i = 0; i < s.length; i += 1) n = (n + s.charCodeAt(i)) % pal.length;
+  return pal[n];
+}
+function colorHex(v) {
+  const s = String(v || '').trim();
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s) ? s : '';
+}
+function idsCocinerosPantalla(p) {
+  const uno = (c) => {
+    if (!c) return '';
+    if (typeof c === 'object') return String(c._id || c.id || '');
+    return String(c);
+  };
+  return [...new Set([uno(p.cocineroId), ...(Array.isArray(p.cocineroIds) ? p.cocineroIds.map(uno) : [])].filter(Boolean))];
+}
+function nombreDePantalla(p) {
+  const persona = (c) => (c && typeof c === 'object' ? (c.alias || c.nombre || c.name || '') : '');
+  const quienes = [persona(p.cocineroId), ...(Array.isArray(p.cocineroIds) ? p.cocineroIds.map(persona) : [])].filter(Boolean);
+  const base = p.nombre || ('Pantalla ' + p.numeroPantalla);
+  return quienes.length ? base + ' · ' + quienes.join(', ') : base;
+}
+
+function registrarEmojiQuill() {
+  if (registrarEmojiQuill.hecho || typeof Quill === 'undefined') return;
+  const Inline = Quill.import('blots/inline');
+  class EmojiNoticia extends Inline {
+    static formats(domNode) {
+      return domNode && domNode.classList && domNode.classList.contains('noticia-emoji') ? true : undefined;
+    }
+  }
+  EmojiNoticia.blotName = 'emoji';
+  EmojiNoticia.tagName = 'SPAN';
+  EmojiNoticia.className = 'noticia-emoji';
+  Quill.register(EmojiNoticia, true);
+  registrarEmojiQuill.hecho = true;
+}
+
+function sonarEnviado() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gan = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(740, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1180, ctx.currentTime + 0.14);
+      gan.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gan.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.03);
+      gan.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
+      osc.connect(gan);
+      gan.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.44);
+      osc.onended = () => { try { ctx.close(); } catch (_) {} };
+    }
+  } catch (_) {}
+  try {
+    if (!window.speechSynthesis) return;
+    const voz = new SpeechSynthesisUtterance('Enviado');
+    voz.lang = 'es-PE';
+    voz.rate = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(voz);
+  } catch (_) {}
 }
 
 function noticiasApp() {
@@ -414,6 +1032,9 @@ function noticiasApp() {
     estado: '',
     estadoTipo: 'info',
     guardando: false,
+    avisoCarga: '',
+    esperaReenvio: 0,
+    restaPantalla: null,
     imagenes: 0,
     caracteres: 0,
     tieneContenido: false,
@@ -421,6 +1042,21 @@ function noticiasApp() {
     confirmRetirarId: null,
     modalRecorte: false,
     recorte: { url: '', ratio: 'libre', subiendo: false, error: '' },
+    emojiAbierto: false,
+    emojis: EMOJIS,
+
+    destinatario: 'ambos',
+    cocinaDestino: 'todas',
+    cocinerasHub: [],
+    cocinerasSeleccionadas: [],
+    segundosCocina: 15,
+    mozosModo: 'todos',
+    listaMozos: [],
+    mozosSeleccionados: [],
+    buscaMozo: '',
+    mozosCargando: false,
+    mozosAviso: '',
+
     ratios: [
       { id: 'libre', label: 'Libre', valor: NaN },
       { id: '16:9', label: '16:9', valor: 16 / 9 },
@@ -435,8 +1071,198 @@ function noticiasApp() {
     _toastTween: null,
     _borradorTimer: null,
 
-    get puedePublicar() {
-      return this.titulo.trim().length > 0 && this.tieneContenido;
+    get mozosFiltrados() {
+      const q = String(this.buscaMozo || '').trim().toLowerCase();
+      if (!q) return this.listaMozos;
+      return this.listaMozos.filter((m) => m.nombre.toLowerCase().includes(q));
+    },
+    get relojMensaje() {
+      const s = this.restaPantalla != null
+        ? this.restaPantalla
+        : Math.min(120, Math.max(5, Number(this.segundosCocina) || 15));
+      const min = Math.floor(s / 60);
+      const seg = s % 60;
+      return min + ':' + String(seg).padStart(2, '0');
+    },
+    get hubTodas() {
+      return this.cocinaDestino === 'hub'
+        && this.cocinerasHub.length > 0
+        && this.cocinerasSeleccionadas.length === this.cocinerasHub.length;
+    },
+    idsCocineras() {
+      return this.cocinerasHub.map((c) => c.id);
+    },
+    alternarTodas() {
+      if (this.cocinaDestino === 'todas') {
+        this.cocinaDestino = 'hub';
+        this.cocinerasSeleccionadas = [];
+        return;
+      }
+      this.cocinaDestino = 'todas';
+      this.cocinerasSeleccionadas = this.idsCocineras();
+    },
+    alternarHub() {
+      if (this.cocinaDestino === 'todas' || this.hubTodas) {
+        this.cocinaDestino = 'hub';
+        this.cocinerasSeleccionadas = [];
+        return;
+      }
+      this.cocinaDestino = 'hub';
+      this.cocinerasSeleccionadas = this.idsCocineras();
+    },
+    toggleCocinera(id) {
+      if (this.cocinaDestino === 'todas') {
+        this.cocinaDestino = 'hub';
+        this.cocinerasSeleccionadas = [id];
+        return;
+      }
+      const idx = this.cocinerasSeleccionadas.indexOf(id);
+      if (idx > -1) this.cocinerasSeleccionadas.splice(idx, 1);
+      else this.cocinerasSeleccionadas.push(id);
+    },
+    toggleMozo(id) {
+      const i = this.mozosSeleccionados.indexOf(id);
+      if (i >= 0) this.mozosSeleccionados.splice(i, 1);
+      else this.mozosSeleccionados.push(id);
+    },
+    aplicarDestino(n) {
+      const dest = n?.destinos?.length ? n.destinos : ['cocina', 'mozos'];
+      const cocina = dest.includes('cocina');
+      const mozos = dest.includes('mozos');
+      this.destinatario = cocina && mozos ? 'ambos' : (cocina ? 'cocina' : 'mozos');
+      const alcance = n?.cocinaAlcance || 'todas';
+      this.cocinaDestino = alcance === 'kds' ? 'kds' : (alcance === 'pantallas' ? 'hub' : 'todas');
+      if (Array.isArray(n?.pantallas) && n.pantallas.length) {
+        this.cocinerasSeleccionadas = n.pantallas.map(String);
+      }
+      this.segundosCocina = Number(n?.segundosEnPantalla) || 15;
+      this.mozosModo = n?.mozosAlcance === 'algunos' ? 'seleccion' : 'todos';
+      this.mozosSeleccionados = (n?.mozoIds || []).map(String);
+    },
+    resetDestino() {
+      this.destinatario = 'ambos';
+      this.cocinaDestino = 'todas';
+      this.segundosCocina = 15;
+      this.mozosModo = 'todos';
+      this.mozosSeleccionados = [];
+      this.buscaMozo = '';
+      this.cocinerasSeleccionadas = this.cocinerasHub.map((c) => c.id);
+      this.emojiAbierto = false;
+    },
+    async cargarDestinos() {
+      this.mozosCargando = true;
+      this.mozosAviso = '';
+      try {
+        const pan = await fetch('/api/pantallas-cocina/activas', { headers: this.headers(false) });
+        if (pan.ok) {
+          const data = await leerJson(pan);
+          const lista = data.data || [];
+          this.cocinerasHub = lista.map((p) => ({
+            id: String(p.numeroPantalla),
+            numero: String(p.numeroPantalla),
+            nombre: nombreDePantalla(p),
+            cocineroIds: idsCocinerosPantalla(p),
+          }));
+          this.cocinerasSeleccionadas = this.cocinerasHub.map((c) => c.id);
+        } else {
+          this.cocinerasHub = [];
+          this.cocinerasSeleccionadas = [];
+        }
+      } catch (_) {
+        this.cocinerasHub = [];
+        this.cocinerasSeleccionadas = [];
+      }
+      try {
+        const moz = await fetch('/api/mozos', { headers: this.headers(false) });
+        if (!moz.ok) {
+          this.listaMozos = [];
+          this.mozosAviso = 'No se pudo cargar la lista de mozos.';
+          return;
+        }
+        const data = await leerJson(moz);
+        let activos = new Set();
+        try {
+          const act = await fetch('/api/noticias/mozos-activos', { headers: this.headers(false), cache: 'no-store' });
+          if (act.ok) {
+            const extra = await leerJson(act);
+            activos = new Set((extra.ids || []).map(String));
+          }
+        } catch (_) {}
+        const arr = Array.isArray(data) ? data : (data.mozos || data.data || []);
+        this.listaMozos = arr.filter((m) => {
+          if (!m || !m._id || m.activo === false) return false;
+          return ROLES_MOZO.has(String(m.rol || '').toLowerCase());
+        }).map((m) => {
+          const nombre = m.name || [m.nombres, m.apellidos].filter(Boolean).join(' ') || 'Mozo';
+          const fondo = colorHex(m.colorPerfil) || colorDeNombre(nombre);
+          const letra = colorHex(m.colorLetraPerfil) || '#ffffff';
+          const foto = m.fotoUrl || m.foto || '';
+          return {
+            id: String(m._id),
+            nombre,
+            corto: nombre.split(' ').slice(0, 2).join(' '),
+            ini: (nombre.trim()[0] || 'M').toUpperCase(),
+            foto: /^https?:\/\//i.test(foto) || foto.startsWith('/') ? foto : (foto ? '/' + foto : ''),
+            estilo: 'background:' + fondo + ';color:' + letra,
+            activo: activos.has(String(m._id)),
+          };
+        }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+        this.mozosSeleccionados = this.mozosSeleccionados.filter((id) => this.listaMozos.some((m) => m.id === id));
+      } catch (_) {
+        this.listaMozos = [];
+        this.mozosAviso = 'No se pudo cargar la lista de mozos.';
+      } finally {
+        this.mozosCargando = false;
+      }
+    },
+    marcarMozoActivo(id) {
+      const sid = String(id || '');
+      if (!sid || sid === 'undefined') return;
+      const mozo = this.listaMozos.find((m) => m.id === sid);
+      if (mozo && !mozo.activo) mozo.activo = true;
+    },
+    escucharMozosActivos() {
+      if (this._socketAdmin || typeof io !== 'function') return;
+      this._socketAdmin = io('/admin', {
+        auth: { token: this.token() },
+        transports: ['websocket', 'polling'],
+      });
+      this._socketAdmin.on('nueva-comanda', (payload) => {
+        const mozo = payload?.comanda?.mozos;
+        const id = mozo && typeof mozo === 'object' ? (mozo._id || mozo.id) : mozo;
+        this.marcarMozoActivo(id);
+      });
+    },
+    payloadDestino() {
+      const segundos = Math.min(120, Math.max(5, Number(this.segundosCocina) || 15));
+      const elegidas = new Set(this.cocinerasSeleccionadas);
+      const cocinaCocineroIds = this.cocinaDestino === 'hub'
+        ? [...new Set(this.cocinerasHub.filter((c) => elegidas.has(c.id)).flatMap((c) => c.cocineroIds || []))]
+        : [];
+      return {
+        destinatario: this.destinatario,
+        cocinaDestino: this.cocinaDestino,
+        pantallas: this.cocinerasSeleccionadas.map((id) => Number(id)).filter((n) => Number.isFinite(n)),
+        cocinaCocineroIds,
+        segundosCocina: segundos,
+        mozosModo: this.mozosModo,
+        mozoIds: this.mozosSeleccionados.slice(),
+      };
+    },
+    destinoValido() {
+      const vaCocina = this.destinatario === 'cocina' || this.destinatario === 'ambos';
+      const vaMozos = this.destinatario === 'mozos' || this.destinatario === 'ambos';
+      if (vaCocina && this.cocinaDestino === 'hub' && !this.cocinerasSeleccionadas.length) {
+        this.estado = 'Elige al menos una pantalla del Monitor Hub.';
+        this.estadoTipo = 'error';
+        return false;
+      }
+      if (vaMozos && this.mozosModo === 'seleccion' && !this.mozosSeleccionados.length) {
+        this.estado = 'Elige al menos un mozo.';
+        this.estadoTipo = 'error';
+        return false;
+      }
+      return true;
     },
 
     token() {
@@ -460,7 +1286,8 @@ function noticiasApp() {
       this.prepararAnimacion();
       this.montarEditor();
       this.restaurarBorrador();
-      await Promise.all([this.cargar(), this.cargarTop(), this.cargarHoy()]);
+      await Promise.all([this.cargar(), this.cargarTop(), this.cargarHoy(), this.cargarDestinos()]);
+      this.escucharMozosActivos();
       this.entrada();
     },
 
@@ -490,11 +1317,11 @@ function noticiasApp() {
     },
     estiloPuesto(puesto) {
       const map = {
-        1: 'background:#d4af37;color:#1a1a1a;box-shadow:0 0 14px rgba(212,175,55,0.45)',
-        2: 'background:#c0c0c0;color:#1a1a1a',
-        3: 'background:#cd7f32;color:#1a1a1a',
+        1: 'background:#d4af37;color:#0a0a0f;box-shadow:0 0 14px rgba(212,175,55,0.5)',
+        2: 'background:#e2e8f0;color:#0a0a0f',
+        3: 'background:#cd7f32;color:#0a0a0f',
       };
-      return map[puesto] || 'background:rgba(212,175,55,0.12);color:#d4af37;border:1px solid rgba(212,175,55,0.3)';
+      return map[puesto] || 'background:rgba(212,175,55,0.18);color:#d4af37;border:1px solid rgba(212,175,55,0.4)';
     },
     mostrarToast(msg, tipo = 'ok') {
       this.toast = { msg, tipo };
@@ -533,19 +1360,30 @@ function noticiasApp() {
 
     // ---------- editor ----------
     montarEditor() {
+      if (typeof Quill === 'undefined') return;
+      registrarEmojiQuill();
       const SizeStyle = Quill.import('attributors/style/size');
-      SizeStyle.whitelist = ['14px', '18px', '24px', '32px'];
+      SizeStyle.whitelist = ['24px', '36px', '48px', '64px'];
       Quill.register(SizeStyle, true);
       const AlignStyle = Quill.import('attributors/style/align');
       Quill.register(AlignStyle, true);
 
+      const SizeClass = Quill.import('attributors/class/size');
+      const tamanos = ['24px', '36px', '48px', '64px'];
+      if (SizeClass) SizeClass.whitelist = tamanos;
+      if (SizeStyle) SizeStyle.whitelist = tamanos;
+
       this.quill = new Quill('#editor', {
         theme: 'snow',
-        placeholder: 'Escribe la noticia del día. Puedes poner imágenes, títulos y colores.',
+        placeholder: 'Escribe el texto de la noticia. El título va en la misma hoja, arriba.',
         modules: {
           toolbar: {
             container: '#toolbar',
-            handlers: { image: () => this.elegirImagen() },
+            handlers: {
+              image: () => this.elegirImagen(),
+              size: (value) => this.aplicarTamano(value),
+              header: (value) => this.aplicarJerarquia(value),
+            },
           },
           keyboard: {
             bindings: {
@@ -553,23 +1391,112 @@ function noticiasApp() {
             },
           },
         },
-        formats: ['bold', 'italic', 'underline', 'header', 'size', 'color', 'align', 'list', 'image'],
+        formats: ['bold', 'italic', 'underline', 'header', 'size', 'color', 'align', 'list', 'image', 'emoji'],
       });
+      this.quill.clipboard.addMatcher('SPAN', (node, delta) => {
+        const size = (node.style && node.style.fontSize) || '';
+        const esEmoji = node.classList?.contains('noticia-emoji') || size === '1.4em';
+        if (!esEmoji) return delta;
+        (delta.ops || []).forEach((op) => {
+          if (typeof op.insert === 'string') op.attributes = { ...(op.attributes || {}), emoji: true };
+        });
+        return delta;
+      });
+      protegerSeleccionQuill(this.quill);
+      this._rango = { index: 0, length: 0 };
+      this.quill.on('selection-change', (range) => {
+        if (range) this._rango = { index: range.index, length: range.length };
+      });
+      const barra = this.quill.getModule('toolbar')?.container;
+      if (barra) {
+        barra.addEventListener('mousedown', (ev) => {
+          if (ev.target.closest('.ql-picker')) ev.preventDefault();
+        });
+      }
+      const btnFoto = document.getElementById('btn-imagen');
+      const inputFoto = document.getElementById('input-imagen');
+      if (btnFoto && inputFoto && btnFoto.parentNode) {
+        const caja = document.createElement('span');
+        caja.className = 'foto-disparador';
+        caja.title = 'Insertar la foto completa';
+        const icono = btnFoto.querySelector('svg');
+        if (icono) caja.appendChild(icono.cloneNode(true));
+        else caja.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 18 18" aria-hidden="true"><rect class="ql-stroke" height="10" width="12" x="3" y="4"></rect><circle class="ql-fill" cx="6" cy="7" r="1"></circle><polyline class="ql-even ql-fill" points="5 12 5 11 7 9 8 10 11 7 13 9 13 12 5 12"></polyline></svg>');
+        caja.appendChild(inputFoto);
+        btnFoto.replaceWith(caja);
+        inputFoto.addEventListener('pointerdown', () => { this._modoFoto = 'completa'; });
+        inputFoto.addEventListener('change', (ev) => this.archivoElegido(ev));
+      }
+      if (barra) {
+        const elegirFormato = (item) => {
+          const picker = item.closest('.ql-picker');
+          const valor = item.getAttribute('data-value');
+          if (picker?.classList.contains('ql-size')) this.aplicarTamano(valor || false);
+          if (picker?.classList.contains('ql-header')) this.aplicarJerarquia(valor || false);
+        };
+        barra.addEventListener('click', (ev) => {
+          const item = ev.target.closest?.('.ql-picker-item');
+          if (item) elegirFormato(item);
+        });
+        barra.addEventListener('touchend', (ev) => {
+          const item = ev.target.closest?.('.ql-picker-item');
+          if (!item) return;
+          ev.preventDefault();
+          elegirFormato(item);
+        }, { passive: false });
+      }
       this.quill.on('text-change', () => {
         this.sincronizarEstado();
-        this.ajustarAltoEditor();
         this.actualizarPreview();
         this.programarBorrador();
       });
       this.sincronizarEstado();
-      this.ajustarAltoEditor();
     },
-    ajustarAltoEditor() {
-      const root = this.quill?.root;
-      if (!root) return;
-      root.style.height = 'auto';
-      const alto = Math.min(220, Math.max(44, root.scrollHeight));
-      root.style.height = alto + 'px';
+    rangoEditor() {
+      const q = this.quill;
+      if (!q) return null;
+      return q.getSelection() || this._rango || { index: Math.max(0, q.getLength() - 1), length: 0 };
+    },
+    aplicarJerarquia(value) {
+      const q = this.quill;
+      const range = this.rangoEditor();
+      if (!q || !range) return;
+      const nivel = value ? Number(value) : false;
+      q.formatLine(range.index, Math.max(range.length, 1), 'header', nivel || false, 'user');
+    },
+    aplicarTamano(value) {
+      const q = this.quill;
+      const range = this.rangoEditor();
+      if (!q || !range) return;
+      const v = value || false;
+      let index = range.index;
+      let length = range.length;
+      if (!length) {
+        const linea = q.getLine(index);
+        if (linea && linea[0]) {
+          index = Math.max(0, index - linea[1]);
+          length = Math.max(0, linea[0].length() - 1);
+        }
+      }
+      if (length > 0) q.formatText(index, length, 'size', v, 'user');
+      else q.format('size', v, 'user');
+    },
+    insertarEmoji(ch) {
+      const q = this.quill;
+      if (!q || !ch) return;
+      const fin = Math.max(0, q.getLength() - 1);
+      let index = fin;
+      if (this._rango && Number.isFinite(this._rango.index)) {
+        index = Math.min(fin, Math.max(0, this._rango.index));
+      }
+      try {
+        q.insertText(index, ch, 'user');
+        const siguiente = Math.min(q.getLength() - 1, index + ch.length);
+        this._rango = { index: Math.max(0, siguiente), length: 0 };
+        q.setSelection(this._rango.index, 0, 'silent');
+      } catch (_) {
+        this.mostrarToast('No se pudo insertar el emoji', 'error');
+      }
     },
     sincronizarEstado() {
       if (!this.quill) return;
@@ -583,7 +1510,7 @@ function noticiasApp() {
       const body = this.$refs.previewBody;
       if (!body || !this.quill) return;
       if (!this.tieneContenido) {
-        body.innerHTML = '<p style="color:#5a5a7a">Lo que escribas aparece aquí.</p>';
+        body.innerHTML = '<p style="color:rgba(255,255,255,0.6)">Lo que escribas en el editor aparece aquí.</p>';
         return;
       }
       body.innerHTML = htmlParaGuardar(this.quill).replace(/<\s*script[\s\S]*?<\s*\/\s*script\s*>/gi, '');
@@ -597,21 +1524,21 @@ function noticiasApp() {
       this.borradorRecuperado = false;
       this.quill?.setContents([], 'silent');
       this.sincronizarEstado();
-      this.ajustarAltoEditor();
       this.actualizarPreview();
       this.borrarBorrador();
+      this.resetDestino();
       this.quill?.focus();
     },
     editar(n) {
       this.editandoId = n._id;
       this.titulo = n.titulo || '';
+      this.aplicarDestino(n);
       this.borradorRecuperado = false;
       this.quill.setContents([], 'silent');
       this.quill.clipboard.dangerouslyPasteHTML(0, n.cuerpoHtml || '', 'silent');
       this.sincronizarEstado();
-      this.ajustarAltoEditor();
       this.actualizarPreview();
-      this.estado = 'Editando «' + (n.titulo || '') + '». Al guardar, los teléfonos se actualizan solos.';
+      this.estado = 'Editando «' + (n.titulo || '') + '». Al guardar, las pantallas se actualizan solas.';
       this.estadoTipo = 'info';
       this.borrarBorrador();
       window.scrollTo({ top: 0, behavior: this.anima ? 'smooth' : 'auto' });
@@ -639,7 +1566,6 @@ function noticiasApp() {
         this.titulo = data.titulo || '';
         if (data.delta) this.quill.setContents(data.delta, 'silent');
         this.sincronizarEstado();
-        this.ajustarAltoEditor();
         this.actualizarPreview();
         this.borradorRecuperado = true;
       } catch (_) {}
@@ -655,52 +1581,50 @@ function noticiasApp() {
 
     // ---------- datos ----------
     async cargar() {
-      const res = await fetch('/api/noticias', { headers: this.headers(false) });
-      if (res.status === 401) { window.location.href = '/login.html'; return; }
-      const data = await res.json();
-      this.noticias = data.noticias || [];
+      try {
+        const res = await fetch('/api/noticias', { headers: this.headers(false) });
+        if (res.status === 401) { window.location.href = '/login.html'; return; }
+        const data = await leerJson(res);
+        if (!res.ok) { this.mostrarToast(data.error || 'No se pudo cargar', 'error'); return; }
+        this.noticias = data.noticias || [];
+      } catch (_) {
+        this.mostrarToast('No se pudo cargar el archivo', 'error');
+      }
     },
     async cargarHoy() {
       try {
         const res = await fetch('/api/noticias/hoy', { headers: this.headers(false), cache: 'no-store' });
         if (!res.ok) return;
-        const data = await res.json();
+        const data = await leerJson(res);
         this.fechaOperativa = data.fechaOperativa || '';
         this.vigentesHoy = Array.isArray(data.noticias) ? data.noticias.length : 0;
       } catch (_) {}
     },
     async cargarTop() {
-      const res = await fetch('/api/noticias/top-semana', { headers: this.headers(false) });
-      if (!res.ok) return;
-      const data = await res.json();
-      this.top = data.platos || [];
-      this.topRango = data.desde && data.hasta ? data.desde.slice(5) + ' → ' + data.hasta.slice(5) : '';
+      try {
+        const res = await fetch('/api/noticias/top-semana', { headers: this.headers(false) });
+        if (!res.ok) return;
+        const data = await leerJson(res);
+        this.top = data.platos || [];
+        this.topRango = data.desde && data.hasta ? data.desde.slice(5) + ' → ' + data.hasta.slice(5) : '';
+      } catch (_) {}
     },
     async publicar() {
       if (this.guardando) return;
-      if (!this.titulo.trim()) {
-        this.estado = 'Ponle un título.';
-        this.estadoTipo = 'error';
-        document.getElementById('titulo')?.focus();
-        return;
-      }
-      if (!this.tieneContenido) {
-        this.estado = 'Escribe algo o agrega una imagen.';
-        this.estadoTipo = 'error';
-        this.quill?.focus();
-        return;
-      }
+      if (!this.destinoValido()) return;
       const cuerpoHtml = htmlParaGuardar(this.quill);
+      this.avisoCarga = 'Publicando el aviso…';
       this.guardando = true;
       this.estado = '';
+      const payload = { titulo: this.titulo, cuerpoHtml, ...this.payloadDestino() };
       try {
         const url = this.editandoId ? '/api/noticias/' + this.editandoId : '/api/noticias';
         const res = await fetch(url, {
           method: this.editandoId ? 'PUT' : 'POST',
           headers: this.headers(),
-          body: JSON.stringify({ titulo: this.titulo, cuerpoHtml }),
+          body: JSON.stringify(payload),
         });
-        const data = await res.json();
+        const data = await leerJson(res);
         if (!res.ok) {
           this.estado = data.error || 'No se pudo publicar';
           this.estadoTipo = 'error';
@@ -712,64 +1636,106 @@ function noticiasApp() {
           await Promise.all([this.cargar(), this.cargarHoy()]);
         });
         this.nueva();
-        this.estado = editaba ? 'Cambios guardados. Los teléfonos ya lo tienen.' : 'Publicado. Mozos y cocina lo ven ahora.';
+        this.estado = editaba ? 'Cambios guardados. Se actualizaron las pantallas.' : 'Publicado. Guardado en el archivo del día.';
         this.estadoTipo = 'info';
         this.mostrarToast(editaba ? 'Guardado' : 'Publicado');
         this.pulsoTelefono();
       } catch (e) {
-        this.estado = 'Sin conexión con el servidor';
-        this.estadoTipo = 'error';
-        this.mostrarToast(this.estado, 'error');
+        this.mostrarToast('Sin conexión con el servidor', 'error');
       } finally {
         this.guardando = false;
+        this.avisoCarga = '';
       }
     },
+    iniciarCronometroPantalla(segundos) {
+      const total = Math.min(120, Math.max(5, Number(segundos) || 15));
+      const fin = Date.now() + total * 1000;
+      this.restaPantalla = total;
+      clearInterval(this._cronoTimer);
+      this._cronoTimer = setInterval(() => {
+        const queda = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+        this.restaPantalla = queda;
+        if (queda <= 0) {
+          clearInterval(this._cronoTimer);
+          this.restaPantalla = null;
+        }
+      }, 200);
+    },
+    iniciarEsperaReenvio() {
+      this.esperaReenvio = 5;
+      clearInterval(this._reenvioTimer);
+      this._reenvioTimer = setInterval(() => {
+        this.esperaReenvio -= 1;
+        if (this.esperaReenvio <= 0) {
+          this.esperaReenvio = 0;
+          clearInterval(this._reenvioTimer);
+        }
+      }, 1000);
+    },
     async enviarUnaVez() {
-      if (this.guardando) return;
-      if (!this.titulo.trim() || !this.tieneContenido) {
-        this.estado = 'Ponle título y texto, o una imagen.';
-        this.estadoTipo = 'error';
-        return;
-      }
+      if (this.guardando || this.esperaReenvio > 0) return;
+      if (!this.destinoValido()) return;
+      this.avisoCarga = 'Enviando el aviso…';
       this.guardando = true;
       this.estado = '';
+      const payload = { titulo: this.titulo, cuerpoHtml: htmlParaGuardar(this.quill), ...this.payloadDestino() };
       try {
         const res = await fetch('/api/noticias/temporal', {
           method: 'POST',
           headers: this.headers(),
-          body: JSON.stringify({ titulo: this.titulo, cuerpoHtml: htmlParaGuardar(this.quill) }),
+          body: JSON.stringify(payload),
         });
-        const data = await res.json();
+        const data = await leerJson(res);
         if (!res.ok) {
           this.estado = data.error || 'No se pudo enviar';
           this.estadoTipo = 'error';
           this.mostrarToast(this.estado, 'error');
           return;
         }
+        const segundosEnPantalla = payload.segundosCocina;
         this.nueva();
-        this.estado = 'Enviada una vez. No quedó guardada.';
+        this.estado = 'Aviso enviado una vez. No quedó en el archivo.';
         this.estadoTipo = 'info';
-        this.mostrarToast('Enviada una vez');
+        this.mostrarToast('Enviado una vez');
         this.pulsoTelefono();
-      } catch (e) {
+        sonarEnviado();
+        this.iniciarEsperaReenvio();
+        this.iniciarCronometroPantalla(segundosEnPantalla);
+      } catch (_) {
         this.mostrarToast('Sin conexión con el servidor', 'error');
       } finally {
         this.guardando = false;
+        this.avisoCarga = '';
       }
     },
     async retirar(n) {
       this.confirmRetirarId = null;
-      const res = await fetch('/api/noticias/' + n._id + '/retirar', { method: 'PATCH', headers: this.headers() });
-      if (!res.ok) { this.mostrarToast('No se pudo retirar', 'error'); return; }
-      await this.refrescarListaConFlip(async () => {
-        await Promise.all([this.cargar(), this.cargarHoy()]);
-      });
-      if (this.editandoId === n._id) this.nueva();
-      this.mostrarToast('Retirada. Ya no se ve en los teléfonos.');
+      try {
+        const res = await fetch('/api/noticias/' + n._id + '/retirar', { method: 'PATCH', headers: this.headers() });
+        const data = await leerJson(res);
+        if (!res.ok) {
+          this.mostrarToast(data.error || 'No se pudo eliminar', 'error');
+          return;
+        }
+        this.noticias = this.noticias.filter((x) => String(x._id) !== String(n._id));
+        if (String(this.editandoId) === String(n._id)) this.nueva();
+        await this.cargarHoy();
+        this.mostrarToast('Publicación eliminada.');
+      } catch (_) {
+        this.mostrarToast('Sin conexión con el servidor', 'error');
+      }
     },
 
     // ---------- imágenes ----------
     elegirImagen() {
+      this._modoFoto = 'completa';
+      this.abrirSelectorFoto();
+    },
+    elegirRecorte() {
+      this._modoFoto = 'recorte';
+      this.abrirSelectorFoto();
+    },
+    abrirSelectorFoto() {
       if (this.imagenes >= MAX_IMAGENES) {
         this.estado = 'Máximo ' + MAX_IMAGENES + ' imágenes por noticia.';
         this.estadoTipo = 'error';
@@ -779,14 +1745,26 @@ function noticiasApp() {
       document.getElementById('input-imagen')?.click();
     },
     archivoElegido(ev) {
-      const file = ev.target.files && ev.target.files[0];
-      ev.target.value = '';
-      if (!file) return;
-      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) {
-        this.mostrarToast('Solo JPEG, PNG o WebP', 'error');
-        return;
+      const input = ev.target;
+      const file = input.files && input.files[0];
+      const seguro = file
+        ? new File([file], file.name || 'foto.jpg', { type: file.type || 'image/jpeg', lastModified: file.lastModified })
+        : null;
+      setTimeout(() => { input.value = ''; }, 400);
+      if (!seguro) return;
+      this.estado = 'Preparando la foto…';
+      this.estadoTipo = 'info';
+      if (this._modoFoto === 'recorte') this.abrirRecorte(seguro);
+      else this.insertarCompleta(seguro);
+    },
+    async insertarCompleta(file) {
+      try {
+        let blob = await prepararFoto(file);
+        blob = await jpegDentroDeLimite(blob);
+        await this.subirYInsertar(blob);
+      } catch (e) {
+        this.mostrarToast(e.message || 'No se pudo subir la foto', 'error');
       }
-      this.abrirRecorte(file);
     },
     cropperCtor() {
       const C = window.Cropper;
@@ -795,29 +1773,50 @@ function noticiasApp() {
       return C.default || C.Cropper || null;
     },
     async abrirRecorte(file) {
+      let preparado;
+      try { preparado = await prepararFoto(file); }
+      catch (e) { this.mostrarToast(e.message || 'No se pudo leer la foto', 'error'); return; }
+      this._fotoLista = preparado;
       const Ctor = this.cropperCtor();
       if (!Ctor) {
-        try { await this.subirYInsertar(file); } catch (e) { this.mostrarToast(e.message || 'No se pudo subir', 'error'); }
+        try { await this.subirYInsertar(preparado); }
+        catch (e) { this.mostrarToast(e.message || 'No se pudo subir', 'error'); }
+        this._fotoLista = null;
         return;
       }
-      this.recorte = { url: URL.createObjectURL(file), ratio: 'libre', subiendo: false, error: '' };
+      if (this.recorte.url) URL.revokeObjectURL(this.recorte.url);
+      const url = URL.createObjectURL(preparado);
+      this.recorte = { url, ratio: 'libre', subiendo: false, error: '' };
       this.modalRecorte = true;
       await this.$nextTick();
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const host = document.getElementById('cropper-host');
-      host.innerHTML = '';
+      if (!host) return;
+      host.replaceChildren();
       const img = new Image();
       img.alt = '';
-      img.src = this.recorte.url;
+      img.src = url;
+      try {
+        await new Promise((resolve, reject) => {
+          if (img.complete && img.naturalWidth) return resolve();
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('No se pudo leer la imagen'));
+        });
+      } catch (e) {
+        this.recorte.error = e.message;
+        return;
+      }
       host.appendChild(img);
       try {
         this.cropper = new Ctor(img, { template: CROPPER_TEMPLATE });
+        const image = this.cropper.getCropperImage?.();
+        if (image?.$ready) {
+          try { await image.$ready(); } catch (_) {}
+        }
+        await image?.$center?.('contain');
+        this.cropper.getCropperSelection?.()?.$center?.();
       } catch (e) {
-        this.recorte.error = 'No se pudo abrir el recorte: ' + (e.message || e);
-        return;
-      }
-      const btn = document.getElementById('btn-imagen');
-      if (this.anima && window.BlendyWrapper && btn && this.$refs.modalRecorte) {
-        BlendyWrapper.morph(btn, this.$refs.modalRecorte);
+        this.recorte.error = 'No se pudo abrir el recorte. Puedes subir la foto completa.';
       }
     },
     setRatio(id) {
@@ -837,68 +1836,68 @@ function noticiasApp() {
     },
     cerrarRecorte() {
       if (this.recorte.subiendo) return;
-      const btn = document.getElementById('btn-imagen');
-      const fin = () => {
-        this.modalRecorte = false;
-        try { this.cropper?.destroy(); } catch (_) {}
-        this.cropper = null;
-        const host = document.getElementById('cropper-host');
-        if (host) host.innerHTML = '';
-        if (this.recorte.url) URL.revokeObjectURL(this.recorte.url);
-        this.recorte = { url: '', ratio: 'libre', subiendo: false, error: '' };
-        if (window.BlendyWrapper && btn) BlendyWrapper.restoreSource(btn);
-      };
-      if (this.anima && window.BlendyWrapper && btn && this.$refs.modalRecorte) {
-        BlendyWrapper.unmorph(btn, this.$refs.modalRecorte, { onDone: fin });
-      } else {
-        fin();
-      }
+      this.modalRecorte = false;
+      try { this.cropper?.destroy(); } catch (_) {}
+      this.cropper = null;
+      const host = document.getElementById('cropper-host');
+      if (host) host.replaceChildren();
+      if (this.recorte.url) URL.revokeObjectURL(this.recorte.url);
+      this._fotoLista = null;
+      this.recorte = { url: '', ratio: 'libre', subiendo: false, error: '' };
+    },
+    async subirYInsertar(blob) {
+      const archivo = blob instanceof File ? blob : new File([blob], 'noticia.jpg', { type: blob.type || 'image/jpeg' });
+      const fd = new FormData();
+      fd.append('imagen', archivo);
+      const res = await fetch('/api/noticias/imagen', { method: 'POST', headers: this.headers(false), body: fd });
+      const data = await leerJson(res);
+      if (!res.ok || !data.url) throw new Error(data.error || 'No se pudo subir la imagen');
+      const q = this.quill;
+      if (!q) throw new Error('El editor no está listo');
+      const range = q.getSelection(true);
+      const index = range ? range.index : Math.max(0, q.getLength() - 1);
+      q.insertEmbed(index, 'image', data.url, 'user');
+      q.setSelection(index + 1, 0, 'silent');
+      this.sincronizarEstado();
+      this.actualizarPreview();
+      this.estado = 'Imagen insertada.';
+      this.estadoTipo = 'info';
+      this.mostrarToast('Imagen insertada');
     },
     async usarRecorte() {
-      const sel = this.cropper?.getCropperSelection();
-      if (!sel) return;
+      if (this.recorte.subiendo) return;
       this.recorte.subiendo = true;
       this.recorte.error = '';
       try {
-        const ancho = Math.min(1200, Math.max(1, Math.round(sel.width)));
-        const canvas = await sel.$toCanvas({ width: ancho });
-        const blob = await this.canvasABlob(canvas);
-        if (!blob) throw new Error('La imagen sigue pesando más de 2 MB. Prueba un recorte más pequeño.');
-        await this.subirYInsertar(new File([blob], 'noticia.jpg', { type: 'image/jpeg' }));
+        let blob = this._fotoLista;
+        const sel = this.cropper?.getCropperSelection?.();
+        if (sel?.$toCanvas) {
+          let canvas = await sel.$toCanvas();
+          const lado = Math.max(canvas.width, canvas.height);
+          if (lado > 1600) {
+            const esc = 1600 / lado;
+            const out = document.createElement('canvas');
+            out.width = Math.max(1, Math.round(canvas.width * esc));
+            out.height = Math.max(1, Math.round(canvas.height * esc));
+            const ctx = out.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, out.width, out.height);
+            ctx.drawImage(canvas, 0, 0, out.width, out.height);
+            canvas = out;
+          }
+          blob = await blobDeCanvas(canvas, 0.86);
+        }
+        if (!blob) throw new Error('No hay foto para subir');
+        blob = await jpegDentroDeLimite(blob);
+        await this.subirYInsertar(blob);
         this.recorte.subiendo = false;
         this.cerrarRecorte();
       } catch (e) {
         this.recorte.subiendo = false;
-        this.recorte.error = e.message || 'No se pudo recortar';
+        this.recorte.error = e.message || 'No se pudo subir la imagen';
+        this.mostrarToast(this.recorte.error, 'error');
       }
-    },
-    canvasABlob(canvas) {
-      const intentar = (calidad) => new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', calidad));
-      return intentar(0.86).then((b) => {
-        if (b && b.size <= MAX_BYTES) return b;
-        return intentar(0.7).then((b2) => (b2 && b2.size <= MAX_BYTES ? b2 : null));
-      });
-    },
-    async subirYInsertar(file) {
-      if (file.size > MAX_BYTES) throw new Error('La imagen pesa más de 2 MB.');
-      const fd = new FormData();
-      fd.append('imagen', file);
-      this.estado = 'Subiendo imagen…';
-      this.estadoTipo = 'info';
-      const res = await fetch('/api/noticias/imagen', { method: 'POST', headers: this.headers(false), body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        this.estado = data.error || 'No se pudo subir';
-        this.estadoTipo = 'error';
-        throw new Error(this.estado);
-      }
-      const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
-      this.quill.insertEmbed(range.index, 'image', data.url, 'user');
-      this.quill.setSelection(range.index + 1, 0, 'silent');
-      this.estado = 'Imagen lista.';
-      this.estadoTipo = 'info';
-      this.mostrarToast('Imagen insertada');
-    },
+    }
   };
 }
 </script>

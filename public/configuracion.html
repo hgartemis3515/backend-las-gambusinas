@@ -718,6 +718,11 @@ tailwind.config = {
               <span class="text-sm text-txt-secondary">Detener impresión de Caja</span>
             </label>
             <p class="text-[10px] text-txt-muted pl-7">Desmarcado (recomendado): también se imprime el ticket de mozo en caja. Marcado: esa impresión automática no sale. Cada una se detiene por separado.</p>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.cocinaTicketsBajaPlatoLetras" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Dos tickets al anular un plato</span>
+            </label>
+            <p class="text-[10px] text-txt-muted pl-7">Marcado (recomendado): al quitar un plato se imprimen el de eliminados y el de lo que queda, con letras seguidas (1b y 1c). Desmarcado: vuelve un solo ticket, con el plato tachado y una sola letra. Recargue cocina y el panel para ver el cambio.</p>
 
             <!-- PLAN OBLIGAR ORDEN ASIGNACION KDS SUPERVISOR -->
             <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
@@ -2024,6 +2029,7 @@ function configApp() {
       cocinaOcultarTablasKdsMenosSupervisor: true,
       cocinaDetenerImpresionCocina: false,
       cocinaDetenerImpresionCaja: false,
+      cocinaTicketsBajaPlatoLetras: true,
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -2485,6 +2491,7 @@ function configApp() {
             this.config.cocinaOcultarTablasKdsMenosSupervisor = cfg.cocina.ocultarTablasKdsMenosSupervisor !== false;
             this.config.cocinaDetenerImpresionCocina = cfg.cocina.detenerImpresionCocina === true;
             this.config.cocinaDetenerImpresionCaja = cfg.cocina.detenerImpresionCaja === true;
+            this.config.cocinaTicketsBajaPlatoLetras = cfg.cocina.ticketsBajaPlatoLetras !== false;
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
@@ -2513,6 +2520,7 @@ function configApp() {
             this.config.cocinaOcultarTablasKdsMenosSupervisor = true;
             this.config.cocinaDetenerImpresionCocina = false;
             this.config.cocinaDetenerImpresionCaja = false;
+            this.config.cocinaTicketsBajaPlatoLetras = true;
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
@@ -2716,6 +2724,7 @@ function configApp() {
             ocultarTablasKdsMenosSupervisor: this.config.cocinaOcultarTablasKdsMenosSupervisor !== false,
             detenerImpresionCocina: this.config.cocinaDetenerImpresionCocina === true,
             detenerImpresionCaja: this.config.cocinaDetenerImpresionCaja === true,
+            ticketsBajaPlatoLetras: this.config.cocinaTicketsBajaPlatoLetras !== false,
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,

@@ -176,6 +176,9 @@ const CONFIGURACION_DEFAULT = {
         // true = no imprime el ticket automático de esa impresora (envío mozos y eliminar).
         detenerImpresionCocina: false,
         detenerImpresionCaja: false,
+        // true (default): al quitar un plato salen dos tickets (eliminados y restantes).
+        // false: un solo ticket, con la línea tachada y una sola letra.
+        ticketsBajaPlatoLetras: true,
         // true (default): Ver Comandas solo abre Vista Supervisor; General y Personalizada quedan ocultas.
         ocultarTablasKdsMenosSupervisor: true,
         tiemposGuarnicion: {
@@ -659,6 +662,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         detenerImpresionCaja: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.detenerImpresionCaja
+        },
+        ticketsBajaPlatoLetras: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.ticketsBajaPlatoLetras
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.

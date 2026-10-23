@@ -858,7 +858,11 @@ const obtenerMesasDisponiblesParaReserva = async (fechaReserva, ventanaMinutos =
 
 const obtenerReservasProgramadasCocina = async (opts = {}) => {
     try {
-        const query = { estado: 'pendiente', comandaGenerada: { $ne: null } };
+        const query = {
+            estado: 'pendiente',
+            comandaGenerada: { $ne: null },
+            'pagoAdelantado.estadoTicket': { $nin: ['pendiente_aprobacion', 'rechazado'] },
+        };
         if (opts.cocineroId && mongoose.Types.ObjectId.isValid(opts.cocineroId)) {
             query.cocineroEncargado = new mongoose.Types.ObjectId(opts.cocineroId);
         }
@@ -867,7 +871,7 @@ const obtenerReservasProgramadasCocina = async (opts = {}) => {
             .populate('mozo', 'name')
             .populate('cocineroEncargado', 'name alias')
             .populate('platos.plato', 'nombre precio')
-            .populate('comandaGenerada', 'comandaNumber status programadaPorReserva fechaCocinaProgramada prioridadOrden')
+            .populate('comandaGenerada', 'comandaNumber numeroComandaDia revisionTicket status programadaPorReserva fechaCocinaProgramada prioridadOrden')
             .sort({ fechaCocina: 1 })
             .lean();
         return reservas;

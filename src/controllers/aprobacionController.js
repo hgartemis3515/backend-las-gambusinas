@@ -411,7 +411,13 @@ router.get('/aprobacion/comandas-imprimibles', adminAuth, async (req, res) => {
     if (!rango) return res.status(400).json({ success: false, message: 'Fecha inválida' });
     const idsSinCobro = await require('../repository/reserva.repository').idsReservasPendientesCobro();
     const filtroComandas = { createdAt: { $gte: rango.desde, $lte: rango.hasta } };
-    if (idsSinCobro.length) filtroComandas.origenReserva = { $nin: idsSinCobro };
+    if (idsSinCobro.length) {
+      filtroComandas.$or = [
+        { origenReserva: { $nin: idsSinCobro } },
+        { eliminada: true },
+        { status: 'cancelado' },
+      ];
+    }
     const lista = await comandaModel.find(filtroComandas)
       .select('numeroComandaDia comandaNumber revisionTicket mesaNumero mozoNombre clienteNombre clienteNombreParaLlevar eliminada sinMesa status createdAt')
       .sort({ numeroComandaDia: 1, comandaNumber: 1 })
@@ -1007,9 +1013,10 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
   try {
     const { id } = req.params;
     const { ticketId } = req.query;
+    const soloComanda = req.query.soloComanda === '1' || req.query.soloComanda === 'true';
 
-    // Si se indica ticketId, devolver ese ticket concreto (pagos parciales)
-    if (ticketId && mongoose.Types.ObjectId.isValid(ticketId)) {
+    // Una comanda del grupo: no devolver el ticket ni el pago que agrupa a las demás.
+    if (!soloComanda && ticketId && mongoose.Types.ObjectId.isValid(ticketId)) {
       const ticketEspecifico = await mongoose.model('TicketAprobacion').findOne({
         _id: ticketId,
         comandas: id,
@@ -1027,8 +1034,8 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       ? await ticketAprobacionRepository.obtenerTicketsPendientes()
       : [];
 
-    // Buscar por comandas array
-    const ticketAprobacion = await mongoose.model('TicketAprobacion').findOne({
+    // Buscar por comandas array. soloComanda no usa el ticket del grupo.
+    const ticketAprobacion = soloComanda ? null : await mongoose.model('TicketAprobacion').findOne({
       comandas: id,
       isActive: true,
     }).sort({ createdAt: -1 }).lean();
@@ -1038,8 +1045,8 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       return res.json({ success: true, datos: imprimible });
     }
 
-    // 2. Buscar TicketPagoAdelantado
-    const ticketPPA = await mongoose.model('TicketPagoAdelantado').findOne({
+    // 2. Buscar TicketPagoAdelantado. soloComanda imprime solo esa comanda.
+    const ticketPPA = soloComanda ? null : await mongoose.model('TicketPagoAdelantado').findOne({
       comandas: id,
       isActive: true,
     })
@@ -1086,6 +1093,7 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
           descuentos: descPPA.descuentos,
           cliente: { nombre: NOMBRE_CLIENTE_FALLBACK, dni: '' },
           voucherId: ticketPPA.voucherId || null,
+          reserva: ticketPPA.origen === 'reserva' || !!ticketPPA.reserva,
         }),
       });
     }
@@ -1103,19 +1111,24 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
     }
 
     // Buscar boucher asociado (fuente de comandasNumbers post-pago)
-    const boucher = await boucherModel.findOne({
+    let boucher = await boucherModel.findOne({
       comandas: comanda._id,
       isActive: { $ne: false },
     }).sort({ createdAt: -1 }).lean();
+    if (soloComanda && Array.isArray(boucher?.comandas) && boucher.comandas.length > 1) {
+      boucher = null;
+    }
 
     const dias = numerosDiaDeComandas([comanda]);
     let comandasNumbers = dias.length
       ? dias
-      : (boucher?.comandasNumbers?.length
-        ? resolverComandasNumbers({ comandasNumbers: boucher.comandasNumbers })
-        : [comanda.comandaNumber]);
+      : (soloComanda
+        ? [comanda.numeroComandaDia ?? comanda.comandaNumber].filter((n) => n != null)
+        : (boucher?.comandasNumbers?.length
+          ? resolverComandasNumbers({ comandasNumbers: boucher.comandasNumbers })
+          : [comanda.comandaNumber]));
 
-    if (!dias.length && !boucher?.comandasNumbers?.length && comanda.pedido) {
+    if (!soloComanda && !dias.length && !boucher?.comandasNumbers?.length && comanda.pedido) {
       try {
         const pedido = await mongoose.model('Pedido').findById(comanda.pedido).lean();
         if (pedido?.comandasNumbers?.length) {
@@ -1182,6 +1195,9 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
         dni: boucher?.clienteDni || comanda.cliente?.dni || '',
       },
       voucherId: boucher?.voucherId || boucher?.boucherNumber || null,
+      reserva: comanda.origenCreacion === 'reserva'
+        || !!comanda.origenReserva
+        || comanda.programadaPorReserva === true,
     };
 
     res.json({ success: true, datos: imprimible });

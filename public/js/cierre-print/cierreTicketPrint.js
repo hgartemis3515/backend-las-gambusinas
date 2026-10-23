@@ -60,6 +60,9 @@ export function generarHtmlCierreTicket(datos, opts = {}) {
   const simbolo = 'S/.';
 
   let html = '';
+  if (opts.canal) {
+    html += `<div style="text-align:center;font-weight:900;font-size:${px(16)}px;letter-spacing:1px;margin-bottom:4px;">${escapeHtml(opts.canal)}</div>`;
+  }
   html += `<div style="text-align:center;font-weight:700;font-size:${fontTitle}px;letter-spacing:0.4px;">${escapeHtml(datos.titulo || 'CIERRE DE CAJA')}</div>`;
   html += `<div style="text-align:center;font-size:${fontSizeSm}px;margin-top:2px;">San Benito</div>`;
   html += divider(8);
@@ -148,11 +151,11 @@ function abrirImpresion(html) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-export function imprimirTicketDesdeDatos(datos) {
+export function imprimirTicketDesdeDatos(datos, opts = {}) {
   if (!datos || !Array.isArray(datos.comandas) || !datos.comandas.length) {
     throw new Error('No hay comandas para imprimir');
   }
-  const html = generarHtmlCierreTicket(datos);
+  const html = generarHtmlCierreTicket(datos, { canal: opts.canal });
   abrirImpresion(html);
   return { ok: true };
 }
@@ -169,7 +172,7 @@ export async function imprimirCierreTicket(cierreId, opts = {}) {
   if (!res || res.success === false || !res.datos) {
     throw new Error(res?.message || res?.error || 'No se pudo armar el ticket de cierre');
   }
-  const html = generarHtmlCierreTicket(res.datos);
+  const html = generarHtmlCierreTicket(res.datos, { canal: opts.canal });
   abrirImpresion(html);
   return { ok: true };
 }

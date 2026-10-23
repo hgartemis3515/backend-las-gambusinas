@@ -164,13 +164,20 @@ export async function imprimirComandaWeb(opts = {}) {
 
     // 1. Get datos — either provided or fetched
     let datos = opts.datos || null;
-    const idsGrupo = Array.isArray(opts.comandaIds)
-      ? [...new Set(opts.comandaIds.filter(Boolean).map(String))]
-      : [];
+    const idsGrupo = opts.soloComanda
+      ? []
+      : (Array.isArray(opts.comandaIds)
+        ? [...new Set(opts.comandaIds.filter(Boolean).map(String))]
+        : []);
+    if (!datos && opts.soloComanda && opts.comandaId) {
+      const res = await fetchJson(`/api/comanda/${opts.comandaId}/ticket-imprimible?soloComanda=1`);
+      if (res && res.success && res.datos) datos = res.datos;
+      else if (res && res.datos) datos = res.datos;
+    }
     if (!datos && idsGrupo.length > 1) {
       datos = await fetchYFusionarComandas(idsGrupo, fetchJson);
     }
-    if (!datos && opts.comandaId) {
+    if (!datos && opts.comandaId && !opts.soloComanda) {
       const res = await fetchJson(`/api/comanda/${opts.comandaId}/ticket-imprimible`);
       if (res && res.success && res.datos) {
         datos = res.datos;

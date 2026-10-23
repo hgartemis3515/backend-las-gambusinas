@@ -55,6 +55,7 @@ const { destinosCambioEstadoPlato, pasosCadenaEntregaAbsoluta } = require('../ut
 const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
 const { planBajaLinea, mapaCantidadesAEliminar, historialCuentaComoEliminacion, unidadesEliminadasHistorial } = require('../utils/bajaCantidadPlato');
 const { ticketAnulacionPayload } = require('../utils/comandasNumbers');
+const { datosTicketVivos, registrarParejaBaja, registrarLetraRestantes, bajaPlatoLetrasActiva } = require('../utils/historialLetrasTicket');
 const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado, mesaIdEsValido } = require('../repository/ticketPagoAdelantado.repository');
@@ -583,6 +584,41 @@ router.get('/comanda/historial-cocina', async (req, res) => {
         logger.error('Error en /historial-cocina', {
             error: error.message, stack: error.stack
         });
+        handleError(error, res, logger);
+    }
+});
+
+// GET /api/comanda/:id/historial-letras — fotos para reimprimir #1, #1b, #1c…
+router.get('/comanda/:id/historial-letras', async (req, res) => {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'ID de comanda inválido' });
+    }
+    try {
+        const doc = await comandaModel.findById(id)
+            .select('revisionTicket numeroComandaDia comandaNumber historialLetrasTicket')
+            .lean();
+        if (!doc) return res.status(404).json({ message: 'Comanda no encontrada' });
+        const letras = (doc.historialLetrasTicket || [])
+            .slice()
+            .sort((a, b) => (Number(a.revision) || 0) - (Number(b.revision) || 0))
+            .map((h) => ({
+                revision: Number(h.revision) || 0,
+                tipo: h.tipo,
+                letrero: h.letrero,
+                sinTotal: h.sinTotal === true,
+                total: h.total == null ? null : Number(h.total),
+                creadoAt: h.creadoAt || null,
+                usuarioNombre: h.usuarioNombre || null,
+                motivo: h.motivo || null,
+                datos: h.datos || null,
+            }));
+        return res.json({
+            comandaId: String(doc._id),
+            revisionTicket: Number(doc.revisionTicket) || 0,
+            letras,
+        });
+    } catch (error) {
         handleError(error, res, logger);
     }
 });
@@ -1743,9 +1779,11 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
         }
         
         // 3. Marcar plato como ELIMINADO (soft delete) y guardar estado para posible eliminación automática de comanda
+        const datosAntes = datosTicketVivos(comanda);
         const estadoPlato = (plato.estado || '').toLowerCase();
         plato.eliminado = true;
         plato.eliminadoPor = usuarioId;
+        plato.eliminadoPorNombre = actor.usuarioNombre || null;
         plato.eliminadoAt = new Date();
         plato.eliminadoRazon = razon || 'Eliminado por mozo';
         plato.estadoAlEliminar = plato.estado || null;
@@ -1781,9 +1819,11 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
         
         comanda.historialPlatos.push({
             platoId: plato.platoId,
+            lineaIndex: index,
             nombreOriginal: nombrePlato,
             cantidadOriginal: comanda.cantidades[index] || 1,
             cantidadFinal: 0,
+            cantidadEliminada: comanda.cantidades[index] || 1,
             estado: 'eliminado',
             timestamp: new Date(),
             usuario: usuarioId,
@@ -1795,7 +1835,17 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
         // Nota: El total se calcula en el frontend, pero aquí podemos actualizar si existe
         
         comanda.version = (comanda.version || 1) + 1;
-        bumpRevisionTicketOnDoc(comanda);
+        const quedanTrasPlato = comanda.platos.some((p) => p && p.eliminado !== true && p.anulado !== true);
+        let ticketsBaja = null;
+        if (quedanTrasPlato && await bajaPlatoLetrasActiva()) {
+            ticketsBaja = registrarParejaBaja(comanda, {
+                datosAntes,
+                usuario: actor.usuarioNombre,
+                motivo: razon || 'Plato eliminado de comanda',
+            });
+        } else {
+            bumpRevisionTicketOnDoc(comanda);
+        }
         await comanda.save();
 
         try {
@@ -1974,6 +2024,7 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
         res.json({
             message: 'Plato marcado como eliminado',
             comanda: comandaCompleta,
+            ticketsBaja: ticketsBaja || null,
             platoEliminado: {
                 index: index,
                 nombre: nombrePlato,
@@ -3529,6 +3580,12 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         }
         const idAntes = comandaActualizar._id.toString();
         const ahora = new Date();
+        await comandaActualizar.populate([
+            { path: 'platos.plato' },
+            { path: 'mozos' },
+            { path: 'mesas' },
+        ]);
+        const datosAntes = datosTicketVivos(comandaActualizar);
         
         // Línea completa: soft-delete. Cantidad menor: queda el resto y se reimprime el ticket.
         indicesAProcesar.forEach(idx => {
@@ -3563,6 +3620,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
                 : `Se eliminaron ${quitadas} ${platoData.nombre} (había ${original}, quedan ${final}).`;
             comandaActualizar.historialPlatos.push({
                 platoId: platoData.platoId,
+                lineaIndex: platoData.index,
                 nombreOriginal: platoData.nombre,
                 cantidadOriginal: original,
                 cantidadFinal: final,
@@ -3597,7 +3655,17 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         const mesaId = comandaActualizar.mesas?._id || comandaActualizar.mesas;
         
         comandaActualizar.version = (comandaActualizar.version || 1) + 1;
-        bumpRevisionTicketOnDoc(comandaActualizar);
+        const quedanPlatos = (comandaActualizar.platos || []).some((p) => p && p.eliminado !== true && p.anulado !== true);
+        let ticketsBaja = null;
+        if (!eliminaComandaCompleta && quedanPlatos && await bajaPlatoLetrasActiva()) {
+            ticketsBaja = registrarParejaBaja(comandaActualizar, {
+                datosAntes,
+                usuario: actor.usuarioNombre,
+                motivo: motivo.trim(),
+            });
+        } else {
+            bumpRevisionTicketOnDoc(comandaActualizar);
+        }
         await comandaActualizar.save();
 
         if (eliminaComandaCompleta) {
@@ -3825,6 +3893,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             platosEliminados: platosEliminadosData,
             totalEliminado: totalEliminado,
             comandaEliminadaCompleta: eliminaComandaCompleta || false,
+            ticketsBaja: ticketsBaja || null,
             ...(eliminaComandaCompleta ? {
               ticketAnulacion: ticketAnulacionPayload(comandaCompleta, {
                 usuario: actor.usuarioNombre,
@@ -3881,7 +3950,8 @@ router.put('/comanda/:id/anular-plato/:platoIndex', async (req, res) => {
             motivo, 
             observaciones || '', 
             usuarioId, 
-            sourceApp
+            sourceApp,
+            actor.usuarioNombre || ''
         );
 
         // Registrar auditoría
@@ -3940,9 +4010,18 @@ router.put('/comanda/:id/anular-plato/:platoIndex', async (req, res) => {
             usuarioId
         });
 
+        const vacia = !(resultado.comanda?.platos || []).some((p) => p && p.eliminado !== true && p.anulado !== true);
         res.json({
             message: 'Plato anulado exitosamente',
-            ...resultado
+            ...resultado,
+            comandaEliminadaCompleta: vacia,
+            ...(vacia ? {
+              ticketAnulacion: ticketAnulacionPayload(resultado.comanda, {
+                usuario: actor.usuarioNombre,
+                motivo: motivo + (observaciones ? ` - ${observaciones}` : ''),
+                hora: new Date(),
+              }),
+            } : {}),
         });
 
     } catch (error) {
@@ -4281,6 +4360,7 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
         const calculosPrecios = require('../utils/calculosPrecios');
         const configMoneda = await calculosPrecios.getConfigMonedaCached();
         const nuevoTotal = calculosPrecios.calcularTotales(subtotalActual, configMoneda).total;
+        const datosAntesDescuento = datosTicketVivos(comanda);
 
         // Eliminar descuento
         comanda.descuento = 0;
@@ -4294,7 +4374,15 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
         comanda.precioTotal = subtotalActual;
         comanda.version = (comanda.version || 1) + 1;
         comanda.updatedAt = require('moment-timezone')().tz("America/Lima").toDate();
-        bumpRevisionTicketOnDoc(comanda);
+        if (await bajaPlatoLetrasActiva()) {
+            registrarLetraRestantes(comanda, {
+                datosAntes: datosAntesDescuento,
+                usuario: actor.usuarioNombre,
+                motivo: motivoEliminacion || 'Descuento eliminado',
+            });
+        } else {
+            bumpRevisionTicketOnDoc(comanda);
+        }
 
         await comanda.save();
 

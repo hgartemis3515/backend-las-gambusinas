@@ -247,7 +247,9 @@ app.use(helmet({
       'form-action': ["'self'"]
     }
   },
-  crossOriginEmbedderPolicy: false // Necesario para Socket.io
+  crossOriginEmbedderPolicy: false, // Necesario para Socket.io
+  // Cocina y mozos abren las fotos desde otro origen (otro puerto o el WebView).
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
 // FASE 7: Correlation ID Middleware (Request Tracing)
@@ -349,7 +351,11 @@ app.use('/sounds/alertas', express.static(path.join(__dirname, 'public', 'sounds
 // Mensajería: servir audios de notas de voz subidos
 app.use('/uploads/mensajes', express.static(path.join(__dirname, 'uploads', 'mensajes')));
 app.use('/uploads/categorias', express.static(path.join(__dirname, 'uploads', 'categorias')));
-app.use('/uploads/noticias', express.static(path.join(__dirname, 'uploads', 'noticias')));
+app.use('/uploads/noticias', express.static(path.join(__dirname, 'uploads', 'noticias'), {
+  setHeaders(res) {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  },
+}));
 
 // Ruta raíz: mostrar el dashboard multi-página (mismo que index.html)
 app.get('/', (req, res) => {
@@ -729,6 +735,8 @@ server.listen(port, '0.0.0.0', async ()=> {
     entregaAutomaticaSalioService.iniciarBarridoEntregaAutomatica();
     const archivoCajaService = require('./src/services/archivoCaja.service');
     archivoCajaService.iniciarArchivoCajaSemanal();
+    const noticiasImagenesTemporales = require('./src/services/noticiasImagenesTemporales');
+    noticiasImagenesTemporales.iniciarBarridoImagenesNoticia();
   } catch (error) {
     logger.error('Error al iniciar barrido de entrega automática', { error: error.message });
   }

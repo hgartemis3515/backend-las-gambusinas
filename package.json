@@ -45,6 +45,7 @@
 	"scripts": {
 		"start": "node index.js",
 		"dev": "nodemon index.js",
+		"build:noticias-css": "tailwindcss -c tailwind.noticias.config.js -i ./tailwind.noticias.css -o ./public/assets/css/tw-noticias.css --minify",
 		"start:pm2": "pm2 start ecosystem.config.js",
 		"start:pm2:dev": "pm2 start ecosystem.config.js --env development",
 		"stop:pm2": "pm2 stop ecosystem.config.js",
@@ -83,6 +84,7 @@
 	},
 	"devDependencies": {
 		"jest": "^30.2.0",
-		"supertest": "^7.2.2"
+		"supertest": "^7.2.2",
+		"tailwindcss": "^3.4.17"
 	}
 }
