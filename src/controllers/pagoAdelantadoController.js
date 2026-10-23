@@ -17,6 +17,7 @@ const {
   mesaIdEsValido,
 } = require('../repository/ticketPagoAdelantado.repository');
 const { procesarPagoBoucher } = require('../services/boucherPagoService');
+const { nombreClientePreferido } = require('../constants/clienteDefaults');
 const { recalcularEstadoMesa } = require('../repository/comanda.repository');
 const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
@@ -268,7 +269,11 @@ router.post('/pago-adelantado', authMozoOpcional, async (req, res) => {
       montoRecibido: boucher.montoRecibido ?? null,
       vuelto: boucher.vuelto ?? null,
       cliente: clienteId || null,
-      clienteNombre: clienteDoc?.nombre || null,
+      clienteNombre: nombreClientePreferido(
+        ...comandas.map((c) => c.clienteNombre),
+        ...comandas.map((c) => c.clienteNombreParaLlevar),
+        clienteDoc?.nombre,
+      ),
       clienteDni: clienteDoc?.dni || null,
       observaciones: observaciones || '',
       sourceApp: 'mozos',
