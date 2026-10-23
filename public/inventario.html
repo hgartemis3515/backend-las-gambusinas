@@ -318,12 +318,12 @@ tailwind.config = {
       </div>
     </header>
 
-    <div class="mb-3 px-3.5 py-2 bg-bg-sidebar border border-white/10 text-[11.5px] text-txt-secondary flex items-center justify-between gap-4 overflow-x-auto whitespace-nowrap redondeado rounded-lg">
-      <div class="flex items-center gap-2">
-        <span class="text-gold font-bold uppercase tracking-wider text-[11px]">Fórmula:</span>
-        <span>ingreso total = saldo anterior + ingreso + corrección · saldo = ingreso total − venta − transformación · saldo real = conteo físico si hubo conteo; si no, el saldo · diferencia = conteo − saldo (azul si sobra, rojo si falta)</span>
+    <div class="relative mb-3">
+      <div class="px-3.5 py-2 bg-bg-sidebar border border-white/10 text-[11.5px] text-txt-secondary flex items-start gap-2 redondeado rounded-lg">
+        <span class="text-gold font-bold uppercase tracking-wider text-[11px] shrink-0">Fórmula:</span>
+        <span>si hay corrección, ingreso total = saldo anterior + corrección; si no hay, ingreso total = saldo anterior + ingreso. Saldo = ingreso total − venta − transformación. Saldo real = conteo físico si hubo conteo; si no, el saldo. Diferencia = conteo − saldo (azul si sobra, rojo si falta).</span>
       </div>
-      <span x-show="formulaHover" class="text-[11.5px] text-[#1a1200] bg-gold px-2 py-0.5 rounded font-mono font-bold shrink-0" x-text="formulaHover"></span>
+      <p x-show="formulaHover && !ocultarCuadro" x-cloak class="pointer-events-none absolute left-0 right-0 top-full z-30 mt-1 px-3 py-1.5 rounded-lg bg-gold text-[#1a1200] text-[12px] font-mono font-bold shadow-lg" x-text="formulaHover"></p>
     </div>
 
     <div x-show="error" class="mb-3 px-4 py-2 rounded-lg bg-red-500/15 text-red-300 text-sm" x-text="error"></div>
@@ -360,7 +360,6 @@ tailwind.config = {
           <button type="button" role="tab" @click="setVista('tabla')" :aria-selected="vistaTab === 'tabla'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'tabla' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Día (Hoja)</button>
           <button type="button" role="tab" @click="setVista('crudo')" :aria-selected="vistaTab === 'crudo'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'crudo' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Crudo y cocido</button>
           <button type="button" role="tab" @click="setVista('transformacion')" :aria-selected="vistaTab === 'transformacion'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'transformacion' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Transformar</button>
-          <button type="button" role="tab" @click="setVista('total')" :aria-selected="vistaTab === 'total'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'total' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Total</button>
           <button type="button" role="tab" @click="setVista('stock')" :aria-selected="vistaTab === 'stock'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'stock' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Stock</button>
           <button type="button" role="tab" @click="setVista('conteo')" :aria-selected="vistaTab === 'conteo'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'conteo' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Conteo</button>
         </div>
@@ -387,6 +386,11 @@ tailwind.config = {
               <span x-text="compacto ? 'Activado' : 'Desactivado'"></span>
             </button>
             <p class="text-[11px] text-txt-muted mt-1.5 mb-3 leading-normal">Pega los cuadros, quita bordes redondeados y reduce el alto de fila.</p>
+            <button type="button" @click="toggleOcultarCuadro()" class="w-full px-3 py-2 text-xs font-semibold text-left transition flex items-center justify-between redondeado rounded-md mb-3" :class="ocultarCuadro ? 'bg-gold text-[#1a1200]' : 'bg-bg-sidebar text-white hover:text-gold'">
+              <span>Ocultar cuadro de saldo</span>
+              <span x-text="ocultarCuadro ? 'Activado' : 'Desactivado'"></span>
+            </button>
+            <p class="text-[11px] text-txt-muted -mt-2 mb-3 leading-normal">Esconde el recuadro que sale al poner el cursor sobre los números de Saldo.</p>
             <div class="border-t border-white/10 pt-3">
               <button type="button" @click="configAbierta = false; borrarAbierta = true; error = ''" class="w-full px-3 py-2 text-xs font-semibold text-left bg-red-500/15 text-red-300 hover:bg-red-500/25 redondeado rounded-md">Eliminar datos de hoy…</button>
             </div>
@@ -427,7 +431,7 @@ tailwind.config = {
                 <th class="text-right px-2.5 py-2" title="Cierre arrastrado. Solo lectura: para ajustar usa Corrección.">Saldo ant.</th>
                 <th class="borde-banda text-center px-2.5 py-2 text-emerald-200">Ingreso</th>
                 <th class="text-right px-2.5 py-2 text-amber-200" title="Ajuste con motivo obligatorio">Corrección</th>
-                <th class="text-right px-2.5 py-2 text-white" title="Saldo anterior + ingreso + corrección">Ingreso total</th>
+                <th class="text-right px-2.5 py-2 text-white" title="Con corrección: saldo anterior + corrección. Sin corrección: saldo anterior + ingreso">Ingreso total</th>
                 <th class="borde-banda text-right px-2.5 py-2 text-rose-200" title="Ventas de comandas, solo lectura">Venta comandas</th>
                 <th class="text-left px-2.5 py-2 text-orange-200">Transformación</th>
                 <th class="borde-banda text-right px-2.5 py-2 text-sky-200" title="Ingreso total − venta − transformación">Saldo</th>
@@ -488,8 +492,9 @@ tailwind.config = {
                       </div>
                     </div>
                   </td>
-                  <td class="num-blanco borde-banda text-right px-2.5 font-mono font-semibold cursor-help"
-                    @mouseenter="formulaHover = f.nombre + ': ' + formulaFilaTexto(f)"
+                  <td class="num-blanco borde-banda text-right px-2.5 font-mono font-semibold"
+                    :class="ocultarCuadro ? '' : 'cursor-help'"
+                    @mouseenter="if (!ocultarCuadro) formulaHover = f.nombre + ': ' + formulaFilaTexto(f)"
                     @mouseleave="formulaHover = ''">
                     <span class="underline decoration-dotted decoration-white/40 underline-offset-4" x-text="f.saldo"></span>
                   </td>
@@ -744,53 +749,13 @@ tailwind.config = {
       </div>
     </section>
 
-    <section x-show="vistaTab === 'total'" class="mb-8">
-      <div class="panel-resumen">
-        <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
-          <div>
-            <p class="inv-titulo">Total</p>
-            <p class="text-lg font-semibold text-white mt-1">Cuánto queda</p>
-            <p class="text-xs text-txt-muted mt-1 max-w-md">Lo que queda de cada producto. Conserva lo de antes, aunque este período no tenga movimientos. Si el número es negativo, falta esa cantidad.</p>
-          </div>
-          <p class="shrink-0 text-xs text-txt-muted tabular-nums pt-1" x-text="productosVisibles().length + ' productos'"></p>
-        </div>
-        <p x-show="productosVisibles().length === 0" class="px-5 pb-5 text-sm text-txt-muted">No hay productos en este período.</p>
-        <div x-show="productosVisibles().length > 0" class="resumen-cols">
-          <template x-for="(col, ci) in mitadesProductos()" :key="'tot-col'+ci">
-            <table class="tabla-resumen w-full" x-show="col.length">
-              <thead>
-                <tr>
-                  <th class="text-left">Producto</th>
-                  <th class="text-right">Saldo real</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="f in col" :key="'t'+ci+f.nombre">
-                  <tr>
-                    <td class="font-semibold" x-text="f.nombre"></td>
-                    <td class="text-right">
-                      <span class="chip-saldo" :class="Number(f.queda) < 0 ? 'neg' : (Number(f.queda) > 0 ? 'pos' : 'cero')" x-text="f.queda"></span>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </template>
-        </div>
-        <div x-show="productosVisibles().length > 0" class="flex items-center justify-between px-5 py-3 bg-[#d4af37] text-[#1a1200] font-extrabold text-sm uppercase tracking-wide">
-          <span>Suma</span>
-          <span class="normal-case tabular-nums" x-text="productosVisibles().reduce((a, f) => a + (Number(f.queda) || 0), 0)"></span>
-        </div>
-      </div>
-    </section>
-
     <section x-show="vistaTab === 'stock'" class="mb-8">
       <div class="panel-resumen">
         <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
           <div>
             <p class="inv-titulo">Stock</p>
             <p class="text-lg font-semibold text-white mt-1">Estado del stock</p>
-            <p class="text-xs text-txt-muted mt-1">Crítico si el saldo está en el mínimo del producto o por debajo. Bajo si llega hasta el doble de ese mínimo.</p>
+            <p class="text-xs text-txt-muted mt-1">0 es crítico. De 1 a 10 es bajo. De 11 para arriba es normal.</p>
           </div>
           <p class="shrink-0 text-xs text-txt-muted tabular-nums pt-1" x-text="productosVisibles().length + ' productos'"></p>
         </div>
@@ -813,7 +778,7 @@ tailwind.config = {
                       <span class="chip-saldo" :class="Number(f.queda) < 0 ? 'neg' : (Number(f.queda) > 0 ? 'pos' : 'cero')" x-text="f.queda"></span>
                     </td>
                     <td class="text-right">
-                      <span class="estado-pill grande" :class="estadoStock(f) === 'Crítico' ? 'bg-red-500/20 text-red-300' : (estadoStock(f) === 'Bajo' ? 'bg-amber-400/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-300')" x-text="estadoStock(f)"></span>
+                      <span class="estado-pill grande" :class="estadoTablaStock(f) === 'Crítico' ? 'bg-red-500/20 text-red-300' : (estadoTablaStock(f) === 'Bajo' ? 'bg-amber-400/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-300')" x-text="estadoTablaStock(f)"></span>
                     </td>
                   </tr>
                 </template>
@@ -1025,6 +990,7 @@ function inventarioApp() {
     filtroConteo: 'todos',
     focoConteoClave: '',
     formulaHover: '',
+    ocultarCuadro: false,
     celdaTocada: '',
     filaTocada: '',
     filasTocadas: [],
@@ -1151,7 +1117,9 @@ function inventarioApp() {
         const conteo = tiene
           ? (crudo.tieneConteo ? (Number(crudo.conteo) || 0) : 0) + (cocido.tieneConteo ? (Number(cocido.conteo) || 0) : 0)
           : null;
-        const ingresoTotal = saldoInicial + ingresos + regulacion;
+        const ingresoTotal = Number(regulacion) !== 0
+          ? saldoInicial + regulacion
+          : saldoInicial + ingresos;
         const saldo = ingresoTotal - venta - transformacion;
         const saldoReal = tiene ? conteo : saldo;
         const umbralCrudo = Number(crudo.umbral) || 0;
@@ -1306,7 +1274,10 @@ function inventarioApp() {
     },
     formulaFilaTexto(f) {
       const n = (v) => String(Number(v) || 0);
-      return n(f.saldoInicial) + ' + ' + n(f.ingresos) + ' + ' + n(f.regulacion) + ' − ' + n(f.venta) + ' − ' + n(f.transformacion) + ' = ' + n(f.saldo);
+      const base = Number(f.regulacion) !== 0
+        ? n(f.saldoInicial) + ' + ' + n(f.regulacion)
+        : n(f.saldoInicial) + ' + ' + n(f.ingresos);
+      return base + ' − ' + n(f.venta) + ' − ' + n(f.transformacion) + ' = ' + n(f.saldo);
     },
     formatearSigno(n) {
       const x = Number(n) || 0;
@@ -1320,6 +1291,13 @@ function inventarioApp() {
       if (min <= 0) return 'Normal';
       if (actual <= min) return 'Crítico';
       if (actual <= min * 2) return 'Bajo';
+      return 'Normal';
+    },
+    estadoTablaStock(f) {
+      const actual = Number(f && (f.queda != null ? f.queda : f.saldoReal));
+      const n = Number.isFinite(actual) ? actual : 0;
+      if (n <= 0) return 'Crítico';
+      if (n <= 10) return 'Bajo';
       return 'Normal';
     },
     esEnCeroEstable(f) {
@@ -1790,6 +1768,7 @@ function inventarioApp() {
         return;
       }
       this.compacto = localStorage.getItem('inventario-aprovechador') === '1';
+      this.ocultarCuadro = localStorage.getItem('inventario-ocultar-cuadro') === '1';
       this.diaTrabajo = this.ymd(new Date());
       this._firmas = null;
       if (this.$el) {
@@ -1816,6 +1795,11 @@ function inventarioApp() {
     toggleCompacto() {
       this.compacto = !this.compacto;
       localStorage.setItem('inventario-aprovechador', this.compacto ? '1' : '0');
+    },
+    toggleOcultarCuadro() {
+      this.ocultarCuadro = !this.ocultarCuadro;
+      if (this.ocultarCuadro) this.formulaHover = '';
+      localStorage.setItem('inventario-ocultar-cuadro', this.ocultarCuadro ? '1' : '0');
     },
     async eliminarHoy() {
       this.guardando = true;
@@ -1871,7 +1855,7 @@ function inventarioApp() {
     },
     async setVista(id) {
       if (this.vistaTab === id) return;
-      const porPeriodo = (v) => v === 'tabla' || v === 'conteo' || v === 'total' || v === 'stock';
+      const porPeriodo = (v) => v === 'tabla' || v === 'conteo' || v === 'stock';
       const mismo = porPeriodo(this.vistaTab) && porPeriodo(id);
       this.vistaTab = id;
       if (mismo) return;
