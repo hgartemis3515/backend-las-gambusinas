@@ -14,7 +14,24 @@ test('10 leñas del reporte son 10 de salida de pollo leña', () => {
     expect(porRubro.ceviche).toBeUndefined();
 });
 
-test('las ventas virtuales de reportes no bajan el saldo real', () => {
+test('la venta de reportes baja el saldo que mira la alerta, no el cierre guardado', () => {
+    const { aplicarVentasEnFilas, alertasDeFilas } = require('../src/utils/inventarioKardex');
+    const filas = [{
+        rubro: 'pollo-lena',
+        plato: 'pollo-lena',
+        nombre: 'Pollo leña',
+        tipoProducto: 'cocido',
+        cierre: 20,
+        baja: 20,
+        umbral: 12,
+        critico: false
+    }];
+    const ajustadas = aplicarVentasEnFilas(filas, [{ rubro: 'pollo-lena', cantidad: 10 }]);
+    expect(filas[0].cierre).toBe(20);
+    expect(ajustadas[0].cierre).toBe(10);
+    expect(ajustadas[0].critico).toBe(true);
+    expect(alertasDeFilas(ajustadas)).toHaveLength(1);
+});
     const guardados = [
         { rubro: 'pollo-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 20, fecha: dia('2026-10-12', '12:00:00') }
     ];

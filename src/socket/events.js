@@ -18,6 +18,14 @@ const { toCartaMozo } = require('../utils/cartaMozoPlato');
 const { historialCuentaComoEliminacion, unidadesEliminadasHistorial } = require('../utils/bajaCantidadPlato');
 const { getSosCocineras } = require('../services/sosCocineras.service');
 
+function avisarInventarioPorVenta() {
+    try {
+        require('../repository/inventario.repository').avisarAlertas();
+    } catch (error) {
+        logger.warn('No se avisó el inventario por la comanda', { error: error.message });
+    }
+}
+
 /** Emite solo al mozo asignado a la comanda (room mozo-{id}) */
 function emitToMozoAsignado(ns, comanda, eventName, eventData) {
   if (!ns?.sockets) return;
@@ -619,6 +627,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           timestamp: timestamp
         });
       }
+      avisarInventarioPorVenta();
 
       logger.info('Evento nueva-comanda emitido', {
         comandaNumber: comandaCompleta.comandaNumber,
@@ -764,6 +773,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       if (adminNamespace && adminNamespace.sockets) {
         adminNamespace.emit('comanda-actualizada', eventData);
       }
+      avisarInventarioPorVenta();
 
       // Push: solo cuando cocina dejó TODOS los platos en "recoger" (no al marcar entregado)
       if (!adminOnly && !skipPush && shouldNotifyComandaLista(comanda, estadoNuevo)) {
@@ -2673,6 +2683,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         adminNamespace.emit('comanda-finalizada', eventData);
         adminNamespace.to('dashboard-cocineros').emit('comanda-finalizada', eventData);
       }
+      avisarInventarioPorVenta();
       if (global.emitRendimientoMozoActualizado) {
         const mozoId = comanda.mozos?._id || comanda.mozos;
         global.emitRendimientoMozoActualizado({

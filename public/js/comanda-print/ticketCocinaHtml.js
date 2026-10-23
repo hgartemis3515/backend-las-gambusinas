@@ -286,9 +286,6 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     ? (esCocina ? 'COCINA RESERVA' : 'CAJA RESERVA')
     : (esCocina ? 'COCINA' : 'CAJA');
   html += `<div style="text-align:left;font-size:14px;font-weight:800;letter-spacing:1px;line-height:1.1;">${tituloCanal}</div>`;
-  if (d.sinTotal === true || (d.anulacion && d.sinTotal !== true)) {
-    html += '<div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:1px;padding:6px 0 0;">ANULADO X</div>';
-  }
   const clienteTicket = String(d.clienteNombre || d.cliente?.nombre || '').trim();
   const tipoTicket = tipoCuadroTicket(d.productos, {
     sinMesa: d.sinMesa === true || /^sin mesa$/i.test(String(d.mesa || '')),
@@ -326,6 +323,9 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
       html += `<div style="text-align:right;padding:4px 0 0;font-size:11px;">Descuento${mot}: -${escapeHtml(simbolo)}${fmt(desc)}</div>`;
     }
     html += `<div style="text-align:right;font-size:14px;font-weight:800;padding:4px 0 2px;border-top:1px solid #000;margin-top:4px;">TOTAL ${escapeHtml(simbolo)}${fmt(neto)}</div>`;
+  }
+  if (d.sinTotal === true || (d.anulacion && d.sinTotal !== true)) {
+    html += '<div style="text-align:center;font-size:26px;font-weight:900;letter-spacing:1px;padding:6px 0 0;">ANULADO X</div>';
   }
 
   const heightPx = 220 + productos.length * 28 + (d.esPrueba === true ? 24 : 0);

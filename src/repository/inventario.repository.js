@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
-const { armarKardex, alertasDeFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
+const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
 const { claveDe, filasDeRubros, carta } = require('../utils/inventarioRubros');
 const { boundsDiaCalendario, ymdCalendario, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
@@ -218,11 +218,31 @@ async function guardarUmbralRubro(clave, body) {
 
 async function alertasRubro() {
     const hasta = new Date();
-    const guardados = await Movimiento.find({ rubro: { $nin: [null, ''] } })
-        .select('rubro tipoProducto clase cantidad fecha')
-        .lean();
-    const filas = filasDeRubros(guardados, new Date(0), hasta, await umbralesRubro());
+    const [guardados, ventasPack, umbrales] = await Promise.all([
+        Movimiento.find({ rubro: { $nin: [null, ''] } })
+            .select('rubro tipoProducto clase cantidad fecha')
+            .lean(),
+        egresosVentaHasta(hasta),
+        umbralesRubro()
+    ]);
+    const filas = aplicarVentasEnFilas(
+        filasDeRubros(guardados, new Date(0), hasta, umbrales),
+        ventasPack.ventas
+    );
     return alertasDeFilas(filas);
+}
+
+let avisoTimer = null;
+function avisarAlertas() {
+    clearTimeout(avisoTimer);
+    avisoTimer = setTimeout(async () => {
+        try {
+            const alertas = await alertasActuales();
+            emitirAlerta({ alertas, cambio: null });
+        } catch (error) {
+            logger.warn('No se pudo avisar el inventario', { error: error.message });
+        }
+    }, 800);
 }
 
 async function eliminarHoy() {
@@ -245,5 +265,6 @@ module.exports = {
     crearMovimiento,
     alertasActuales,
     guardarUmbralRubro,
-    eliminarHoy
+    eliminarHoy,
+    avisarAlertas
 };
