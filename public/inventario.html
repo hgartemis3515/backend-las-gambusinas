@@ -318,27 +318,10 @@ tailwind.config = {
       </div>
     </header>
 
-<<<<<<< HEAD
-    <div x-show="error" class="mb-4 px-4 py-3 rounded-lg bg-red-500/15 text-red-300 text-sm" x-text="error"></div>
-
-    <div x-show="alertas.length" class="mb-4 px-4 py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-sm">
-      <p class="font-semibold text-red-200 mb-1">Alerta crítica</p>
-      <p x-text="alertas.map(a => a.nombre + ' ' + a.tipoProducto + ' · saldo ' + a.saldo + ' · mínimo ' + a.umbral).join(' · ')"></p>
-    </div>
-
-    <div class="flex items-center justify-between mb-5 gap-3 flex-wrap">
-      <div class="flex gap-1 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
-        <button type="button" @click="setVista('tabla')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Tabla</button>
-        <button type="button" @click="setVista('crudo')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'crudo' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Crudo y cocido</button>
-        <button type="button" @click="setVista('transformacion')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'transformacion' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Transformación</button>
-        <button type="button" @click="setVista('total')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'total' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Total</button>
-        <button type="button" @click="setVista('stock')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="vistaTab === 'stock' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">Stock</button>
-=======
     <div class="mb-3 px-3.5 py-2 bg-bg-sidebar border border-white/10 text-[11.5px] text-txt-secondary flex items-center justify-between gap-4 overflow-x-auto whitespace-nowrap redondeado rounded-lg">
       <div class="flex items-center gap-2">
         <span class="text-gold font-bold uppercase tracking-wider text-[11px]">Fórmula:</span>
         <span>ingreso total = saldo anterior + ingreso + corrección · saldo = ingreso total − venta − transformación · saldo real = conteo físico si hubo conteo; si no, el saldo · diferencia = conteo − saldo (azul si sobra, rojo si falta)</span>
->>>>>>> f63303d2b153e4cfee2501d4327961a8171b0d17
       </div>
       <span x-show="formulaHover" class="text-[11.5px] text-[#1a1200] bg-gold px-2 py-0.5 rounded font-mono font-bold shrink-0" x-text="formulaHover"></span>
     </div>
@@ -377,6 +360,8 @@ tailwind.config = {
           <button type="button" role="tab" @click="setVista('tabla')" :aria-selected="vistaTab === 'tabla'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'tabla' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Día (Hoja)</button>
           <button type="button" role="tab" @click="setVista('crudo')" :aria-selected="vistaTab === 'crudo'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'crudo' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Crudo y cocido</button>
           <button type="button" role="tab" @click="setVista('transformacion')" :aria-selected="vistaTab === 'transformacion'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'transformacion' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Transformar</button>
+          <button type="button" role="tab" @click="setVista('total')" :aria-selected="vistaTab === 'total'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'total' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Total</button>
+          <button type="button" role="tab" @click="setVista('stock')" :aria-selected="vistaTab === 'stock'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'stock' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Stock</button>
           <button type="button" role="tab" @click="setVista('conteo')" :aria-selected="vistaTab === 'conteo'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'conteo' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Conteo</button>
         </div>
         <button type="button" x-show="vistaTab !== 'conteo'" @click="irAContarCriticos()" class="px-3.5 py-1.5 text-xs font-bold bg-gold text-[#1a1200] redondeado rounded-lg">Contar cámara (<span x-text="productosCriticos().length"></span> críticos)</button>
@@ -407,15 +392,6 @@ tailwind.config = {
             </div>
           </div>
         </div>
-<<<<<<< HEAD
-        <div x-show="vistaPorDia()" class="flex items-center gap-2 flex-wrap justify-end">
-          <button type="button" @click="moverDia(-1)" class="px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.25)] text-gold">‹</button>
-          <input type="date" :value="diaTrabajo" @change="fijarDia($event.target.value)" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-sm text-txt-secondary">
-          <button type="button" @click="moverDia(1)" class="px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.25)] text-gold">›</button>
-          <span x-show="etiquetaDia()" class="px-3 py-1.5 rounded-lg text-sm" :class="etiquetaDia() === 'Hoy' ? 'bg-gold text-bg-primary font-semibold' : 'text-txt-secondary'" x-text="etiquetaDia()"></span>
-        </div>
-=======
->>>>>>> f63303d2b153e4cfee2501d4327961a8171b0d17
       </div>
     </div>
 
@@ -768,7 +744,6 @@ tailwind.config = {
       </div>
     </section>
 
-<<<<<<< HEAD
     <section x-show="vistaTab === 'total'" class="mb-8">
       <div class="panel-resumen">
         <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
@@ -815,7 +790,7 @@ tailwind.config = {
           <div>
             <p class="inv-titulo">Stock</p>
             <p class="text-lg font-semibold text-white mt-1">Estado del stock</p>
-            <p class="text-xs text-txt-muted mt-1">Crítico si queda <span x-text="stockMinimo"></span> o menos. Bajo hasta <span x-text="stockBajo"></span>. Normal si hay más.</p>
+            <p class="text-xs text-txt-muted mt-1">Crítico si el saldo está en el mínimo del producto o por debajo. Bajo si llega hasta el doble de ese mínimo.</p>
           </div>
           <p class="shrink-0 text-xs text-txt-muted tabular-nums pt-1" x-text="productosVisibles().length + ' productos'"></p>
         </div>
@@ -849,71 +824,6 @@ tailwind.config = {
       </div>
     </section>
 
-    <section x-show="vistaTab === 'tabla'" class="mb-8">
-      <div class="flex items-center justify-end mb-2">
-        <button type="button" @click="formulario = !formulario" class="text-xs px-3 py-1.5 rounded-lg bg-gold text-black font-semibold">Anotar movimiento</button>
-      </div>
-      <form x-show="formulario" @submit.prevent="guardarMovimiento()" class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl p-3">
-        <p class="md:col-span-6 text-xs text-txt-muted">Producto que sale</p>
-        <select x-model="alta.saleRubro" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-2">
-          <option value="">Sale</option>
-          <template x-for="p in opciones" :key="'s'+p.clave">
-            <option :value="p.clave" x-text="p.nombre"></option>
-          </template>
-        </select>
-        <select x-model="alta.saleTipo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm">
-          <option value="crudo">Crudo</option>
-          <option value="cocido">Cocido</option>
-        </select>
-        <input x-model="alta.saleCantidad" type="number" step="any" min="0" placeholder="Cantidad que sale" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm">
-        <p class="md:col-span-6 text-xs text-txt-muted">Producto que ingresa</p>
-        <select x-model="alta.ingresaRubro" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-2">
-          <option value="">Ingresa</option>
-          <template x-for="p in opciones" :key="'i'+p.clave">
-            <option :value="p.clave" x-text="p.nombre"></option>
-          </template>
-        </select>
-        <select x-model="alta.ingresaTipo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm">
-          <option value="crudo">Crudo</option>
-          <option value="cocido">Cocido</option>
-        </select>
-        <input x-model="alta.ingresaCantidad" type="number" step="any" min="0" placeholder="Cantidad que ingresa" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm">
-        <input x-model="alta.motivo" type="text" placeholder="Motivo" class="bg-bg-sidebar rounded-lg px-2 py-2 text-sm md:col-span-4" required>
-        <button type="submit" class="md:col-span-2 text-sm px-3 py-2 rounded-lg bg-gold text-black font-semibold" :disabled="guardando" x-text="guardando ? 'Guardando…' : 'Guardar'"></button>
-      </form>
-    </section>
-
-    <section x-show="vistaTab === 'tabla'" class="mb-8">
-      <h2 class="inv-titulo mb-2" x-text="periodo === 'hoy' || periodo === 'ayer' ? 'Historial del día' : 'Registros del período'"></h2>
-      <div class="overflow-x-auto rounded-xl border border-[rgba(212,175,55,0.2)]">
-        <table class="tabla-suave w-full">
-          <thead>
-            <tr>
-              <th class="text-left px-3 py-2">Fecha</th>
-              <th class="text-left px-3 py-2">Producto</th>
-              <th class="text-left px-3 py-2">Tipo</th>
-              <th class="text-right px-3 py-2">Ingresó</th>
-              <th class="text-right px-3 py-2">Salió</th>
-              <th class="text-left px-3 py-2">Motivo</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template x-for="m in historialDia()" :key="m._id">
-              <tr class="border-t border-white/5">
-                <td class="px-3 py-1.5 whitespace-nowrap" x-text="fechaCorta(m.fecha)"></td>
-                <td class="px-3 py-1.5 font-semibold" x-text="m.producto"></td>
-                <td class="px-3 py-1.5 capitalize" x-text="m.tipo"></td>
-                <td class="num-in text-right" x-text="m.ingreso"></td>
-                <td class="num-out text-right" x-text="m.salida"></td>
-                <td class="px-3 py-1.5" x-text="m.motivo"></td>
-              </tr>
-            </template>
-            <tr x-show="historialDia().length === 0">
-              <td class="px-3 py-2 text-txt-muted" colspan="6" x-text="busqueda.trim() ? 'Ningún plato o producto coincide.' : 'Este período no tiene registros.'"></td>
-            </tr>
-          </tbody>
-        </table>
-=======
     <section x-show="vistaTab === 'conteo'" class="panel-tab">
       <div class="bg-bg-card border border-gold-border p-4 mb-4 flex flex-wrap items-center justify-between gap-3 redondeado rounded-lg">
         <div>
@@ -955,7 +865,6 @@ tailwind.config = {
             </div>
           </div>
         </template>
->>>>>>> f63303d2b153e4cfee2501d4327961a8171b0d17
       </div>
     </section>
 
@@ -1148,7 +1057,6 @@ function inventarioApp() {
       if (!q) return true;
       return String(nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q);
     },
-<<<<<<< HEAD
     productosVisibles() {
       return (this.tablaProductos || []).filter((f) => this.coincideBusqueda(f.nombre));
     },
@@ -1157,8 +1065,6 @@ function inventarioApp() {
       const medio = Math.ceil(lista.length / 2);
       return [lista.slice(0, medio), lista.slice(medio)];
     },
-=======
->>>>>>> f63303d2b153e4cfee2501d4327961a8171b0d17
     filaRubro(clave, tipo) {
       return (this.filas || []).find((f) => f.rubro === clave && f.tipoProducto === tipo) || {
         rubro: clave, tipoProducto: tipo, saldoInicial: 0, ingresos: 0, total: 0, egreso: 0, saldoFinal: 0, regulacion: 0, baja: 0, cierre: 0, umbral: 0, conteo: null, tieneConteo: false
@@ -1362,246 +1268,6 @@ function inventarioApp() {
         return suma + (Number(m.cantidad) || 0);
       }, 0);
     },
-<<<<<<< HEAD
-    signo(n) {
-      const x = Number(n) || 0;
-      if (x > 0) return '+' + x;
-      if (x < 0) return '−' + Math.abs(x);
-      return '0';
-    },
-    productoSale(m) {
-      const n = Number(m.cantidad) || 0;
-      if (m.clase === 'egreso' && n > 0) return m.nombre;
-      if (m.clase === 'ingreso' && n < 0) return m.nombre;
-      return '—';
-    },
-    productoIngresa(m) {
-      const n = Number(m.cantidad) || 0;
-      if (m.clase === 'ingreso' && n > 0) return m.nombre;
-      if (m.clase === 'egreso' && n < 0) return m.nombre;
-      return '—';
-    },
-    nombreRubro(clave) {
-      const op = (this.opciones || []).find((p) => p.clave === clave);
-      return op ? op.nombre : clave;
-    },
-    historialDia() {
-      const manual = (this.movimientos || []).map((m) => {
-        const n = Number(m.cantidad) || 0;
-        const entra = (m.clase === 'ingreso' && n > 0) || (m.clase === 'egreso' && n < 0) || (m.clase === 'regulacion' && n > 0);
-        const esConteo = m.clase === 'inventario';
-        const tipo = m.clase === 'regulacion' ? 'corrección' : (esConteo ? 'inventario' : m.tipoProducto);
-        return {
-          _id: m._id,
-          fecha: m.fecha,
-          producto: m.nombre,
-          tipo: tipo,
-          ingreso: esConteo ? n : (entra ? Math.abs(n) : '—'),
-          salida: esConteo || entra ? '—' : Math.abs(n),
-          motivo: m.motivo || ''
-        };
-      });
-      const ventas = (this.ventas || []).map((v) => ({
-        _id: 'venta-' + v.rubro + '-' + v.fecha,
-        fecha: v.fecha,
-        producto: v.nombre,
-        tipo: 'venta',
-        ingreso: '—',
-        salida: v.cantidad,
-        motivo: v.motivo || 'Venta (reportes)'
-      }));
-      const filas = manual.concat(ventas).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-      const q = this.textoBusqueda();
-      if (!q) return filas;
-      return filas.filter((m) => this.coincideBusqueda(m.producto));
-    },
-    fechaCorta(iso) {
-      if (!iso) return '';
-      return new Intl.DateTimeFormat('es-PE', {
-        timeZone: 'America/Lima',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }).format(new Date(iso));
-    },
-    token() {
-      return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') || '';
-    },
-    async api(path, opts) {
-      const res = await fetch('/api' + path, {
-        ...opts,
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.token(), ...(opts && opts.headers) }
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'No se pudo completar');
-      return data;
-    },
-    async init() {
-      if (!this.token()) { window.location.href = '/login.html'; return; }
-      if (typeof sharedTienePermiso === 'function' && !sharedTienePermiso('ver-inventario')) {
-        window.location.href = '/index.html';
-        return;
-      }
-      this.aprovechador = localStorage.getItem('inventario-aprovechador') === '1';
-      this.diaTrabajo = this.ymd(new Date());
-      await this.cargar();
-      this.initSocket();
-      this.vigilarDia();
-    },
-    vigilarDia() {
-      this._diaVisto = this.ymd(new Date());
-      setInterval(() => {
-        const hoy = this.ymd(new Date());
-        if (hoy === this._diaVisto) return;
-        if (this.diaTrabajo === this._diaVisto) this.diaTrabajo = hoy;
-        this._diaVisto = hoy;
-        this.cargar();
-      }, 15000);
-    },
-    guardarAprovechador() {
-      localStorage.setItem('inventario-aprovechador', this.aprovechador ? '1' : '0');
-    },
-    async eliminarHoy() {
-      this.guardando = true;
-      this.error = '';
-      try {
-        await this.api('/inventario/hoy', { method: 'DELETE' });
-        this.borrarAbierta = false;
-        await this.cargar();
-      } catch (e) {
-        this.error = e.message;
-      } finally {
-        this.guardando = false;
-      }
-    },
-    toggleAprovechador() {
-      this.aprovechador = !this.aprovechador;
-      this.guardarAprovechador();
-    },
-    ymd(fecha) {
-      return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(fecha || new Date());
-    },
-    sumarDias(ymd, n) {
-      const d = new Date(ymd + 'T12:00:00');
-      d.setDate(d.getDate() + n);
-      return this.ymd(d);
-    },
-    rangoPeriodo() {
-      const hoy = this.ymd(new Date());
-      if (this.periodo === 'ayer') {
-        const a = this.sumarDias(hoy, -1);
-        return { desde: a, hasta: a };
-      }
-      if (this.periodo === '7dias') return { desde: this.sumarDias(hoy, -6), hasta: hoy };
-      if (this.periodo === 'todos') return { desde: '2000-01-01', hasta: hoy };
-      if (this.periodo === 'custom') {
-        let desde = this.customDesde || hoy;
-        let hasta = this.customHasta || desde;
-        if (hasta < desde) { const t = desde; desde = hasta; hasta = t; }
-        return { desde, hasta };
-      }
-      return { desde: hoy, hasta: hoy };
-    },
-    vistaPorDia() {
-      return this.vistaTab === 'crudo' || this.vistaTab === 'transformacion';
-    },
-    diaEdicion() {
-      if (this.vistaPorDia()) return this.diaTrabajo;
-      return this.rangoPeriodo().hasta;
-    },
-    fechaDelDia(ymd) {
-      if (ymd === this.ymd(new Date())) return new Date().toISOString();
-      return ymd + 'T17:00:00.000Z';
-    },
-    setPeriodo(id) {
-      this.periodo = id;
-      this.cargar();
-    },
-    setVista(id) {
-      if (this.vistaTab === id) return;
-      this.vistaTab = id;
-      this.cargar();
-    },
-    moverDia(n) {
-      this.diaTrabajo = this.sumarDias(this.diaTrabajo, n);
-      if (this.vistaPorDia()) this.cargar();
-    },
-    fijarDia(valor) {
-      if (!valor) return;
-      this.diaTrabajo = valor;
-      if (this.vistaPorDia()) this.cargar();
-    },
-    irDiaHoy() {
-      this.diaTrabajo = this.ymd(new Date());
-      if (this.vistaPorDia()) this.cargar();
-    },
-    etiquetaDia() {
-      const hoy = this.ymd(new Date());
-      if (this.diaTrabajo === hoy) return 'Hoy';
-      if (this.diaTrabajo === this.sumarDias(hoy, -1)) return 'Ayer';
-      if (this.diaTrabajo === this.sumarDias(hoy, 1)) return 'Mañana';
-      if (this.historialCorto('stock').length === 0 && this.historialCorto('transforma').length === 0) return 'Registro no realizado';
-      return '';
-    },
-    historialCorto(modo) {
-      const dia = this.diaTrabajo;
-      const movs = (this.movimientos || []).filter((m) => m.fecha && this.ymd(new Date(m.fecha)) === dia);
-      if (modo === 'transforma') {
-        const map = {};
-        movs.forEach((m) => {
-          const motivo = String(m.motivo || '');
-          if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0) return;
-          const n = Number(m.cantidad) || 0;
-          if (n >= 0) return;
-          const detalle = (m.nombre || m.rubro) + ' → ' + motivo.slice(7);
-          map[detalle] = (map[detalle] || 0) + Math.abs(n);
-        });
-        return Object.keys(map).map((detalle) => ({ detalle: detalle, cantidad: map[detalle] }));
-      }
-      const map = {};
-      movs.forEach((m) => {
-        if (m.clase !== 'ingreso') return;
-        const motivo = String(m.motivo || '');
-        if (motivo.indexOf('Pasa a ') === 0 || motivo.indexOf('Sale de ') === 0) return;
-        if (m.tipoProducto !== 'crudo' && m.tipoProducto !== 'cocido') return;
-        const key = m.tipoProducto + '|' + (m.nombre || m.rubro);
-        map[key] = (map[key] || 0) + (Number(m.cantidad) || 0);
-      });
-      return Object.keys(map).filter((key) => map[key] !== 0).map((key) => {
-        const tipo = key.slice(0, key.indexOf('|'));
-        const detalle = key.slice(key.indexOf('|') + 1);
-        return { que: tipo === 'crudo' ? 'Crudo' : 'Cocido', detalle: detalle, cantidad: map[key] };
-      });
-    },
-    fechaAyer() {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      d.setHours(12, 0, 0, 0);
-      return d.toISOString();
-    },
-    estadoStock(f) {
-      const actual = Number(f.queda) || 0;
-      if (actual <= this.stockMinimo) return 'Crítico';
-      if (actual <= this.stockBajo) return 'Bajo';
-      return 'Normal';
-    },
-    cuadroSigno(n) {
-      const x = Number(n) || 0;
-      if (x > 0) return 'cuadro-pos';
-      if (x < 0) return 'cuadro-neg';
-      return '';
-    },
-    async fijarVenta(f, nuevo) {
-      const n = Number(String(nuevo).replace(',', '.'));
-      const a = Number(this.ventaDe(f)) || 0;
-      if (!f || !Number.isFinite(n) || n === a) return;
-      await this.paso(f.clave, 'cocido', 'egreso', n - a, false, 'Venta');
-    },
-=======
->>>>>>> f63303d2b153e4cfee2501d4327961a8171b0d17
     ventaDe(f) {
       const claves = new Set(f.claves || [f.clave]);
       const manual = (this.movimientos || []).reduce((a, m) => {
@@ -2063,7 +1729,6 @@ function inventarioApp() {
         this.focoConteoClave = f.clave;
         return;
       }
-<<<<<<< HEAD
       const nuevo = Number(String(b.valor).replace(',', '.'));
       if (!Number.isFinite(nuevo)) {
         this.error = 'El inventario no es válido';
@@ -2158,36 +1823,12 @@ function inventarioApp() {
       try {
         await this.api('/inventario/hoy', { method: 'DELETE' });
         this.borrarAbierta = false;
-=======
-      const cantidad = this.corr.clase === 'inventario' ? nuevo : delta;
-      if (this.corr.clase !== 'inventario') {
-        const ok = await this.paso(this.corr.clave, 'cocido', this.corr.clase || 'regulacion', cantidad, false, motivo);
-        if (ok) this.corrAbierta = false;
-        return;
-      }
-      this.guardando = true;
-      this.error = '';
-      try {
-        const fecha = this.fechaDelDia(this.diaEdicion());
-        const cuerpo = (tipo, cant) => ({
-          rubro: this.corr.clave,
-          tipoProducto: tipo,
-          clase: 'inventario',
-          cantidad: cant,
-          motivo: motivo,
-          fecha: fecha
-        });
-        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify(cuerpo('cocido', nuevo)) });
-        await this.api('/inventario/movimientos', { method: 'POST', body: JSON.stringify(cuerpo('crudo', 0)) });
-        this.corrAbierta = false;
->>>>>>> 7e8aefad68404cf773faefbca093c09b7973a5ee
         await this.cargar();
       } catch (e) {
         this.error = e.message;
       } finally {
         this.guardando = false;
       }
-<<<<<<< HEAD
     },
     ymd(fecha) {
       return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(fecha || new Date());
@@ -2230,10 +1871,10 @@ function inventarioApp() {
     },
     async setVista(id) {
       if (this.vistaTab === id) return;
-      const antesDia = this.vistaTab === 'tabla' || this.vistaTab === 'conteo';
-      const despuesDia = id === 'tabla' || id === 'conteo';
+      const porPeriodo = (v) => v === 'tabla' || v === 'conteo' || v === 'total' || v === 'stock';
+      const mismo = porPeriodo(this.vistaTab) && porPeriodo(id);
       this.vistaTab = id;
-      if (antesDia && despuesDia) return;
+      if (mismo) return;
       await this.cargar();
     },
     moverDia(n) {
@@ -2290,8 +1931,6 @@ function inventarioApp() {
     nombreRubro(clave) {
       const op = (this.opciones || []).find((p) => p.clave === clave);
       return op ? op.nombre : clave;
-=======
->>>>>>> 7e8aefad68404cf773faefbca093c09b7973a5ee
     },
     async fijar(rubro, tipo, clase, actual, nuevo, ayer) {
       const n = Number(String(nuevo).replace(',', '.'));
