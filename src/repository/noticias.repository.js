@@ -129,6 +129,7 @@ function destinoDe(body = {}) {
     const pantallas = (body.pantallas || body.cocinerasHub || [])
         .map((x) => Number(typeof x === 'object' ? (x.numero || x.numeroPantalla) : x))
         .filter((n) => Number.isFinite(n));
+    const cocinaCocineroIds = [...new Set((body.cocinaCocineroIds || []).map(String).filter(Boolean))];
     const mozosAlcance = !mozos ? 'ninguno' : (body.mozosModo === 'seleccion' ? 'algunos' : 'todos');
     const mozoIds = (body.mozoIds || body.mozosSeleccionados || []).map(String).filter(Boolean);
     let segundos = Number(body.segundosCocina ?? body.segundosEnPantalla ?? 15);
@@ -148,6 +149,7 @@ function destinoDe(body = {}) {
         destinos: [cocina && 'cocina', mozos && 'mozos'].filter(Boolean),
         cocinaAlcance,
         pantallas,
+        cocinaCocineroIds,
         mozosAlcance,
         mozoIds,
         segundosEnPantalla: segundos,

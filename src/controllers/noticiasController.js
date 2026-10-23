@@ -70,9 +70,8 @@ function emitirDirigido(evento, payload, destino = {}) {
                     .map((n) => Number(n))
                     .filter((n) => Number.isFinite(n));
                 if (pantallas.length) {
-                    // Las ventanas del Monitor Hub entran con el usuario de cocina,
-                    // no con el JWT de TV, así que no están en la room pantalla-N.
-                    cocina.emit(evento, { ...aviso, canal: 'pantallas', pantallas });
+                    const cocinaCocineroIds = [...new Set((destino.cocinaCocineroIds || aviso.cocinaCocineroIds || []).map(String).filter(Boolean))];
+                    cocina.emit(evento, { ...aviso, canal: 'pantallas', pantallas, cocinaCocineroIds });
                 }
             }
         }
@@ -89,7 +88,7 @@ function emitirDirigido(evento, payload, destino = {}) {
     }
 }
 
-function emitirNoticia(accion = 'creada', noticia = null) {
+function emitirNoticia(accion = 'creada', noticia = null, body = {}) {
     const payload = {
         fechaOperativa: ymdOperativo(),
         accion,
@@ -99,7 +98,8 @@ function emitirNoticia(accion = 'creada', noticia = null) {
         segundosEnPantalla: noticia?.segundosEnPantalla || 15,
         destinos: noticia?.destinos || ['cocina', 'mozos'],
         cocinaAlcance: noticia?.cocinaAlcance || 'todas',
-        pantallas: noticia?.pantallas || [],
+        pantallas: (noticia?.pantallas && noticia.pantallas.length) ? noticia.pantallas : (body.pantallas || []),
+        cocinaCocineroIds: (body.cocinaCocineroIds || noticia?.cocinaCocineroIds || []).map(String).filter(Boolean),
         mozosAlcance: noticia?.mozosAlcance || 'todos',
         mozoIds: noticia?.mozoIds || [],
     };
@@ -180,7 +180,7 @@ router.post('/noticias/temporal', adminAuth, puedePublicar, (req, res) => {
 router.post('/noticias', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.crearNoticia(req.body, autorDe(req));
-        emitirNoticia('creada', noticia);
+        emitirNoticia('creada', noticia, req.body);
         res.status(201).json(noticia);
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo publicar' });
@@ -190,7 +190,7 @@ router.post('/noticias', adminAuth, puedePublicar, async (req, res) => {
 router.put('/noticias/:id', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.actualizarNoticia(req.params.id, req.body);
-        emitirNoticia('editada', noticia);
+        emitirNoticia('editada', noticia, req.body);
         res.json(noticia);
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo guardar' });
