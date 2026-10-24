@@ -24,7 +24,7 @@ function ymdOperativo(now = new Date()) {
     return m.format('YYYY-MM-DD');
 }
 
-/** Día calendario Lima (00:00–23:59). El inventario cierra a las 23:59. */
+/** Día calendario Lima (00:00–23:59). */
 function ymdCalendario(now = new Date()) {
     return nowLima(now).format('YYYY-MM-DD');
 }

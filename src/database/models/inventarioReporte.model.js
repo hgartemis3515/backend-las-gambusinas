@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+const transformacionReporteSchema = new mongoose.Schema({
+    origen: { type: String, default: '' },
+    destino: { type: String, default: '' },
+    cantidad: { type: Number, default: 0 }
+}, { _id: false });
+
 const lineaReporteSchema = new mongoose.Schema({
     rubro: { type: String, default: '' },
     nombre: { type: String, default: '' },
@@ -17,7 +23,9 @@ const lineaReporteSchema = new mongoose.Schema({
 const inventarioReporteSchema = new mongoose.Schema({
     fecha: { type: String, required: true, unique: true },
     cerradoEn: { type: Date, required: true },
-    lineas: { type: [lineaReporteSchema], default: [] }
+    cerrado: { type: Boolean, default: false },
+    lineas: { type: [lineaReporteSchema], default: [] },
+    transformaciones: { type: [transformacionReporteSchema], default: [] }
 }, { collection: 'inventario_reportes' });
 
 module.exports = mongoose.model('InventarioReporte', inventarioReporteSchema);

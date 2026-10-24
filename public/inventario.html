@@ -299,7 +299,7 @@ tailwind.config = {
     <header class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-3">
       <div>
         <h1 class="text-xl font-bold tracking-tight">Inventario</h1>
-        <p class="text-xs text-txt-secondary mt-1 max-w-3xl">Día calendario, cierra 23:59. Los reportes de venta cierran a las 04:00, por eso una venta de madrugada puede caer en otro día.</p>
+        <p class="text-xs text-txt-secondary mt-1 max-w-3xl">El día cierra a las 04:00. De las 04:00 a las 03:59 del día siguiente es el mismo día.</p>
       </div>
       <div class="flex flex-col items-stretch lg:items-end gap-2">
         <div class="inline-flex items-center bg-bg-sidebar border border-gold-border p-1 redondeado rounded-lg" role="group" aria-label="Período de consulta">
@@ -333,7 +333,7 @@ tailwind.config = {
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-red-400 punto-critico"></span>
           <h2 class="text-xs font-bold uppercase tracking-wider text-red-200">Alerta para cocina — <span x-text="productosCriticos().length"></span> en mínimo o por debajo</h2>
-        </div>
+    </div>
         <button type="button" @click="irAContarCriticos()" class="text-xs font-semibold text-gold hover:underline whitespace-nowrap">Verificar en modo Conteo →</button>
       </div>
       <div class="divide-y divide-red-500/15">
@@ -362,7 +362,7 @@ tailwind.config = {
           <button type="button" role="tab" @click="setVista('transformacion')" :aria-selected="vistaTab === 'transformacion'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'transformacion' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Transformar</button>
           <button type="button" role="tab" @click="setVista('stock')" :aria-selected="vistaTab === 'stock'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'stock' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Stock</button>
           <button type="button" role="tab" @click="setVista('conteo')" :aria-selected="vistaTab === 'conteo'" class="px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap redondeado rounded-md" :class="vistaTab === 'conteo' ? 'bg-gold text-[#1a1200] font-bold' : 'text-txt-secondary hover:text-white'">Conteo</button>
-        </div>
+      </div>
         <button type="button" x-show="vistaTab !== 'conteo'" @click="irAContarCriticos()" class="px-3.5 py-1.5 text-xs font-bold bg-gold text-[#1a1200] redondeado rounded-lg">Contar cámara (<span x-text="productosCriticos().length"></span> críticos)</button>
         <button type="button" x-show="ultimoCambio" @click="deshacerUltimo()" :disabled="guardando" class="px-3 py-1.5 text-xs font-medium bg-bg-card border border-gold-border text-gold redondeado rounded-lg disabled:opacity-50">Deshacer: <span x-text="ultimoCambio ? ultimoCambio.etiqueta : ''"></span></button>
       </div>
@@ -371,7 +371,7 @@ tailwind.config = {
           <button type="button" @click="moverDia(-1)" class="px-3 py-1.5 rounded-lg border border-gold-border text-gold" aria-label="Día anterior">‹</button>
           <input type="date" :value="diaTrabajo" @change="fijarDia($event.target.value)" class="bg-bg-sidebar border border-gold-border rounded-lg px-3 py-1.5 text-sm text-txt-secondary" aria-label="Día de trabajo">
           <button type="button" @click="moverDia(1)" class="px-3 py-1.5 rounded-lg border border-gold-border text-gold" aria-label="Día siguiente">›</button>
-          <button type="button" x-show="diaTrabajo !== ymd()" @click="irDiaHoy()" class="px-3 py-1.5 rounded-lg text-sm text-txt-secondary border border-white/10">Hoy</button>
+          <button type="button" x-show="diaTrabajo !== ymdOperativo()" @click="irDiaHoy()" class="px-3 py-1.5 rounded-lg text-sm text-txt-secondary border border-white/10">Hoy</button>
           <span x-show="etiquetaDia()" class="px-3 py-1.5 rounded-lg text-sm" :class="etiquetaDia() === 'Hoy' ? 'bg-gold text-[#1a1200] font-semibold' : 'text-txt-secondary'" x-text="etiquetaDia()"></span>
         </div>
         <div class="relative">
@@ -380,7 +380,7 @@ tailwind.config = {
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold text-white">Vista de hoja</span>
               <span class="text-[11px] text-txt-muted" x-text="compacto ? 'Pegada' : 'Estándar'"></span>
-            </div>
+          </div>
             <button type="button" @click="toggleCompacto()" class="w-full px-3 py-2 text-xs font-semibold text-left transition flex items-center justify-between redondeado rounded-md" :class="compacto ? 'bg-gold text-[#1a1200]' : 'bg-bg-sidebar text-white hover:text-gold'">
               <span>Compacto</span>
               <span x-text="compacto ? 'Activado' : 'Desactivado'"></span>
@@ -393,7 +393,7 @@ tailwind.config = {
             <p class="text-[11px] text-txt-muted -mt-2 mb-3 leading-normal">Esconde el recuadro que sale al poner el cursor sobre los números de Saldo.</p>
             <div class="border-t border-white/10 pt-3">
               <button type="button" @click="configAbierta = false; borrarAbierta = true; error = ''" class="w-full px-3 py-2 text-xs font-semibold text-left bg-red-500/15 text-red-300 hover:bg-red-500/25 redondeado rounded-md">Eliminar datos de hoy…</button>
-            </div>
+        </div>
           </div>
         </div>
       </div>
@@ -445,7 +445,7 @@ tailwind.config = {
               <template x-if="cargando">
                 <tr>
                   <td colspan="12" class="px-4 py-8 text-center text-sm text-txt-secondary">Cargando…</td>
-                </tr>
+              </tr>
               </template>
               <template x-if="!cargando && productosFiltrados().length === 0">
                 <tr>
@@ -550,17 +550,20 @@ tailwind.config = {
                     </td>
                     <td class="px-3.5 py-2 text-center font-mono font-bold whitespace-nowrap text-[14.4px]" :class="h.accion === 'conteo' ? 'text-purple-200' : (h.esPositivo ? 'text-emerald-300' : 'text-rose-300')" x-text="h.cantidadTexto"></td>
                     <td class="px-3.5 py-2 text-txt-secondary" x-text="h.motivo"></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
+                </tr>
+              </template>
+            </tbody>
+          </table>
         </div>
+      </div>
       </section>
     </section>
 
     <section x-show="vistaTab === 'crudo'" class="panel-tab">
-      <p class="text-xs text-txt-secondary mb-3">Cada cuadro guarda el día de 04:00 a 04:00. A las 04:00 el saldo final pasa a saldo anterior y las entradas del día vuelven a 0.</p>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <p class="text-xs text-txt-secondary">Cada cuadro guarda el día de 04:00 a 04:00. A las 04:00 el saldo final pasa a saldo anterior y las entradas del día vuelven a 0.</p>
+        <button type="button" @click="abrirReporteDia(diaTrabajo)" class="px-3.5 py-1.5 text-xs font-bold bg-gold text-[#1a1200] redondeado rounded-lg">Reporte del día</button>
+      </div>
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 rejilla-cuadros">
         <template x-for="cuadro in cuadros" :key="cuadro.nombre">
           <div class="bg-bg-card border border-gold-border overflow-hidden redondeado rounded-lg">
@@ -626,48 +629,13 @@ tailwind.config = {
           </tbody>
         </table>
       </div>
-      <div class="mt-4 bg-bg-card border border-gold-border overflow-hidden redondeado rounded-lg">
-        <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3">
-          <div>
-            <h2 class="text-sm font-bold text-gold uppercase tracking-wider">Reporte del día</h2>
-            <p class="text-xs text-txt-secondary" x-text="reporte && reporte.guardado ? 'Cerrado a las 04:00. Quedó guardado.' : 'Día en curso. Se guarda al cerrar, a las 04:00.'"></p>
-          </div>
-          <span class="text-xs font-mono text-txt-muted" x-text="diaTrabajo"></span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="bg-bg-sidebar text-txt-muted uppercase text-[11px]">
-                <th class="text-left px-3 py-2">Producto</th>
-                <th class="text-left px-3 py-2">Tipo</th>
-                <th class="text-right px-3 py-2">Saldo anterior</th>
-                <th class="text-right px-3 py-2">Ingreso</th>
-                <th class="text-right px-3 py-2">Salida</th>
-                <th class="text-right px-3 py-2">Saldo final</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="l in (reporte && reporte.lineas) || []" :key="l.rubro + l.tipoProducto">
-                <tr class="border-t border-white/5">
-                  <td class="px-3 py-1.5 font-semibold" x-text="l.nombre"></td>
-                  <td class="px-3 py-1.5 capitalize" x-text="l.tipoProducto"></td>
-                  <td class="px-3 py-1.5 text-right font-mono" x-text="l.saldoAnterior"></td>
-                  <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="l.ingreso"></td>
-                  <td class="px-3 py-1.5 text-right font-mono text-rose-300" x-text="l.salida"></td>
-                  <td class="px-3 py-1.5 text-right font-mono font-bold text-gold" x-text="l.saldoFinal"></td>
-                </tr>
-              </template>
-              <tr x-show="!reporte || !reporte.lineas || reporte.lineas.length === 0">
-                <td class="px-3 py-2 text-txt-muted" colspan="6">Este día todavía no tiene ingresos ni salidas.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </section>
 
     <section x-show="vistaTab === 'transformacion'" class="panel-tab space-y-6">
-      <p class="text-xs text-txt-secondary">Transformaciones del día elegido. La fecha sigue al período.</p>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-xs text-txt-secondary">Transformaciones del día elegido. Al día siguiente el cuadro vuelve a 0 para anotar otra vez.</p>
+        <button type="button" @click="abrirReporteDia(diaTrabajo, 'transforma')" class="px-3.5 py-1.5 text-xs font-bold bg-gold text-[#1a1200] redondeado rounded-lg">Reporte del día</button>
+      </div>
       <div class="bg-bg-card border border-gold-border p-4 redondeado rounded-lg">
         <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-white/10">
           <div>
@@ -701,7 +669,7 @@ tailwind.config = {
             <span class="num-blanco text-[11px] font-mono" x-text="textoRend(polloTrans.aplicado, polloTrans.ingresada)"></span>
           </div>
           <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2 lg:border-l-2 lg:border-gold/40 lg:pl-4">
-            <template x-for="h in polloTrans.hijos" :key="h.clave">
+              <template x-for="h in polloTrans.hijos" :key="h.clave">
               <div class="bg-bg-sidebar border border-white/10 px-3 py-2 flex items-center justify-between gap-2 redondeado rounded-md" :class="celdaTocada === h.clave + '-trans' ? 'celda-destello' : ''">
                 <div class="min-w-0">
                   <p class="text-xs font-semibold text-white truncate" x-text="h.obtenido"></p>
@@ -713,8 +681,8 @@ tailwind.config = {
                   <button type="button" class="btn-paso" :disabled="guardando" @click="ajustarObtenido(h, (Number(h.obtenida) || 0) + 1)" :aria-label="'Sumar ' + h.obtenido">+</button>
                 </div>
               </div>
-            </template>
-          </div>
+              </template>
+        </div>
         </div>
       </div>
 
@@ -731,7 +699,7 @@ tailwind.config = {
           </div>
         </div>
         <div class="space-y-3">
-          <template x-for="p in pescadoTrans" :key="p.origenClave">
+              <template x-for="p in pescadoTrans" :key="p.origenClave">
             <div class="bg-bg-sidebar border border-white/10 p-3 redondeado rounded-lg">
               <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
                 <div class="lg:col-span-5 flex items-center justify-between gap-2" :class="celdaTocada === p.origenClave + '-origen' ? 'celda-destello' : ''">
@@ -765,7 +733,7 @@ tailwind.config = {
                 Aviso: lo obtenido en <span x-text="p.obtenido"></span> (<span x-text="p.obtenida"></span>) supera lo ingresado de <span x-text="p.origen"></span> (<span x-text="p.ingresada"></span>).
               </p>
             </div>
-          </template>
+              </template>
         </div>
       </div>
       <div class="overflow-x-auto rounded-lg border border-gold-border max-w-xl redondeado">
@@ -798,34 +766,34 @@ tailwind.config = {
             <p class="inv-titulo">Stock</p>
             <p class="text-lg font-semibold text-white mt-1">Estado del stock</p>
             <p class="text-xs text-txt-muted mt-1">0 es crítico. De 1 a 10 es bajo. De 11 para arriba es normal.</p>
-          </div>
+      </div>
           <p class="shrink-0 text-xs text-txt-muted tabular-nums pt-1" x-text="productosVisibles().length + ' productos'"></p>
-        </div>
+          </div>
         <p x-show="productosVisibles().length === 0" class="px-5 pb-5 text-sm text-txt-muted">No hay productos en este período.</p>
         <div x-show="productosVisibles().length > 0" class="resumen-cols">
           <template x-for="(col, ci) in mitadesProductos()" :key="'stk-col'+ci">
             <table class="tabla-resumen w-full" x-show="col.length">
-              <thead>
-                <tr>
-                  <th class="text-left">Producto</th>
-                  <th class="text-right">Saldo</th>
-                  <th class="text-right">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
+            <thead>
+              <tr>
+                <th class="text-left">Producto</th>
+                <th class="text-right">Saldo</th>
+                <th class="text-right">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
                 <template x-for="f in col" :key="'a'+ci+f.nombre">
-                  <tr>
-                    <td class="font-semibold" x-text="f.nombre"></td>
-                    <td class="text-right">
+                <tr>
+                  <td class="font-semibold" x-text="f.nombre"></td>
+                  <td class="text-right">
                       <span class="chip-saldo" :class="Number(f.queda) < 0 ? 'neg' : (Number(f.queda) > 0 ? 'pos' : 'cero')" x-text="f.queda"></span>
                     </td>
                     <td class="text-right">
                       <span class="estado-pill grande" :class="estadoTablaStock(f) === 'Crítico' ? 'bg-red-500/20 text-red-300' : (estadoTablaStock(f) === 'Bajo' ? 'bg-amber-400/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-300')" x-text="estadoTablaStock(f)"></span>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
           </template>
         </div>
       </div>
@@ -871,7 +839,7 @@ tailwind.config = {
               <button type="button" @click="guardarConteoRapido(f)" :disabled="guardando" class="px-3.5 py-2 rounded-lg text-xs font-bold bg-gold text-[#1a1200] disabled:opacity-50">Guardar y siguiente crítico</button>
             </div>
           </div>
-        </template>
+            </template>
       </div>
     </section>
 
@@ -886,7 +854,7 @@ tailwind.config = {
             <div>
               <span class="text-txt-muted block">Producto</span>
               <strong class="text-white text-sm" x-text="corr.nombre"></strong>
-            </div>
+          </div>
             <div class="text-right font-mono">
               <span class="text-txt-muted block" x-text="corr.clase === 'inventario' ? 'Saldo esperado' : 'Ingreso del día'"></span>
               <strong class="text-sky-200 text-sm" x-text="corr.referencia"></strong>
@@ -947,6 +915,98 @@ tailwind.config = {
             </ul>
           </div>
         </form>
+      </div>
+    </template>
+
+    <template x-if="reporteDiaAbierto">
+      <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" @click.self="reporteDiaAbierto = false" @keydown.escape.window="reporteDiaAbierto = false" role="dialog" aria-modal="true" aria-label="Reporte del día">
+        <div class="modal-caja w-full max-w-3xl bg-bg-card border border-gold-border p-5 max-h-[90vh] overflow-y-auto redondeado rounded-xl">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <h3 class="text-lg font-semibold text-gold">Reporte del día</h3>
+              <p class="text-xs text-txt-secondary mt-1" x-text="reporteDia && reporteDia.guardado ? 'Quedó guardado al cerrar, a las 04:00.' : 'Este día se sigue actualizando y queda guardado en el registro.'"></p>
+            </div>
+            <button type="button" class="text-txt-secondary hover:text-white text-xl leading-none px-1" @click="reporteDiaAbierto = false" aria-label="Cerrar">×</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <button type="button" @click="irReporteDia('ayer')" class="px-3 py-1 text-xs font-semibold rounded-md" :class="marcaReporteDia() === 'Ayer' ? 'bg-gold text-[#1a1200]' : 'text-txt-secondary border border-white/15'">Ayer</button>
+            <button type="button" @click="irReporteDia('hoy')" class="px-3 py-1 text-xs font-semibold rounded-md" :class="marcaReporteDia() === 'Hoy' ? 'bg-gold text-[#1a1200]' : 'text-txt-secondary border border-white/15'">Hoy</button>
+            <button type="button" @click="irReporteDia('manana')" class="px-3 py-1 text-xs font-semibold rounded-md" :class="marcaReporteDia() === 'Mañana' ? 'bg-gold text-[#1a1200]' : 'text-txt-secondary border border-white/15'">Mañana</button>
+            <span class="text-xs font-mono text-txt-muted" x-text="reporteDiaFecha"></span>
+          </div>
+          <p x-show="reporteDiaCargando" class="text-sm text-txt-secondary">Cargando…</p>
+          <div x-show="!reporteDiaCargando">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Cocido entró</p>
+                <p class="text-lg font-mono font-bold text-emerald-300" x-text="reporteDiaVista.cocidoEntro"></p>
+              </div>
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Cocido salió</p>
+                <p class="text-lg font-mono font-bold text-rose-300" x-text="reporteDiaVista.cocidoSalio"></p>
+              </div>
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Crudo entró</p>
+                <p class="text-lg font-mono font-bold text-emerald-300" x-text="reporteDiaVista.crudoEntro"></p>
+              </div>
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Crudo salió</p>
+                <p class="text-lg font-mono font-bold text-rose-300" x-text="reporteDiaVista.crudoSalio"></p>
+              </div>
+            </div>
+            <div class="overflow-x-auto rounded-lg border border-white/10">
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="bg-bg-sidebar text-txt-muted uppercase text-[11px]">
+                    <th class="text-left px-3 py-2">Producto</th>
+                    <th class="text-right px-3 py-2">Cocido entró</th>
+                    <th class="text-right px-3 py-2">Cocido salió</th>
+                    <th class="text-right px-3 py-2">Crudo entró</th>
+                    <th class="text-right px-3 py-2">Crudo salió</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="f in reporteDiaVista.filas" :key="f.nombre">
+                    <tr class="border-t border-white/5">
+                      <td class="px-3 py-1.5 font-semibold" x-text="f.nombre"></td>
+                      <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="f.cocidoEntro"></td>
+                      <td class="px-3 py-1.5 text-right font-mono text-rose-300" x-text="f.cocidoSalio"></td>
+                      <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="f.crudoEntro"></td>
+                      <td class="px-3 py-1.5 text-right font-mono text-rose-300" x-text="f.crudoSalio"></td>
+                    </tr>
+              </template>
+                  <tr x-show="reporteDiaVista.filas.length === 0">
+                    <td class="px-3 py-3 text-txt-muted" colspan="5">Este día todavía no tiene ingresos ni salidas.</td>
+                  </tr>
+                </tbody>
+              </table>
+          </div>
+            <h4 class="mt-4 mb-2 text-xs font-bold uppercase tracking-wider text-gold">Transformaciones</h4>
+            <div class="overflow-x-auto rounded-lg border border-white/10">
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="bg-bg-sidebar text-txt-muted uppercase text-[11px]">
+                    <th class="text-left px-3 py-2">Origen</th>
+                    <th class="text-left px-3 py-2">Destino</th>
+                    <th class="text-right px-3 py-2">Cantidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="t in reporteDiaVista.transformaciones" :key="t.origen + t.destino">
+                    <tr class="border-t border-white/5">
+                      <td class="px-3 py-1.5 font-semibold" x-text="t.origen"></td>
+                      <td class="px-3 py-1.5" x-text="t.destino"></td>
+                      <td class="px-3 py-1.5 text-right font-mono font-bold text-gold" x-text="t.cantidad"></td>
+                    </tr>
+          </template>
+                  <tr x-show="reporteDiaVista.transformaciones.length === 0">
+                    <td class="px-3 py-3 text-txt-muted" colspan="3">Este día no tiene transformaciones.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -1050,6 +1110,12 @@ function inventarioApp() {
     salidaInfo: null,
     reporteAbierto: false,
     reporteCierre: null,
+    reporteDiaAbierto: false,
+    reporteDiaFecha: '',
+    reporteDia: null,
+    reporteDiaCargando: false,
+    reporteDiaVista: { cocidoEntro: 0, cocidoSalio: 0, crudoEntro: 0, crudoSalio: 0, filas: [], transformaciones: [], totalTrans: 0 },
+    reporteDiaModo: 'carta',
     movimientos: [],
     ventas: [],
     alertas: [],
@@ -1158,7 +1224,7 @@ function inventarioApp() {
         const transformacion = transformados.reduce((a, p) => a + p.cantidad, 0);
         const tiene = !!(crudo.tieneConteo || cocido.tieneConteo);
         const conteo = tiene
-          ? (crudo.tieneConteo ? (Number(crudo.conteo) || 0) : 0) + (cocido.tieneConteo ? (Number(cocido.conteo) || 0) : 0)
+            ? (crudo.tieneConteo ? (Number(crudo.conteo) || 0) : 0) + (cocido.tieneConteo ? (Number(cocido.conteo) || 0) : 0)
           : null;
         const ingresoTotal = Number(regulacion) !== 0
           ? saldoInicial + regulacion
@@ -1236,15 +1302,20 @@ function inventarioApp() {
         };
       };
       const deGrupos = (meta.grupos || []).map((g) => {
-        const filas = (g.hijos || []).map((h) => filaCuadro(h.clave, h.nombre));
-        if (origenDe[g.nombre]) filas.unshift(filaCuadro(origenDe[g.nombre], g.nombre));
+          const filas = (g.hijos || []).map((h) => filaCuadro(h.clave, h.nombre));
+          if (origenDe[g.nombre]) filas.unshift(filaCuadro(origenDe[g.nombre], g.nombre));
         return cuadroDe(g.nombre, filas);
       }).filter((g) => g.filas.length);
       const deSueltos = (meta.sueltos || []).filter((s) => s.clave === 'arroz').map((s) => (
         cuadroDe(s.nombre, [filaCuadro(s.clave, s.nombre)])
       ));
-      const orden = ['Pachamanca', 'Pollo', 'Pescado', 'Panceta', 'Arroz'];
-      this.cuadros = deGrupos.concat(deSueltos).sort((a, b) => orden.indexOf(a.nombre) - orden.indexOf(b.nombre));
+      const extras = [
+        { nombre: 'Pato', filas: [{ clave: 'pato', nombre: 'Pato' }] },
+        { nombre: 'Seco', filas: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de cordero' }] },
+        { nombre: 'Pollo a la leña', filas: [{ clave: 'pollo-lena', nombre: 'Pollo a la leña' }] }
+      ].map((e) => cuadroDe(e.nombre, e.filas.map((f) => filaCuadro(f.clave, f.nombre))));
+      const orden = ['Pachamanca', 'Pollo', 'Pescado', 'Panceta', 'Pato', 'Seco', 'Pollo a la leña', 'Arroz'];
+      this.cuadros = deGrupos.concat(extras).concat(deSueltos).sort((a, b) => orden.indexOf(a.nombre) - orden.indexOf(b.nombre));
       const hijosPollo = destinosPollo.map((h) => ({
         origen: 'Pollo',
         origenClave: 'pollo-origen',
@@ -1340,7 +1411,7 @@ function inventarioApp() {
         if (!claves.has(m.rubro) || m.clase !== 'ingreso') return;
         const motivo = String(m.motivo || '');
         if (motivo.indexOf('Pasa a ') !== 0) return;
-        const n = Number(m.cantidad) || 0;
+      const n = Number(m.cantidad) || 0;
         if (n >= 0) return;
         const nombre = motivo.slice(7);
         if (!map[nombre]) map[nombre] = { nombre: nombre, cantidad: 0 };
@@ -1714,6 +1785,96 @@ function inventarioApp() {
         this.error = e.message;
       }
     },
+    resumenReporte(rep) {
+      const lineas = (rep && rep.lineas) || [];
+      const map = {};
+      const suma = { cocidoEntro: 0, cocidoSalio: 0, crudoEntro: 0, crudoSalio: 0 };
+      lineas.forEach((l) => {
+        const nombre = l.nombre || l.rubro || 'Producto';
+        if (!map[nombre]) map[nombre] = { nombre: nombre, cocidoEntro: 0, cocidoSalio: 0, crudoEntro: 0, crudoSalio: 0 };
+        const entro = Number(l.ingreso) || 0;
+        const salio = Number(l.salida) || 0;
+        if (l.tipoProducto === 'cocido') {
+          map[nombre].cocidoEntro += entro;
+          map[nombre].cocidoSalio += salio;
+          suma.cocidoEntro += entro;
+          suma.cocidoSalio += salio;
+        } else {
+          map[nombre].crudoEntro += entro;
+          map[nombre].crudoSalio += salio;
+          suma.crudoEntro += entro;
+          suma.crudoSalio += salio;
+        }
+      });
+      const filas = Object.keys(map).map((k) => map[k]).filter((f) => f.cocidoEntro || f.cocidoSalio || f.crudoEntro || f.crudoSalio);
+      const transformaciones = (rep && rep.transformaciones) || [];
+      const totalTrans = transformaciones.reduce((a, t) => a + (Number(t.cantidad) || 0), 0);
+      return {
+        cocidoEntro: suma.cocidoEntro,
+        cocidoSalio: suma.cocidoSalio,
+        crudoEntro: suma.crudoEntro,
+        crudoSalio: suma.crudoSalio,
+        filas: filas,
+        transformaciones: transformaciones,
+        totalTrans: totalTrans
+      };
+    },
+    transformacionesDeMovs(movs) {
+      const map = {};
+      (movs || []).forEach((m) => {
+        const motivo = String(m.motivo || '');
+        if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0) return;
+        const n = Number(m.cantidad) || 0;
+        if (n >= 0) return;
+        const origen = m.nombre || m.rubro || '';
+        const destino = motivo.slice(7);
+        const key = origen + '\0' + destino;
+        if (!map[key]) map[key] = { origen: origen, destino: destino, cantidad: 0 };
+        map[key].cantidad += Math.abs(n);
+      });
+      return Object.keys(map).map((k) => map[k]);
+    },
+    marcaReporteDia() {
+      const hoy = this.ymdOperativo();
+      if (this.reporteDiaFecha === hoy) return 'Hoy';
+      if (this.reporteDiaFecha === this.sumarDias(hoy, -1)) return 'Ayer';
+      if (this.reporteDiaFecha === this.sumarDias(hoy, 1)) return 'Mañana';
+      return '';
+    },
+    async abrirReporteDia(fecha, modo) {
+      this.reporteDiaModo = modo === 'transforma' ? 'transforma' : 'carta';
+      this.reporteDiaFecha = fecha || this.ymdOperativo();
+      this.reporteDiaAbierto = true;
+      await this.cargarReporteDia();
+    },
+    async irReporteDia(cual) {
+      const hoy = this.ymdOperativo();
+      if (cual === 'ayer') this.reporteDiaFecha = this.sumarDias(hoy, -1);
+      else if (cual === 'manana') this.reporteDiaFecha = this.sumarDias(hoy, 1);
+      else this.reporteDiaFecha = hoy;
+      await this.cargarReporteDia();
+    },
+    async cargarReporteDia() {
+      this.reporteDiaCargando = true;
+      this.error = '';
+      try {
+        const f = this.reporteDiaFecha;
+        const dia = 'desde=' + encodeURIComponent(f) + '&hasta=' + encodeURIComponent(f) + '&ciclo=04';
+        const [k, m] = await Promise.all([
+          this.api('/inventario/kardex?carta=1&' + dia),
+          this.api('/inventario/movimientos?' + dia)
+        ]);
+        const rep = k.reporte || { fecha: f, guardado: false, lineas: [] };
+        const vivas = this.transformacionesDeMovs(m.movimientos || []);
+        if (vivas.length) rep.transformaciones = vivas;
+        this.reporteDia = rep;
+        this.reporteDiaVista = this.resumenReporte(rep);
+      } catch (e) {
+        this.error = e.message || 'No se pudo abrir el reporte';
+      } finally {
+        this.reporteDiaCargando = false;
+      }
+    },
     abrirCorreccion(f, titulo) {
       const inventario = titulo === 'Inventario';
       this.error = '';
@@ -1752,14 +1913,14 @@ function inventarioApp() {
       if (this.corr.clase === 'inventario') {
         if (this.corr.base !== null && nuevo === Number(this.corr.base)) {
           this.error = 'El inventario no cambió';
-          return;
-        }
+        return;
+      }
       } else {
         cantidad = nuevo - (Number(this.corr.base) || 0);
         if (cantidad === 0) {
           this.error = 'La corrección no cambió';
-          return;
-        }
+        return;
+      }
       }
       const clave = this.corr.clave;
       const sufijo = this.corr.clase === 'inventario' ? 'conteo' : 'correccion';
@@ -1859,9 +2020,9 @@ function inventarioApp() {
       this.vigilarDia();
     },
     vigilarDia() {
-      this._diaVisto = this.ymd(new Date());
+      this._diaVisto = this.ymdOperativo();
       setInterval(() => {
-        const ahora = this.ymd(new Date());
+        const ahora = this.ymdOperativo();
         if (ahora === this._diaVisto) return;
         const sigueHoy = this.periodo === 'hoy' || this.periodo === '7dias' || this.periodo === 'todos';
         if (sigueHoy && this.diaTrabajo === this._diaVisto) this.diaTrabajo = ahora;
@@ -1909,7 +2070,7 @@ function inventarioApp() {
       return this.ymd(d);
     },
     rangoPeriodo() {
-      const fin = this.diaTrabajo || this.ymd(new Date());
+      const fin = this.diaTrabajo || this.ymdOperativo();
       if (this.periodo === 'hoy' || this.periodo === 'ayer') return { desde: fin, hasta: fin };
       if (this.periodo === '7dias') return { desde: this.sumarDias(fin, -6), hasta: fin };
       if (this.periodo === 'todos') return { desde: '2000-01-01', hasta: fin };
@@ -1929,18 +2090,18 @@ function inventarioApp() {
       return this.rangoPeriodo().hasta;
     },
     fechaDelDia(ymd) {
-      if (ymd === this.ymd(new Date())) return new Date().toISOString();
+      if (ymd === this.ymdOperativo()) return new Date().toISOString();
       return ymd + 'T17:00:00.000Z';
     },
     fechaDePeriodo(id) {
-      const hoy = this.ymd(new Date());
+      const hoy = this.ymdOperativo();
       if (id === 'ayer') return this.sumarDias(hoy, -1);
       if (id === 'custom') return this.customHasta || this.customDesde || hoy;
       return hoy;
     },
     periodoSegunFecha() {
       if (this.periodo === '7dias' || this.periodo === 'todos') return;
-      const hoy = this.ymd(new Date());
+      const hoy = this.ymdOperativo();
       if (this.diaTrabajo === hoy) this.periodo = 'hoy';
       else if (this.diaTrabajo === this.sumarDias(hoy, -1)) this.periodo = 'ayer';
       else {
@@ -1975,11 +2136,11 @@ function inventarioApp() {
     },
     irDiaHoy() {
       this.periodo = 'hoy';
-      this.diaTrabajo = this.ymd(new Date());
+      this.diaTrabajo = this.ymdOperativo();
       this.cargar();
     },
     etiquetaDia() {
-      const dia = this.ymd(new Date());
+      const dia = this.ymdOperativo();
       if (this.diaTrabajo === dia) return 'Hoy';
       if (this.diaTrabajo === this.sumarDias(dia, -1)) return 'Ayer';
       if (this.diaTrabajo === this.sumarDias(dia, 1)) return 'Mañana';
@@ -2138,7 +2299,7 @@ function inventarioApp() {
       try {
         const r = this.vistaPorDia() ? { desde: this.diaTrabajo, hasta: this.diaTrabajo } : this.rangoPeriodo();
         this.dia = r.hasta;
-        const ciclo = this.vistaPorDia() ? '&ciclo=04' : '';
+        const ciclo = '&ciclo=04';
         const q = '?carta=1&desde=' + r.desde + '&hasta=' + r.hasta + ciclo;
         const [k, m, a] = await Promise.all([
           this.api('/inventario/kardex' + q),

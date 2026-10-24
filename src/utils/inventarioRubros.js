@@ -26,6 +26,8 @@ const KARDEX = [
     { clave: 'seco-cordero', nombre: 'Seco de cordero' },
     { clave: 'panceta', nombre: 'Panceta' },
     { clave: 'pollo-lena', nombre: 'Pollo leña' },
+    { clave: 'chancho-lena', nombre: 'Chancho a la leña' },
+    { clave: 'chancho-lena-bbq', nombre: 'Chancho a la leña BBQ' },
     { clave: 'humita', nombre: 'Humita' },
     { clave: 'tamal', nombre: 'Tamal' },
     { clave: 'arroz', nombre: 'Arroz' }

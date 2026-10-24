@@ -13,12 +13,14 @@ const ZONA = 'America/Lima';
  * Fila del contador de reportes → rubro de inventario.
  * Factor 1: una unidad vendida es una unidad de salida.
  * El medio pollo a la leña cuenta 1 hasta que el negocio diga si son 2 cuartos.
- * Chancho a la leña no tiene rubro.
+ * Chancho a la leña y el BBQ son rubros distintos.
  */
 const MAPA_SALIDA = {
     '1/4 pollo a la lena': { rubro: 'pollo-lena', factor: 1 },
     '1/2 pollo a la lena baby': { rubro: 'pollo-lena', factor: 1 },
     'panceta de chancho lena': { rubro: 'panceta', factor: 1 },
+    'chancho a la lena': { rubro: 'chancho-lena', factor: 1 },
+    'chancho a la lena bbq': { rubro: 'chancho-lena-bbq', factor: 1 },
     'pollo de pachamanca': { rubro: 'pachamanca-pollo', factor: 1 },
     'cerdo de pachamanca': { rubro: 'pachamanca-chancho', factor: 1 },
     'res de pachamanca': { rubro: 'pachamanca-res', factor: 1 },

@@ -3,7 +3,7 @@ const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
 const { claveDe, filasDeRubros, carta } = require('../utils/inventarioRubros');
-const { boundsDiaCalendario, boundsDiaOperativo, ymdCalendario, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
+const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
 const Rubro = require('../database/models/inventarioRubro.model');
 const Reporte = require('../database/models/inventarioReporte.model');
@@ -29,8 +29,8 @@ function rango(desde, hasta, ciclo) {
 }
 
 function hoy() {
-    const d = ymdCalendario();
-    return rango(d, d);
+    const d = ymdOperativo();
+    return rango(d, d, '04');
 }
 
 function fechaMovimiento(valor) {
@@ -223,23 +223,38 @@ async function filasCartaEn(desde, hasta) {
     return { filas, ventas };
 }
 
+async function transformacionesEn(desde, hasta) {
+    const movs = await Movimiento.find({
+        clase: 'ingreso',
+        cantidad: { $lt: 0 },
+        motivo: { $regex: '^Pasa a ' },
+        fecha: { $gte: desde, $lte: hasta }
+    }).select('nombre rubro motivo cantidad').lean();
+    const map = {};
+    movs.forEach((m) => {
+        const origen = m.nombre || m.rubro || '';
+        const destino = String(m.motivo || '').slice(7);
+        const key = origen + '\0' + destino;
+        if (!map[key]) map[key] = { origen, destino, cantidad: 0 };
+        map[key].cantidad += Math.abs(Number(m.cantidad) || 0);
+    });
+    return Object.keys(map).map((k) => map[k]).filter((t) => t.cantidad);
+}
+
 async function cerrarDiaSiToca(fecha) {
     if (!fecha || fecha >= ymdOperativo()) return null;
     const ya = await Reporte.findOne({ fecha }).lean();
-    if (ya) return ya;
+    if (ya && ya.cerrado && Array.isArray(ya.transformaciones) && ya.transformaciones.length) return ya;
     const { desde, hasta } = rango(fecha, fecha, '04');
     const { filas, ventas } = await filasCartaEn(desde, hasta);
-    try {
-        const doc = await Reporte.create({
-            fecha,
-            cerradoEn: new Date(),
-            lineas: lineasReporte(filas, ventas)
-        });
-        return doc.toObject();
-    } catch (error) {
-        if (error && error.code === 11000) return Reporte.findOne({ fecha }).lean();
-        throw error;
-    }
+    const lineas = lineasReporte(filas, ventas);
+    const transformaciones = await transformacionesEn(desde, hasta);
+    const doc = await Reporte.findOneAndUpdate(
+        { fecha },
+        { $set: { lineas, transformaciones, cerradoEn: new Date(), cerrado: true } },
+        { upsert: true, new: true }
+    ).lean();
+    return doc;
 }
 
 async function kardexCarta(desdeStr, hastaStr, ciclo) {
@@ -252,13 +267,27 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
     const data = { desde, hasta, filas, carta: carta(), ventas };
     if (operativo && desdeStr && desdeStr === (hastaStr || desdeStr)) {
         const fecha = String(desdeStr);
-        const guardado = fecha < ymdOperativo();
-        const doc = guardado ? await cerrarDiaSiToca(fecha) : null;
-        data.reporte = {
-            fecha,
-            guardado,
-            lineas: doc ? doc.lineas : lineasReporte(filas, ventas)
-        };
+        const hoyOp = ymdOperativo();
+        const lineas = lineasReporte(filas, ventas);
+        const transformaciones = await transformacionesEn(desde, hasta);
+        if (fecha < hoyOp) {
+            const doc = await cerrarDiaSiToca(fecha);
+            data.reporte = {
+                fecha,
+                guardado: true,
+                lineas: doc ? doc.lineas : lineas,
+                transformaciones
+            };
+        } else if (fecha === hoyOp) {
+            await Reporte.findOneAndUpdate(
+                { fecha },
+                { $set: { lineas, transformaciones, cerradoEn: new Date(), cerrado: false } },
+                { upsert: true }
+            );
+            data.reporte = { fecha, guardado: false, lineas, transformaciones };
+        } else {
+            data.reporte = { fecha, guardado: false, lineas, transformaciones };
+        }
     }
     return data;
 }

@@ -68,6 +68,9 @@ function fichaDePlato(plato) {
   if (esLena && n.includes('mixto')) {
     return { tipo: 'mixto-lena', nombre, gruposParte };
   }
+  if (esLena && n.includes('chancho') && n.includes('bbq')) {
+    return { tipo: 'chancho-lena', nombre, nombreContador: 'Chancho a la leña BBQ', gruposParte };
+  }
   if (esLena && n.includes('chancho') && !n.includes('mixto')) {
     return { tipo: 'chancho-lena', nombre, nombreContador: 'Chancho a la leña', gruposParte };
   }
