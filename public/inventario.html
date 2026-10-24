@@ -371,7 +371,7 @@ tailwind.config = {
           <button type="button" @click="moverDia(-1)" class="px-3 py-1.5 rounded-lg border border-gold-border text-gold" aria-label="Día anterior">‹</button>
           <input type="date" :value="diaTrabajo" @change="fijarDia($event.target.value)" class="bg-bg-sidebar border border-gold-border rounded-lg px-3 py-1.5 text-sm text-txt-secondary" aria-label="Día de trabajo">
           <button type="button" @click="moverDia(1)" class="px-3 py-1.5 rounded-lg border border-gold-border text-gold" aria-label="Día siguiente">›</button>
-          <button type="button" x-show="diaTrabajo !== ymd(new Date())" @click="irDiaHoy()" class="px-3 py-1.5 rounded-lg text-sm text-txt-secondary border border-white/10">Hoy</button>
+          <button type="button" x-show="diaTrabajo !== ymd()" @click="irDiaHoy()" class="px-3 py-1.5 rounded-lg text-sm text-txt-secondary border border-white/10">Hoy</button>
           <span x-show="etiquetaDia()" class="px-3 py-1.5 rounded-lg text-sm" :class="etiquetaDia() === 'Hoy' ? 'bg-gold text-[#1a1200] font-semibold' : 'text-txt-secondary'" x-text="etiquetaDia()"></span>
         </div>
         <div class="relative">
@@ -560,7 +560,7 @@ tailwind.config = {
     </section>
 
     <section x-show="vistaTab === 'crudo'" class="panel-tab">
-      <p class="text-xs text-txt-secondary mb-3">Crudo y cocido del día elegido. El período de arriba aplica a Día y Conteo. − / + anota un ingreso en esa condición.</p>
+      <p class="text-xs text-txt-secondary mb-3">Cada cuadro guarda el día de 04:00 a 04:00. A las 04:00 el saldo final pasa a saldo anterior y las entradas del día vuelven a 0.</p>
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 rejilla-cuadros">
         <template x-for="cuadro in cuadros" :key="cuadro.nombre">
           <div class="bg-bg-card border border-gold-border overflow-hidden redondeado rounded-lg">
@@ -568,15 +568,18 @@ tailwind.config = {
               <thead>
                 <tr class="bg-gold text-[#1a1200] font-extrabold text-xs uppercase tracking-wider">
                   <th class="text-left px-3 py-2" x-text="cuadro.nombre"></th>
+                  <th class="text-center px-2 py-2">Saldo anterior</th>
                   <th class="text-center px-3 py-2">Cocido</th>
                   <th class="text-center px-3 py-2">Crudo</th>
                   <th class="text-right px-3 py-2">Total</th>
+                  <th class="text-right px-3 py-2">Final</th>
                 </tr>
               </thead>
               <tbody>
                 <template x-for="fila in cuadro.filas" :key="cuadro.nombre + fila.clave">
                   <tr :data-fila="fila.clave" :class="claseFila(fila.clave)">
                     <td class="col-fija px-3 font-semibold text-white" x-text="fila.nombre"></td>
+                    <td class="text-center px-2 font-mono text-txt-secondary" x-text="fila.anterior"></td>
                     <td class="text-center px-2 whitespace-nowrap" :class="celdaTocada === fila.clave + '-cocido' ? 'celda-destello' : ''">
                       <div class="inline-flex items-center gap-0.5">
                         <button type="button" class="btn-paso" :disabled="guardando" @click="ajustarCrudo(fila, 'cocido', -1)" :aria-label="'Restar cocido a ' + fila.nombre">−</button>
@@ -591,7 +594,8 @@ tailwind.config = {
                         <button type="button" class="btn-paso" :disabled="guardando" @click="ajustarCrudo(fila, 'crudo', 1)" :aria-label="'Sumar crudo a ' + fila.nombre">+</button>
                       </div>
                     </td>
-                    <td class="text-right px-3 font-mono font-extrabold text-gold bg-gold/10" x-text="fila.total"></td>
+                    <td class="text-right px-3 font-mono font-semibold text-white" x-text="fila.total"></td>
+                    <td class="text-right px-3 font-mono font-extrabold text-gold bg-gold/10" x-text="fila.final"></td>
                   </tr>
                 </template>
               </tbody>
@@ -622,10 +626,48 @@ tailwind.config = {
           </tbody>
         </table>
       </div>
+      <div class="mt-4 bg-bg-card border border-gold-border overflow-hidden redondeado rounded-lg">
+        <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-bold text-gold uppercase tracking-wider">Reporte del día</h2>
+            <p class="text-xs text-txt-secondary" x-text="reporte && reporte.guardado ? 'Cerrado a las 04:00. Quedó guardado.' : 'Día en curso. Se guarda al cerrar, a las 04:00.'"></p>
+          </div>
+          <span class="text-xs font-mono text-txt-muted" x-text="diaTrabajo"></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-bg-sidebar text-txt-muted uppercase text-[11px]">
+                <th class="text-left px-3 py-2">Producto</th>
+                <th class="text-left px-3 py-2">Tipo</th>
+                <th class="text-right px-3 py-2">Saldo anterior</th>
+                <th class="text-right px-3 py-2">Ingreso</th>
+                <th class="text-right px-3 py-2">Salida</th>
+                <th class="text-right px-3 py-2">Saldo final</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="l in (reporte && reporte.lineas) || []" :key="l.rubro + l.tipoProducto">
+                <tr class="border-t border-white/5">
+                  <td class="px-3 py-1.5 font-semibold" x-text="l.nombre"></td>
+                  <td class="px-3 py-1.5 capitalize" x-text="l.tipoProducto"></td>
+                  <td class="px-3 py-1.5 text-right font-mono" x-text="l.saldoAnterior"></td>
+                  <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="l.ingreso"></td>
+                  <td class="px-3 py-1.5 text-right font-mono text-rose-300" x-text="l.salida"></td>
+                  <td class="px-3 py-1.5 text-right font-mono font-bold text-gold" x-text="l.saldoFinal"></td>
+                </tr>
+              </template>
+              <tr x-show="!reporte || !reporte.lineas || reporte.lineas.length === 0">
+                <td class="px-3 py-2 text-txt-muted" colspan="6">Este día todavía no tiene ingresos ni salidas.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section x-show="vistaTab === 'transformacion'" class="panel-tab space-y-6">
-      <p class="text-xs text-txt-secondary">Transformaciones del día elegido. El período de arriba aplica a Día y Conteo.</p>
+      <p class="text-xs text-txt-secondary">Transformaciones del día elegido. La fecha sigue al período.</p>
       <div class="bg-bg-card border border-gold-border p-4 redondeado rounded-lg">
         <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-white/10">
           <div>
@@ -991,6 +1033,7 @@ function inventarioApp() {
     focoConteoClave: '',
     formulaHover: '',
     ocultarCuadro: false,
+    reporte: null,
     celdaTocada: '',
     filaTocada: '',
     filasTocadas: [],
@@ -1150,23 +1193,56 @@ function inventarioApp() {
       const filaCuadro = (clave, nombre) => {
         const crudo = this.filaRubro(clave, 'crudo');
         const cocido = this.filaRubro(clave, 'cocido');
+        const cierreDe = (f) => {
+          const anterior = Number(f.saldoInicial) || 0;
+          const ingreso = Number(f.ingresos) || 0;
+          const reg = Number(f.regulacion) || 0;
+          const salida = Number(f.egreso) || 0;
+          const base = reg !== 0 ? anterior + reg : anterior + ingreso;
+          return base - salida;
+        };
+        const ventaComandas = (this.ventas || []).reduce((a, v) => {
+          const rubro = v && (v.rubro || v.plato);
+          if (rubro !== clave) return a;
+          return a + (Number(v.cantidad) || 0);
+        }, 0);
         return {
           nombre: nombre,
           clave: clave,
-          cocido: cocido.baja || 0,
-          crudo: crudo.baja || 0,
-          total: (cocido.baja || 0) + (crudo.baja || 0)
+          cocido: Number(cocido.ingresos) || 0,
+          crudo: Number(crudo.ingresos) || 0,
+          total: (Number(cocido.ingresos) || 0) + (Number(crudo.ingresos) || 0),
+          anteriorCocido: Number(cocido.saldoInicial) || 0,
+          anteriorCrudo: Number(crudo.saldoInicial) || 0,
+          anterior: (Number(cocido.saldoInicial) || 0) + (Number(crudo.saldoInicial) || 0),
+          finalCocido: cierreDe(cocido) - ventaComandas,
+          finalCrudo: cierreDe(crudo),
+          final: (cierreDe(cocido) - ventaComandas) + cierreDe(crudo),
+          salidaCocido: (Number(cocido.egreso) || 0) + ventaComandas,
+          salidaCrudo: Number(crudo.egreso) || 0
+        };
+      };
+      const cuadroDe = (nombre, filas) => {
+        const sum = (k) => filas.reduce((a, f) => a + (Number(f[k]) || 0), 0);
+        return {
+          nombre: nombre,
+          filas: filas,
+          anteriorCocido: sum('anteriorCocido'),
+          anteriorCrudo: sum('anteriorCrudo'),
+          anteriorTotal: sum('anteriorCocido') + sum('anteriorCrudo'),
+          finalCocido: sum('finalCocido'),
+          finalCrudo: sum('finalCrudo'),
+          finalTotal: sum('finalCocido') + sum('finalCrudo')
         };
       };
       const deGrupos = (meta.grupos || []).map((g) => {
         const filas = (g.hijos || []).map((h) => filaCuadro(h.clave, h.nombre));
         if (origenDe[g.nombre]) filas.unshift(filaCuadro(origenDe[g.nombre], g.nombre));
-        return { nombre: g.nombre, filas: filas };
+        return cuadroDe(g.nombre, filas);
       }).filter((g) => g.filas.length);
-      const deSueltos = (meta.sueltos || []).filter((s) => s.clave === 'arroz').map((s) => ({
-        nombre: s.nombre,
-        filas: [filaCuadro(s.clave, s.nombre)]
-      }));
+      const deSueltos = (meta.sueltos || []).filter((s) => s.clave === 'arroz').map((s) => (
+        cuadroDe(s.nombre, [filaCuadro(s.clave, s.nombre)])
+      ));
       const orden = ['Pachamanca', 'Pollo', 'Pescado', 'Panceta', 'Arroz'];
       this.cuadros = deGrupos.concat(deSueltos).sort((a, b) => orden.indexOf(a.nombre) - orden.indexOf(b.nombre));
       const hijosPollo = destinosPollo.map((h) => ({
@@ -1769,7 +1845,7 @@ function inventarioApp() {
       }
       this.compacto = localStorage.getItem('inventario-aprovechador') === '1';
       this.ocultarCuadro = localStorage.getItem('inventario-ocultar-cuadro') === '1';
-      this.diaTrabajo = this.ymd(new Date());
+      this.diaTrabajo = this.fechaDePeriodo(this.periodo);
       this._firmas = null;
       if (this.$el) {
         this.$el.addEventListener('wheel', (ev) => {
@@ -1787,7 +1863,9 @@ function inventarioApp() {
       setInterval(() => {
         const ahora = this.ymd(new Date());
         if (ahora === this._diaVisto) return;
-        if (this.diaTrabajo === this._diaVisto) this.diaTrabajo = ahora;
+        const sigueHoy = this.periodo === 'hoy' || this.periodo === '7dias' || this.periodo === 'todos';
+        if (sigueHoy && this.diaTrabajo === this._diaVisto) this.diaTrabajo = ahora;
+        else if (this.periodo === 'ayer' && this.diaTrabajo === this.sumarDias(this._diaVisto, -1)) this.diaTrabajo = this.sumarDias(ahora, -1);
         this._diaVisto = ahora;
         this.cargar();
       }, 15000);
@@ -1817,26 +1895,31 @@ function inventarioApp() {
     ymd(fecha) {
       return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(fecha || new Date());
     },
+    ymdOperativo(fecha) {
+      const instante = fecha || new Date();
+      const ymd = this.ymd(instante);
+      const hora = Number(new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Lima', hour: '2-digit', hourCycle: 'h23'
+      }).format(instante));
+      return hora < 4 ? this.sumarDias(ymd, -1) : ymd;
+    },
     sumarDias(ymd, n) {
       const d = new Date(ymd + 'T12:00:00');
       d.setDate(d.getDate() + n);
       return this.ymd(d);
     },
     rangoPeriodo() {
-      const dia = this.ymd(new Date());
-      if (this.periodo === 'ayer') {
-        const a = this.sumarDias(dia, -1);
-        return { desde: a, hasta: a };
-      }
-      if (this.periodo === '7dias') return { desde: this.sumarDias(dia, -6), hasta: dia };
-      if (this.periodo === 'todos') return { desde: '2000-01-01', hasta: dia };
+      const fin = this.diaTrabajo || this.ymd(new Date());
+      if (this.periodo === 'hoy' || this.periodo === 'ayer') return { desde: fin, hasta: fin };
+      if (this.periodo === '7dias') return { desde: this.sumarDias(fin, -6), hasta: fin };
+      if (this.periodo === 'todos') return { desde: '2000-01-01', hasta: fin };
       if (this.periodo === 'custom') {
-        let desde = this.customDesde || dia;
+        let desde = this.customDesde || fin;
         let hasta = this.customHasta || desde;
         if (hasta < desde) { const t = desde; desde = hasta; hasta = t; }
         return { desde: desde, hasta: hasta };
       }
-      return { desde: dia, hasta: dia };
+      return { desde: fin, hasta: fin };
     },
     vistaPorDia() {
       return this.vistaTab === 'crudo' || this.vistaTab === 'transformacion';
@@ -1849,8 +1932,26 @@ function inventarioApp() {
       if (ymd === this.ymd(new Date())) return new Date().toISOString();
       return ymd + 'T17:00:00.000Z';
     },
+    fechaDePeriodo(id) {
+      const hoy = this.ymd(new Date());
+      if (id === 'ayer') return this.sumarDias(hoy, -1);
+      if (id === 'custom') return this.customHasta || this.customDesde || hoy;
+      return hoy;
+    },
+    periodoSegunFecha() {
+      if (this.periodo === '7dias' || this.periodo === 'todos') return;
+      const hoy = this.ymd(new Date());
+      if (this.diaTrabajo === hoy) this.periodo = 'hoy';
+      else if (this.diaTrabajo === this.sumarDias(hoy, -1)) this.periodo = 'ayer';
+      else {
+        this.periodo = 'custom';
+        this.customDesde = this.diaTrabajo;
+        this.customHasta = this.diaTrabajo;
+      }
+    },
     setPeriodo(id) {
       this.periodo = id;
+      this.diaTrabajo = this.fechaDePeriodo(id);
       this.cargar();
     },
     async setVista(id) {
@@ -1863,16 +1964,19 @@ function inventarioApp() {
     },
     moverDia(n) {
       this.diaTrabajo = this.sumarDias(this.diaTrabajo, n);
-      if (this.vistaPorDia()) this.cargar();
+      this.periodoSegunFecha();
+      this.cargar();
     },
     fijarDia(valor) {
       if (!valor) return;
       this.diaTrabajo = valor;
-      if (this.vistaPorDia()) this.cargar();
+      this.periodoSegunFecha();
+      this.cargar();
     },
     irDiaHoy() {
+      this.periodo = 'hoy';
       this.diaTrabajo = this.ymd(new Date());
-      if (this.vistaPorDia()) this.cargar();
+      this.cargar();
     },
     etiquetaDia() {
       const dia = this.ymd(new Date());
@@ -1883,8 +1987,7 @@ function inventarioApp() {
       return '';
     },
     historialCorto(modo) {
-      const dia = this.diaTrabajo;
-      const movs = (this.movimientos || []).filter((m) => m.fecha && this.ymd(new Date(m.fecha)) === dia);
+      const movs = this.movimientos || [];
       if (modo === 'transforma') {
         const map = {};
         movs.forEach((m) => {
@@ -2035,15 +2138,17 @@ function inventarioApp() {
       try {
         const r = this.vistaPorDia() ? { desde: this.diaTrabajo, hasta: this.diaTrabajo } : this.rangoPeriodo();
         this.dia = r.hasta;
-        const q = '?carta=1&desde=' + r.desde + '&hasta=' + r.hasta;
+        const ciclo = this.vistaPorDia() ? '&ciclo=04' : '';
+        const q = '?carta=1&desde=' + r.desde + '&hasta=' + r.hasta + ciclo;
         const [k, m, a] = await Promise.all([
           this.api('/inventario/kardex' + q),
-          this.api('/inventario/movimientos?desde=' + r.desde + '&hasta=' + r.hasta),
+          this.api('/inventario/movimientos?desde=' + r.desde + '&hasta=' + r.hasta + ciclo),
           this.api('/inventario/alertas')
         ]);
         this.filas = k.filas || [];
         this.carta = k.carta || null;
         this.ventas = k.ventas || [];
+        this.reporte = k.reporte || null;
         this.movimientos = m.movimientos || [];
         this.alertas = a.alertas || [];
         this.armarVista();

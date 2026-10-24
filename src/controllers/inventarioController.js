@@ -106,8 +106,8 @@ function errorHttp(error, res) {
 router.get('/inventario/kardex', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
     try {
         const data = req.query.carta === '1'
-            ? await inventario.kardexCarta(req.query.desde, req.query.hasta)
-            : await inventario.kardex(req.query.desde, req.query.hasta);
+            ? await inventario.kardexCarta(req.query.desde, req.query.hasta, req.query.ciclo)
+            : await inventario.kardex(req.query.desde, req.query.hasta, req.query.ciclo);
         res.json({ success: true, ...data });
     } catch (error) {
         errorHttp(error, res);

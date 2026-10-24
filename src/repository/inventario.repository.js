@@ -3,12 +3,13 @@ const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
 const { claveDe, filasDeRubros, carta } = require('../utils/inventarioRubros');
-const { boundsDiaCalendario, ymdCalendario, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
+const { boundsDiaCalendario, boundsDiaOperativo, ymdCalendario, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
 const Rubro = require('../database/models/inventarioRubro.model');
+const Reporte = require('../database/models/inventarioReporte.model');
 const logger = require('../utils/logger');
 
-function rango(desde, hasta) {
+function rango(desde, hasta, ciclo) {
     const iniStr = String(desde || '').trim();
     const finStr = String(hasta || desde || '').trim();
     if (!esSoloFechaYMD(iniStr) || !esSoloFechaYMD(finStr)) {
@@ -21,8 +22,9 @@ function rango(desde, hasta) {
         err.statusCode = 400;
         throw err;
     }
-    const ini = boundsDiaCalendario(iniStr);
-    const fin = boundsDiaCalendario(finStr);
+    const borde = String(ciclo) === '04' ? boundsDiaOperativo : boundsDiaCalendario;
+    const ini = borde(iniStr);
+    const fin = borde(finStr);
     return { desde: ini.inicio, hasta: fin.fin };
 }
 
@@ -51,8 +53,8 @@ async function movimientosHasta(platoIds, hasta, extra) {
     return Movimiento.find(filtro).select('plato tipoProducto clase cantidad fecha').lean();
 }
 
-async function kardex(desdeStr, hastaStr) {
-    const { desde, hasta } = (desdeStr || hastaStr) ? rango(desdeStr, hastaStr || desdeStr) : hoy();
+async function kardex(desdeStr, hastaStr, ciclo) {
+    const { desde, hasta } = (desdeStr || hastaStr) ? rango(desdeStr, hastaStr || desdeStr, ciclo) : hoy();
     const platos = await platosActivos();
     const ids = platos.map((p) => p._id);
     const movs = ids.length ? await movimientosHasta(ids, hasta) : [];
@@ -60,10 +62,10 @@ async function kardex(desdeStr, hastaStr) {
     return { desde, hasta, filas };
 }
 
-async function listarMovimientos({ plato, tipo, desde, hasta }) {
+async function listarMovimientos({ plato, tipo, desde, hasta, ciclo }) {
     const filtro = {};
     if (desde || hasta) {
-        const r = rango(desde || hasta, hasta || desde);
+        const r = rango(desde || hasta, hasta || desde, ciclo);
         filtro.fecha = { $gte: r.desde, $lte: r.hasta };
     }
     if (tipo === 'crudo' || tipo === 'cocido') filtro.tipoProducto = tipo;
@@ -175,8 +177,35 @@ async function umbralesRubro() {
     return map;
 }
 
-async function kardexCarta(desdeStr, hastaStr) {
-    const { desde, hasta } = (desdeStr || hastaStr) ? rango(desdeStr, hastaStr || desdeStr) : hoy();
+function lineasReporte(filas, ventas) {
+    const ventaPorRubro = {};
+    (ventas || []).forEach((v) => {
+        const rubro = v && (v.rubro || v.plato);
+        const cantidad = Number(v && v.cantidad) || 0;
+        if (!rubro || cantidad <= 0) return;
+        ventaPorRubro[rubro] = (ventaPorRubro[rubro] || 0) + cantidad;
+    });
+    return (filas || []).map((f) => {
+        const rubro = f.rubro || f.plato || '';
+        const anterior = Number(f.saldoInicial) || 0;
+        const ingreso = Number(f.ingresos) || 0;
+        const reg = Number(f.regulacion) || 0;
+        const venta = f.tipoProducto === 'cocido' ? (ventaPorRubro[rubro] || 0) : 0;
+        const salida = (Number(f.egreso) || 0) + venta;
+        const base = reg !== 0 ? anterior + reg : anterior + ingreso;
+        return {
+            rubro,
+            nombre: f.nombre || '',
+            tipoProducto: f.tipoProducto,
+            saldoAnterior: anterior,
+            ingreso,
+            salida,
+            saldoFinal: base - salida
+        };
+    }).filter((l) => l.saldoAnterior || l.ingreso || l.salida || l.saldoFinal);
+}
+
+async function filasCartaEn(desde, hasta) {
     const [guardados, ventasPack, umbrales] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
             .select('rubro tipoProducto clase cantidad fecha')
@@ -191,7 +220,52 @@ async function kardexCarta(desdeStr, hastaStr) {
         const t = new Date(v.fecha).getTime();
         return t >= desdeMs && t <= hastaMs;
     });
-    return { desde, hasta, filas, carta: carta(), ventas };
+    return { filas, ventas };
+}
+
+async function cerrarDiaSiToca(fecha) {
+    if (!fecha || fecha >= ymdOperativo()) return null;
+    const ya = await Reporte.findOne({ fecha }).lean();
+    if (ya) return ya;
+    const { desde, hasta } = rango(fecha, fecha, '04');
+    const { filas, ventas } = await filasCartaEn(desde, hasta);
+    try {
+        const doc = await Reporte.create({
+            fecha,
+            cerradoEn: new Date(),
+            lineas: lineasReporte(filas, ventas)
+        });
+        return doc.toObject();
+    } catch (error) {
+        if (error && error.code === 11000) return Reporte.findOne({ fecha }).lean();
+        throw error;
+    }
+}
+
+async function kardexCarta(desdeStr, hastaStr, ciclo) {
+    const operativo = String(ciclo) === '04';
+    if (operativo) await cerrarDiaSiToca(diaAnterior(ymdOperativo()));
+    const { desde, hasta } = (desdeStr || hastaStr)
+        ? rango(desdeStr, hastaStr || desdeStr, ciclo)
+        : hoy();
+    const { filas, ventas } = await filasCartaEn(desde, hasta);
+    const data = { desde, hasta, filas, carta: carta(), ventas };
+    if (operativo && desdeStr && desdeStr === (hastaStr || desdeStr)) {
+        const fecha = String(desdeStr);
+        const guardado = fecha < ymdOperativo();
+        const doc = guardado ? await cerrarDiaSiToca(fecha) : null;
+        data.reporte = {
+            fecha,
+            guardado,
+            lineas: doc ? doc.lineas : lineasReporte(filas, ventas)
+        };
+    }
+    return data;
+}
+
+function diaAnterior(ymd) {
+    const antes = new Date(boundsDiaOperativo(ymd).inicio.getTime() - 1000);
+    return ymdOperativo(antes);
 }
 
 async function guardarUmbralRubro(clave, body) {
