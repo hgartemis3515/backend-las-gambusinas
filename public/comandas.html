@@ -2811,7 +2811,8 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
 
  <!-- SECCION DESCUENTO - Solo visible para admin/supervisor -->
- <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoInput: 0, motivoDescuentoInput: '', marca100: false }"
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoInput: 0, motivoDescuentoInput: '', marca100: false, _idVisto: '' }"
+ x-effect="(() => { const id = String(editComanda?._id || ''); if (id === _idVisto) return; _idVisto = id; descuentoMontoInput = 0; motivoDescuentoInput = ''; marca100 = false; })()"
  class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <div class="flex items-center justify-between mb-3">
  <div class="flex items-center gap-2">
@@ -3470,7 +3471,8 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
 
  <!-- DESCUENTO PARA EL GRUPO -->
- <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoGrupoInput: 0, motivoDescuentoGrupoInput: '', marca100: false }"
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoGrupoInput: 0, motivoDescuentoGrupoInput: '', marca100: false, _idsVistos: '' }"
+ x-effect="(() => { const ids = (editGrupo?.comandas || []).map(c => String(c._id || '')).join(','); if (ids === _idsVistos) return; _idsVistos = ids; descuentoMontoGrupoInput = 0; motivoDescuentoGrupoInput = ''; marca100 = false; })()"
  class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <div class="flex items-center justify-between mb-3">
  <div class="flex items-center gap-2">

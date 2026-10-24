@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 
 const noticiaSchema = new mongoose.Schema({
     fechaOperativa: { type: String, required: true, index: true },
-    titulo: { type: String, default: '', maxlength: 120, trim: true },
+    titulo: { type: String, required: true, maxlength: 120, trim: true },
     cuerpoHtml: { type: String, default: '' },
     imagenes: { type: [String], default: [] },
     autor: {
@@ -13,12 +13,12 @@ const noticiaSchema = new mongoose.Schema({
         rol: { type: String, default: '' },
     },
     vigente: { type: Boolean, default: true, index: true },
-    destinos: { type: [String], default: ['cocina', 'mozos'] },
-    cocinaAlcance: { type: String, default: 'todas' },
-    pantallas: { type: [Number], default: [] },
-    mozosAlcance: { type: String, default: 'todos' },
-    mozoIds: { type: [String], default: [] },
-    segundosEnPantalla: { type: Number, default: 15 },
+    // mozos | cocina (tablas KDS) | caja (tabla de tickets y pagos adelantados)
+    destinos: {
+        type: [String],
+        enum: ['mozos', 'cocina', 'caja'],
+        default: ['mozos', 'cocina'],
+    },
 }, { timestamps: true });
 
 noticiaSchema.index({ fechaOperativa: 1, vigente: 1, createdAt: -1 });

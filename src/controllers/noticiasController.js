@@ -53,57 +53,28 @@ function puedePublicar(req, res, next) {
     return checkPermission('publicar-noticias')(req, res, next);
 }
 
-function emitirDirigido(evento, payload, destino = {}) {
+function emitirSegunDestinos(evento, payload, destinos) {
     const io = global.io;
     if (!io) return;
-    const aviso = { ...payload, ...destino };
-    const cocina = io.of('/cocina');
-    const mozos = io.of('/mozos');
+    const set = new Set(Array.isArray(destinos) && destinos.length ? destinos : ['mozos', 'cocina']);
     try {
-        const alcance = destino.cocinaAlcance || 'todas';
-        if ((destino.destinos || ['cocina']).includes('cocina')) {
-            if (alcance === 'kds' || alcance === 'todas') {
-                cocina.emit(evento, { ...aviso, canal: alcance === 'kds' ? 'kds' : 'todas' });
-            }
-            if (alcance === 'pantallas') {
-                const pantallas = (destino.pantallas || [])
-                    .map((n) => Number(n))
-                    .filter((n) => Number.isFinite(n));
-                if (pantallas.length) {
-                    const cocinaCocineroIds = [...new Set((destino.cocinaCocineroIds || aviso.cocinaCocineroIds || []).map(String).filter(Boolean))];
-                    cocina.emit(evento, { ...aviso, canal: 'pantallas', pantallas, cocinaCocineroIds });
-                }
-            }
-        }
-        const quienes = destino.mozosAlcance || 'todos';
-        if ((destino.destinos || ['mozos']).includes('mozos')) {
-            if (quienes === 'algunos') {
-                (destino.mozoIds || []).forEach((id) => mozos.to(`mozo-${id}`).emit(evento, aviso));
-            } else if (quienes !== 'ninguno') {
-                mozos.emit(evento, aviso);
-            }
-        }
+        if (set.has('mozos')) io.of('/mozos').emit(evento, payload);
+        if (set.has('cocina') || set.has('caja')) io.of('/cocina').emit(evento, payload);
     } catch (error) {
         logger.warn('No se avisó la noticia', { error: error.message });
     }
 }
 
-function emitirNoticia(accion = 'creada', noticia = null, body = {}) {
+function emitirNoticia(accion = 'creada', noticia = null) {
+    const destinos = noticia?.destinos;
     const payload = {
         fechaOperativa: ymdOperativo(),
         accion,
         noticiaId: noticia?._id ? String(noticia._id) : null,
         titulo: noticia?.titulo || '',
-        cuerpoHtml: noticia?.cuerpoHtml || '',
-        segundosEnPantalla: noticia?.segundosEnPantalla || 15,
-        destinos: noticia?.destinos || ['cocina', 'mozos'],
-        cocinaAlcance: noticia?.cocinaAlcance || 'todas',
-        pantallas: (noticia?.pantallas && noticia.pantallas.length) ? noticia.pantallas : (body.pantallas || []),
-        cocinaCocineroIds: (body.cocinaCocineroIds || noticia?.cocinaCocineroIds || []).map(String).filter(Boolean),
-        mozosAlcance: noticia?.mozosAlcance || 'todos',
-        mozoIds: noticia?.mozoIds || [],
+        destinos: Array.isArray(destinos) && destinos.length ? destinos : ['mozos', 'cocina'],
     };
-    emitirDirigido('noticia-publicada', payload, payload);
+    emitirSegunDestinos('noticia-publicada', payload, payload.destinos);
 }
 
 function autorDe(req) {
@@ -123,30 +94,10 @@ router.get('/noticias/top-semana', requireJwt, async (req, res) => {
 router.get('/noticias/hoy', requireJwt, async (req, res) => {
     try {
         res.set('Cache-Control', 'no-store');
-        const data = await repo.listarHoy();
-        const app = req.usuario?.app;
-        const id = String(req.usuario?.id || req.usuario?._id || '');
-        data.noticias = (data.noticias || []).filter((n) => {
-            const dest = n.destinos?.length ? n.destinos : ['cocina', 'mozos'];
-            if (app === 'cocina') return dest.includes('cocina');
-            if (!dest.includes('mozos')) return false;
-            if ((n.mozosAlcance || 'todos') === 'algunos') return (n.mozoIds || []).map(String).includes(id);
-            return true;
-        });
-        res.json(data);
+        res.json(await repo.listarHoy(new Date(), req.query.destino));
     } catch (error) {
         logger.error('Error noticias de hoy', { error: error.message });
         res.status(500).json({ error: 'No se pudieron leer las noticias' });
-    }
-});
-
-router.get('/noticias/mozos-activos', adminAuth, puedePublicar, async (req, res) => {
-    try {
-        res.set('Cache-Control', 'no-store');
-        res.json({ ids: await repo.idsMozosActivosHoy() });
-    } catch (error) {
-        logger.error('Error mozos activos', { error: error.message });
-        res.status(500).json({ error: 'No se pudo leer quién está activo' });
     }
 });
 
@@ -170,7 +121,7 @@ router.post('/noticias/imagen', adminAuth, puedePublicar, (req, res) => {
 router.post('/noticias/temporal', adminAuth, puedePublicar, (req, res) => {
     try {
         const aviso = repo.prepararTemporal(req.body, autorDe(req));
-        emitirDirigido('noticia-temporal', aviso, aviso);
+        emitirSegunDestinos('noticia-temporal', aviso, aviso.destinos);
         res.json({ enviado: true });
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo enviar' });
@@ -180,7 +131,7 @@ router.post('/noticias/temporal', adminAuth, puedePublicar, (req, res) => {
 router.post('/noticias', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.crearNoticia(req.body, autorDe(req));
-        emitirNoticia('creada', noticia, req.body);
+        emitirNoticia('creada', noticia);
         res.status(201).json(noticia);
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo publicar' });
@@ -190,7 +141,7 @@ router.post('/noticias', adminAuth, puedePublicar, async (req, res) => {
 router.put('/noticias/:id', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.actualizarNoticia(req.params.id, req.body);
-        emitirNoticia('editada', noticia, req.body);
+        emitirNoticia('editada', noticia);
         res.json(noticia);
     } catch (error) {
         res.status(error.status || 500).json({ error: error.message || 'No se pudo guardar' });

@@ -5,7 +5,7 @@ const Comanda = require('../database/models/comanda.model');
 const Noticia = require('../database/models/noticia.model');
 const { matchComandasEstadisticas } = require('../utils/estadisticasComandas');
 const { ymdOperativo, boundsDiaOperativo, TZ } = require('../utils/diaOperativoRestaurante');
-const { sanitizarHtmlNoticia, imagenesDeHtml, envolverEmojis } = require('../utils/sanitizarHtmlNoticia');
+const { sanitizarHtmlNoticia, textoPlanoNoticia, imagenesDeHtml } = require('../utils/sanitizarHtmlNoticia');
 
 let cacheTop = null;
 
@@ -83,29 +83,62 @@ async function topSemana(now = new Date()) {
     return cacheTop;
 }
 
+const DESTINOS = ['mozos', 'cocina', 'caja'];
+
+/** Sin lista guardada: mozos y cocina, como antes. Caja no entra sola. */
+function normalizarDestinos(raw) {
+    if (!Array.isArray(raw) || raw.length === 0) return ['mozos', 'cocina'];
+    const out = [];
+    for (const item of raw) {
+        const id = String(item || '').trim();
+        if (DESTINOS.includes(id) && !out.includes(id)) out.push(id);
+    }
+    return out;
+}
+
+function destinosDe(body) {
+    if (!body || !Object.prototype.hasOwnProperty.call(body, 'destinos')) return ['mozos', 'cocina'];
+    if (!Array.isArray(body.destinos) || body.destinos.length === 0) {
+        const err = new Error('Elige a quién llega');
+        err.status = 400;
+        throw err;
+    }
+    const out = [];
+    for (const item of body.destinos) {
+        const id = String(item || '').trim();
+        if (!DESTINOS.includes(id)) {
+            const err = new Error('Elige a quién llega');
+            err.status = 400;
+            throw err;
+        }
+        if (!out.includes(id)) out.push(id);
+    }
+    return out;
+}
+
 function noticiaPublica(doc) {
     return {
         _id: doc._id,
         fechaOperativa: doc.fechaOperativa,
         titulo: doc.titulo,
-        cuerpoHtml: envolverEmojis(doc.cuerpoHtml || ''),
+        cuerpoHtml: doc.cuerpoHtml || '',
         imagenes: doc.imagenes || [],
         autor: doc.autor || {},
         vigente: doc.vigente !== false,
-        destinos: doc.destinos?.length ? doc.destinos : ['cocina', 'mozos'],
-        cocinaAlcance: doc.cocinaAlcance || 'todas',
-        pantallas: doc.pantallas || [],
-        mozosAlcance: doc.mozosAlcance || 'todos',
-        mozoIds: doc.mozoIds || [],
-        segundosEnPantalla: Number(doc.segundosEnPantalla) || 15,
+        destinos: normalizarDestinos(doc.destinos),
         createdAt: doc.createdAt,
     };
 }
 
-async function listarHoy(now = new Date()) {
+async function listarHoy(now = new Date(), destino = '') {
     const fechaOperativa = ymdOperativo(now);
     const docs = await Noticia.find({ fechaOperativa, vigente: true }).sort({ createdAt: -1 }).limit(20).lean();
-    return { fechaOperativa, noticias: docs.map(noticiaPublica) };
+    let noticias = docs.map(noticiaPublica);
+    const filtro = String(destino || '').trim();
+    if (DESTINOS.includes(filtro)) {
+        noticias = noticias.filter((n) => n.destinos.includes(filtro));
+    }
+    return { fechaOperativa, noticias };
 }
 
 async function listarArchivo() {
@@ -117,43 +150,17 @@ function armarCuerpo(body) {
     const titulo = String(body?.titulo || '').replace(/<[^>]+>/g, '').trim().slice(0, 120);
     const cuerpoHtml = sanitizarHtmlNoticia(body?.cuerpoHtml || '');
     const imagenes = imagenesDeHtml(cuerpoHtml);
-    return { titulo, cuerpoHtml, imagenes };
-}
-
-function destinoDe(body = {}) {
-    const quien = body.destinatario || 'ambos';
-    const cocina = quien === 'cocina' || quien === 'ambos';
-    const mozos = quien === 'mozos' || quien === 'ambos';
-    const crudo = body.cocinaDestino || 'todas';
-    const cocinaAlcance = !cocina ? 'ninguna' : (crudo === 'hub' ? 'pantallas' : (crudo === 'kds' ? 'kds' : 'todas'));
-    const pantallas = (body.pantallas || body.cocinerasHub || [])
-        .map((x) => Number(typeof x === 'object' ? (x.numero || x.numeroPantalla) : x))
-        .filter((n) => Number.isFinite(n));
-    const cocinaCocineroIds = [...new Set((body.cocinaCocineroIds || []).map(String).filter(Boolean))];
-    const mozosAlcance = !mozos ? 'ninguno' : (body.mozosModo === 'seleccion' ? 'algunos' : 'todos');
-    const mozoIds = (body.mozoIds || body.mozosSeleccionados || []).map(String).filter(Boolean);
-    let segundos = Number(body.segundosCocina ?? body.segundosEnPantalla ?? 15);
-    if (!Number.isFinite(segundos)) segundos = 15;
-    segundos = Math.min(120, Math.max(5, Math.round(segundos)));
-    if (cocina && cocinaAlcance === 'pantallas' && !pantallas.length) {
-        const err = new Error('Elige al menos una pantalla');
+    if (!titulo) {
+        const err = new Error('La noticia necesita un título');
         err.status = 400;
         throw err;
     }
-    if (mozos && mozosAlcance === 'algunos' && !mozoIds.length) {
-        const err = new Error('Elige al menos un mozo');
+    if (!textoPlanoNoticia(cuerpoHtml) && imagenes.length === 0) {
+        const err = new Error('La noticia necesita texto o una imagen');
         err.status = 400;
         throw err;
     }
-    return {
-        destinos: [cocina && 'cocina', mozos && 'mozos'].filter(Boolean),
-        cocinaAlcance,
-        pantallas,
-        cocinaCocineroIds,
-        mozosAlcance,
-        mozoIds,
-        segundosEnPantalla: segundos,
-    };
+    return { titulo, cuerpoHtml, imagenes, destinos: destinosDe(body) };
 }
 
 function prepararTemporal(body, autor) {
@@ -163,7 +170,7 @@ function prepararTemporal(body, autor) {
         cuerpoHtml: campos.cuerpoHtml,
         autor: { nombre: String(autor?.nombre || '') },
         temporal: true,
-        ...destinoDe(body),
+        destinos: campos.destinos,
     };
 }
 
@@ -178,13 +185,12 @@ async function crearNoticia(body, autor) {
             rol: String(autor?.rol || ''),
         },
         vigente: true,
-        ...destinoDe(body),
     });
     return noticiaPublica(doc.toObject());
 }
 
 async function actualizarNoticia(id, body) {
-    const campos = { ...armarCuerpo(body), ...destinoDe(body) };
+    const campos = armarCuerpo(body);
     const doc = await Noticia.findByIdAndUpdate(id, campos, { new: true }).lean();
     if (!doc) {
         const err = new Error('Noticia no encontrada');
@@ -194,17 +200,8 @@ async function actualizarNoticia(id, body) {
     return noticiaPublica(doc);
 }
 
-async function idsMozosActivosHoy(now = new Date()) {
-    const dia = ymdOperativo(now);
-    const ids = await Comanda.distinct('mozos', {
-        diaOperativo: dia,
-        mozos: { $ne: null },
-    });
-    return ids.filter(Boolean).map(String);
-}
-
 async function retirarNoticia(id) {
-    const doc = await Noticia.findByIdAndDelete(id).lean();
+    const doc = await Noticia.findByIdAndUpdate(id, { vigente: false }, { new: true }).lean();
     if (!doc) {
         const err = new Error('Noticia no encontrada');
         err.status = 404;
@@ -221,6 +218,7 @@ module.exports = {
     prepararTemporal,
     crearNoticia,
     actualizarNoticia,
-    idsMozosActivosHoy,
+    destinosDe,
+    normalizarDestinos,
     retirarNoticia,
 };
