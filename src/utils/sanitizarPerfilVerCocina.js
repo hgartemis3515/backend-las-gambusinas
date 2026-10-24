@@ -190,6 +190,7 @@ const PERFIL_TABLAS_KDS_KEYS = new Set([
     'usarNombreCocinaEnTablaKds',
     'ocultarCuadroCocineroAsignado',
     'usarPronombreCocineroKds',
+    'ocultarNumeroOrdenPlato',
     'cocineroNombreColor',
     'cocineroNombreFondo',
     'ocultarComplementosEnTablaKds',
