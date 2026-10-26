@@ -1409,6 +1409,7 @@ function inventarioApp() {
       const deGrupos = (meta.grupos || []).map((g) => {
           const filas = (g.hijos || []).map((h) => filaCuadro(h.clave, h.nombre));
           if (origenDe[g.nombre]) filas.unshift(filaCuadro(origenDe[g.nombre], g.nombre));
+          if (g.nombre === 'Pollo' && !filas.some((f) => f.clave === 'pollo-lena')) filas.push(filaCuadro('pollo-lena', 'Pollo leña'));
         return cuadroDe(g.nombre, filas);
       }).filter((g) => g.filas.length);
       const deSueltos = (meta.sueltos || []).filter((s) => s.clave === 'arroz').map((s) => (
@@ -1416,10 +1417,9 @@ function inventarioApp() {
       ));
       const extras = [
         { nombre: 'Pato', filas: [{ clave: 'pato', nombre: 'Pato' }] },
-        { nombre: 'Seco', filas: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de carnero' }] },
-        { nombre: 'Pollo a la leña', filas: [{ clave: 'pollo-lena', nombre: 'Pollo a la leña' }] }
+        { nombre: 'Seco', filas: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de carnero' }] }
       ].map((e) => cuadroDe(e.nombre, e.filas.map((f) => filaCuadro(f.clave, f.nombre))));
-      const orden = ['Pachamanca', 'Pollo', 'Pescado', 'Panceta', 'Pato', 'Seco', 'Pollo a la leña', 'Arroz'];
+      const orden = ['Pachamanca', 'Pollo', 'Pescado', 'Panceta', 'Pato', 'Seco', 'Arroz'];
       this.cuadros = deGrupos.concat(extras).concat(deSueltos).sort((a, b) => orden.indexOf(a.nombre) - orden.indexOf(b.nombre));
       const hijosPollo = destinosPollo.map((h) => ({
         origen: 'Pollo',
@@ -1966,12 +1966,12 @@ function inventarioApp() {
       const bloques = (carta.grupos || []).map((g) => {
         const hijos = (g.hijos || []).map((h) => ({ clave: h.clave, nombre: h.nombre }));
         if (origenDe[g.nombre]) hijos.unshift({ clave: origenDe[g.nombre], nombre: g.nombre });
+        if (g.nombre === 'Pollo' && !hijos.some((h) => h.clave === 'pollo-lena')) hijos.push({ clave: 'pollo-lena', nombre: 'Pollo leña' });
         return { nombre: g.nombre, hijos: hijos };
       });
       [
         { nombre: 'Pato', hijos: [{ clave: 'pato', nombre: 'Pato' }] },
         { nombre: 'Seco', hijos: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de carnero' }] },
-        { nombre: 'Pollo a la leña', hijos: [{ clave: 'pollo-lena', nombre: 'Pollo a la leña' }] },
         { nombre: 'Arroz', hijos: [{ clave: 'arroz', nombre: 'Arroz' }] }
       ].forEach((b) => bloques.push(b));
       const vistos = {};
