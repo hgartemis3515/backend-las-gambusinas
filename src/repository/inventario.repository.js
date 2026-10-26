@@ -223,6 +223,10 @@ async function filasCartaEn(desde, hasta) {
     return { filas, ventas };
 }
 
+function paseDeTipo(motivo) {
+    return /^Pasa (?:a|de) (?:crudo|cocido) /.test(String(motivo || ''));
+}
+
 async function transformacionesEn(desde, hasta) {
     const movs = await Movimiento.find({
         clase: 'ingreso',
@@ -232,6 +236,7 @@ async function transformacionesEn(desde, hasta) {
     }).select('nombre rubro motivo cantidad').lean();
     const map = {};
     movs.forEach((m) => {
+        if (paseDeTipo(m.motivo)) return;
         const origen = m.nombre || m.rubro || '';
         const destino = String(m.motivo || '').slice(7);
         const key = origen + '\0' + destino;

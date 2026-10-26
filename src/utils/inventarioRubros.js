@@ -30,7 +30,30 @@ const KARDEX = [
     { clave: 'chancho-lena-bbq', nombre: 'Chancho a la leña BBQ' },
     { clave: 'humita', nombre: 'Humita' },
     { clave: 'tamal', nombre: 'Tamal' },
-    { clave: 'arroz', nombre: 'Arroz' }
+    { clave: 'arroz', nombre: 'Arroz' },
+    { clave: 'patasca', nombre: 'Patasca' },
+    { clave: 'salt-bistec', nombre: 'Salt de bistec' },
+    { clave: 'salt-pollo', nombre: 'Salt de pollo' },
+    { clave: 'chaufa-pollo', nombre: 'Chaufa de pollo' },
+    { clave: 'chaufa-bistec', nombre: 'Chaufa de bistec' },
+    { clave: 'chaufa-chancho', nombre: 'Chaufa de chancho' },
+    { clave: 'milanesa', nombre: 'Milanesa' },
+    { clave: 'milanesa-junior', nombre: 'Milanesa junior' },
+    { clave: 'filete-junior', nombre: 'Filete junior' },
+    { clave: 'chi-pollo-bbq', nombre: 'Chi. pollo a la BBQ' },
+    { clave: 'chi-pollo-acevichada', nombre: 'Chi. pollo acevichada' },
+    { clave: 'pachamanca-1s', nombre: 'Pachamanca 1S' },
+    { clave: 'pachamanca-2s', nombre: 'Pachamanca 2S' },
+    { clave: 'pachamanca-3s', nombre: 'Pachamanca 3S' },
+    { clave: 'pachamanca-4s', nombre: 'Pachamanca 4S' },
+    { clave: 'chicha-trucha', nombre: 'Chicha de trucha' },
+    { clave: 'ceviche-trucha', nombre: 'Ceviche de trucha' },
+    { clave: 'duo-marino', nombre: 'Duo marino' },
+    { clave: 'duo-truchero', nombre: 'Duo truchero' },
+    { clave: 'chicha-pescado', nombre: 'Chicha de pescado' },
+    { clave: 'jalea-pescado', nombre: 'Jalea de pescado' },
+    { clave: 'chicha-pota', nombre: 'Chicha de pota' },
+    { clave: 'mix-lena', nombre: 'Mix leña' }
 ];
 
 const PIEZAS = [

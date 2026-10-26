@@ -923,8 +923,8 @@ tailwind.config = {
         <div class="modal-caja w-full max-w-3xl bg-bg-card border border-gold-border p-5 max-h-[90vh] overflow-y-auto redondeado rounded-xl">
           <div class="flex items-start justify-between gap-3 mb-3">
             <div>
-              <h3 class="text-lg font-semibold text-gold">Reporte del día</h3>
-              <p class="text-xs text-txt-secondary mt-1" x-text="reporteDia && reporteDia.guardado ? 'Quedó guardado al cerrar, a las 04:00.' : 'Este día se sigue actualizando y queda guardado en el registro.'"></p>
+              <h3 class="text-lg font-semibold text-gold" x-text="reporteDiaModo === 'transforma' ? 'Reporte de transformación' : 'Reporte de crudo y cocido'"></h3>
+              <p class="text-xs text-txt-secondary mt-1" x-text="reporteDiaModo === 'transforma' ? 'Origen, destino y rendimiento del día. No incluye el ingreso de crudo y cocido.' : 'Saldo anterior, cocido, crudo y final del día. No incluye los cortes de transformación.'"></p>
             </div>
             <button type="button" class="text-txt-secondary hover:text-white text-xl leading-none px-1" @click="reporteDiaAbierto = false" aria-label="Cerrar">×</button>
           </div>
@@ -935,53 +935,80 @@ tailwind.config = {
             <span class="text-xs font-mono text-txt-muted" x-text="reporteDiaFecha"></span>
           </div>
           <p x-show="reporteDiaCargando" class="text-sm text-txt-secondary">Cargando…</p>
-          <div x-show="!reporteDiaCargando">
+          <div x-show="!reporteDiaCargando && reporteDiaModo !== 'transforma'">
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
               <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
-                <p class="text-[11px] uppercase text-txt-muted">Cocido entró</p>
-                <p class="text-lg font-mono font-bold text-emerald-300" x-text="reporteDiaVista.cocidoEntro"></p>
+                <p class="text-[11px] uppercase text-txt-muted">Saldo anterior</p>
+                <p class="text-lg font-mono font-bold text-white" x-text="reporteDiaVista.anterior"></p>
               </div>
               <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
-                <p class="text-[11px] uppercase text-txt-muted">Cocido salió</p>
-                <p class="text-lg font-mono font-bold text-rose-300" x-text="reporteDiaVista.cocidoSalio"></p>
+                <p class="text-[11px] uppercase text-txt-muted">Cocido</p>
+                <p class="text-lg font-mono font-bold text-emerald-300" x-text="reporteDiaVista.cocido"></p>
               </div>
               <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
-                <p class="text-[11px] uppercase text-txt-muted">Crudo entró</p>
-                <p class="text-lg font-mono font-bold text-emerald-300" x-text="reporteDiaVista.crudoEntro"></p>
+                <p class="text-[11px] uppercase text-txt-muted">Crudo</p>
+                <p class="text-lg font-mono font-bold text-emerald-300" x-text="reporteDiaVista.crudo"></p>
               </div>
               <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
-                <p class="text-[11px] uppercase text-txt-muted">Crudo salió</p>
-                <p class="text-lg font-mono font-bold text-rose-300" x-text="reporteDiaVista.crudoSalio"></p>
+                <p class="text-[11px] uppercase text-txt-muted">Final</p>
+                <p class="text-lg font-mono font-bold text-gold" x-text="reporteDiaVista.final"></p>
               </div>
             </div>
             <div class="overflow-x-auto rounded-lg border border-white/10">
               <table class="w-full text-xs">
                 <thead>
                   <tr class="bg-bg-sidebar text-txt-muted uppercase text-[11px]">
+                    <th class="text-left px-3 py-2">Cuadro</th>
                     <th class="text-left px-3 py-2">Producto</th>
-                    <th class="text-right px-3 py-2">Cocido entró</th>
-                    <th class="text-right px-3 py-2">Cocido salió</th>
-                    <th class="text-right px-3 py-2">Crudo entró</th>
-                    <th class="text-right px-3 py-2">Crudo salió</th>
+                    <th class="text-right px-3 py-2">Anterior</th>
+                    <th class="text-right px-3 py-2">Cocido</th>
+                    <th class="text-right px-3 py-2">Crudo</th>
+                    <th class="text-right px-3 py-2">Total</th>
+                    <th class="text-right px-3 py-2">Final</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <template x-for="f in reporteDiaVista.filas" :key="f.nombre">
+                  <template x-for="f in reporteDiaVista.filas" :key="f.grupo + f.nombre">
                     <tr class="border-t border-white/5">
+                      <td class="px-3 py-1.5 text-txt-secondary" x-text="f.grupo"></td>
                       <td class="px-3 py-1.5 font-semibold" x-text="f.nombre"></td>
-                      <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="f.cocidoEntro"></td>
-                      <td class="px-3 py-1.5 text-right font-mono text-rose-300" x-text="f.cocidoSalio"></td>
-                      <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="f.crudoEntro"></td>
-                      <td class="px-3 py-1.5 text-right font-mono text-rose-300" x-text="f.crudoSalio"></td>
+                      <td class="px-3 py-1.5 text-right font-mono" x-text="f.anterior"></td>
+                      <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="f.cocido"></td>
+                      <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="f.crudo"></td>
+                      <td class="px-3 py-1.5 text-right font-mono" x-text="f.total"></td>
+                      <td class="px-3 py-1.5 text-right font-mono font-bold text-gold" x-text="f.final"></td>
                     </tr>
-              </template>
+                  </template>
                   <tr x-show="reporteDiaVista.filas.length === 0">
-                    <td class="px-3 py-3 text-txt-muted" colspan="5">Este día todavía no tiene ingresos ni salidas.</td>
+                    <td class="px-3 py-3 text-txt-muted" colspan="7">Este día no tiene movimientos de crudo ni de cocido.</td>
                   </tr>
                 </tbody>
               </table>
+            </div>
           </div>
-            <h4 class="mt-4 mb-2 text-xs font-bold uppercase tracking-wider text-gold">Transformaciones</h4>
+          <div x-show="!reporteDiaCargando && reporteDiaModo === 'transforma'">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Pollo ingresado</p>
+                <p class="text-lg font-mono font-bold text-white" x-text="reporteDiaVista.polloIngresada"></p>
+              </div>
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Pollo obtenido</p>
+                <p class="text-lg font-mono font-bold text-gold" x-text="reporteDiaVista.polloObtenida"></p>
+              </div>
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Rendimiento pollo</p>
+                <p class="text-lg font-mono font-bold" :class="Number(reporteDiaVista.polloObtenida) > Number(reporteDiaVista.polloIngresada) ? 'text-amber-200' : 'text-emerald-300'" x-text="textoRend(reporteDiaVista.polloObtenida, reporteDiaVista.polloIngresada)"></p>
+              </div>
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Pescado ingresado</p>
+                <p class="text-lg font-mono font-bold text-white" x-text="reporteDiaVista.pescadoIngresada"></p>
+              </div>
+              <div class="bg-bg-sidebar border border-white/10 rounded-lg px-3 py-2">
+                <p class="text-[11px] uppercase text-txt-muted">Pescado obtenido</p>
+                <p class="text-lg font-mono font-bold text-gold" x-text="reporteDiaVista.pescadoObtenida"></p>
+              </div>
+            </div>
             <div class="overflow-x-auto rounded-lg border border-white/10">
               <table class="w-full text-xs">
                 <thead>
@@ -992,14 +1019,14 @@ tailwind.config = {
                   </tr>
                 </thead>
                 <tbody>
-                  <template x-for="t in reporteDiaVista.transformaciones" :key="t.origen + t.destino">
+                  <template x-for="t in reporteDiaVista.lineas" :key="t.origen + t.destino">
                     <tr class="border-t border-white/5">
                       <td class="px-3 py-1.5 font-semibold" x-text="t.origen"></td>
                       <td class="px-3 py-1.5" x-text="t.destino"></td>
                       <td class="px-3 py-1.5 text-right font-mono font-bold text-gold" x-text="t.cantidad"></td>
                     </tr>
-          </template>
-                  <tr x-show="reporteDiaVista.transformaciones.length === 0">
+                  </template>
+                  <tr x-show="reporteDiaVista.lineas.length === 0">
                     <td class="px-3 py-3 text-txt-muted" colspan="3">Este día no tiene transformaciones.</td>
                   </tr>
                 </tbody>
@@ -1114,7 +1141,7 @@ function inventarioApp() {
     reporteDiaFecha: '',
     reporteDia: null,
     reporteDiaCargando: false,
-    reporteDiaVista: { cocidoEntro: 0, cocidoSalio: 0, crudoEntro: 0, crudoSalio: 0, filas: [], transformaciones: [], totalTrans: 0 },
+    reporteDiaVista: { filas: [], anterior: 0, cocido: 0, crudo: 0, total: 0, final: 0, polloIngresada: 0, polloObtenida: 0, pescadoIngresada: 0, pescadoObtenida: 0, lineas: [] },
     reporteDiaModo: 'carta',
     movimientos: [],
     ventas: [],
@@ -1375,6 +1402,9 @@ function inventarioApp() {
         if (this.filaTocada === clave) this.filaTocada = '';
       }, 420);
     },
+    paseDeTipo(motivo) {
+      return /^Pasa (?:a|de) (?:crudo|cocido) /.test(String(motivo || ''));
+    },
     obtenidaDe(clave, origen) {
       return (this.movimientos || []).reduce((suma, m) => {
         if (m.rubro !== clave || m.clase !== 'ingreso') return suma;
@@ -1400,7 +1430,7 @@ function inventarioApp() {
       const claves = new Set(f.claves || [f.clave]);
       return (this.movimientos || []).reduce((a, m) => {
         if (!claves.has(m.rubro) || m.clase !== 'ingreso') return a;
-        if (String(m.motivo || '').indexOf('Pasa a ') === 0) return a;
+        if (String(m.motivo || '').indexOf('Pasa a ') === 0 || this.paseDeTipo(m.motivo)) return a;
         return a + (Number(m.cantidad) || 0);
       }, 0);
     },
@@ -1410,7 +1440,7 @@ function inventarioApp() {
       (this.movimientos || []).forEach((m) => {
         if (!claves.has(m.rubro) || m.clase !== 'ingreso') return;
         const motivo = String(m.motivo || '');
-        if (motivo.indexOf('Pasa a ') !== 0) return;
+        if (motivo.indexOf('Pasa a ') !== 0 || this.paseDeTipo(motivo)) return;
       const n = Number(m.cantidad) || 0;
         if (n >= 0) return;
         const nombre = motivo.slice(7);
@@ -1618,6 +1648,13 @@ function inventarioApp() {
           accion = 'corrección';
           esPositivo = n > 0;
           cantidadTexto = (n > 0 ? '+' : '−') + Math.abs(n);
+        } else if (this.paseDeTipo(motivo)) {
+          if (/^Pasa a cocido /.test(motivo)) accion = n < 0 ? 'pasó a cocido' : 'volvió de cocido';
+          else if (/^Pasa de crudo /.test(motivo)) accion = n > 0 ? 'llegó desde crudo' : 'volvió a crudo';
+          else if (/^Pasa a crudo /.test(motivo)) accion = n < 0 ? 'pasó a crudo' : 'volvió de crudo';
+          else accion = n > 0 ? 'llegó desde cocido' : 'volvió a cocido';
+          esPositivo = n > 0;
+          cantidadTexto = (n > 0 ? '+' : '−') + Math.abs(n);
         } else if (motivo.indexOf('Pasa a ') === 0 && n < 0) {
           const dest = motivo.slice(7);
           accion = 'se transformó en ' + dest;
@@ -1681,7 +1718,7 @@ function inventarioApp() {
       (this.movimientos || []).forEach((m) => {
         if (!claves.has(m.rubro)) return;
         const motivo = String(m.motivo || '');
-        if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0) return;
+        if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0 || this.paseDeTipo(motivo)) return;
         const n = Number(m.cantidad) || 0;
         if (n >= 0) return;
         const nombre = motivo.slice(7);
@@ -1761,7 +1798,7 @@ function inventarioApp() {
       })).concat(movs.filter((m) => m.clase === 'egreso' && Number(m.cantidad)).map((m) => ({
         nombre: m.nombre, cantidad: m.cantidad, detalle: 'manual'
       })));
-      const transformaciones = movs.filter((m) => m.clase === 'ingreso' && String(m.motivo || '').indexOf('Pasa a ') === 0 && Number(m.cantidad) < 0).map((m) => ({
+      const transformaciones = movs.filter((m) => m.clase === 'ingreso' && String(m.motivo || '').indexOf('Pasa a ') === 0 && !this.paseDeTipo(m.motivo) && Number(m.cantidad) < 0).map((m) => ({
         origen: m.nombre,
         destino: String(m.motivo).slice(7),
         cantidad: Math.abs(Number(m.cantidad) || 0)
@@ -1785,45 +1822,107 @@ function inventarioApp() {
         this.error = e.message;
       }
     },
-    resumenReporte(rep) {
-      const lineas = (rep && rep.lineas) || [];
-      const map = {};
-      const suma = { cocidoEntro: 0, cocidoSalio: 0, crudoEntro: 0, crudoSalio: 0 };
-      lineas.forEach((l) => {
-        const nombre = l.nombre || l.rubro || 'Producto';
-        if (!map[nombre]) map[nombre] = { nombre: nombre, cocidoEntro: 0, cocidoSalio: 0, crudoEntro: 0, crudoSalio: 0 };
-        const entro = Number(l.ingreso) || 0;
-        const salio = Number(l.salida) || 0;
-        if (l.tipoProducto === 'cocido') {
-          map[nombre].cocidoEntro += entro;
-          map[nombre].cocidoSalio += salio;
-          suma.cocidoEntro += entro;
-          suma.cocidoSalio += salio;
-        } else {
-          map[nombre].crudoEntro += entro;
-          map[nombre].crudoSalio += salio;
-          suma.crudoEntro += entro;
-          suma.crudoSalio += salio;
-        }
+    filaReporteCrudo(filas, ventas, clave, nombre, grupo) {
+      const crudo = (filas || []).find((f) => f.rubro === clave && f.tipoProducto === 'crudo') || {};
+      const cocido = (filas || []).find((f) => f.rubro === clave && f.tipoProducto === 'cocido') || {};
+      const venta = (ventas || []).reduce((a, v) => {
+        if (!v || (v.rubro || v.plato) !== clave) return a;
+        return a + (Number(v.cantidad) || 0);
+      }, 0);
+      const cierre = (f, salidaExtra) => {
+        const anterior = Number(f.saldoInicial) || 0;
+        const ingreso = Number(f.ingresos) || 0;
+        const reg = Number(f.regulacion) || 0;
+        const salida = (Number(f.egreso) || 0) + (salidaExtra || 0);
+        const base = reg !== 0 ? anterior + reg : anterior + ingreso;
+        return base - salida;
+      };
+      const cocidoN = Number(cocido.ingresos) || 0;
+      const crudoN = Number(crudo.ingresos) || 0;
+      const anterior = (Number(cocido.saldoInicial) || 0) + (Number(crudo.saldoInicial) || 0);
+      const final = cierre(cocido, venta) + cierre(crudo, 0);
+      return { grupo: grupo, nombre: nombre, anterior: anterior, cocido: cocidoN, crudo: crudoN, total: cocidoN + crudoN, final: final };
+    },
+    vistaReporteCrudo(k) {
+      const filas = (k && k.filas) || [];
+      const ventas = (k && k.ventas) || [];
+      const carta = (k && k.carta) || {};
+      const origenDe = { Pollo: 'pollo-origen', Pescado: 'pescado-origen' };
+      const bloques = (carta.grupos || []).map((g) => {
+        const hijos = (g.hijos || []).map((h) => ({ clave: h.clave, nombre: h.nombre }));
+        if (origenDe[g.nombre]) hijos.unshift({ clave: origenDe[g.nombre], nombre: g.nombre });
+        return { nombre: g.nombre, hijos: hijos };
       });
-      const filas = Object.keys(map).map((k) => map[k]).filter((f) => f.cocidoEntro || f.cocidoSalio || f.crudoEntro || f.crudoSalio);
-      const transformaciones = (rep && rep.transformaciones) || [];
-      const totalTrans = transformaciones.reduce((a, t) => a + (Number(t.cantidad) || 0), 0);
+      [
+        { nombre: 'Pato', hijos: [{ clave: 'pato', nombre: 'Pato' }] },
+        { nombre: 'Seco', hijos: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de cordero' }] },
+        { nombre: 'Pollo a la leña', hijos: [{ clave: 'pollo-lena', nombre: 'Pollo a la leña' }] },
+        { nombre: 'Arroz', hijos: [{ clave: 'arroz', nombre: 'Arroz' }] }
+      ].forEach((b) => bloques.push(b));
+      const vistos = {};
+      const rows = [];
+      bloques.forEach((b) => {
+        b.hijos.forEach((h) => {
+          if (vistos[h.clave]) return;
+          vistos[h.clave] = true;
+          const row = this.filaReporteCrudo(filas, ventas, h.clave, h.nombre, b.nombre);
+          if (row.anterior || row.cocido || row.crudo || row.final) rows.push(row);
+        });
+      });
+      const suma = (campo) => rows.reduce((a, f) => a + (Number(f[campo]) || 0), 0);
       return {
-        cocidoEntro: suma.cocidoEntro,
-        cocidoSalio: suma.cocidoSalio,
-        crudoEntro: suma.crudoEntro,
-        crudoSalio: suma.crudoSalio,
-        filas: filas,
-        transformaciones: transformaciones,
-        totalTrans: totalTrans
+        filas: rows,
+        anterior: suma('anterior'),
+        cocido: suma('cocido'),
+        crudo: suma('crudo'),
+        total: suma('total'),
+        final: suma('final'),
+        polloIngresada: 0,
+        polloObtenida: 0,
+        pescadoIngresada: 0,
+        pescadoObtenida: 0,
+        lineas: []
+      };
+    },
+    vistaReporteTransforma(k, movs) {
+      const filas = (k && k.filas) || [];
+      const ingresoCrudo = (clave) => {
+        const f = filas.find((x) => x.rubro === clave && x.tipoProducto === 'crudo');
+        return Number(f && f.ingresos) || 0;
+      };
+      const obtenida = (clave, origen) => (movs || []).reduce((a, m) => {
+        if (m.rubro !== clave || m.clase !== 'ingreso') return a;
+        if (String(m.motivo || '').indexOf('Sale de ' + origen) !== 0) return a;
+        return a + (Number(m.cantidad) || 0);
+      }, 0);
+      const polloIngresada = ingresoCrudo('pollo-origen');
+      const polloObtenida = ['filete', 'chicharron-pollo', 'pachamanca-pollo', 'pollada', 'menu', 'sandwiches', 'evento', 'beata', 'sr-juan', 'bubu']
+        .reduce((a, clave) => a + obtenida(clave, 'Pollo'), 0);
+      const pescados = [
+        { clave: 'chicharron-pescado', origen: 'Pescado Tollo', origenClave: 'tollo-origen' },
+        { clave: 'ceviche', origen: 'Pescado Perico o ojo de uva', origenClave: 'perico-origen' }
+      ];
+      const pescadoIngresada = pescados.reduce((a, p) => a + ingresoCrudo(p.origenClave), 0);
+      const pescadoObtenida = pescados.reduce((a, p) => a + obtenida(p.clave, p.origen), 0);
+      return {
+        filas: [],
+        anterior: 0,
+        cocido: 0,
+        crudo: 0,
+        total: 0,
+        final: 0,
+        polloIngresada: polloIngresada,
+        polloObtenida: polloObtenida,
+        pescadoIngresada: pescadoIngresada,
+        pescadoObtenida: pescadoObtenida,
+        lineas: this.transformacionesDeMovs(movs)
       };
     },
     transformacionesDeMovs(movs) {
       const map = {};
       (movs || []).forEach((m) => {
         const motivo = String(m.motivo || '');
-        if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0) return;
+        if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0 || this.paseDeTipo(motivo)) return;
         const n = Number(m.cantidad) || 0;
         if (n >= 0) return;
         const origen = m.nombre || m.rubro || '';
@@ -1865,10 +1964,11 @@ function inventarioApp() {
           this.api('/inventario/movimientos?' + dia)
         ]);
         const rep = k.reporte || { fecha: f, guardado: false, lineas: [] };
-        const vivas = this.transformacionesDeMovs(m.movimientos || []);
-        if (vivas.length) rep.transformaciones = vivas;
         this.reporteDia = rep;
-        this.reporteDiaVista = this.resumenReporte(rep);
+        const movs = (m && m.movimientos) || [];
+        this.reporteDiaVista = this.reporteDiaModo === 'transforma'
+          ? this.vistaReporteTransforma(k, movs)
+          : this.vistaReporteCrudo(k);
       } catch (e) {
         this.error = e.message || 'No se pudo abrir el reporte';
       } finally {
@@ -2153,7 +2253,7 @@ function inventarioApp() {
         const map = {};
         movs.forEach((m) => {
           const motivo = String(m.motivo || '');
-          if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0) return;
+          if (m.clase !== 'ingreso' || motivo.indexOf('Pasa a ') !== 0 || this.paseDeTipo(motivo)) return;
           const n = Number(m.cantidad) || 0;
           if (n >= 0) return;
           const detalle = (m.nombre || m.rubro) + ' → ' + motivo.slice(7);
@@ -2165,7 +2265,7 @@ function inventarioApp() {
       movs.forEach((m) => {
         if (m.clase !== 'ingreso') return;
         const motivo = String(m.motivo || '');
-        if (motivo.indexOf('Pasa a ') === 0 || motivo.indexOf('Sale de ') === 0) return;
+        if (motivo.indexOf('Pasa a ') === 0 || motivo.indexOf('Sale de ') === 0 || this.paseDeTipo(motivo)) return;
         if (m.tipoProducto !== 'crudo' && m.tipoProducto !== 'cocido') return;
         const key = m.tipoProducto + '|' + (m.nombre || m.rubro);
         map[key] = (map[key] || 0) + (Number(m.cantidad) || 0);
