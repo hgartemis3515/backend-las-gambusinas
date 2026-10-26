@@ -159,6 +159,14 @@ tailwind.config = {
     outline-offset: 2px;
     filter: brightness(1.12);
   }
+  .precio-comanda-anulada {
+    color: #ff4757 !important;
+    font-weight: 700;
+    text-decoration-line: line-through;
+    text-decoration-style: double;
+    text-decoration-color: #ff4757;
+    text-decoration-thickness: 2px;
+  }
   .comandas-table thead th { color: #fff !important; }
   .filtro-campo {
     color: #fff;
@@ -643,7 +651,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </template>
  <template x-if="row.tipo === 'individual'">
  <span class="inline-flex items-center justify-end gap-1.5 flex-wrap">
- <span x-text="'S/. ' + Number(totalNetoComanda(row.comanda)).toFixed(2)"></span>
+ <span :class="row.comanda?.eliminada ? 'precio-comanda-anulada' : ''" x-text="'S/. ' + Number(totalNetoComanda(row.comanda)).toFixed(2)"></span>
  <span x-show="textoPagoParcialComanda(row.comanda)" class="text-[10px] font-semibold text-white tabular-nums whitespace-nowrap" x-text="textoPagoParcialComanda(row.comanda)"></span>
  </span>
  <span x-show="comandaTieneDescuentoFront(row.comanda)" class="block text-[9px] text-[#e74c3c] font-semibold" x-text="'-' + montoDescuentoMostrar(row.comanda).toFixed(2)"></span>
@@ -779,7 +787,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <!-- Total -->
  <td class="px-3 py-2 text-sm text-gold/80 text-right">
  <span class="inline-flex items-center justify-end gap-1.5 flex-wrap">
- <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
+ <span :class="comanda.eliminada ? 'precio-comanda-anulada' : ''" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
  <span x-show="textoPagoParcialComanda(comanda)" class="text-[10px] font-semibold text-white tabular-nums whitespace-nowrap" x-text="textoPagoParcialComanda(comanda)"></span>
  </span>
  <span x-show="comandaTieneDescuentoFront(comanda)" class="block text-[9px] text-[#e74c3c] font-semibold" x-text="'-' + montoDescuentoMostrar(comanda).toFixed(2)"></span>
