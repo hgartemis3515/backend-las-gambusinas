@@ -308,10 +308,43 @@ function registrarLetraRestantes(comanda, { datosAntes, usuario, motivo } = {}) 
   return pushFoto(comanda, datosTicketVivos(comanda), rev, 'restantes', usuario, motivo);
 }
 
+/** Para llevar sin mesa, o un pedido sin mesa cuyas líneas vivas son para llevar. */
+function esComandaParaLlevar(comanda) {
+  if (!comanda) return false;
+  if (comanda.sinMesa === true) return true;
+  const mesa = comanda.mesas;
+  const mesaId = mesa && typeof mesa === 'object' ? (mesa._id || null) : mesa;
+  if (mesaId) return false;
+  const vivos = (comanda.platos || []).filter((p) => p && p.eliminado !== true && p.anulado !== true);
+  return vivos.length > 0 && vivos.every((p) => p.tipoServicio === 'para_llevar' || p.tipoServicio === 'extra_llevar');
+}
+
+/** Qué cambió en la comanda, sin el precio (el PUT puede reescribir el snapshot). */
+function firmaTicketEdicion(comanda) {
+  const lineas = (comanda?.platos || []).map((p, i) => {
+    if (!p || p.eliminado === true || p.anulado === true) return null;
+    const comps = (p.complementosSeleccionados || []).map((c) => {
+      const op = (c?.opcion && typeof c.opcion === 'object' ? c.opcion.nombre : c?.opcion) || c?.nombre || '';
+      return `${c?.grupo || ''}:${op}:${c?.cantidad || 1}`;
+    }).join(',');
+    return [
+      nombreDeLinea(p, comanda, i),
+      Math.max(1, Math.floor(Number(comanda?.cantidades?.[i] || p.cantidad) || 1)),
+      p.tipoServicio || '',
+      String(p.notaEspecial || '').trim(),
+      String(p.nombreCocinaPedido || '').trim(),
+      comps,
+    ].join('|');
+  }).filter(Boolean).join('||');
+  return `${lineas}##${String(comanda?.observaciones || '').trim()}`;
+}
+
 module.exports = {
   datosTicketVivos,
   datosTicketEliminados,
   registrarParejaBaja,
   registrarLetraRestantes,
   bajaPlatoLetrasActiva,
+  esComandaParaLlevar,
+  firmaTicketEdicion,
 };

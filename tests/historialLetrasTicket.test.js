@@ -2,6 +2,8 @@ const {
   datosTicketVivos,
   registrarParejaBaja,
   registrarLetraRestantes,
+  esComandaParaLlevar,
+  firmaTicketEdicion,
 } = require('../src/utils/historialLetrasTicket');
 
 function comandaBase(extra = {}) {
@@ -133,5 +135,37 @@ describe('historial de letras al quitar un plato', () => {
     expect(foto.sinTotal).toBe(false);
     expect(foto.datos.montoDescuento).toBe(4);
     expect(foto.datos.total).toBe(36);
+  });
+});
+
+describe('edición de comanda para llevar', () => {
+  test('sin mesa cuenta como para llevar; una mesa no', () => {
+    expect(esComandaParaLlevar({ sinMesa: true, platos: [{ tipoServicio: 'para_llevar' }] })).toBe(true);
+    expect(esComandaParaLlevar({ sinMesa: false, mesas: '507f1f77bcf86cd799439011', platos: [{ tipoServicio: 'para_llevar' }] })).toBe(false);
+  });
+
+  test('agregar un plato sube una letra a #1b con el pedido nuevo', () => {
+    const c = comandaBase({
+      sinMesa: true,
+      mesaNumero: null,
+      cantidades: [1],
+      platos: [{ nombre: 'Chaufa', precioUnitario: 18, tipoServicio: 'para_llevar' }],
+    });
+    const antes = datosTicketVivos(c);
+    const firmaAntes = firmaTicketEdicion(c);
+    c.platos.push({ nombre: 'Inca Kola', precioUnitario: 8, tipoServicio: 'para_llevar' });
+    c.cantidades.push(1);
+    expect(firmaTicketEdicion(c)).not.toBe(firmaAntes);
+    const foto = registrarLetraRestantes(c, {
+      datosAntes: antes,
+      usuario: 'Ana',
+      motivo: 'Edición de comanda para llevar',
+    });
+    expect(c.revisionTicket).toBe(1);
+    expect(foto.letrero).toBe('#1b');
+    expect(foto.datos.comandaNumeroDisplay).toBe('#1b');
+    expect(foto.datos.sinMesa).toBe(true);
+    expect(foto.datos.productos.map((p) => p.nombre)).toEqual(['Chaufa', 'Inca Kola']);
+    expect(c.historialLetrasTicket.map((h) => `${h.letrero}:${h.tipo}`)).toEqual(['#1:original', '#1b:restantes']);
   });
 });

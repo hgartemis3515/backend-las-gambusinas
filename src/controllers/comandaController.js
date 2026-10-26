@@ -55,7 +55,7 @@ const { destinosCambioEstadoPlato, pasosCadenaEntregaAbsoluta } = require('../ut
 const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
 const { planBajaLinea, mapaCantidadesAEliminar, historialCuentaComoEliminacion, unidadesEliminadasHistorial } = require('../utils/bajaCantidadPlato');
 const { ticketAnulacionPayload } = require('../utils/comandasNumbers');
-const { datosTicketVivos, registrarParejaBaja, registrarLetraRestantes, bajaPlatoLetrasActiva } = require('../utils/historialLetrasTicket');
+const { datosTicketVivos, registrarParejaBaja, registrarLetraRestantes, bajaPlatoLetrasActiva, esComandaParaLlevar, firmaTicketEdicion } = require('../utils/historialLetrasTicket');
 const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado, mesaIdEsValido } = require('../repository/ticketPagoAdelantado.repository');
@@ -2343,7 +2343,10 @@ router.put("/comanda/:id", async (req, res) => {
     const { id } = req.params;
     const newData = req.body;
     try {
-      const comandaAntes = await comandaModel.findById(id);
+      const comandaAntes = await comandaModel.findById(id)
+        .populate('platos.plato')
+        .populate('mozos')
+        .populate('mesas');
       if (!comandaAntes) {
         return res.status(404).json({ message: 'Comanda no encontrada' });
       }
@@ -2357,16 +2360,47 @@ router.put("/comanda/:id", async (req, res) => {
         return responderBloqueoCocina(res, validacionTomada);
       }
 
+      const editaParaLlevar = Array.isArray(newData.platos) && esComandaParaLlevar(comandaAntes);
+      const datosAntes = editaParaLlevar ? datosTicketVivos(comandaAntes) : null;
+      const firmaAntes = editaParaLlevar ? firmaTicketEdicion(comandaAntes) : '';
+
       const updatedComanda = await actualizarComanda(id, newData);
+      let docRespuesta = updatedComanda;
+      let ticketEdicion = null;
+      if (editaParaLlevar) {
+        const fresco = await comandaModel.findById(id)
+          .populate('platos.plato')
+          .populate('mozos')
+          .populate('mesas');
+        const firmaAhora = fresco ? firmaTicketEdicion(fresco) : firmaAntes;
+        if (fresco && firmaAntes !== firmaAhora) {
+          const actor = resolverActorAuditoria(req);
+          ticketEdicion = registrarLetraRestantes(fresco, {
+            datosAntes,
+            usuario: actor.usuarioNombre,
+            motivo: 'Edición de comanda para llevar',
+          });
+          await fresco.save();
+          docRespuesta = fresco;
+        }
+      }
       if (Array.isArray(newData.cantidades)) {
         try {
           const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
-          await sincronizarDescuentoTicketsComanda(updatedComanda);
+          await sincronizarDescuentoTicketsComanda(docRespuesta);
         } catch (syncErr) {
           logger.warn('[PUT comanda] No se pudo sincronizar cantidades a tickets', { error: syncErr.message });
         }
       }
-      res.json(updatedComanda);
+      const payload = typeof docRespuesta.toObject === 'function' ? docRespuesta.toObject() : docRespuesta;
+      if (ticketEdicion) {
+        payload.ticketEdicion = {
+          letrero: ticketEdicion.letrero,
+          revision: ticketEdicion.revision,
+          datos: ticketEdicion.datos,
+        };
+      }
+      res.json(payload);
       console.log("Comanda actualizada exitosamente");
       
       // Emitir evento Socket.io de comanda actualizada
