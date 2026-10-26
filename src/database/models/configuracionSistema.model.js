@@ -46,7 +46,9 @@ const CONFIGURACION_DEFAULT = {
         direccionFiscal: '',
         telefono: '',
         email: '',
-        logoUrl: ''
+        logoUrl: '',
+        ubigeo: '',
+        codigoEstablecimiento: '0000'
     },
     
     // Ubicación y zona horaria
@@ -399,6 +401,18 @@ const configuracionSistemaSchema = new mongoose.Schema({
         logoUrl: {
             type: String,
             default: CONFIGURACION_DEFAULT.datosFiscales.logoUrl
+        },
+        ubigeo: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.datosFiscales.ubigeo,
+            trim: true,
+            maxlength: 6
+        },
+        codigoEstablecimiento: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.datosFiscales.codigoEstablecimiento,
+            trim: true,
+            match: /^$|^\d{4}$/
         }
     },
     

@@ -297,7 +297,17 @@ tailwind.config = {
                 </div>
                 <div>
                   <label class="text-xs text-txt-secondary mb-1 block">RUC</label>
-                  <input type="text" x-model="config.ruc" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+                  <input type="text" x-model="config.ruc" maxlength="11" inputmode="numeric" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">Razón social</label>
+                  <input type="text" x-model="config.razonSocial" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="Nombre legal del emisor">
+                </div>
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">Ubigeo</label>
+                  <input type="text" x-model="config.ubigeo" maxlength="6" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="150710">
                 </div>
               </div>
             </div>
@@ -1876,10 +1886,14 @@ function configApp() {
     config: {
       // General
       nombre: 'San Benito',
+      razonSocial: '',
       direccion: '',
       telefono: '',
       email: '',
       ruc: '',
+      ubigeo: '',
+      codigoEstablecimiento: '0000',
+      logoUrl: '',
       horaApertura: '08:00',
       horaCierre: '23:00',
       zonaHoraria: 'America/Lima',
@@ -2386,10 +2400,14 @@ function configApp() {
           // Mapear datos fiscales
           if (cfg.datosFiscales) {
             this.config.nombre = cfg.datosFiscales.nombreComercial || 'San Benito';
+            this.config.razonSocial = cfg.datosFiscales.razonSocial || '';
             this.config.direccion = cfg.datosFiscales.direccionFiscal || '';
             this.config.telefono = cfg.datosFiscales.telefono || '';
             this.config.email = cfg.datosFiscales.email || '';
             this.config.ruc = cfg.datosFiscales.ruc || '';
+            this.config.ubigeo = cfg.datosFiscales.ubigeo || '';
+            this.config.codigoEstablecimiento = cfg.datosFiscales.codigoEstablecimiento || '0000';
+            this.config.logoUrl = cfg.datosFiscales.logoUrl || '';
           }
           
           // Mapear moneda y precios
@@ -2644,10 +2662,14 @@ function configApp() {
           // Datos fiscales
           datosFiscales: {
             nombreComercial: this.config.nombre || 'San Benito',
+            razonSocial: this.config.razonSocial || '',
             direccionFiscal: this.config.direccion || '',
             telefono: this.config.telefono || '',
             email: this.config.email || '',
-            ruc: this.config.ruc || ''
+            ruc: this.config.ruc || '',
+            ubigeo: this.config.ubigeo || '',
+            codigoEstablecimiento: this.config.codigoEstablecimiento || '0000',
+            logoUrl: this.config.logoUrl || ''
           },
           
           // Zona horaria e idioma

@@ -278,7 +278,7 @@ router.patch('/configuracion/moneda', async (req, res) => {
  */
 router.patch('/configuracion/fiscales', async (req, res) => {
     try {
-        const { nombreComercial, razonSocial, ruc, direccionFiscal, telefono, email, logoUrl } = req.body;
+        const { nombreComercial, razonSocial, ruc, direccionFiscal, telefono, email, logoUrl, ubigeo, codigoEstablecimiento } = req.body;
         
         const datosFiscales = {};
         if (nombreComercial !== undefined) datosFiscales['datosFiscales.nombreComercial'] = nombreComercial;
@@ -288,6 +288,8 @@ router.patch('/configuracion/fiscales', async (req, res) => {
         if (telefono !== undefined) datosFiscales['datosFiscales.telefono'] = telefono;
         if (email !== undefined) datosFiscales['datosFiscales.email'] = email;
         if (logoUrl !== undefined) datosFiscales['datosFiscales.logoUrl'] = logoUrl;
+        if (ubigeo !== undefined) datosFiscales['datosFiscales.ubigeo'] = ubigeo;
+        if (codigoEstablecimiento !== undefined) datosFiscales['datosFiscales.codigoEstablecimiento'] = codigoEstablecimiento;
         
         const modificadoPor = req.user?._id || req.headers['x-user-id'] || null;
         

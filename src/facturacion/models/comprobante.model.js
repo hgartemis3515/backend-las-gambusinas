@@ -129,6 +129,8 @@ const emisorSchema = new Schema({
     razonSocial: { type: String, required: true },
     nombreComercial: { type: String, default: '' },
     direccion: { type: String, default: '' },
+    telefono: { type: String, default: '' },
+    email: { type: String, default: '' },
     ubigeo: { type: String, default: '' },
     codigoEstablecimiento: { type: String, default: '0000', match: /^\d{4}$/ },
 }, { _id: false });

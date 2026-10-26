@@ -31,13 +31,18 @@ function construirPreCuenta(cuenta) {
     if (items.length === 0) throw new ErrorPreCuenta('La pre-cuenta necesita el consumo de la mesa');
     const lineas = [
         CMD.CENTRO + CMD.NEGRITA_ON + (cuenta.emisor || 'Las Gambusinas'),
+    ];
+    if (cuenta.ruc) lineas.push(`RUC ${cuenta.ruc}`);
+    if (cuenta.direccion) lineas.push(String(cuenta.direccion));
+    if (cuenta.telefono) lineas.push(`Tel. ${cuenta.telefono}`);
+    lineas.push(
         TITULO,
         'PRE-CUENTA / ESTADO DE CUENTA',
         CMD.NEGRITA_OFF + CMD.IZQUIERDA,
         `Mesa: ${cuenta.mesa ?? '-'}    Mozo: ${cuenta.mozo ?? '-'}`,
         `Fecha: ${new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' })}`,
         '--------------------------------',
-    ];
+    );
     let totalCent = 0;
     for (const item of items) {
         const importe = Number(item.importe);

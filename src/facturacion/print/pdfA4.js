@@ -38,11 +38,13 @@ async function generarPdfA4(comprobante) {
         doc.on('end', () => resolve(Buffer.concat(trozos)));
         doc.on('error', reject);
         doc.fontSize(16).text(emisor.razonSocial || 'Las Gambusinas', { align: 'left' });
-        doc.fontSize(10).fillColor('#333')
-            .text(emisor.nombreComercial || '')
-            .text(`RUC ${emisor.ruc || comprobante.ruc || ''}`)
-            .text(emisor.direccion || '')
-            .text(`Establecimiento ${emisor.codigoEstablecimiento || '0000'}`);
+        doc.fontSize(10).fillColor('#333');
+        if (emisor.nombreComercial) doc.text(emisor.nombreComercial);
+        doc.text(`RUC ${emisor.ruc || comprobante.ruc || ''}`);
+        if (emisor.direccion) doc.text(emisor.direccion);
+        if (emisor.telefono) doc.text(`Tel. ${emisor.telefono}`);
+        if (emisor.email) doc.text(emisor.email);
+        doc.text(`Establecimiento ${emisor.codigoEstablecimiento || '0000'}`);
         doc.moveDown();
         doc.rect(340, 40, 215, 70).stroke();
         doc.fontSize(11).fillColor('#000').text(`RUC ${comprobante.ruc}`, 350, 50, { width: 195, align: 'center' });

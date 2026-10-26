@@ -245,9 +245,19 @@ function firmarLocal(doc) {
 /** @param {Object} doc @param {string} qr */
 function ticketFiscal(doc, qr) {
     const efectivo = (doc.mediosPago || []).filter((m) => m.medio === 'efectivo').reduce((s, m) => s + Number(m.monto), 0);
+    const emisor = doc.emisor || {};
+    const lineas = [
+        emisor.nombreComercial || emisor.razonSocial,
+        emisor.razonSocial && emisor.nombreComercial && emisor.razonSocial !== emisor.nombreComercial ? emisor.razonSocial : '',
+        `RUC ${doc.ruc}`,
+        emisor.direccion || '',
+        emisor.telefono ? `Tel. ${emisor.telefono}` : '',
+        doc.idCompleto,
+        `TOTAL ${Number(doc.totales.importeTotal).toFixed(2)}`,
+    ].filter(Boolean);
     return formatearTicket({
         titulo: doc.tipo === '01' ? 'FACTURA ELECTRONICA' : 'BOLETA DE VENTA ELECTRONICA',
-        lineas: [doc.emisor.razonSocial, `RUC ${doc.ruc}`, doc.idCompleto, `TOTAL ${Number(doc.totales.importeTotal).toFixed(2)}`],
+        lineas,
         qr,
         hash: doc.hash,
         montoEfectivo: efectivo,
