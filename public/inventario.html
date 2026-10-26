@@ -1416,7 +1416,7 @@ function inventarioApp() {
       ));
       const extras = [
         { nombre: 'Pato', filas: [{ clave: 'pato', nombre: 'Pato' }] },
-        { nombre: 'Seco', filas: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de cordero' }] },
+        { nombre: 'Seco', filas: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de carnero' }] },
         { nombre: 'Pollo a la leña', filas: [{ clave: 'pollo-lena', nombre: 'Pollo a la leña' }] }
       ].map((e) => cuadroDe(e.nombre, e.filas.map((f) => filaCuadro(f.clave, f.nombre))));
       const orden = ['Pachamanca', 'Pollo', 'Pescado', 'Panceta', 'Pato', 'Seco', 'Pollo a la leña', 'Arroz'];
@@ -1970,7 +1970,7 @@ function inventarioApp() {
       });
       [
         { nombre: 'Pato', hijos: [{ clave: 'pato', nombre: 'Pato' }] },
-        { nombre: 'Seco', hijos: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de cordero' }] },
+        { nombre: 'Seco', hijos: [{ clave: 'seco-res', nombre: 'Seco de res' }, { clave: 'seco-cordero', nombre: 'Seco de carnero' }] },
         { nombre: 'Pollo a la leña', hijos: [{ clave: 'pollo-lena', nombre: 'Pollo a la leña' }] },
         { nombre: 'Arroz', hijos: [{ clave: 'arroz', nombre: 'Arroz' }] }
       ].forEach((b) => bloques.push(b));
