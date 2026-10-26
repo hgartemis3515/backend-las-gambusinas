@@ -25,6 +25,7 @@ const SerieComprobante = require('../models/serieComprobante.model');
 const fs = require('fs');
 const forge = require('node-forge');
 const { autorizarSupervisor } = require('../services/autorizarSupervisor');
+const { esRucValido } = require('../services/validacionCliente');
 const Comanda = require('../../database/models/comanda.model');
 
 const router = express.Router();
@@ -135,7 +136,14 @@ router.get('/facturacion/comprobantes/:id', adminAuth, async (req, res) => {
 
 router.post('/facturacion/precuenta', adminAuth, async (req, res) => {
     try {
-        const ticket = construirPreCuenta(req.body);
+        const cfg = await obtenerConfiguracionFiscal();
+        const ticket = construirPreCuenta({
+            ...req.body,
+            emisor: req.body.emisor || cfg.emisor.nombreComercial || cfg.emisor.razonSocial,
+            ruc: req.body.ruc || cfg.emisor.ruc,
+            direccion: req.body.direccion || cfg.emisor.direccion,
+            telefono: req.body.telefono || cfg.emisor.telefono,
+        });
         const destino = req.body.destino || (process.env.FACTURACION_IMPRESORA ? destinoDesdeEnv() : null);
         const impresion = req.body.imprimir === true && destino ? await imprimir(ticket.buffer, destino) : null;
         res.json({ fiscal: false, titulo: ticket.titulo, texto: ticket.texto, impresion });
@@ -304,9 +312,31 @@ router.post('/facturacion/configuracion', adminAuth, async (req, res) => {
         if (req.body.limiteBoletaAnonima != null) process.env.FACTURACION_LIMITE_BOLETA_ANONIMA = String(req.body.limiteBoletaAnonima);
         if (req.body.emisor) {
             doc.datosFiscales = doc.datosFiscales || {};
-            if (req.body.emisor.razonSocial) doc.datosFiscales.razonSocial = req.body.emisor.razonSocial;
-            if (req.body.emisor.nombreComercial) doc.datosFiscales.nombreComercial = req.body.emisor.nombreComercial;
-            if (req.body.emisor.direccion) doc.datosFiscales.direccionFiscal = req.body.emisor.direccion;
+            const emisor = req.body.emisor;
+            if (emisor.ruc != null) {
+                const ruc = String(emisor.ruc).trim();
+                if (!esRucValido(ruc)) {
+                    return res.status(422).json({ message: 'RUC del restaurante inválido', codigo: 'RUC_INVALIDO' });
+                }
+                doc.datosFiscales.ruc = ruc;
+            }
+            const copiar = (destino, origen) => {
+                if (emisor[origen] != null) doc.datosFiscales[destino] = String(emisor[origen]).trim();
+            };
+            copiar('razonSocial', 'razonSocial');
+            copiar('nombreComercial', 'nombreComercial');
+            copiar('direccionFiscal', 'direccion');
+            copiar('telefono', 'telefono');
+            copiar('email', 'email');
+            copiar('ubigeo', 'ubigeo');
+            if (emisor.codigoEstablecimiento != null) {
+                const codigo = String(emisor.codigoEstablecimiento).replace(/\D/g, '');
+                if (!/^\d{4}$/.test(codigo)) {
+                    return res.status(422).json({ message: 'El código de establecimiento debe tener 4 dígitos', codigo: 'ESTABLECIMIENTO_INVALIDO' });
+                }
+                doc.datosFiscales.codigoEstablecimiento = codigo;
+            }
+            doc.markModified('datosFiscales');
         }
         await doc.save();
         res.json(await obtenerConfiguracionFiscal());
