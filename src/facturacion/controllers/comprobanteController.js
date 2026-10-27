@@ -113,6 +113,19 @@ async function cargarComprobante(id) {
     return doc;
 }
 
+/** Tickets de cocina que ya tienen boleta o factura vigente. El cobro de cocina no entra aquí. */
+router.get('/facturacion/tickets-facturados', adminAuth, async (req, res) => {
+    try {
+        const ids = await Comprobante.distinct('origen.ticket', {
+            'origen.ticket': { $ne: null },
+            estado: { $nin: ['RECHAZADO', 'ANULADO_NC', 'DE_BAJA'] },
+        });
+        res.json({ ids: ids.filter(Boolean).map(String) });
+    } catch (err) {
+        responderError(res, err);
+    }
+});
+
 router.post('/facturacion/comprobantes', adminAuth, async (req, res) => {
     try {
         const cajero = req.admin?.name || req.admin?.nombre || req.admin?.id || null;

@@ -45,7 +45,7 @@ class ErrorEmision extends Error {
  * @property {import('./motorTributario').CargoEntrada[]} [cargos]
  * @property {import('./motorTributario').FormaPagoEntrada} [formaPago]
  * @property {{medio: string, monto: number, transaccion?: string}[]} [pagos]
- * @property {{pedido?: string, boucher?: string, comandas?: string[], mesa?: string, numMesa?: number, mozo?: string}} [origen]
+ * @property {{pedido?: string, boucher?: string, comandas?: string[], mesa?: string, numMesa?: number, mozo?: string, ticket?: string, ticketTipo?: string}} [origen]
  * @property {string} [cajero]
  * @property {string} [terminal]
  * @property {string} [sucursal]
@@ -129,6 +129,14 @@ async function emitir(solicitud, deps = {}) {
     let qr = null;
     try {
         await session.withTransaction(async () => {
+            const ticketId = solicitud.origen?.ticket;
+            if (ticketId && mongoose.isValidObjectId(ticketId)) {
+                const ya = await Modelo.findOne({
+                    'origen.ticket': ticketId,
+                    estado: { $nin: ['RECHAZADO', 'ANULADO_NC', 'DE_BAJA'] },
+                }).select('_id').session(session).lean();
+                if (ya) throw new ErrorEmision('Este ticket ya tiene un comprobante emitido', 'TICKET_YA_FACTURADO', 409);
+            }
             const correlativo = await reservarCorrelativo(
                 { ruc: cfg.emisor.ruc, tipo, serie, session },
                 { Modelo: SerieModelo }

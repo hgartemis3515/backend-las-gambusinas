@@ -192,6 +192,9 @@ const comprobanteSchema = new Schema({
         mesa: { type: Schema.Types.ObjectId, ref: 'mesas', default: null },
         numMesa: { type: Number, default: null },
         mozo: { type: Schema.Types.ObjectId, ref: 'mozos', default: null },
+        /** Ticket de cocina (comanda o pago adelantado). Solo lo escribe Cobro POS al emitir. */
+        ticket: { type: Schema.Types.ObjectId, default: null },
+        ticketTipo: { type: String, enum: ['comanda', 'pago_parcial', 'adelantado', null], default: null },
     },
     cajero: { type: String, default: null },
 
@@ -234,6 +237,7 @@ comprobanteSchema.index({ ruc: 1, tipo: 1, serie: 1, numero: 1 }, { unique: true
 comprobanteSchema.index({ estado: 1, 'envio.fechaLimite': 1 });
 comprobanteSchema.index({ 'origen.pedido': 1 });
 comprobanteSchema.index({ 'origen.boucher': 1 });
+comprobanteSchema.index({ 'origen.ticket': 1, estado: 1 });
 comprobanteSchema.index({ fechaEmision: -1 });
 
 const errorBorrado = () => Object.assign(
