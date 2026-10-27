@@ -53,7 +53,9 @@ const KARDEX = [
     { clave: 'chicha-pescado', nombre: 'Chicha de pescado' },
     { clave: 'jalea-pescado', nombre: 'Jalea de pescado' },
     { clave: 'chicha-pota', nombre: 'Chicha de pota' },
-    { clave: 'mix-lena', nombre: 'Mix leña' }
+    { clave: 'mix-lena', nombre: 'Mix leña' },
+    { clave: 'arroz-pollo', nombre: 'Arroz con pollo' },
+    { clave: 'pollo-olla', nombre: 'Pollo a la olla' }
 ];
 
 const PIEZAS = [
