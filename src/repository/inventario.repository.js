@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
-const { claveDe, filasDeRubros, carta } = require('../utils/inventarioRubros');
+const { claveDe, clavesGuardables, filasDeRubros, carta } = require('../utils/inventarioRubros');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
 const Rubro = require('../database/models/inventarioRubro.model');
@@ -353,6 +353,31 @@ function avisarAlertas() {
     }, 800);
 }
 
+async function ponerEnCero(usuarioId) {
+    const ahora = new Date();
+    const usuario = usuarioId && mongoose.Types.ObjectId.isValid(usuarioId) ? usuarioId : null;
+    const docs = [];
+    clavesGuardables().forEach((d) => {
+        ['crudo', 'cocido'].forEach((tipo) => {
+            docs.push({
+                plato: null,
+                platoId: 0,
+                rubro: d.clave,
+                nombre: d.nombre,
+                tipoProducto: tipo,
+                clase: 'inventario',
+                cantidad: 0,
+                motivo: 'Puesta en cero',
+                usuario,
+                fecha: ahora
+            });
+        });
+    });
+    if (docs.length) await Movimiento.insertMany(docs);
+    avisarAlertas();
+    return { puestos: docs.length };
+}
+
 async function eliminarHoy() {
     const { desde, hasta } = hoy();
     const docs = await Movimiento.find({ fecha: { $gte: desde, $lte: hasta } })
@@ -374,5 +399,6 @@ module.exports = {
     alertasActuales,
     guardarUmbralRubro,
     eliminarHoy,
+    ponerEnCero,
     avisarAlertas
 };

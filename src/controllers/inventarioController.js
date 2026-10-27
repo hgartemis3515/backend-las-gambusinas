@@ -56,6 +56,28 @@ async function auditarMovimiento(req, doc) {
     }
 }
 
+async function auditarPuestaEnCero(req, data) {
+    try {
+        const admin = req.admin || {};
+        const n = data.puestos || 0;
+        await AuditoriaAcciones.create({
+            accion: 'INVENTARIO_PUESTA_EN_CERO',
+            entidadTipo: 'inventario',
+            usuario: objectIdUsuarioOrNull(admin.id),
+            usuarioNombre: admin.name || null,
+            motivo: 'Puesta en cero',
+            ip: req.ip || null,
+            datosDespues: { puestos: n },
+            metadata: {
+                resumen: 'Inventario en 0 · ' + n + (n === 1 ? ' conteo' : ' conteos'),
+                puestos: n
+            }
+        });
+    } catch (error) {
+        logger.warn('No se registró auditoría al poner el inventario en cero', { error: error.message });
+    }
+}
+
 async function auditarDiaBorrado(req, data) {
     try {
         const admin = req.admin || {};
@@ -128,6 +150,16 @@ router.post('/inventario/movimientos', adminAuth, checkPermission('ver-inventari
         const doc = await inventario.crearMovimiento(req.body || {}, req.admin && req.admin.id);
         await auditarMovimiento(req, doc);
         res.status(201).json({ success: true, movimiento: doc });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
+router.post('/inventario/poner-en-cero', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const data = await inventario.ponerEnCero(req.admin && req.admin.id);
+        await auditarPuestaEnCero(req, data);
+        res.json({ success: true, puestos: data.puestos });
     } catch (error) {
         errorHttp(error, res);
     }
