@@ -3771,32 +3771,46 @@ tailwind.config = {
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Categorías -->
-          <div class="relative" x-data="{ open: false }">
+          <div class="relative" @click.outside="dropdownCategoriaAbierto = false">
             <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">
               Categorías
               <span class="text-gold text-[10px] ml-1" x-show="formZona.filtrosPlatos.categoriasPermitidas.length > 0">
                 (<span x-text="formZona.filtrosPlatos.categoriasPermitidas.length"></span>)
               </span>
             </label>
-            <button type="button" @click="open = !open" 
+            <button type="button" @click="dropdownCategoriaAbierto = !dropdownCategoriaAbierto"
               class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 flex items-center justify-between hover:border-gold/30 transition">
-              <span class="text-sm text-txt-muted truncate" x-text="formZona.filtrosPlatos.categoriasPermitidas.length ? formZona.filtrosPlatos.categoriasPermitidas.slice(0,2).join(', ') + (formZona.filtrosPlatos.categoriasPermitidas.length > 2 ? '...' : '') : 'Seleccionar categorías'"></span>
-              <i class="ti ti-chevron-down text-txt-muted text-xs"></i>
+              <span class="text-sm truncate"
+                :class="formZona.filtrosPlatos.categoriasPermitidas.length ? 'text-white' : 'text-txt-muted'"
+                x-text="formZona.filtrosPlatos.categoriasPermitidas.length ? formZona.filtrosPlatos.categoriasPermitidas.slice(0,2).join(', ') + (formZona.filtrosPlatos.categoriasPermitidas.length > 2 ? '...' : '') : 'Seleccionar categorías'"></span>
+              <i class="ti ti-chevron-down text-txt-muted text-xs transition" :class="dropdownCategoriaAbierto ? 'rotate-180' : ''"></i>
             </button>
-            
-            <!-- Dropdown -->
-            <div x-show="open" @click.away="open = false" x-transition
-              class="absolute z-30 w-full mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
+            <div class="flex flex-wrap gap-1.5 mt-2" x-show="formZona.filtrosPlatos.categoriasPermitidas.length > 0">
+              <template x-for="cat in formZona.filtrosPlatos.categoriasPermitidas" :key="'sel-' + cat">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gold/15 border border-gold/30 text-gold text-xs">
+                  <span x-text="cat"></span>
+                  <button type="button" @click="toggleCategoria(cat)" class="hover:text-white leading-none" aria-label="Quitar categoría">×</button>
+                </span>
+              </template>
+            </div>
+
+            <div x-show="dropdownCategoriaAbierto" x-cloak x-transition
+              class="mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
               <div class="p-2 border-b border-white/5">
-                <input type="text" x-model="busquedaCategoria" placeholder="Buscar..."
-                  class="w-full bg-bg-sidebar border-0 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-gold/30 focus:outline-none">
+                <input type="text" x-model="busquedaCategoria" placeholder="Buscar categoría..."
+                  @click.stop
+                  class="w-full bg-bg-sidebar border-0 rounded-md px-3 py-2 text-sm text-white placeholder:text-txt-muted focus:ring-1 focus:ring-gold/30 focus:outline-none">
               </div>
-              <div class="max-h-40 overflow-y-auto p-1">
-                <template x-for="cat in filtrarCategorias()" :key="cat">
-                  <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10 transition"
-                    :class="formZona.filtrosPlatos.categoriasPermitidas.includes(cat) ? 'bg-gold/10' : ''">
-                    <input type="checkbox" :checked="formZona.filtrosPlatos.categoriasPermitidas.includes(cat)" @change="toggleCategoria(cat)" class="sr-only">
-                    <div class="w-4 h-4 rounded border-2 flex items-center justify-center transition"
+              <div class="max-h-48 overflow-y-auto p-1">
+                <p x-show="loadingCategorias" class="px-3 py-2 text-xs text-txt-muted">Cargando categorías...</p>
+                <p x-show="!loadingCategorias && categoriasReales.length === 0" class="px-3 py-2 text-xs text-txt-muted">No hay categorías</p>
+                <p x-show="!loadingCategorias && categoriasReales.length > 0 && filtrarCategorias().length === 0" class="px-3 py-2 text-xs text-txt-muted">Sin coincidencias</p>
+                <template x-for="cat in categoriasReales" :key="cat">
+                  <label x-show="categoriaVisible(cat)"
+                    class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10 transition"
+                    :class="formZona.filtrosPlatos.categoriasPermitidas.includes(cat) ? 'bg-gold/10' : ''"
+                    @click.prevent="toggleCategoria(cat)">
+                    <div class="w-4 h-4 rounded border-2 flex items-center justify-center transition flex-shrink-0"
                       :class="formZona.filtrosPlatos.categoriasPermitidas.includes(cat) ? 'bg-gold border-gold' : 'border-txt-muted'">
                       <i x-show="formZona.filtrosPlatos.categoriasPermitidas.includes(cat)" class="ti ti-check text-xs text-bg-primary"></i>
                     </div>
@@ -5162,11 +5176,34 @@ function cocinerosApp() {
       }
     },
     
+    normalizarNombresCategoria(data) {
+      const nombres = new Set();
+      const push = (item) => {
+        if (item == null || item === false) return;
+        const nombre = typeof item === 'string' ? item : (item.nombre || item.categoria || '');
+        const limpio = String(nombre).trim();
+        if (limpio) nombres.add(limpio);
+      };
+      if (Array.isArray(data)) {
+        data.forEach(push);
+      } else if (data && typeof data === 'object') {
+        ['desayuno', 'carta', 'categorias', 'data'].forEach((key) => {
+          if (Array.isArray(data[key])) data[key].forEach(push);
+        });
+      }
+      return [...nombres].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    },
+
     async cargarCategoriasReales() {
       this.loadingCategorias = true;
       try {
-        const data = await apiGet('/platos/categorias');
-        this.categoriasReales = Array.isArray(data) ? data : (data.categorias || []);
+        const ligero = await apiGet('/platos/categorias?ligero=1');
+        let nombres = this.normalizarNombresCategoria(ligero);
+        if (!nombres.length) {
+          const data = await apiGet('/platos/categorias');
+          nombres = this.normalizarNombresCategoria(data);
+        }
+        this.categoriasReales = nombres;
       } catch (error) {
         console.error('Error al cargar categorías:', error);
         this.categoriasReales = [];
@@ -6139,6 +6176,7 @@ function cocinerosApp() {
       this.platosSeleccionados = [];
       this.mesasSeleccionadas = [];
       this.busquedaCategoria = '';
+      this.dropdownCategoriaAbierto = false;
       this.busquedaTipo = '';
       this.busquedaArea = '';
       this.busquedaMesa = '';
@@ -6165,7 +6203,7 @@ function cocinerosApp() {
         filtrosPlatos: {
           modoFiltro: modoFiltro,
           platosPermitidos: zona.filtrosPlatos?.platosPermitidos || [],
-          categoriasPermitidas: zona.filtrosPlatos?.categoriasPermitidas || [],
+          categoriasPermitidas: this.normalizarNombresCategoria(zona.filtrosPlatos?.categoriasPermitidas || []),
           tiposPermitidos: zona.filtrosPlatos?.tiposPermitidos || [],
           platosExcluidos: zona.filtrosPlatos?.platosExcluidos || [],
           incluirComplementos: zona.filtrosPlatos?.incluirComplementos !== false
@@ -6195,6 +6233,8 @@ function cocinerosApp() {
       // Cargar mesas seleccionadas con información
       this.cargarMesasSeleccionadas(zona.filtrosComandas?.mesasEspecificas || []);
       
+      this.busquedaCategoria = '';
+      this.dropdownCategoriaAbierto = false;
       this.modalZona = true;
       await this.marcarUsuarioDeZona(zona._id || zona.id);
     },
@@ -6419,9 +6459,15 @@ function cocinerosApp() {
     },
     
     filtrarCategorias() {
-      if (!this.busquedaCategoria) return this.categoriasReales;
-      const termino = this.busquedaCategoria.toLowerCase();
-      return this.categoriasReales.filter(cat => cat.toLowerCase().includes(termino));
+      const lista = this.categoriasReales || [];
+      if (!this.busquedaCategoria) return lista;
+      const termino = this.busquedaCategoria.trim().toLowerCase();
+      return lista.filter(cat => String(cat).toLowerCase().includes(termino));
+    },
+
+    categoriaVisible(cat) {
+      if (!this.busquedaCategoria) return true;
+      return String(cat).toLowerCase().includes(this.busquedaCategoria.trim().toLowerCase());
     },
     
     filtrarAreas() {
