@@ -14,6 +14,25 @@ test('10 leñas del reporte son 10 de salida de pollo leña', () => {
     expect(porRubro.ceviche).toBeUndefined();
 });
 
+test('un filete con papas y arroz descuenta filete, papas y arroz, y puede dejar el saldo en negativo', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Filete de pollo + papas fritas + arroz + ensalada', cantidad: 3 }
+    ]);
+    expect(porRubro.filete).toBe(3);
+    expect(porRubro.papas).toBe(3);
+    expect(porRubro['arroz-tipo-pollo']).toBe(3);
+    const { aplicarVentasEnFilas } = require('../src/utils/inventarioKardex');
+    const ajustadas = aplicarVentasEnFilas([{
+        rubro: 'filete',
+        plato: 'filete',
+        tipoProducto: 'cocido',
+        cierre: 0,
+        baja: 0,
+        umbral: 0
+    }], [{ rubro: 'filete', cantidad: 1 }]);
+    expect(ajustadas[0].cierre).toBe(-1);
+});
+
 test('la venta de reportes baja el saldo que mira la alerta, no el cierre guardado', () => {
     const { aplicarVentasEnFilas, alertasDeFilas } = require('../src/utils/inventarioKardex');
     const filas = [{
@@ -32,6 +51,8 @@ test('la venta de reportes baja el saldo que mira la alerta, no el cierre guarda
     expect(ajustadas[0].critico).toBe(true);
     expect(alertasDeFilas(ajustadas)).toHaveLength(1);
 });
+
+test('un ingreso guardado no se convierte en egreso', () => {
     const guardados = [
         { rubro: 'pollo-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 20, fecha: dia('2026-10-12', '12:00:00') }
     ];

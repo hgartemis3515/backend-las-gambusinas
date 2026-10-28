@@ -213,7 +213,11 @@ async function filasCartaEn(desde, hasta) {
         egresosVentaHasta(hasta),
         umbralesRubro()
     ]);
-    const filas = filasDeRubros(guardados, desde, hasta, umbrales);
+    const filas = aplicarSaldoPrevioDeVentas(
+        filasDeRubros(guardados, desde, hasta, umbrales),
+        ventasPack.ventas,
+        desde
+    );
     const desdeMs = desde.getTime();
     const hastaMs = hasta.getTime();
     const ventas = (ventasPack.ventas || []).filter((v) => {
@@ -221,6 +225,31 @@ async function filasCartaEn(desde, hasta) {
         return t >= desdeMs && t <= hastaMs;
     });
     return { filas, ventas };
+}
+
+function aplicarSaldoPrevioDeVentas(filas, ventas, desde) {
+    const desdeMs = new Date(desde).getTime();
+    const antes = {};
+    (ventas || []).forEach((v) => {
+        const rubro = v && (v.rubro || v.plato);
+        const n = Number(v && v.cantidad) || 0;
+        const t = new Date(v && v.fecha).getTime();
+        if (!rubro || n <= 0 || !(t < desdeMs)) return;
+        antes[rubro] = (antes[rubro] || 0) + n;
+    });
+    return (filas || []).map((f) => {
+        if (!f || f.tipoProducto !== 'cocido') return f;
+        const previo = antes[f.rubro || f.plato] || 0;
+        if (!previo) return f;
+        const saldoInicial = (Number(f.saldoInicial) || 0) - previo;
+        const ingresos = Number(f.ingresos) || 0;
+        const egreso = Number(f.egreso) || 0;
+        const regulacion = Number(f.regulacion) || 0;
+        const total = saldoInicial + ingresos;
+        const saldoFinal = total - egreso;
+        const baja = saldoFinal + regulacion;
+        return { ...f, saldoInicial, total, saldoFinal, baja, cierre: baja };
+    });
 }
 
 function paseDeTipo(motivo) {

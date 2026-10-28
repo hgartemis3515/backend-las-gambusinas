@@ -55,26 +55,51 @@ function partirSalida(filas, comanda) {
         detalle[rubro][key].cantidad += cantidad;
     };
     for (const fila of filas || []) {
-        const mapa = MAPA_SALIDA[norm(fila && fila.nombre)];
+        const mapas = rubrosDeNombre(fila && fila.nombre);
         const cantidad = Number(fila && fila.cantidad) || 0;
-        if (!mapa || cantidad <= 0) continue;
-        const n = cantidad * mapa.factor;
-        porRubro[mapa.rubro] = (porRubro[mapa.rubro] || 0) + n;
+        if (!mapas.length || cantidad <= 0) continue;
         const fuentes = fila && fila.fuentes && typeof fila.fuentes === 'object' ? fila.fuentes : null;
         const nombres = fuentes ? Object.keys(fuentes) : [];
-        if (nombres.length) {
-            nombres.forEach((nombre) => {
-                sumar(mapa.rubro, nombre, (Number(fuentes[nombre]) || 0) * mapa.factor);
-            });
-        } else {
-            sumar(mapa.rubro, fila.nombre, n);
-        }
+        mapas.forEach((mapa, idx) => {
+            const n = cantidad * mapa.factor;
+            porRubro[mapa.rubro] = (porRubro[mapa.rubro] || 0) + n;
+            if (idx === 0 && nombres.length) {
+                nombres.forEach((nombre) => {
+                    sumar(mapa.rubro, nombre, (Number(fuentes[nombre]) || 0) * mapa.factor);
+                });
+            } else {
+                sumar(mapa.rubro, fila.nombre, n);
+            }
+        });
     }
     const listas = {};
     Object.keys(detalle).forEach((rubro) => {
         listas[rubro] = Object.keys(detalle[rubro]).map((key) => detalle[rubro][key]);
     });
     return { porRubro, detalle: listas };
+}
+
+function rubrosDeNombre(nombre) {
+    const n = norm(nombre);
+    const directo = MAPA_SALIDA[n];
+    if (directo) return [directo];
+    const lista = [];
+    const add = (rubro, factor) => lista.push({ rubro: rubro, factor: factor || 1 });
+    if (n.includes('filete de pollo')) add('filete');
+    else if (n.includes('1/4 pollo') || n.includes('cuarto de pollo') || n.includes('pollo a la lena')) add('pollo-lena');
+    else if (n.includes('chicharron de pollo') && n.includes('bbq')) add('chi-pollo-bbq');
+    else if (n.includes('acevichada') && n.includes('pollo')) add('chi-pollo-acevichada');
+    else if (n.includes('chicharron') && n.includes('pollo')) add('chicharron-pollo');
+    else if (n.includes('pachamanca') && n.includes('pollo')) add('pachamanca-pollo');
+    else if (n.includes('milanesa')) add('milanesa');
+    else if (n.includes('chaufa') && n.includes('pollo')) add('chaufa-pollo');
+    else if (n.includes('saltado') && n.includes('pollo')) add('salt-pollo');
+    else if (n.includes('pan con pollo')) add('menu');
+    else if (n.includes('tamal')) add('tamal');
+    else if (n.includes('gaseosa') || n.includes('inca kola') || n.includes('coca cola')) add('gaseosas');
+    if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
+    if (/\barroz\b/.test(n) && !n.includes('chaufa') && !lista.some((x) => x.rubro === 'arroz-tipo-pollo')) add('arroz-tipo-pollo');
+    return lista;
 }
 
 function aplicarMapa(filas) {
