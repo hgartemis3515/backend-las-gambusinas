@@ -249,6 +249,23 @@ function piezasDeLinea(ficha, linea) {
     return piezas;
   }
 
+  if (tipo === 'pliegue') {
+    const cortes = {};
+    for (const c of opcionesParte(linea, ficha)) {
+      const op = nombreVisible(c.opcion || c.nombre);
+      if (!op) continue;
+      cortes[op] = (cortes[op] || 0) + cant;
+    }
+    const piezas = [pieza({
+      bloque: 'platos',
+      nombre: ficha.nombre || (linea && linea.nombre) || 'Plato',
+      cantidad: cant,
+      cortes: Object.keys(cortes).length ? cortes : null,
+    })];
+    repartirSoles(piezas, soles);
+    return piezas;
+  }
+
   const piezas = [pieza({ bloque: 'platos', nombre: ficha.nombre || (linea && linea.nombre) || 'Plato', cantidad: cant })];
   repartirSoles(piezas, soles);
   return piezas;
@@ -299,6 +316,7 @@ function filasDeMapa(map, bloque, totalSoles) {
       cantidad: r.cantidad,
       soles: round2(r.soles),
       detalle: textoDetalle(r),
+      cortes: r.cortes && Object.keys(r.cortes).length ? r.cortes : null,
       porcentaje: totalSoles > 0 ? Math.round((r.soles / totalSoles) * 1000) / 10 : 0,
     }))
     .sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre, 'es'));

@@ -187,6 +187,24 @@ router.get('/inventario/alertas', adminAuth, async (req, res) => {
     }
 });
 
+router.get('/inventario/mapas', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const mapas = await inventario.leerMapas();
+        res.json({ success: true, mapas });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
+router.put('/inventario/mapas', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const mapas = await inventario.guardarMapas((req.body && req.body.mapas) || null);
+        res.json({ success: true, mapas });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
 router.put('/inventario/rubros/:clave', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
     try {
         const data = await inventario.guardarUmbralRubro(req.params.clave, req.body || {});

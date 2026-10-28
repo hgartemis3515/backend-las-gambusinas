@@ -3,6 +3,8 @@ const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
 const { claveDe, clavesGuardables, filasDeRubros, carta } = require('../utils/inventarioRubros');
+const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventarioMapas');
+const MapaSemantico = require('../database/models/inventarioMapa.model');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
 const Rubro = require('../database/models/inventarioRubro.model');
@@ -140,7 +142,11 @@ async function crearMovimiento(data, usuarioId) {
         err.statusCode = 400;
         throw err;
     }
-    const rubro = claveDe(data.rubro);
+    let rubro = claveDe(data.rubro);
+    if (!rubro && data.rubro) {
+        const extra = clavesExtra(await leerGuardados().catch(() => [])).find((e) => e.clave === data.rubro);
+        if (extra) rubro = extra;
+    }
     let plato = null;
     if (!rubro) {
         plato = await Plato.findById(data.plato).select('id nombre isActive').lean();
@@ -206,6 +212,7 @@ function lineasReporte(filas, ventas) {
 }
 
 async function filasCartaEn(desde, hasta) {
+    const mapas = await leerGuardados().catch(() => []);
     const [guardados, ventasPack, umbrales] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
             .select('rubro tipoProducto clase cantidad fecha')
@@ -214,7 +221,7 @@ async function filasCartaEn(desde, hasta) {
         umbralesRubro()
     ]);
     const filas = aplicarSaldoPrevioDeVentas(
-        filasDeRubros(guardados, desde, hasta, umbrales),
+        filasDeRubros(guardados, desde, hasta, umbrales, clavesExtra(mapas)),
         ventasPack.ventas,
         desde
     );
@@ -298,7 +305,7 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
         ? rango(desdeStr, hastaStr || desdeStr, ciclo)
         : hoy();
     const { filas, ventas } = await filasCartaEn(desde, hasta);
-    const data = { desde, hasta, filas, carta: carta(), ventas };
+    const data = { desde, hasta, filas, carta: await cartaConMapas(), ventas };
     if (operativo && desdeStr && desdeStr === (hastaStr || desdeStr)) {
         const fecha = String(desdeStr);
         const hoyOp = ymdOperativo();
@@ -329,6 +336,44 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
 function diaAnterior(ymd) {
     const antes = new Date(boundsDiaOperativo(ymd).inicio.getTime() - 1000);
     return ymdOperativo(antes);
+}
+
+async function cartaConMapas() {
+    const base = carta();
+    const mapas = await leerGuardados().catch(() => []);
+    clavesExtra(mapas).forEach((e) => {
+        if (!base.kardex.some((k) => k.clave === e.clave)) {
+            base.kardex.push({ clave: e.clave, nombre: e.nombre, suma: null });
+        }
+        if (!base.opciones.some((o) => o.clave === e.clave)) base.opciones.push(e);
+        const enGrupo = base.grupos.some((g) => (g.hijos || []).some((h) => h.clave === e.clave));
+        if (!enGrupo && !base.sueltos.some((s) => s.clave === e.clave)) base.sueltos.push(e);
+    });
+    return base;
+}
+
+async function leerMapas() {
+    return leerGuardados();
+}
+
+async function guardarMapas(lista) {
+    if (!Array.isArray(lista)) {
+        const err = new Error('El cuerpo debe traer la lista de mapas');
+        err.statusCode = 400;
+        throw err;
+    }
+    const mapas = sanearLista(lista);
+    if (lista.length !== mapas.length) {
+        const err = new Error('Cada mapa necesita nombre, tipo y clave de origen. Los id no se repiten.');
+        err.statusCode = 400;
+        throw err;
+    }
+    await MapaSemantico.findOneAndUpdate(
+        { clave: 'hoja' },
+        { $set: { mapas } },
+        { upsert: true, new: true }
+    );
+    return mapas;
 }
 
 async function guardarUmbralRubro(clave, body) {
@@ -363,7 +408,7 @@ async function alertasRubro() {
         umbralesRubro()
     ]);
     const filas = aplicarVentasEnFilas(
-        filasDeRubros(guardados, new Date(0), hasta, umbrales),
+        filasDeRubros(guardados, new Date(0), hasta, umbrales, clavesExtra(await leerGuardados().catch(() => []))),
         ventasPack.ventas
     );
     return alertasDeFilas(filas);
@@ -427,6 +472,8 @@ module.exports = {
     crearMovimiento,
     alertasActuales,
     guardarUmbralRubro,
+    leerMapas,
+    guardarMapas,
     eliminarHoy,
     ponerEnCero,
     avisarAlertas

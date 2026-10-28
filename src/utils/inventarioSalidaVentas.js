@@ -5,6 +5,7 @@ const { matchComandasEstadisticas } = require('./estadisticasComandas');
 const { armarContadorPlatos } = require('./contadorPlatosReporte');
 const { ymdCalendario } = require('./diaOperativoRestaurante');
 const { claveDe } = require('./inventarioRubros');
+const { semilla, consumoDeFila, leerGuardados } = require('./inventarioMapas');
 const logger = require('./logger');
 
 const ZONA = 'America/Lima';
@@ -43,7 +44,7 @@ function filasDelContador(contador) {
         .concat(contador.platos || []);
 }
 
-function partirSalida(filas, comanda) {
+function partirSalida(filas, comanda, mapasVenta, meta) {
     const porRubro = {};
     const detalle = {};
     const etiqueta = String(comanda || '');
@@ -51,21 +52,30 @@ function partirSalida(filas, comanda) {
         if (!rubro || !nombre || !cantidad) return;
         if (!detalle[rubro]) detalle[rubro] = {};
         const key = etiqueta + '\0' + nombre;
-        if (!detalle[rubro][key]) detalle[rubro][key] = { nombre, cantidad: 0, comanda: etiqueta };
+        if (!detalle[rubro][key]) {
+            detalle[rubro][key] = {
+                nombre,
+                cantidad: 0,
+                comanda: etiqueta,
+                comandaId: meta && meta.comandaId ? String(meta.comandaId) : '',
+                hora: meta && meta.hora ? meta.hora : null
+            };
+        }
         detalle[rubro][key].cantidad += cantidad;
     };
     for (const fila of filas || []) {
-        const mapas = rubrosDeNombre(fila && fila.nombre);
+        const mapas = rubrosDeFila(fila, mapasVenta);
         const cantidad = Number(fila && fila.cantidad) || 0;
         if (!mapas.length || cantidad <= 0) continue;
         const fuentes = fila && fila.fuentes && typeof fila.fuentes === 'object' ? fila.fuentes : null;
         const nombres = fuentes ? Object.keys(fuentes) : [];
         mapas.forEach((mapa, idx) => {
-            const n = cantidad * mapa.factor;
+            const n = mapa.unidades != null ? Number(mapa.unidades) : cantidad * (Number(mapa.factor) || 1);
+            const factorFuente = mapa.unidades != null ? (cantidad > 0 ? n / cantidad : 0) : (Number(mapa.factor) || 1);
             porRubro[mapa.rubro] = (porRubro[mapa.rubro] || 0) + n;
             if (idx === 0 && nombres.length) {
                 nombres.forEach((nombre) => {
-                    sumar(mapa.rubro, nombre, (Number(fuentes[nombre]) || 0) * mapa.factor);
+                    sumar(mapa.rubro, nombre, (Number(fuentes[nombre]) || 0) * factorFuente);
                 });
             } else {
                 sumar(mapa.rubro, fila.nombre, n);
@@ -79,13 +89,25 @@ function partirSalida(filas, comanda) {
     return { porRubro, detalle: listas };
 }
 
-function rubrosDeNombre(nombre) {
+function rubrosDeFila(fila, mapas) {
+    const nombre = fila && fila.nombre;
     const n = norm(nombre);
     const directo = MAPA_SALIDA[n];
     if (directo) return [directo];
     const lista = [];
-    const add = (rubro, factor) => lista.push({ rubro: rubro, factor: factor || 1 });
-    if (n.includes('filete de pollo')) add('filete');
+    const add = (rubro, factor, unidades) => {
+        const item = { rubro: rubro };
+        if (unidades != null) item.unidades = unidades;
+        else item.factor = factor || 1;
+        lista.push(item);
+    };
+    const delMapa = consumoDeFila(fila || { nombre: nombre }, mapas || semilla());
+    if (delMapa.length) {
+        delMapa.forEach((item) => {
+            if (item.unidades != null) add(item.rubro, null, item.unidades);
+            else add(item.rubro, item.factor);
+        });
+    } else if (n.includes('filete de pollo')) add('filete');
     else if (n.includes('1/4 pollo') || n.includes('cuarto de pollo') || n.includes('pollo a la lena')) add('pollo-lena');
     else if (n.includes('chicharron de pollo') && n.includes('bbq')) add('chi-pollo-bbq');
     else if (n.includes('acevichada') && n.includes('pollo')) add('chi-pollo-acevichada');
@@ -98,12 +120,20 @@ function rubrosDeNombre(nombre) {
     else if (n.includes('tamal')) add('tamal');
     else if (n.includes('gaseosa') || n.includes('inca kola') || n.includes('coca cola')) add('gaseosas');
     if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
-    if (/\barroz\b/.test(n) && !n.includes('chaufa') && !lista.some((x) => x.rubro === 'arroz-tipo-pollo')) add('arroz-tipo-pollo');
+    if (n.includes('arroz con pato') || n.includes('arroz de pato')) {
+        if (!lista.some((x) => x.rubro === 'arroz-pato')) add('arroz-pato');
+    } else if (/\barroz\b/.test(n) && !n.includes('chaufa') && !n.includes('arroz con pollo') && !lista.some((x) => x.rubro === 'arroz-tipo-pollo')) {
+        add('arroz-tipo-pollo');
+    }
     return lista;
 }
 
-function aplicarMapa(filas) {
-    return partirSalida(filas).porRubro;
+function rubrosDeNombre(nombre, mapas) {
+    return rubrosDeFila({ nombre: nombre }, mapas);
+}
+
+function aplicarMapa(filas, mapas) {
+    return partirSalida(filas, '', mapas).porRubro;
 }
 
 function fechaEnDia(ymd) {
@@ -154,6 +184,12 @@ async function egresosVentaHasta(hasta) {
         }
         const movs = [];
         const ventas = [];
+        let mapasVenta = semilla();
+        try {
+            mapasVenta = await leerGuardados();
+        } catch (errorMapa) {
+            logger.warn('Inventario usa los mapas de semilla', { error: errorMapa.message });
+        }
         for (const [ymd, lista] of porDia) {
             const porRubro = {};
             const detalle = {};
@@ -162,7 +198,9 @@ async function egresosVentaHasta(hasta) {
                 const etiqueta = nro != null && nro !== '' ? ('Comanda ' + nro) : 'Sin número';
                 const partido = partirSalida(
                     filasDelContador(armarContadorPlatos(lineasDeComanda(comanda), catalogo)),
-                    etiqueta
+                    etiqueta,
+                    mapasVenta,
+                    { comandaId: comanda._id, hora: comanda.createdAt }
                 );
                 Object.keys(partido.porRubro).forEach((rubro) => {
                     porRubro[rubro] = (porRubro[rubro] || 0) + partido.porRubro[rubro];
@@ -203,6 +241,7 @@ module.exports = {
     MAPA_SALIDA,
     norm,
     aplicarMapa,
+    rubrosDeNombre,
     partirSalida,
     filasDelContador,
     egresosVentaHasta

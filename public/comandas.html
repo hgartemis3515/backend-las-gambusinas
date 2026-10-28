@@ -1130,7 +1130,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
     </thead>
     <tbody>
      <template x-for="(item, idx) in platosVisiblesBasicos(selectedComanda)" :key="'b'+idx">
-      <tr>
+      <tr :id="'plato-linea-' + idx">
        <td>
         <div class="flex flex-wrap items-center gap-2">
          <span x-text="item.nombre || '—'"></span>
@@ -7915,6 +7915,28 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.selectedComanda = detalle;
  this.handleComandaActualizada(detalle);
  await this.loadComandaTickets(comandaId);
+ this.enfocarPlatoDeLaUrl();
+ },
+
+ enfocarPlatoDeLaUrl() {
+  const nombre = new URLSearchParams(window.location.search).get('plato');
+  if (!nombre || !this.selectedComanda) return;
+  this.vistaComanda = 'basica';
+  const quiere = String(nombre).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const lista = this.platosVisiblesBasicos(this.selectedComanda);
+  const idx = lista.findIndex((p) => {
+    const n = String(p && p.nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return n && (n.includes(quiere) || quiere.includes(n));
+  });
+  if (idx < 0) return;
+  const marcar = () => {
+    const el = document.getElementById('plato-linea-' + idx);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center' });
+    el.style.outline = '2px solid #d4af37';
+  };
+  if (this.$nextTick) this.$nextTick(marcar);
+  else setTimeout(marcar, 50);
  },
 
  async openEditModal(c) {

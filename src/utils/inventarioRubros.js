@@ -8,7 +8,7 @@ const KARDEX = [
     { clave: 'pierna-pollo', nombre: 'Pierna' },
     { clave: 'pechuga-pollo', nombre: 'Pechuga' },
     { clave: 'pescado-origen', nombre: 'Pescado' },
-    { clave: 'filete', nombre: 'Filete' },
+    { clave: 'filete', nombre: 'Filete Pollo Crudo' },
     { clave: 'chicharron-pollo', nombre: 'Chicharrón de pollo' },
     { clave: 'pachamanca', nombre: 'Pachamanca', suma: ['pachamanca-pollo', 'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero'] },
     { clave: 'lomo-fino', nombre: 'Lomo Fino' },
@@ -20,7 +20,9 @@ const KARDEX = [
     { clave: 'pescado-frito', nombre: 'Pescado frito' },
     { clave: 'pota', nombre: 'Pota' },
     { clave: 'yuca', nombre: 'Yuca' },
-    { clave: 'pato', nombre: 'Pato' },
+    { clave: 'pato', nombre: 'Pato fresco' },
+    { clave: 'pechuga-pato', nombre: 'Pechuga de pato' },
+    { clave: 'pierna-pato', nombre: 'Pierna de pato' },
     { clave: 'seco-res', nombre: 'Seco de res' },
     { clave: 'cuy', nombre: 'Cuy' },
     { clave: 'chicharron-chancho', nombre: 'Chicharrón de chancho' },
@@ -110,6 +112,11 @@ const GRUPOS = [
         hijos: ['ceviche', 'chicharron-pescado', 'pescado-frito']
     },
     {
+        id: 'pato',
+        nombre: 'Pato',
+        hijos: ['pato', 'pechuga-pato', 'pierna-pato']
+    },
+    {
         id: 'panceta',
         nombre: 'Panceta',
         panceta: true,
@@ -139,8 +146,14 @@ function claveDe(clave) {
     return clavesGuardables().find((c) => c.clave === clave) || null;
 }
 
-function filasDeRubros(movimientos, desde, hasta, umbralPorClave) {
+function filasDeRubros(movimientos, desde, hasta, umbralPorClave, extras) {
     const defs = clavesGuardables();
+    const ya = new Set(defs.map((d) => d.clave));
+    (extras || []).forEach((e) => {
+        if (!e || !e.clave || ya.has(e.clave)) return;
+        ya.add(e.clave);
+        defs.push({ clave: e.clave, nombre: e.nombre || e.clave });
+    });
     const platos = defs.map((d) => ({
         _id: d.clave,
         id: 0,

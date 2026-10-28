@@ -62,6 +62,50 @@ test('un ingreso guardado no se convierte en egreso', () => {
     expect(fila.cierre).toBe(20);
 });
 
+test('el filete junior come 0.5, la fuente come 2 y el resto de platos de filete come 1', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Filete junior', cantidad: 2 },
+        { nombre: 'Fuente de Chicharrón pollo', cantidad: 1 },
+        { nombre: 'Arroz chaufa de pollo', cantidad: 1 },
+        { nombre: 'Chicharrón de pollo acevichada', cantidad: 1 },
+        { nombre: 'Chicharrón de pollo a la BBQ', cantidad: 1 },
+        { nombre: 'Chicharrón de pollo chico + yuca frita + zarza criolla', cantidad: 1 },
+        { nombre: 'Lomo saltado de pollo', cantidad: 1 }
+    ]);
+    expect(porRubro.filete).toBe(2 * 0.5 + 2 + 1 + 1 + 1 + 1 + 1);
+    expect(porRubro['chaufa-pollo']).toBeUndefined();
+    expect(porRubro['chi-pollo-bbq']).toBeUndefined();
+    expect(porRubro['salt-pollo']).toBeUndefined();
+});
+
+test('el arroz con pato de pecho come pechuga y el de pierna come pierna', () => {
+    const pecho = aplicarMapa([{ nombre: 'Arroz con pato pecho', cantidad: 2 }]);
+    expect(pecho['pechuga-pato']).toBe(2);
+    expect(pecho['pierna-pato']).toBeUndefined();
+    expect(pecho['arroz-pato']).toBe(2);
+    const partido = aplicarMapa([{
+        nombre: 'Arroz con pato',
+        cantidad: 3,
+        cortes: { Pecho: 2, Pierna: 1 }
+    }]);
+    expect(partido['pechuga-pato']).toBe(2);
+    expect(partido['pierna-pato']).toBe(1);
+    expect(partido['arroz-pato']).toBe(3);
+    const sinCorte = aplicarMapa([{ nombre: 'Arroz con pato', cantidad: 1 }]);
+    expect(sinCorte['pechuga-pato']).toBeUndefined();
+    expect(sinCorte['arroz-pato']).toBe(1);
+});
+
+test('la pota solo sale en ceviche de chicharrón de pota y en chicharrón de pota', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Ceviche de chicharrón de pota', cantidad: 2 },
+        { nombre: 'Chicharrón de pota', cantidad: 1 },
+        { nombre: 'Chicha de pota', cantidad: 4 }
+    ]);
+    expect(porRubro.pota).toBe(3);
+    expect(porRubro.ceviche).toBeUndefined();
+});
+
 test('la venta del día entra en salida y al día siguiente abre el saldo anterior', () => {
     const movs = [
         { rubro: 'pollo-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 20, fecha: dia('2026-10-12', '12:00:00') },
