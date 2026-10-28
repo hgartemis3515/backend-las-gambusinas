@@ -543,6 +543,31 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       border-left: 7px solid var(--c, var(--rama, #d4af37));
       z-index: 1;
     }
+    .ingreso-chip {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(212, 175, 55, 0.7);
+      background: #1c1c2b;
+      color: #d4af37;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .ingreso-chip:hover { transform: translateY(-1px); background: #26263a; }
+    .ingreso-panel {
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(212, 175, 55, 0.55);
+      background: #0a0a0f;
+      transform-origin: top center;
+    }
     .cuadro-grupal-pechuga {
       border-color: rgba(56, 189, 248, 0.55);
     }
@@ -1408,7 +1433,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
                 <div>
                   <h3 class="text-base font-extrabold text-white">Pollo Fresco</h3>
-                  <p class="text-[11px] text-[#a0a0b8] mt-0.5">Cantidad de pollos enteros que entran hoy al despiece:</p>
+                  <p class="text-[11px] text-[#a0a0b8] mt-0.5">Cantidad que entra hoy al despiece:</p>
                 </div>
                 <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
                   <button
@@ -1441,6 +1466,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <span>1 Fresco → <strong x-text="config.factorPiernasPorFresco"></strong> Piernas</span>
                     <span class="font-mono font-bold text-white" x-text="'= ' + piernasObtenidas() + ' pzas'"></span>
                   </div>
+                </div>
+              </div>
+              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pollo_fresco" x-transition @click="abrirIngreso('pollo_fresco')">Ingreso</button>
+              <div class="ingreso-panel" x-show="ingresoAbierto.pollo_fresco" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pollo_fresco')">Cerrar</button>
+                </div>
+                <div class="mt-2 flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
+                  <button type="button" aria-label="Restar ingreso de pollo fresco" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="stepField('pollo_fresco', 'ingreso', -1)">−</button>
+                  <input type="number" min="0" aria-label="Ingreso de pollo fresco" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :value="getRow('pollo_fresco').ingreso" @change="updateIngresoDirecto('pollo_fresco', $event.target.value)">
+                  <button type="button" aria-label="Sumar ingreso de pollo fresco" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="stepField('pollo_fresco', 'ingreso', 1)">+</button>
                 </div>
               </div>
             </div>
@@ -1693,17 +1730,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   </div>
                   <div>
                     <h3 class="text-base font-extrabold text-white" x-text="mapa.origen.nombre"></h3>
-                    <p class="text-[11px] text-[#a0a0b8] mt-0.5" x-text="mapa.tipo === 'directo' ? 'Ingreso del día, sin despiece:' : 'Cantidad que entra hoy al despiece:'"></p>
+                    <p class="text-[11px] text-[#a0a0b8] mt-0.5" x-show="mapa.tipo !== 'directo'">Cantidad que entra hoy al despiece:</p>
                   </div>
                   <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2" x-show="mapa.tipo !== 'directo'">
                     <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition" :aria-label="'Restar ' + mapa.origen.nombre" @click="fijarOrigenMapa(mapa, origenMapa(mapa.id) - 1)">−</button>
                     <input type="number" min="0" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :aria-label="mapa.origen.nombre + ' a convertir'" :value="origenMapa(mapa.id)" @change="fijarOrigenMapa(mapa, $event.target.value)">
                     <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition" :aria-label="'Sumar ' + mapa.origen.nombre" @click="fijarOrigenMapa(mapa, origenMapa(mapa.id) + 1)">+</button>
-                  </div>
-                  <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2" x-show="mapa.tipo === 'directo'">
-                    <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition" :aria-label="'Restar ingreso de ' + mapa.origen.nombre" @click="stepField(idDeClave(mapa.origen.clave), 'ingreso', -1)">−</button>
-                    <input type="number" min="0" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :aria-label="'Ingreso de ' + mapa.origen.nombre" :value="getRow(idDeClave(mapa.origen.clave)).ingreso" @change="updateIngresoDirecto(idDeClave(mapa.origen.clave), $event.target.value)">
-                    <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition" :aria-label="'Sumar ingreso de ' + mapa.origen.nombre" @click="stepField(idDeClave(mapa.origen.clave), 'ingreso', 1)">+</button>
                   </div>
                   <div class="space-y-1.5 pt-2 border-t border-[#26263a] text-[11px]" x-show="cortesDeOrigen(mapa).length">
                     <template x-for="(rama, ri) in ramasDeMapa(mapa)" :key="mapa.id + '-eq-' + rama.key">
@@ -1712,6 +1744,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <span class="font-mono font-bold text-white" x-text="'= ' + (rama.corte ? obtenidasCorte(mapa, rama.corte) : 0)"></span>
                       </div>
                     </template>
+                  </div>
+                </div>
+                <button type="button" class="ingreso-chip" x-show="!ingresoAbierto[idDeClave(mapa.origen.clave)]" x-transition @click="abrirIngreso(idDeClave(mapa.origen.clave))">Ingreso</button>
+                <div class="ingreso-panel" x-show="ingresoAbierto[idDeClave(mapa.origen.clave)]" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                    <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso(idDeClave(mapa.origen.clave))">Cerrar</button>
+                  </div>
+                  <div class="mt-2 flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
+                    <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" :aria-label="'Restar ingreso de ' + mapa.origen.nombre" @click="stepField(idDeClave(mapa.origen.clave), 'ingreso', -1)">−</button>
+                    <input type="number" min="0" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :aria-label="'Ingreso de ' + mapa.origen.nombre" :value="getRow(idDeClave(mapa.origen.clave)).ingreso" @change="updateIngresoDirecto(idDeClave(mapa.origen.clave), $event.target.value)">
+                    <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" :aria-label="'Sumar ingreso de ' + mapa.origen.nombre" @click="stepField(idDeClave(mapa.origen.clave), 'ingreso', 1)">+</button>
                   </div>
                 </div>
               </div>
@@ -1821,13 +1865,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
           <!-- Flujo Horizontal Panceta -->
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" x-show="tieneMapa('panceta')">
-            <div class="sm:w-48 bg-[#0a0a0f] border border-[#d4af37]/60 rounded-xl p-3 shrink-0">
-              <span class="text-[10px] uppercase font-bold text-[#d4af37] block">Origen · Grupo Panceta</span>
+            <div class="sm:w-52 bg-[#0a0a0f] border border-[#d4af37]/60 rounded-xl p-3 shrink-0 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('panceta')))"></strong></span>
+              </div>
               <span class="text-sm font-bold text-white block">Panceta entera</span>
-              <div class="mt-2 inline-flex items-center gap-0.5">
+              <p class="text-[11px] text-[#a0a0b8]">Salen a trozos</p>
+              <div class="inline-flex items-center gap-0.5">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('pancetasSalen', -1)">−</button>
                 <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.pancetasSalen" @change="volcarTransformacionEnTabla()">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('pancetasSalen', 1)">+</button>
+              </div>
+              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.panceta" x-transition @click="abrirIngreso('panceta')">Ingreso</button>
+              <div class="ingreso-panel" x-show="ingresoAbierto.panceta" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('panceta')">Cerrar</button>
+                </div>
+                <div class="mt-2 inline-flex items-center gap-0.5">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de panceta" @click="stepField('panceta', 'ingreso', -1)">−</button>
+                  <input type="number" min="0" aria-label="Ingreso de panceta" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('panceta').ingreso" @change="updateIngresoDirecto('panceta', $event.target.value)">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de panceta" @click="stepField('panceta', 'ingreso', 1)">+</button>
+                </div>
               </div>
             </div>
 
@@ -1856,13 +1916,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
           <!-- Flujo Horizontal Carnero -->
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-[#26263a]/60" x-show="tieneMapa('carnero')">
-            <div class="sm:w-48 bg-[#0a0a0f] border border-[#d4af37]/60 rounded-xl p-3 shrink-0">
-              <span class="text-[10px] uppercase font-bold text-[#d4af37] block">Origen · Grupo Carnero</span>
+            <div class="sm:w-52 bg-[#0a0a0f] border border-[#d4af37]/60 rounded-xl p-3 shrink-0 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('carnero')))"></strong></span>
+              </div>
               <span class="text-sm font-bold text-white block">Carnero crudo</span>
-              <div class="mt-2 inline-flex items-center gap-0.5">
+              <p class="text-[11px] text-[#a0a0b8]">Salen a pachamanca</p>
+              <div class="inline-flex items-center gap-0.5">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('carneroSalen', -1)">−</button>
                 <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.carneroSalen" @change="volcarTransformacionEnTabla()">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('carneroSalen', 1)">+</button>
+              </div>
+              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.carnero" x-transition @click="abrirIngreso('carnero')">Ingreso</button>
+              <div class="ingreso-panel" x-show="ingresoAbierto.carnero" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('carnero')">Cerrar</button>
+                </div>
+                <div class="mt-2 inline-flex items-center gap-0.5">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de carnero" @click="stepField('carnero', 'ingreso', -1)">−</button>
+                  <input type="number" min="0" aria-label="Ingreso de carnero" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('carnero').ingreso" @change="updateIngresoDirecto('carnero', $event.target.value)">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de carnero" @click="stepField('carnero', 'ingreso', 1)">+</button>
+                </div>
               </div>
             </div>
 
@@ -1900,13 +1976,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <!-- Nodo Origen: Arroz crudo -->
-            <div class="sm:w-48 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3.5 shrink-0 space-y-2">
-              <span class="text-[10px] uppercase font-bold text-[#d4af37] block">Origen Crudo</span>
+            <div class="sm:w-52 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3.5 shrink-0 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen crudo</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('arroz')))"></strong></span>
+              </div>
               <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
+              <p class="text-[11px] text-[#a0a0b8]">A repartir</p>
               <div class="inline-flex items-center gap-0.5">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozCrudo(nudge(despiece.arrozCrudo, -1))">−</button>
                 <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.arrozCrudo" @change="fijarArrozCrudo($event.target.value)">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozCrudo(nudge(despiece.arrozCrudo, 1))">+</button>
+              </div>
+              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz')">Ingreso</button>
+              <div class="ingreso-panel" x-show="ingresoAbierto.arroz" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('arroz')">Cerrar</button>
+                </div>
+                <div class="mt-2 inline-flex items-center gap-0.5">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de arroz crudo" @click="stepField('arroz', 'ingreso', -1)">−</button>
+                  <input type="number" min="0" aria-label="Ingreso de arroz crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('arroz').ingreso" @change="updateIngresoDirecto('arroz', $event.target.value)">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de arroz crudo" @click="stepField('arroz', 'ingreso', 1)">+</button>
+                </div>
               </div>
               <p class="text-[11px] text-[#a0a0b8]">Repartido: <strong class="text-white font-mono" x-text="(Number(despiece.arrozPollo)||0) + (Number(despiece.arrozBlanco)||0) + (Number(despiece.arrozPato)||0)"></strong></p>
             </div>
@@ -1991,7 +2083,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
                   <div>
                     <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
-                    <span class="text-[10px] text-[#a0a0b8]">Queda: <strong class="text-emerald-300 font-mono" x-text="calcSaldoReal(getRow(corteId))"></strong></span>
+                    <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow(corteId)))"></strong></span>
                   </div>
                   <div class="inline-flex items-center gap-0.5">
                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', -1)">−</button>
@@ -2015,7 +2107,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-2 flex items-center justify-between gap-1.5">
                     <div>
                       <span class="text-xs font-bold text-white block" x-text="getRow(trId).nombre"></span>
-                      <span class="text-[10px] text-[#a0a0b8]">Queda: <strong class="text-sky-300 font-mono" x-text="calcSaldoReal(getRow(trId))"></strong></span>
+                      <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-sky-300 font-mono" x-text="formatNum(calcSaldoReal(getRow(trId)))"></strong></span>
                     </div>
                     <div class="inline-flex items-center gap-0.5 shrink-0">
                       <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(trId, 'ingreso', -1)">−</button>
@@ -2031,7 +2123,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div>
                 <span class="px-2 py-0.5 rounded bg-[#1c1c2b] text-[#a0a0b8] font-bold text-[10px] uppercase">Fila Sola (Directo)</span>
                 <h4 class="text-xs font-bold text-white mt-1.5">Pescado entero</h4>
-                <p class="text-[10px] text-[#a0a0b8]">No se transforma en filete.</p>
+                <p class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-white font-mono" x-text="formatNum(calcSaldoReal(getRow('pescado_entero')))"></strong></p>
               </div>
               <div class="flex items-center justify-between pt-2 border-t border-[#26263a] mt-2">
                 <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
@@ -2947,11 +3039,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
   <template x-if="ventaAbierta && ventaInfo">
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaAbierta = false" @keydown.escape.window="ventaAbierta = false" role="dialog" aria-modal="true" aria-label="Ventas del producto">
-      <div class="w-full max-w-lg bg-[#14141f] border border-[#d4af37] p-5 max-h-[90vh] overflow-y-auto rounded-xl">
+      <div class="w-full max-w-2xl bg-[#14141f] border border-[#d4af37] p-5 max-h-[90vh] overflow-y-auto rounded-xl">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div>
             <h3 class="text-lg font-semibold text-[#d4af37]" x-text="'Ventas de ' + ventaInfo.nombre"></h3>
-            <p class="text-xs text-[#a0a0b8] mt-1">Plato, comanda y hora. Ver abre esa comanda en el plato.</p>
+            <p class="text-xs text-[#a0a0b8] mt-1">Platos vendidos × lo que come cada uno. Ver abre esa comanda en el plato.</p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ventaAbierta = false" aria-label="Cerrar">×</button>
         </div>
@@ -2963,7 +3055,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <th class="text-left px-3 py-2">Plato</th>
                 <th class="text-left px-3 py-2">Comanda</th>
                 <th class="text-left px-3 py-2">Hora</th>
-                <th class="text-right px-3 py-2">Cantidad</th>
+                <th class="text-right px-3 py-2">Platos × uso</th>
                 <th class="text-right px-3 py-2"></th>
               </tr>
             </thead>
@@ -2973,7 +3065,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <td class="px-3 py-1.5 font-semibold" x-text="l.nombre"></td>
                   <td class="px-3 py-1.5 font-mono text-[#d4af37]" x-text="l.comanda || '—'"></td>
                   <td class="px-3 py-1.5 font-mono text-[#a0a0b8]" x-text="horaVenta(l.hora)"></td>
-                  <td class="px-3 py-1.5 text-right font-mono font-bold text-rose-200" x-text="l.cantidad"></td>
+                  <td class="px-3 py-1.5 text-right font-mono font-bold text-rose-200 whitespace-nowrap" x-text="textoUsoVenta(l)"></td>
                   <td class="px-3 py-1.5 text-right">
                     <button type="button" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-[#1a1200] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="!l.comandaId" @click="verComandaVenta(l)">Ver</button>
                   </td>
@@ -3445,6 +3537,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaCargando: false,
         reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
         ventaAbierta: false,
+        ingresoAbierto: {},
         ventasPeriodo: [],
         movimientosPeriodo: [],
         ventaInfo: null,
@@ -3606,6 +3699,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }, { ventas: this.ventasPeriodo || [], movimientos: this.movimientosPeriodo || [] });
         },
 
+        textoUsoVenta(linea) {
+          const uso = Number(linea && linea.cantidad) || 0;
+          const factor = Number(linea && linea.factor) > 0 ? Number(linea.factor) : 1;
+          const platos = Number(linea && linea.platos) > 0 ? Number(linea.platos) : (factor ? uso / factor : uso);
+          const limpio = (n) => String(Math.round(n * 100) / 100);
+          return limpio(platos) + ' × ' + limpio(factor) + ' = ' + limpio(uso);
+        },
+
         horaVenta(iso) {
           if (!iso) return '—';
           const d = new Date(iso);
@@ -3634,12 +3735,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               map[key] = {
                 nombre: nombre,
                 cantidad: 0,
+                platos: 0,
+                factor: Number(extra && extra.factor) > 0 ? Number(extra.factor) : 1,
                 comanda: etiqueta,
                 comandaId: extra && extra.comandaId ? String(extra.comandaId) : '',
                 hora: extra && extra.hora ? extra.hora : null
               };
             }
             map[key].cantidad += n;
+            map[key].platos += Number(extra && extra.platos) > 0 ? Number(extra.platos) : n;
           };
           (ventas || []).forEach((v) => {
             const rubro = v && (v.rubro || v.plato);
@@ -4448,6 +4552,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         formatNum(n) {
           if (n === null || n === undefined || Number.isNaN(Number(n))) return '0';
           return Number(n);
+        },
+
+        abrirIngreso(id) {
+          this.ingresoAbierto = Object.assign({}, this.ingresoAbierto, { [id]: true });
+        },
+
+        cerrarIngreso(id) {
+          const next = Object.assign({}, this.ingresoAbierto);
+          next[id] = false;
+          this.ingresoAbierto = next;
         },
 
         nudge(valor, delta) {

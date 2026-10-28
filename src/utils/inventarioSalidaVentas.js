@@ -48,7 +48,7 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
     const porRubro = {};
     const detalle = {};
     const etiqueta = String(comanda || '');
-    const sumar = (rubro, nombre, cantidad) => {
+    const sumar = (rubro, nombre, cantidad, platos, factor) => {
         if (!rubro || !nombre || !cantidad) return;
         if (!detalle[rubro]) detalle[rubro] = {};
         const key = etiqueta + '\0' + nombre;
@@ -56,12 +56,15 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
             detalle[rubro][key] = {
                 nombre,
                 cantidad: 0,
+                platos: 0,
+                factor: Number(factor) > 0 ? Number(factor) : 1,
                 comanda: etiqueta,
                 comandaId: meta && meta.comandaId ? String(meta.comandaId) : '',
                 hora: meta && meta.hora ? meta.hora : null
             };
         }
         detalle[rubro][key].cantidad += cantidad;
+        detalle[rubro][key].platos += Number(platos) || 0;
     };
     for (const fila of filas || []) {
         const mapas = rubrosDeFila(fila, mapasVenta);
@@ -75,10 +78,13 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
             porRubro[mapa.rubro] = (porRubro[mapa.rubro] || 0) + n;
             if (idx === 0 && nombres.length) {
                 nombres.forEach((nombre) => {
-                    sumar(mapa.rubro, nombre, (Number(fuentes[nombre]) || 0) * factorFuente);
+                    const platos = Number(fuentes[nombre]) || 0;
+                    sumar(mapa.rubro, nombre, platos * factorFuente, platos, factorFuente);
                 });
             } else {
-                sumar(mapa.rubro, fila.nombre, n);
+                const factor = Number(mapa.factor) > 0 ? Number(mapa.factor) : 1;
+                const platos = Number(mapa.factor) > 0 ? cantidad : n;
+                sumar(mapa.rubro, fila.nombre, n, platos, factor);
             }
         });
     }
