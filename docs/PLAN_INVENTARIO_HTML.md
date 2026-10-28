@@ -67,7 +67,7 @@ Mapa de izquierda a derecha: origen, cortes y cuadros de platos. Cada flecha sal
 
 | Mapa | Regla |
 |---|---|
-| 1. Pollo fresco | 1 fresco = 2 pechugas y 2 piernas a la vez. 1 pechuga enviada a filete = 2 filetes. Pierna a filete solo si Configuración tiene factor mayor que 0. |
+| 1. Pollo fresco | 1 fresco = 2 pechugas y 2 piernas a la vez. 1 pechuga enviada a filete = 1 filete. Pierna a filete solo si Configuración tiene factor mayor que 0. |
 | Cuadro de filete | Reparte los filetes generados entre Filete de pollo y Milanesa. No se puede asignar más de los generados. |
 | Cuadros de pechuga y de pierna | Los mismos platos de pieza, sin filetes. 1 pieza mandada suma 1 en ese aderezo y resta 1 de su corte. |
 | 2. Pato fresco | 1 fresco = 2 pechugas y 2 piernas. Pechuga abarca el arroz con pato de pecho; pierna, el de pierna. La venta resta el corte. |

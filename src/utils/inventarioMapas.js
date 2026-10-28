@@ -11,7 +11,7 @@ const SEMILLA = [
         cortes: [
             { clave: 'pechuga-pollo', nombre: 'Pechuga de Pollo', factor: 2, factorDesde: '' },
             { clave: 'pierna-pollo', nombre: 'Pierna de Pollo', factor: 2, factorDesde: '' },
-            { clave: 'filete', nombre: 'Filete desde pechuga', factor: 2, factorDesde: 'pechuga-pollo' },
+            { clave: 'filete', nombre: 'Filete desde pechuga', factor: 1, factorDesde: 'pechuga-pollo' },
             { clave: 'filete', nombre: 'Filete desde pierna', factor: 0, factorDesde: 'pierna-pollo' }
         ],
         platos: [

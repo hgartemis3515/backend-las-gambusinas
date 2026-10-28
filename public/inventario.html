@@ -1329,7 +1329,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="px-2.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-xs uppercase tracking-wide">Flujo Izquierda → Derecha</span>
           </div>
           <p class="text-xs text-[#a0a0b8]">
-            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechugas de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pechuga = <span class="text-[#d4af37] font-semibold">2 Filetes de Pollo</span> · 1 Filete abarca el <span class="text-[#d4af37] font-semibold">Cuadro Grupal de Platos en Filete</span> · Pechuga y Pierna abarcan cada una su <span class="text-white font-semibold">Cuadro Grupal de Platos de Pieza (sin filetes)</span>.
+            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechugas de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pechuga = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete Pollo Crudo'"></span> · 1 Filete abarca el <span class="text-[#d4af37] font-semibold">Cuadro Grupal de Platos en Filete</span> · Pechuga y Pierna abarcan cada una su <span class="text-white font-semibold">Cuadro Grupal de Platos de Pieza (sin filetes)</span>.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
@@ -1825,9 +1825,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-[10px] uppercase font-bold text-[#d4af37] block">Origen · Grupo Panceta</span>
               <span class="text-sm font-bold text-white block">Panceta entera</span>
               <div class="mt-2 inline-flex items-center gap-0.5">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="despiece.pancetasSalen = nudge(despiece.pancetasSalen, -1)">−</button>
-                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.pancetasSalen">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="despiece.pancetasSalen = nudge(despiece.pancetasSalen, 1)">+</button>
+                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('pancetasSalen', -1)">−</button>
+                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.pancetasSalen" @change="volcarTransformacionEnTabla()">
+                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('pancetasSalen', 1)">+</button>
               </div>
             </div>
 
@@ -1846,9 +1846,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <span class="text-[10px] text-[#a0a0b8]">Trozos obtenidos de <span x-text="despiece.pancetasSalen"></span> panceta(s)</span>
                 </div>
                 <div class="inline-flex items-center gap-0.5">
-                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="despiece.trozosPanceta = nudge(despiece.trozosPanceta, -1)">−</button>
-                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.trozosPanceta">
-                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="despiece.trozosPanceta = nudge(despiece.trozosPanceta, 1)">+</button>
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('trozosPanceta', -1)">−</button>
+                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.trozosPanceta" @change="volcarTransformacionEnTabla()">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('trozosPanceta', 1)">+</button>
                 </div>
               </div>
             </div>
@@ -1860,9 +1860,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-[10px] uppercase font-bold text-[#d4af37] block">Origen · Grupo Carnero</span>
               <span class="text-sm font-bold text-white block">Carnero crudo</span>
               <div class="mt-2 inline-flex items-center gap-0.5">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="despiece.carneroSalen = nudge(despiece.carneroSalen, -1)">−</button>
-                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.carneroSalen">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="despiece.carneroSalen = nudge(despiece.carneroSalen, 1)">+</button>
+                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('carneroSalen', -1)">−</button>
+                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.carneroSalen" @change="volcarTransformacionEnTabla()">
+                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('carneroSalen', 1)">+</button>
               </div>
             </div>
 
@@ -3148,7 +3148,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         config: {
           factorPiernasPorFresco: 2,
           factorPechugasPorFresco: 2,
-          factorFiletesPorPechuga: 2,
+          factorFiletesPorPechuga: 1,
           factorFiletesPorPierna: '', // Vacío por defecto
           factorCarneroPachamanca: 1,
           factorArrozPollo: 1,
@@ -3177,7 +3177,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         draftConfig: {
           factorPiernasPorFresco: 2,
           factorPechugasPorFresco: 2,
-          factorFiletesPorPechuga: 2,
+          factorFiletesPorPechuga: 1,
           factorFiletesPorPierna: '',
           factorCarneroPachamanca: 1,
           factorArrozPollo: 1,
@@ -4454,6 +4454,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return Math.max(0, (Number(valor) || 0) + delta);
         },
 
+        moverDespiece(campo, delta) {
+          this.despiece[campo] = this.nudge(this.despiece[campo], delta);
+          this.volcarTransformacionEnTabla();
+        },
+
         stepField(rowId, field, delta) {
           const row = this.getRow(rowId);
           const next = Math.max(0, Number(row[field] || 0) + delta);
@@ -4509,7 +4514,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         filetesDePechuga() {
-          return Number(this.despiece.pechugasAFilete || 0) * Number(this.config.factorFiletesPorPechuga || 2);
+          return Number(this.despiece.pechugasAFilete || 0) * Number(this.config.factorFiletesPorPechuga || 1);
         },
 
         totalFiletesGenerados() {
@@ -4568,7 +4573,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           this.transformWarning = '';
           this.despiece.platosFilete[platoId] = next;
-          this.pulseRowTotal(platoId);
+          this.volcarTransformacionEnTabla();
         },
 
         piernasUsadas() {
@@ -4599,6 +4604,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           this.transformWarning = '';
           this.despiece.frescos = nextFrescos;
+          this.volcarTransformacionEnTabla();
         },
 
         updatePiernasAFilete(val) {
@@ -4614,6 +4620,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           this.transformWarning = '';
           this.despiece.piernasAFilete = next;
+          this.volcarTransformacionEnTabla();
         },
 
         updatePechugasAFilete(val) {
@@ -4625,6 +4632,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           this.transformWarning = '';
           this.despiece.pechugasAFilete = next;
+          this.volcarTransformacionEnTabla();
         },
 
         updateAderezoCorte(aderezoId, corte, val) {
@@ -4646,11 +4654,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
           this.transformWarning = '';
           this.despiece.aderezos[aderezoId][corte] = next;
-          this.pulseRowTotal(aderezoId);
+          this.volcarTransformacionEnTabla();
         },
 
-        // Botón «Pasar a la hoja»: vuelca ingresos y salidas a Inventario Tabla con animación y sonido
-        pasarALaHoja() {
+        // Lo anotado en Transformar cae en la fila del mismo producto.
+        volcarTransformacionEnTabla() {
           const rFresco = this.getRow('pollo_fresco');
           rFresco.transformacion = Number(this.despiece.frescos || 0);
           rFresco.crudo = Math.max(0, this.calcSaldo(rFresco));
@@ -4766,7 +4774,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           ponerArroz('arroz_pollo', this.despiece.arrozPollo, this.config.factorArrozPollo);
           ponerArroz('arroz_blanco', this.despiece.arrozBlanco, this.config.factorArrozBlanco);
           ponerArroz('arroz_pato', this.despiece.arrozPato, this.config.factorArrozPato);
+        },
 
+        pasarALaHoja() {
+          this.volcarTransformacionEnTabla();
           this.playUiSound();
           this.toastMessage = 'Pasando a Inventario Tabla…';
           this.activeTab = 'tabla';
@@ -4787,6 +4798,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           this.transformWarning = '';
           this.despiece.arrozCrudo = next;
+          this.volcarTransformacionEnTabla();
         },
 
         fijarArrozDestino(campo, val) {
@@ -4798,6 +4810,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           this.transformWarning = '';
           this.despiece[campo] = next;
+          this.volcarTransformacionEnTabla();
         },
 
         async guardarDespieceEnServidor() {
@@ -5153,6 +5166,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         fijarOrigenMapa(mapa, valor) {
           this.transformWarning = '';
           this.estadoMapa(mapa.id).origen = Math.max(0, parseInt(valor, 10) || 0);
+          this.volcarTransformacionEnTabla();
         },
 
         idDeClave(clave) {
@@ -5228,7 +5242,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           (pollo.cortes || []).forEach((c) => {
             if (c.clave === 'pechuga-pollo' && !c.factorDesde) c.factor = Number(this.config.factorPechugasPorFresco) || 2;
             if (c.clave === 'pierna-pollo' && !c.factorDesde) c.factor = Number(this.config.factorPiernasPorFresco) || 2;
-            if (c.clave === 'filete' && c.factorDesde === 'pechuga-pollo') c.factor = Number(this.config.factorFiletesPorPechuga) || 2;
+            if (c.clave === 'filete' && c.factorDesde === 'pechuga-pollo') c.factor = Number(this.config.factorFiletesPorPechuga) || 1;
             if (c.clave === 'filete' && c.factorDesde === 'pierna-pollo') {
               const raw = this.config.factorFiletesPorPierna;
               c.factor = raw === '' || raw == null ? 0 : Number(raw) || 0;
