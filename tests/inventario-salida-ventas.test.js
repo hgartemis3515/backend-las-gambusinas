@@ -5,6 +5,24 @@ function dia(ymd, hora) {
     return new Date(`${ymd}T${hora}-05:00`);
 }
 
+test('cada gaseosa y cada licor descuentan su propia fila', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Inca Kola 1/2 litro', cantidad: 2 },
+        { nombre: 'Vino tinto', cantidad: 1 }
+    ]);
+    expect(porRubro['gaseosa-inca-kola-1-2-litro']).toBe(2);
+    expect(porRubro['licor-vino-tinto']).toBe(1);
+    expect(porRubro.gaseosas).toBeUndefined();
+});
+
+test('el cerdo de pachamanca del reporte de platos descuenta cerdo pachamanca', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Cerdo de pachamanca', cantidad: 4 },
+        { nombre: 'Cerdo pachamanca', cantidad: 1 }
+    ]);
+    expect(porRubro['pachamanca-chancho']).toBe(5);
+});
+
 test('10 leñas del reporte son 10 de salida de pollo leña', () => {
     const porRubro = aplicarMapa([
         { nombre: '1/4 pollo a la leña', cantidad: 10 },

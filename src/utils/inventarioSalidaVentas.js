@@ -24,6 +24,7 @@ const MAPA_SALIDA = {
     'chancho a la lena bbq': { rubro: 'chancho-lena-bbq', factor: 1 },
     'pollo de pachamanca': { rubro: 'pachamanca-pollo', factor: 1 },
     'cerdo de pachamanca': { rubro: 'pachamanca-chancho', factor: 1 },
+    'cerdo pachamanca': { rubro: 'pachamanca-chancho', factor: 1 },
     'res de pachamanca': { rubro: 'pachamanca-res', factor: 1 },
     'carnero de pachamanca': { rubro: 'pachamanca-cordero', factor: 1 }
 };
@@ -124,7 +125,11 @@ function rubrosDeFila(fila, mapas) {
     else if (n.includes('saltado') && n.includes('pollo')) add('salt-pollo');
     else if (n.includes('pan con pollo')) add('menu');
     else if (n.includes('tamal')) add('tamal');
-    else if (n.includes('gaseosa') || n.includes('inca kola') || n.includes('coca cola')) add('gaseosas');
+    else if (/gaseosa|inca kola|inkakola|coca[- ]?cola|sprite|fanta|guarana/.test(n)) {
+        add('gaseosa-' + (n.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'bebida'));
+    } else if (/\b(vino|vinos|cerveza|pisco|ron|whisky|whiskey|vodka|chilcano|tequila|sangria|licor|licores|gin)\b/.test(n) && !n.includes('vinagre')) {
+        add('licor-' + (n.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'bebida'));
+    }
     if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
     if (n.includes('arroz con pato') || n.includes('arroz de pato')) {
         if (!lista.some((x) => x.rubro === 'arroz-pato')) add('arroz-pato');
