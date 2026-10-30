@@ -60,6 +60,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       }
     }
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="/assets/css/dashboard.css">
@@ -672,6 +673,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
         >
           Transformar
+        </button>
+
+        <button
+          type="button"
+          @click="abrirGrafico()"
+          :class="activeTab === 'grafico' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
+          class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
+        >
+          Gráfico estadístico
         </button>
 
         <button
@@ -2438,6 +2448,136 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
 
     <!-- =================================================================== -->
+    <!-- PESTAÑA: GRÁFICO ESTADÍSTICO                                        -->
+    <!-- =================================================================== -->
+    <section x-show="activeTab === 'grafico'" x-cloak class="space-y-4">
+      <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="space-y-2">
+          <h1 class="sec-title">Gráfico estadístico</h1>
+          <p class="text-xs text-[#a0a0b8]">Ingreso, ventas y saldo de la hoja, día por día, en el período elegido.</p>
+          <div class="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#0a0a0f] border border-[#26263a] p-1">
+            <span class="px-3 text-[11px] uppercase tracking-wider text-white font-semibold">Período</span>
+            <template x-for="p in periodos" :key="'graf-' + p.id">
+              <button type="button" @click="setPeriodo(p.id)" class="px-3 py-1.5 rounded-full text-sm font-medium transition" :class="periodo === p.id ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'text-white hover:bg-[#1c1c2b]'" x-text="p.label"></button>
+            </template>
+          </div>
+          <div x-show="periodo === 'custom'" class="flex gap-2">
+            <input type="date" x-model="customDesde" @change="cargarKardex()" aria-label="Desde" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white">
+            <input type="date" x-model="customHasta" @change="cargarKardex()" aria-label="Hasta" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white">
+          </div>
+        </div>
+        <p x-show="graficoRecortado" class="text-[11px] text-[#d4af37] max-w-xs">El gráfico muestra ingreso y ventas de los últimos 14 días. El saldo del período está en la tarjeta.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4">
+          <p class="text-[11px] uppercase tracking-wider text-[#a0a0b8]">Ingreso</p>
+          <p class="text-2xl font-extrabold text-[#d4af37] num-mono mt-1" x-text="formatNum(sumarBase('ingreso'))"></p>
+        </div>
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4">
+          <p class="text-[11px] uppercase tracking-wider text-[#a0a0b8]">Ventas</p>
+          <p class="text-2xl font-extrabold text-rose-300 num-mono mt-1" x-text="formatNum(sumarBase('venta'))"></p>
+        </div>
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4">
+          <p class="text-[11px] uppercase tracking-wider text-[#a0a0b8]">Saldo</p>
+          <p class="text-2xl font-extrabold text-teal-300 num-mono mt-1" x-text="formatNum(sumarSaldo())"></p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 360px;">
+          <h2 class="font-semibold text-sm">Barras apiladas</h2>
+          <p class="text-[11px] text-[#a0a0b8] mb-3">Ingreso y ventas apilados en cada día.</p>
+          <div class="relative flex-1 min-h-0">
+            <canvas id="chartInventarioApiladas"></canvas>
+          </div>
+        </div>
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 360px;">
+          <h2 class="font-semibold text-sm">Gráfico de área</h2>
+          <p class="text-[11px] text-[#a0a0b8] mb-3">Saldo al cierre de cada día.</p>
+          <div class="relative flex-1 min-h-0">
+            <canvas id="chartInventarioArea"></canvas>
+          </div>
+        </div>
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 360px;">
+          <h2 class="font-semibold text-sm">Gráfico de anillo</h2>
+          <p class="text-[11px] text-[#a0a0b8] mb-3">Qué parte de las ventas lleva cada producto. El centro es el total.</p>
+          <div class="relative flex-1 min-h-0">
+            <canvas id="chartInventarioAnillo"></canvas>
+          </div>
+        </div>
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 360px;">
+          <h2 class="font-semibold text-sm">Barras horizontales</h2>
+          <p class="text-[11px] text-[#a0a0b8] mb-3">Los 10 productos con más ventas, de mayor a menor.</p>
+          <div class="relative flex-1 min-h-0">
+            <canvas id="chartInventarioEmbudo"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 360px;">
+          <h2 class="font-semibold text-sm">Ingreso por día</h2>
+          <p class="text-[11px] text-[#a0a0b8] mb-3">Lo que se registró como ingreso en cada día del período.</p>
+          <div class="relative flex-1 min-h-0">
+            <canvas id="chartInventarioIngresoDia"></canvas>
+          </div>
+        </div>
+        <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 360px;">
+          <h2 class="font-semibold text-sm">Ventas por día</h2>
+          <p class="text-[11px] text-[#a0a0b8] mb-3">Lo que salió por ventas en cada día del período.</p>
+          <div class="relative flex-1 min-h-0">
+            <canvas id="chartInventarioVentasDia"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 420px;">
+        <h2 class="font-semibold text-sm">Lo realizado por producto</h2>
+        <p class="text-[11px] text-[#a0a0b8] mb-3">Ingreso registrado y ventas de los 10 productos con más movimiento.</p>
+        <div class="relative flex-1 min-h-0">
+          <canvas id="chartInventarioRealizado"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-[#14141f] border border-[#26263a] rounded-xl overflow-hidden">
+        <div class="px-5 py-3 border-b border-[#26263a] flex justify-between items-center">
+          <h2 class="font-semibold text-sm">Desglose del período</h2>
+          <span class="text-[10px] text-[#a0a0b8]" x-text="filasGrafico().length + ' productos'"></span>
+        </div>
+        <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-[#0a0a0f] sticky top-0">
+              <tr class="text-[10px] uppercase text-[#a0a0b8]">
+                <th class="text-left px-4 py-2.5 font-semibold">#</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Producto</th>
+                <th class="text-right px-3 py-2.5 font-semibold">Ingreso</th>
+                <th class="text-right px-3 py-2.5 font-semibold">Ventas</th>
+                <th class="text-right px-3 py-2.5 font-semibold">Saldo</th>
+                <th class="text-right px-3 py-2.5 font-semibold">% ventas</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-if="filasGrafico().length === 0">
+                <tr><td colspan="6" class="px-4 py-8 text-center text-[#5a5a7a] text-xs">No hay movimiento en el período elegido</td></tr>
+              </template>
+              <template x-for="(f, idx) in filasGrafico()" :key="f.id">
+                <tr class="border-b border-[#26263a] hover:bg-[#d4af37]/5">
+                  <td class="px-4 py-2.5 text-[#5a5a7a]" x-text="idx + 1"></td>
+                  <td class="px-4 py-2.5 font-medium" x-text="f.nombre"></td>
+                  <td class="px-3 py-2.5 text-right num-mono text-[#d4af37]" x-text="formatNum(f.ingreso)"></td>
+                  <td class="px-3 py-2.5 text-right num-mono text-rose-200" x-text="formatNum(f.ventas)"></td>
+                  <td class="px-3 py-2.5 text-right num-mono text-teal-200" x-text="formatNum(f.saldo)"></td>
+                  <td class="px-3 py-2.5 text-right text-[#a0a0b8]" x-text="pctVentaGrafico(f)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
     <!-- PESTAÑA 4: STOCK                                                    -->
     <!-- =================================================================== -->
     <section x-show="activeTab === 'stock'" x-cloak class="space-y-5">
@@ -4084,6 +4224,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ventaManualGuardando: false,
         ingresoAbierto: {},
         ventasPeriodo: [],
+        graficoSerie: [],
+        graficoCargando: false,
+        graficoRecortado: false,
         cocidoOpciones: [],
         draftCocido: [],
         movimientosPeriodo: [],
@@ -4112,6 +4255,327 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         setPeriodo(id) {
           this.periodo = id;
           this.cargarKardex();
+        },
+
+        abrirGrafico() {
+          this.activeTab = 'grafico';
+          this.cargarSerieGrafico();
+        },
+
+        ventanaGrafico() {
+          const r = this.rangoPeriodo();
+          const dias = [];
+          let cursor = r.desde;
+          let n = 0;
+          while (cursor <= r.hasta && n < 400) {
+            dias.push(cursor);
+            cursor = this.diaOffset(cursor, 1);
+            n += 1;
+          }
+          if (dias.length > 14) return { dias: dias.slice(-14), recortado: true };
+          return { dias: dias.length ? dias : [r.desde], recortado: false };
+        },
+
+        etiquetaDia(ymd) {
+          const partes = String(ymd || '').split('-');
+          if (partes.length < 3) return ymd;
+          return partes[2] + '/' + partes[1];
+        },
+
+        sumarBase(base) {
+          return (this.rows || []).reduce((a, row) => a + this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, base, t), 0), 0);
+        },
+
+        sumarSaldo() {
+          return (this.rows || []).reduce((a, row) => a + this.calcSaldo(row), 0);
+        },
+
+        filasGrafico() {
+          const lista = (this.rows || []).map((row) => ({
+            id: row.id,
+            nombre: row.nombre,
+            ingreso: this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, 'ingreso', t), 0),
+            ventas: this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, 'venta', t), 0),
+            saldo: this.calcSaldo(row)
+          })).filter((f) => f.ingreso || f.ventas || f.saldo);
+          lista.sort((a, b) => (b.ventas - a.ventas) || (b.ingreso - a.ingreso) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
+          return lista;
+        },
+
+        pctVentaGrafico(f) {
+          const total = this.filasGrafico().reduce((s, x) => s + x.ventas, 0);
+          if (!total) return '0%';
+          return (Math.round((f.ventas / total) * 1000) / 10) + '%';
+        },
+
+        serieGraficoLocal() {
+          const ventana = this.ventanaGrafico();
+          const rango = this.rangoPeriodo();
+          const ingreso = {};
+          const ingresoRaw = {};
+          const egreso = {};
+          const reg = {};
+          const ventaComanda = {};
+          (this.movimientosPeriodo || []).forEach((m) => {
+            if (!m || !m.fecha) return;
+            const dia = this.ymdOperativo(new Date(m.fecha));
+            const n = Number(m.cantidad) || 0;
+            if (m.clase === 'ingreso') {
+              ingresoRaw[dia] = (ingresoRaw[dia] || 0) + n;
+              const pasa = String(m.motivo || '').indexOf('Pasa a ') === 0 && n < 0;
+              if (!pasa) ingreso[dia] = (ingreso[dia] || 0) + n;
+            } else if (m.clase === 'egreso') {
+              egreso[dia] = (egreso[dia] || 0) + Math.abs(n);
+            } else if (m.clase !== 'inventario') {
+              reg[dia] = (reg[dia] || 0) + n;
+            }
+          });
+          (this.ventasPeriodo || []).forEach((v) => {
+            if (!v || !v.fecha) return;
+            const n = Number(v.cantidad) || 0;
+            if (n <= 0) return;
+            const dia = this.ymdOperativo(new Date(v.fecha));
+            ventaComanda[dia] = (ventaComanda[dia] || 0) + n;
+          });
+          const cubre = ventana.dias[0] === rango.desde;
+          let saldo = cubre ? this.sumarBase('saldoAnterior') : null;
+          return ventana.dias.map((dia) => {
+            const punto = {
+              dia: dia,
+              ingreso: ingreso[dia] || 0,
+              ventas: (egreso[dia] || 0) + (ventaComanda[dia] || 0),
+              saldo: null
+            };
+            if (saldo !== null) {
+              saldo += (ingresoRaw[dia] || 0) + (reg[dia] || 0) - (egreso[dia] || 0) - (ventaComanda[dia] || 0);
+              punto.saldo = saldo;
+            }
+            return punto;
+          });
+        },
+
+        cargarSerieGrafico() {
+          const ventana = this.ventanaGrafico();
+          const rango = this.rangoPeriodo();
+          this.graficoRecortado = ventana.recortado;
+          if (ventana.dias.length === 1 && ventana.dias[0] === rango.desde && rango.desde === rango.hasta) {
+            this.graficoSerie = [{
+              dia: ventana.dias[0],
+              ingreso: this.sumarBase('ingreso'),
+              ventas: this.sumarBase('venta'),
+              saldo: this.sumarSaldo()
+            }];
+          } else {
+            this.graficoSerie = this.serieGraficoLocal();
+          }
+          this.$nextTick(() => this.pintarGrafico());
+        },
+
+        soltarGrafico(ref, id) {
+          if (this[ref]) {
+            try { this[ref].destroy(); } catch (e) {}
+            this[ref] = null;
+          }
+          const canvas = document.getElementById(id);
+          if (canvas && window.Chart && Chart.getChart(canvas)) {
+            try { Chart.getChart(canvas).destroy(); } catch (e) {}
+          }
+        },
+
+        opcionesGrafico(extra) {
+          const tick = { color: '#a0a0b8', font: { size: 11 } };
+          const base = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#a0a0b8', boxWidth: 12, padding: 10 } }
+            },
+            scales: {
+              x: { ticks: Object.assign({ maxRotation: 0, autoSkip: true }, tick), grid: { color: 'rgba(255,255,255,0.06)' } },
+              y: { beginAtZero: true, ticks: tick, grid: { color: 'rgba(255,255,255,0.06)' } }
+            }
+          };
+          if (!extra) return base;
+          return Object.assign({}, base, extra, {
+            plugins: Object.assign({}, base.plugins, extra.plugins || {}),
+            scales: Object.assign({}, base.scales, extra.scales || {})
+          });
+        },
+
+        coloresGrafico() {
+          return ['#d4af37', '#e07a3d', '#3d8b7a', '#6c5ce7', '#e84393', '#00b894', '#fdcb6e', '#74b9ff', '#ff7675', '#a3cb38'];
+        },
+
+        pintarGrafico() {
+          if (this.activeTab !== 'grafico' || typeof Chart === 'undefined') return;
+          this.soltarGrafico('_chartApiladas', 'chartInventarioApiladas');
+          this.soltarGrafico('_chartArea', 'chartInventarioArea');
+          this.soltarGrafico('_chartAnillo', 'chartInventarioAnillo');
+          this.soltarGrafico('_chartEmbudo', 'chartInventarioEmbudo');
+          this.soltarGrafico('_chartIngresoDia', 'chartInventarioIngresoDia');
+          this.soltarGrafico('_chartVentasDia', 'chartInventarioVentasDia');
+          this.soltarGrafico('_chartRealizado', 'chartInventarioRealizado');
+          const serie = this.graficoSerie || [];
+          const colores = this.coloresGrafico();
+          const labelsDia = serie.length ? serie.map((p) => this.etiquetaDia(p.dia)) : ['Sin datos'];
+          const tick = { color: '#a0a0b8', font: { size: 11 } };
+          const elApiladas = document.getElementById('chartInventarioApiladas');
+          if (elApiladas) {
+            this._chartApiladas = new Chart(elApiladas, {
+              type: 'bar',
+              data: {
+                labels: labelsDia,
+                datasets: [
+                  { label: 'Ingreso', data: serie.map((p) => p.ingreso), backgroundColor: '#d4af37', stack: 'dia', borderRadius: 2 },
+                  { label: 'Ventas', data: serie.map((p) => p.ventas), backgroundColor: '#e07a3d', stack: 'dia', borderRadius: 2 }
+                ]
+              },
+              options: this.opcionesGrafico({
+                scales: {
+                  x: { stacked: true, ticks: Object.assign({ maxRotation: 0, autoSkip: true }, tick), grid: { color: 'rgba(255,255,255,0.06)' } },
+                  y: { stacked: true, beginAtZero: true, ticks: tick, grid: { color: 'rgba(255,255,255,0.06)' } }
+                }
+              })
+            });
+          }
+          const haySaldo = serie.some((p) => p.saldo !== null && p.saldo !== undefined);
+          const elArea = document.getElementById('chartInventarioArea');
+          if (elArea) {
+            this._chartArea = new Chart(elArea, {
+              type: 'line',
+              data: {
+                labels: labelsDia,
+                datasets: [{
+                  label: haySaldo ? 'Saldo' : 'Ventas',
+                  data: serie.map((p) => haySaldo ? p.saldo : p.ventas),
+                  borderColor: '#c45c86',
+                  backgroundColor: 'rgba(196,92,134,0.35)',
+                  tension: 0.4,
+                  fill: true,
+                  pointRadius: 3,
+                  pointBackgroundColor: '#c45c86',
+                  spanGaps: false
+                }]
+              },
+              options: this.opcionesGrafico({ plugins: { legend: { display: false } } })
+            });
+          }
+          const filas = this.filasGrafico().filter((f) => f.ventas > 0);
+          const topAnillo = filas.slice(0, 8);
+          const resto = filas.slice(8).reduce((s, f) => s + f.ventas, 0);
+          const etiquetasPie = topAnillo.map((f) => String(f.nombre).substring(0, 22));
+          const valoresPie = topAnillo.map((f) => f.ventas);
+          if (resto > 0) {
+            etiquetasPie.push('Otros');
+            valoresPie.push(resto);
+          }
+          const elAnillo = document.getElementById('chartInventarioAnillo');
+          if (elAnillo) {
+            const totalAnillo = valoresPie.reduce((s, n) => s + n, 0);
+            this._chartAnillo = new Chart(elAnillo, {
+              type: 'doughnut',
+              data: {
+                labels: etiquetasPie.length ? etiquetasPie : ['Sin ventas'],
+                datasets: [{ data: valoresPie.length ? valoresPie : [1], backgroundColor: colores, borderWidth: 0 }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                  legend: { position: 'bottom', labels: { color: '#a0a0b8', boxWidth: 12, padding: 8, font: { size: 11 } } }
+                }
+              },
+              plugins: [{
+                id: 'centroAnillo',
+                afterDraw(chart) {
+                  const area = chart.chartArea;
+                  if (!area) return;
+                  const ctx = chart.ctx;
+                  ctx.save();
+                  ctx.fillStyle = '#ffffff';
+                  ctx.font = '700 22px Inter, sans-serif';
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'middle';
+                  ctx.fillText(String(totalAnillo), (area.left + area.right) / 2, (area.top + area.bottom) / 2);
+                  ctx.restore();
+                }
+              }]
+            });
+          }
+          const top10 = filas.slice(0, 10);
+          const ranking = top10.length ? top10 : [{ nombre: 'Sin ventas', ventas: 0 }];
+          const elEmbudo = document.getElementById('chartInventarioEmbudo');
+          if (elEmbudo) {
+            this._chartEmbudo = new Chart(elEmbudo, {
+              type: 'bar',
+              data: {
+                labels: ranking.map((f) => String(f.nombre).substring(0, 22)),
+                datasets: [{
+                  label: 'Ventas',
+                  data: ranking.map((f) => f.ventas),
+                  backgroundColor: 'rgba(212,175,55,0.85)',
+                  borderRadius: 4
+                }]
+              },
+              options: this.opcionesGrafico({
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: { beginAtZero: true, ticks: tick, grid: { color: 'rgba(255,255,255,0.06)' } },
+                  y: { ticks: tick, grid: { display: false } }
+                }
+              })
+            });
+          }
+          const elIngreso = document.getElementById('chartInventarioIngresoDia');
+          if (elIngreso) {
+            this._chartIngresoDia = new Chart(elIngreso, {
+              type: 'bar',
+              data: {
+                labels: labelsDia,
+                datasets: [{ label: 'Ingreso', data: serie.map((p) => p.ingreso), backgroundColor: '#d4af37', borderRadius: 4 }]
+              },
+              options: this.opcionesGrafico({ plugins: { legend: { display: false } } })
+            });
+          }
+          const elVentas = document.getElementById('chartInventarioVentasDia');
+          if (elVentas) {
+            this._chartVentasDia = new Chart(elVentas, {
+              type: 'bar',
+              data: {
+                labels: labelsDia,
+                datasets: [{ label: 'Ventas', data: serie.map((p) => p.ventas), backgroundColor: '#e07a3d', borderRadius: 4 }]
+              },
+              options: this.opcionesGrafico({ plugins: { legend: { display: false } } })
+            });
+          }
+          const hechos = this.filasGrafico()
+            .filter((f) => f.ingreso || f.ventas)
+            .slice()
+            .sort((a, b) => (b.ingreso + b.ventas) - (a.ingreso + a.ventas))
+            .slice(0, 10);
+          const listaHechos = hechos.length ? hechos : [{ nombre: 'Sin movimiento', ingreso: 0, ventas: 0 }];
+          const elRealizado = document.getElementById('chartInventarioRealizado');
+          if (elRealizado) {
+            this._chartRealizado = new Chart(elRealizado, {
+              type: 'bar',
+              data: {
+                labels: listaHechos.map((f) => String(f.nombre).substring(0, 22)),
+                datasets: [
+                  { label: 'Ingreso', data: listaHechos.map((f) => f.ingreso), backgroundColor: '#d4af37', borderRadius: 4 },
+                  { label: 'Ventas', data: listaHechos.map((f) => f.ventas), backgroundColor: '#e07a3d', borderRadius: 4 }
+                ]
+              },
+              options: this.opcionesGrafico({
+                indexAxis: 'y',
+                scales: {
+                  x: { beginAtZero: true, ticks: tick, grid: { color: 'rgba(255,255,255,0.06)' } },
+                  y: { ticks: tick, grid: { display: false } }
+                }
+              })
+            });
+          }
         },
 
         imprimirHoja() {
@@ -4327,6 +4791,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.movimientosPeriodo = movs.movimientos || [];
             this.aplicarOpcionesCocido(this.cocidoOpciones);
             this.aplicarKardex(k.filas || [], this.movimientosPeriodo, this.ventasPeriodo);
+            if (this.activeTab === 'grafico') this.cargarSerieGrafico();
           } catch (e) {
             this.toastMessage = e.message;
           }
