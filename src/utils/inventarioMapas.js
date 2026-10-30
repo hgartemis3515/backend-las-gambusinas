@@ -56,9 +56,12 @@ const SEMILLA = [
         tipo: 'despiece',
         origen: { clave: 'arroz', nombre: 'Arroz crudo' },
         cortes: [
-            { clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo', factor: 1, factorDesde: '' },
-            { clave: 'arroz-blanco', nombre: 'Arroz blanco', factor: 1, factorDesde: '' },
-            { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 1, factorDesde: '' }
+            { clave: 'arroz-blanco', nombre: 'Arroz blanco', factor: 8, factorDesde: '' },
+            { clave: 'arroz-verde', nombre: 'Arroz verde', factor: 6, factorDesde: '' },
+            { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 4, factorDesde: '' },
+            { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factor: 4, factorDesde: '' },
+            { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factor: 4, factorDesde: '' },
+            { clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo', factor: 1, factorDesde: '' }
         ],
         platos: []
     },

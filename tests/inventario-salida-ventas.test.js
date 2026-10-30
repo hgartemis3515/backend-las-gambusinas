@@ -5,6 +5,21 @@ function dia(ymd, hora) {
     return new Date(`${ymd}T${hora}-05:00`);
 }
 
+test('cada tipo de arroz descuenta su fila y el chaufa de pollo no', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Arroz verde', cantidad: 2 },
+        { nombre: 'Arroz con mariscos', cantidad: 1 },
+        { nombre: 'Arroz chaufa', cantidad: 3 },
+        { nombre: 'Arroz blanco', cantidad: 1 },
+        { nombre: 'Arroz chaufa de pollo', cantidad: 1 }
+    ]);
+    expect(porRubro['arroz-verde']).toBe(2);
+    expect(porRubro['arroz-mariscos']).toBe(1);
+    expect(porRubro['arroz-chaufa']).toBe(3);
+    expect(porRubro['arroz-blanco']).toBe(1);
+    expect(porRubro.filete).toBe(1);
+});
+
 test('cada gaseosa y cada licor descuentan su propia fila', () => {
     const porRubro = aplicarMapa([
         { nombre: 'Inca Kola 1/2 litro', cantidad: 2 },

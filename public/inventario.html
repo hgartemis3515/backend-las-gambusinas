@@ -1058,6 +1058,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <button type="button" class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="abrirVentaFila(row)">
                           <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                         </button>
+                        <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: restar unidades" @click="abrirVentaManual(row)">−</button>
                       </div>
                     </td>
 
@@ -1220,6 +1221,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <button type="button" class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="abrirVentaFila(row)">
                         <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                       </button>
+                      <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: restar unidades" @click="abrirVentaManual(row)">−</button>
                     </div>
                   </td>
 
@@ -1995,12 +1997,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </div>
         </div>
 
-        <!-- MAPA SEMÁNTICO HORIZONTAL: ARROZ CRUDO -> GRUPO ARROCES TRANSFORMADOS (SIN CHAUFA) -->
+        <!-- MAPA SEMÁNTICO HORIZONTAL: ARROZ CRUDO -> TIPOS -->
         <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('arroz')">
           <div class="pb-2 border-b border-[#26263a] flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['arroz'])"></span>. Mapa Semántico Horizontal — Familia Arroz</h2>
-              <p class="text-xs text-[#a0a0b8]">El Arroz crudo abarca el cuadro grupal de arroces elaborados (Arroz blanco no pasa a Chaufa).</p>
+              <p class="text-xs text-[#a0a0b8]">1 arroz crudo nace 8 blanco, 6 verde, 4 pato, 4 chaufa o 4 con mariscos.</p>
             </div>
             <span class="px-2.5 py-1 rounded bg-[#0a0a0f] border border-[#26263a] text-xs font-mono text-white">
               Crudo libre: <strong class="text-emerald-300" x-text="arrozLibre()"></strong>
@@ -2033,7 +2035,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de arroz crudo" @click="stepField('arroz', 'ingreso', 1)">+</button>
                 </div>
               </div>
-              <p class="text-[11px] text-[#a0a0b8]">Repartido: <strong class="text-white font-mono" x-text="(Number(despiece.arrozPollo)||0) + (Number(despiece.arrozBlanco)||0) + (Number(despiece.arrozPato)||0)"></strong></p>
+              <p class="text-[11px] text-[#a0a0b8]">Repartido: <strong class="text-white font-mono" x-text="arrozUsado()"></strong></p>
             </div>
 
             <div class="hidden sm:flex w-10 shrink-0 items-center">
@@ -2044,45 +2046,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="flex-1 cuadro-grupal-semantico space-y-2">
               <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · ARROZ</span>
-                <span class="text-[11px] text-[#a0a0b8]">No incluye Chaufa de pollo</span>
+                <span class="text-[11px] text-[#a0a0b8]">El número es cuántos crudos pasan. Nacen según el factor.</span>
               </div>
 
               <div class="space-y-2">
-                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                  <div>
-                    <span class="text-xs font-bold text-white block">Arroz pollo</span>
-                    <span class="text-[10px] text-[#a0a0b8]">Guarnición y plato (×<span x-text="config.factorArrozPollo || 1"></span>)</span>
+                <template x-for="d in destinosArroz()" :key="'arroz-dest-' + d.campo">
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                    <div>
+                      <span class="text-xs font-bold text-white block" x-text="d.nombre"></span>
+                      <span class="text-[10px] text-[#a0a0b8]">1 crudo → <span x-text="config[d.factorKey] || 1"></span> · Nacen <span class="text-white font-mono" x-text="(Number(despiece[d.campo]) || 0) * (Number(config[d.factorKey]) || 1)"></span></span>
+                    </div>
+                    <div class="inline-flex items-center gap-0.5">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, nudge(despiece[d.campo], -1))">−</button>
+                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Crudos a ' + d.nombre" :value="despiece[d.campo]" @change="fijarArrozDestino(d.campo, $event.target.value)">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, nudge(despiece[d.campo], 1))">+</button>
+                    </div>
                   </div>
-                  <div class="inline-flex items-center gap-0.5">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino('arrozPollo', nudge(despiece.arrozPollo, -1))">−</button>
-                    <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.arrozPollo" @change="fijarArrozDestino('arrozPollo', $event.target.value)">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino('arrozPollo', nudge(despiece.arrozPollo, 1))">+</button>
-                  </div>
-                </div>
-
-                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                  <div>
-                    <span class="text-xs font-bold text-white block">Arroz blanco</span>
-                    <span class="text-[10px] text-[#a0a0b8]">No pasa a Arroz chaufa (×<span x-text="config.factorArrozBlanco || 1"></span>)</span>
-                  </div>
-                  <div class="inline-flex items-center gap-0.5">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino('arrozBlanco', nudge(despiece.arrozBlanco, -1))">−</button>
-                    <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.arrozBlanco" @change="fijarArrozDestino('arrozBlanco', $event.target.value)">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino('arrozBlanco', nudge(despiece.arrozBlanco, 1))">+</button>
-                  </div>
-                </div>
-
-                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                  <div>
-                    <span class="text-xs font-bold text-white block">Arroz pato</span>
-                    <span class="text-[10px] text-[#a0a0b8]">Desde arroz crudo (×<span x-text="config.factorArrozPato || 1"></span>)</span>
-                  </div>
-                  <div class="inline-flex items-center gap-0.5">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino('arrozPato', nudge(despiece.arrozPato, -1))">−</button>
-                    <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.arrozPato" @change="fijarArrozDestino('arrozPato', $event.target.value)">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino('arrozPato', nudge(despiece.arrozPato, 1))">+</button>
-                  </div>
-                </div>
+                </template>
               </div>
             </div>
           </div>
@@ -2929,16 +2909,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-2">
           <h3 class="sec-title">Arroz</h3>
-          <p class="text-xs text-white leading-relaxed">1 crudo se reparte. El factor nace en 1. Arroz blanco no se convierte en Arroz chaufa.</p>
+          <p class="text-xs text-white leading-relaxed">1 crudo nace 8 blanco, 6 verde, 4 pato, 4 chaufa o 4 con mariscos. Arroz pollo sigue como guarnición.</p>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <label class="text-xs text-[#a0a0b8]">Arroz pollo
-              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPollo" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
-            </label>
             <label class="text-xs text-[#a0a0b8]">Arroz blanco
               <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozBlanco" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
             </label>
+            <label class="text-xs text-[#a0a0b8]">Arroz verde
+              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozVerde" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
+            </label>
             <label class="text-xs text-[#a0a0b8]">Arroz pato
               <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPato" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
+            </label>
+            <label class="text-xs text-[#a0a0b8]">Arroz chaufa
+              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozChaufa" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
+            </label>
+            <label class="text-xs text-[#a0a0b8]">Arroz con mariscos
+              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozMariscos" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
+            </label>
+            <label class="text-xs text-[#a0a0b8]">Arroz pollo
+              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPollo" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
             </label>
           </div>
         </div>
@@ -3114,6 +3103,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     </div>
   </template>
 
+  <template x-if="ventaManualAbierta && ventaManualFila">
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaManualAbierta = false" @keydown.escape.window="ventaManualAbierta = false" role="dialog" aria-modal="true" aria-label="Venta manual">
+      <div class="w-full max-w-md bg-[#14141f] border-2 border-[#ff0000] p-5 rounded-xl space-y-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-semibold text-[#ff0000]">Venta manual</h3>
+            <p class="text-sm text-white mt-1" x-text="ventaManualFila.nombre"></p>
+            <p class="text-xs text-[#a0a0b8] mt-1">Resta unidades de este producto. No es una comanda.</p>
+          </div>
+          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ventaManualAbierta = false" aria-label="Cerrar">×</button>
+        </div>
+        <div class="inline-flex items-center gap-2">
+          <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = Math.max(1, (Number(ventaManualCantidad) || 1) - 1)">−</button>
+          <input type="number" min="1" step="1" x-model.number="ventaManualCantidad" aria-label="Unidades a restar" class="w-24 text-center num-mono text-white bg-[#0a0a0f] border border-[#ff0000] rounded-lg px-2 py-2">
+          <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = (Number(ventaManualCantidad) || 0) + 1">+</button>
+        </div>
+        <button type="button" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando" @click="confirmarVentaManual()">Restar</button>
+      </div>
+    </div>
+  </template>
+
   <!-- ===================================================================== -->
   <!-- LÓGICA ALPINE.JS AUTOCONTENIDA                                        -->
   <!-- ===================================================================== -->
@@ -3160,7 +3170,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           { id: 'carnes', nombre: 'Grupo Carnes', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'trucha', nombre: 'Trucha', open: true, staggerKey: 1, nota: 'Cada corte entra directo' },
           { id: 'carnero', nombre: 'Carnero', open: true, staggerKey: 1, nota: '1 a 1 a Carnero pachamanca' },
-          { id: 'arroz', nombre: 'Arroz crudo', open: true, staggerKey: 1, nota: 'Entra crudo. No pasa de Arroz blanco a Arroz chaufa' },
+          { id: 'arroz', nombre: 'Arroz crudo', open: true, staggerKey: 1, nota: '1 crudo nace 8 blanco, 6 verde, 4 pato, 4 chaufa o 4 con mariscos' },
           { id: 'gaseosas', nombre: 'Gaseosas', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'licores', nombre: 'Licores', open: true, staggerKey: 1, nota: '', sinDatos: true }
         ],
@@ -3240,9 +3250,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             nombre: 'Arroz crudo',
             open: true,
             children: [
-              { id: 'arroz_pollo', nombre: 'Arroz pollo' },
               { id: 'arroz_blanco', nombre: 'Arroz blanco' },
-              { id: 'arroz_pato', nombre: 'Arroz pato' }
+              { id: 'arroz_verde', nombre: 'Arroz verde' },
+              { id: 'arroz_pato', nombre: 'Arroz pato' },
+              { id: 'arroz_chaufa', nombre: 'Arroz chaufa' },
+              { id: 'arroz_mariscos', nombre: 'Arroz con mariscos' },
+              { id: 'arroz_pollo', nombre: 'Arroz pollo' }
             ]
           }
         },
@@ -3275,8 +3288,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorFiletesPorPierna: '', // Vacío por defecto
           factorCarneroPachamanca: 1,
           factorArrozPollo: 1,
-          factorArrozBlanco: 1,
-          factorArrozPato: 1,
+          factorArrozBlanco: 8,
+          factorArrozVerde: 6,
+          factorArrozPato: 4,
+          factorArrozChaufa: 4,
+          factorArrozMariscos: 4,
           aderezos: [
             { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: true },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', aceptaPierna: true, aceptaPechuga: true },
@@ -3304,8 +3320,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorFiletesPorPierna: '',
           factorCarneroPachamanca: 1,
           factorArrozPollo: 1,
-          factorArrozBlanco: 1,
-          factorArrozPato: 1,
+          factorArrozBlanco: 8,
+          factorArrozVerde: 6,
+          factorArrozPato: 4,
+          factorArrozChaufa: 4,
+          factorArrozMariscos: 4,
           aderezos: [],
           relaciones: []
         },
@@ -3328,7 +3347,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           arrozCrudo: 0,
           arrozPollo: 0,
           arrozBlanco: 0,
+          arrozVerde: 0,
           arrozPato: 0,
+          arrozChaufa: 0,
+          arrozMariscos: 0,
           dinamico: {}
         },
 
@@ -3394,7 +3416,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           arroz: 'arroz',
           arroz_pollo: 'arroz-tipo-pollo',
           arroz_blanco: 'arroz-blanco',
+          arroz_verde: 'arroz-verde',
           arroz_pato: 'arroz-pato',
+          arroz_chaufa: 'arroz-chaufa',
+          arroz_mariscos: 'arroz-mariscos',
           papas: 'papas',
           tamal: 'tamal',
           gaseosas: 'gaseosas',
@@ -3462,9 +3487,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.despiece.trozosPanceta = 0;
           this.despiece.carneroSalen = 0;
           this.despiece.arrozCrudo = 0;
-          this.despiece.arrozPollo = 0;
-          this.despiece.arrozBlanco = 0;
-          this.despiece.arrozPato = 0;
+          this.camposArroz().forEach((k) => { this.despiece[k] = 0; });
           Object.keys(this.despiece.aderezos).forEach((k) => {
             this.despiece.aderezos[k] = { piernas: 0, pechugas: 0 };
           });
@@ -3473,10 +3496,53 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         leerConfigLocal() {
           try {
             const raw = localStorage.getItem('inventario-conversiones');
-            if (!raw) return;
-            const guardado = JSON.parse(raw);
-            if (guardado && guardado.factorPiernasPorFresco) this.config = guardado;
+            if (raw) {
+              const guardado = JSON.parse(raw);
+              if (guardado && guardado.factorPiernasPorFresco) this.config = guardado;
+            }
           } catch (e) {}
+          this.completarFactoresArroz();
+        },
+
+        factoresArrozBase() {
+          return {
+            factorArrozPollo: 1,
+            factorArrozBlanco: 8,
+            factorArrozVerde: 6,
+            factorArrozPato: 4,
+            factorArrozChaufa: 4,
+            factorArrozMariscos: 4
+          };
+        },
+
+        completarFactoresArroz() {
+          const base = this.factoresArrozBase();
+          if (!(Number(this.config.factorArrozVerde) > 0)) {
+            Object.keys(base).forEach((k) => { this.config[k] = base[k]; });
+            return;
+          }
+          Object.keys(base).forEach((k) => {
+            if (!(Number(this.config[k]) > 0)) this.config[k] = base[k];
+          });
+        },
+
+        camposArroz() {
+          return ['arrozBlanco', 'arrozVerde', 'arrozPato', 'arrozChaufa', 'arrozMariscos', 'arrozPollo'];
+        },
+
+        destinosArroz() {
+          return [
+            { campo: 'arrozBlanco', id: 'arroz_blanco', clave: 'arroz-blanco', nombre: 'Arroz blanco', factorKey: 'factorArrozBlanco' },
+            { campo: 'arrozVerde', id: 'arroz_verde', clave: 'arroz-verde', nombre: 'Arroz verde', factorKey: 'factorArrozVerde' },
+            { campo: 'arrozPato', id: 'arroz_pato', clave: 'arroz-pato', nombre: 'Arroz pato', factorKey: 'factorArrozPato' },
+            { campo: 'arrozChaufa', id: 'arroz_chaufa', clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factorKey: 'factorArrozChaufa' },
+            { campo: 'arrozMariscos', id: 'arroz_mariscos', clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factorKey: 'factorArrozMariscos' },
+            { campo: 'arrozPollo', id: 'arroz_pollo', clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo', factorKey: 'factorArrozPollo' }
+          ];
+        },
+
+        arrozUsado() {
+          return this.camposArroz().reduce((a, k) => a + (Number(this.despiece[k]) || 0), 0);
         },
 
         guardarConfigLocal() {
@@ -3570,6 +3636,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaCargando: false,
         reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
         ventaAbierta: false,
+        ventaManualAbierta: false,
+        ventaManualFila: null,
+        ventaManualCantidad: 1,
+        ventaManualGuardando: false,
         ingresoAbierto: {},
         ventasPeriodo: [],
         movimientosPeriodo: [],
@@ -3861,21 +3931,55 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
-        async paso(rubro, tipo, cantidad, motivo, clase) {
+        async paso(rubro, tipo, cantidad, motivo, clase, nombre) {
           const n = Number(cantidad) || 0;
           if (!n) return;
           const claseFinal = clase || 'ingreso';
+          const body = {
+            rubro,
+            tipoProducto: tipo || 'crudo',
+            clase: claseFinal,
+            cantidad: claseFinal === 'egreso' ? Math.abs(n) : n,
+            motivo,
+            fecha: this.fechaHoy() + 'T12:00:00-05:00'
+          };
+          if (nombre) body.nombre = nombre;
           await this.api('/inventario/movimientos', {
             method: 'POST',
-            body: JSON.stringify({
-              rubro,
-              tipoProducto: tipo || 'crudo',
-              clase: claseFinal,
-              cantidad: claseFinal === 'egreso' ? Math.abs(n) : n,
-              motivo,
-              fecha: this.fechaHoy() + 'T12:00:00-05:00'
-            })
+            body: JSON.stringify(body)
           });
+        },
+
+        abrirVentaManual(row) {
+          if (!row) return;
+          this.ventaManualFila = row;
+          this.ventaManualCantidad = 1;
+          this.ventaManualAbierta = true;
+        },
+
+        async confirmarVentaManual() {
+          const row = this.ventaManualFila;
+          const n = Number(this.ventaManualCantidad);
+          if (!row || !(n > 0)) {
+            this.toastMessage = 'Escribe las unidades a restar.';
+            return;
+          }
+          const clave = this.claveDeFila[row.id];
+          if (!clave) {
+            this.toastMessage = 'Este producto no tiene clave de inventario.';
+            return;
+          }
+          this.ventaManualGuardando = true;
+          try {
+            await this.paso(clave, 'cocido', n, 'Venta manual', 'egreso', row.nombre);
+            this.ventaManualAbierta = false;
+            this.toastMessage = 'Se restaron ' + n + ' de ' + row.nombre + '.';
+            await this.cargarKardex();
+          } catch (e) {
+            this.toastMessage = e.message || 'No se pudo restar';
+          } finally {
+            this.ventaManualGuardando = false;
+          }
         },
 
         abrirVentaEspecial() {
@@ -4215,7 +4319,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Pollo', [['pollo_fresco', 'Pollo fresco'], ['pechuga', 'Pechuga de Pollo'], ['pierna', 'Pierna de Pollo'], ['filete', 'Filete Pollo Crudo'], ['milanesa', 'Milanesa de pollo'], ['filete_junior', 'Filete de pollo'], ['pollada', 'Pollada'], ['pollo_pachamanca', 'Pollo pachamanca'], ['pollo_lena', 'Pecho a la leña'], ['pierna_lena', 'Pierna a la leña'], ['menu', 'Menú']]),
             cuadro('Pescado', [['pescado_entero', 'Pescado entero']]),
             cuadro('Panceta', [['panceta', 'Panceta'], ['trozo_panceta', 'Trozo de panceta']]),
-            cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_pollo', 'Arroz pollo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_pato', 'Arroz pato']]),
+            cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos'], ['arroz_pollo', 'Arroz pollo']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pechuga de pato'], ['pierna_pato', 'Pierna de pato']]),
             cuadro('Pota', [['pota', 'Pota']])
           ].filter((c) => c.filas.length);
@@ -4318,7 +4422,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             arrozCrudo: 20,
             arrozPollo: 8,
             arrozBlanco: 6,
+            arrozVerde: 0,
             arrozPato: 4,
+            arrozChaufa: 0,
+            arrozMariscos: 0,
             dinamico: {}
           };
 
@@ -4369,8 +4476,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'pescado_entero', grupo: null, nombre: 'Pescado entero', detalle: 'Ingreso directo · No pertenece a un grupo de despiece', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 6, cocido: 0 },
             { id: 'arroz', grupo: 'arroz', nombre: 'Arroz crudo', detalle: 'Lo que ingresa', unidad: 'unid', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 18, destinoTrans: '→ tipos', inventario: null, crudo: 2, cocido: 0 },
             { id: 'arroz_pollo', grupo: 'arroz', nombre: 'Arroz pollo', detalle: 'Desde arroz crudo', unidad: 'unid', saldoAnterior: 0, ingreso: 8, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
-            { id: 'arroz_blanco', grupo: 'arroz', nombre: 'Arroz blanco', detalle: 'No pasa a chaufa', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 6 },
-            { id: 'arroz_pato', grupo: 'arroz', nombre: 'Arroz pato', detalle: 'Desde arroz crudo', unidad: 'unid', saldoAnterior: 0, ingreso: 4, correccion: 0, venta: 0, ritmoVentaDiario: 3, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 4 },
+            { id: 'arroz_blanco', grupo: 'arroz', nombre: 'Arroz blanco', detalle: '1 crudo = 8', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 6 },
+            { id: 'arroz_verde', grupo: 'arroz', nombre: 'Arroz verde', detalle: '1 crudo = 6', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'arroz_pato', grupo: 'arroz', nombre: 'Arroz pato', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 4, correccion: 0, venta: 0, ritmoVentaDiario: 3, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 4 },
+            { id: 'arroz_chaufa', grupo: 'arroz', nombre: 'Arroz chaufa', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'arroz_mariscos', grupo: 'arroz', nombre: 'Arroz con mariscos', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'tamal', grupo: null, nombre: 'Tamal', detalle: 'Guarnición y plato', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
           ];
@@ -5016,23 +5126,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.pulseRowTotal('carnero_pachamanca');
 
           const rArroz = this.getRow('arroz');
-          const usadoArroz = Number(this.despiece.arrozPollo || 0) + Number(this.despiece.arrozBlanco || 0) + Number(this.despiece.arrozPato || 0);
+          const usadoArroz = this.arrozUsado();
           if (rArroz) {
             rArroz.transformacion = usadoArroz;
             rArroz.crudo = Math.max(0, this.calcSaldo(rArroz));
             this.pulseRowTotal('arroz');
           }
-          const ponerArroz = (id, crudoUsado, factor) => {
-            const row = this.getRow(id);
+          this.destinosArroz().forEach((d) => {
+            const row = this.filaReal(d.id);
             if (!row) return;
-            row.ingreso = Number(crudoUsado || 0) * Number(factor || 1);
+            row.ingreso = (Number(this.despiece[d.campo]) || 0) * (Number(this.config[d.factorKey]) || 1);
             row.cocido = this.calcSaldo(row);
             row.crudo = 0;
-            this.pulseRowTotal(id);
-          };
-          ponerArroz('arroz_pollo', this.despiece.arrozPollo, this.config.factorArrozPollo);
-          ponerArroz('arroz_blanco', this.despiece.arrozBlanco, this.config.factorArrozBlanco);
-          ponerArroz('arroz_pato', this.despiece.arrozPato, this.config.factorArrozPato);
+            this.pulseRowTotal(row.id);
+          });
         },
 
         pasarALaHoja() {
@@ -5044,14 +5151,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         arrozLibre() {
-          const usado = Number(this.despiece.arrozPollo || 0) + Number(this.despiece.arrozBlanco || 0) + Number(this.despiece.arrozPato || 0);
-          return Number(this.despiece.arrozCrudo || 0) - usado;
+          return Number(this.despiece.arrozCrudo || 0) - this.arrozUsado();
         },
 
         fijarArrozCrudo(val) {
           const next = Math.max(0, Number(val) || 0);
-          const usado = Number(this.despiece.arrozPollo || 0) + Number(this.despiece.arrozBlanco || 0) + Number(this.despiece.arrozPato || 0);
-          if (next < usado) {
+          if (next < this.arrozUsado()) {
             this.transformWarning = 'Aviso ámbar: el arroz crudo no alcanza para lo ya repartido.';
             return;
           }
@@ -5062,7 +5167,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         fijarArrozDestino(campo, val) {
           const next = Math.max(0, Number(val) || 0);
-          const otros = ['arrozPollo', 'arrozBlanco', 'arrozPato'].filter((k) => k !== campo).reduce((a, k) => a + Number(this.despiece[k] || 0), 0);
+          const otros = this.camposArroz().filter((k) => k !== campo).reduce((a, k) => a + Number(this.despiece[k] || 0), 0);
           if (otros + next > Number(this.despiece.arrozCrudo || 0)) {
             this.transformWarning = 'Aviso ámbar: no se puede repartir más arroz del crudo indicado.';
             return;
@@ -5096,11 +5201,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               await this.paso('carnero', 'crudo', -carneros, 'Pasa a Carnero pachamanca');
               await this.paso('pachamanca-cordero', 'cocido', carneros * Number(this.config.factorCarneroPachamanca || 1), 'Sale de Carnero');
             }
-            const usadoArroz = Number(d.arrozPollo || 0) + Number(d.arrozBlanco || 0) + Number(d.arrozPato || 0);
+            const usadoArroz = this.arrozUsado();
             if (usadoArroz) await this.paso('arroz', 'crudo', -usadoArroz, 'Pasa a tipos de arroz');
-            if (Number(d.arrozPollo || 0)) await this.paso('arroz-tipo-pollo', 'cocido', Number(d.arrozPollo) * Number(this.config.factorArrozPollo || 1), 'Sale de Arroz crudo');
-            if (Number(d.arrozBlanco || 0)) await this.paso('arroz-blanco', 'cocido', Number(d.arrozBlanco) * Number(this.config.factorArrozBlanco || 1), 'Sale de Arroz crudo');
-            if (Number(d.arrozPato || 0)) await this.paso('arroz-pato', 'cocido', Number(d.arrozPato) * Number(this.config.factorArrozPato || 1), 'Sale de Arroz crudo');
+            for (const dest of this.destinosArroz()) {
+              const crudos = Number(d[dest.campo] || 0);
+              if (crudos) await this.paso(dest.clave, 'cocido', crudos * Number(this.config[dest.factorKey] || 1), 'Sale de Arroz crudo');
+            }
             await this.guardarMapasDinamicos();
             await this.cargarKardex();
             this.toastMessage = 'Quedó guardado en Inventario Tabla.';
@@ -5257,9 +5363,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               this.despiece.aderezos[ad.id] = { piernas: 0, pechugas: 0 };
             }
           });
-          if (!(Number(this.config.factorArrozPollo) > 0)) this.config.factorArrozPollo = 1;
-          if (!(Number(this.config.factorArrozBlanco) > 0)) this.config.factorArrozBlanco = 1;
-          if (!(Number(this.config.factorArrozPato) > 0)) this.config.factorArrozPato = 1;
+          this.completarFactoresArroz();
 
           this.guardarConfigLocal();
           this.volcarConfigAlMapaPollo();

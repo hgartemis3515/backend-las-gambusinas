@@ -47,7 +47,10 @@ const KARDEX = [
     { clave: 'arroz', nombre: 'Arroz crudo' },
     { clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo' },
     { clave: 'arroz-blanco', nombre: 'Arroz blanco' },
+    { clave: 'arroz-verde', nombre: 'Arroz verde' },
     { clave: 'arroz-pato', nombre: 'Arroz pato' },
+    { clave: 'arroz-chaufa', nombre: 'Arroz chaufa' },
+    { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos' },
     { clave: 'patasca', nombre: 'Patasca' },
     { clave: 'salt-bistec', nombre: 'Salt de bistec' },
     { clave: 'salt-pollo', nombre: 'Salt de pollo' },
@@ -153,6 +156,13 @@ function filasDeRubros(movimientos, desde, hasta, umbralPorClave, extras) {
         if (!e || !e.clave || ya.has(e.clave)) return;
         ya.add(e.clave);
         defs.push({ clave: e.clave, nombre: e.nombre || e.clave });
+    });
+    (movimientos || []).forEach((m) => {
+        const clave = m && m.rubro;
+        if (!clave || ya.has(clave)) return;
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+){0,12}$/.test(String(clave)) || String(clave).length > 80) return;
+        ya.add(clave);
+        defs.push({ clave: clave, nombre: m.nombre || clave });
     });
     const platos = defs.map((d) => ({
         _id: d.clave,

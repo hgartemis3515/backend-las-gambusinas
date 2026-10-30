@@ -147,6 +147,9 @@ async function crearMovimiento(data, usuarioId) {
         const extra = clavesExtra(await leerGuardados().catch(() => [])).find((e) => e.clave === data.rubro);
         if (extra) rubro = extra;
     }
+    if (!rubro && /^[a-z0-9]+(?:-[a-z0-9]+){0,12}$/.test(String(data.rubro || '')) && String(data.rubro).length <= 80) {
+        rubro = { clave: String(data.rubro), nombre: String(data.nombre || data.rubro).trim().slice(0, 80) };
+    }
     let plato = null;
     if (!rubro) {
         plato = await Plato.findById(data.plato).select('id nombre isActive').lean();

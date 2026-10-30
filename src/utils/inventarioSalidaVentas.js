@@ -131,7 +131,11 @@ function rubrosDeFila(fila, mapas) {
         add('licor-' + (n.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'bebida'));
     }
     if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
-    if (n.includes('arroz con pato') || n.includes('arroz de pato')) {
+    if (n.includes('arroz verde')) add('arroz-verde');
+    else if (n.includes('arroz con mariscos') || n.includes('arroz de mariscos') || n.includes('arroz mariscos')) add('arroz-mariscos');
+    else if ((n.includes('arroz chaufa') || n.includes('chaufa de arroz')) && !n.includes('pollo')) add('arroz-chaufa');
+    else if (n.includes('arroz blanco')) add('arroz-blanco');
+    else if (n.includes('arroz con pato') || n.includes('arroz de pato')) {
         if (!lista.some((x) => x.rubro === 'arroz-pato')) add('arroz-pato');
     } else if (/\barroz\b/.test(n) && !n.includes('chaufa') && !n.includes('arroz con pollo') && !lista.some((x) => x.rubro === 'arroz-tipo-pollo')) {
         add('arroz-tipo-pollo');
