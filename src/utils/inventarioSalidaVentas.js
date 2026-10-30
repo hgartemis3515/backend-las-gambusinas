@@ -130,6 +130,12 @@ function rubrosDeFila(fila, mapas) {
     } else if (/\b(vino|vinos|cerveza|pisco|ron|whisky|whiskey|vodka|chilcano|tequila|sangria|licor|licores|gin)\b/.test(n) && !n.includes('vinagre')) {
         add('licor-' + (n.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'bebida'));
     }
+    const propio = rubroPropioDeNombre(n);
+    if (propio) {
+        for (let i = 0; i < lista.length; i++) {
+            if (lista[i].rubro === 'filete') lista[i] = Object.assign({}, lista[i], { rubro: propio });
+        }
+    }
     if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
     if (n.includes('arroz verde')) add('arroz-verde');
     else if (n.includes('arroz con mariscos') || n.includes('arroz de mariscos') || n.includes('arroz mariscos')) add('arroz-mariscos');
@@ -141,6 +147,19 @@ function rubrosDeFila(fila, mapas) {
         add('arroz-tipo-pollo');
     }
     return lista;
+}
+
+function rubroPropioDeNombre(n) {
+    if (n.includes('fuente') || n.includes('filete de pollo')) return '';
+    if (n.includes('filete junior')) return 'filete-junior';
+    if (n.includes('saltado') && n.includes('pollo')) return 'salt-pollo';
+    if (n.includes('chaufa') && n.includes('pollo')) return 'chaufa-pollo';
+    if (n.includes('milanesa junior')) return 'milanesa-junior';
+    if (n.includes('milanesa')) return 'milanesa';
+    if (n.includes('chicharron') && n.includes('pollo') && n.includes('bbq')) return 'chi-pollo-bbq';
+    if (n.includes('acevichad') && n.includes('pollo')) return 'chi-pollo-acevichada';
+    if (n.includes('chicharron') && n.includes('pollo')) return 'chicharron-pollo';
+    return '';
 }
 
 function rubrosDeNombre(nombre, mapas) {

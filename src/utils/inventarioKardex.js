@@ -79,16 +79,17 @@ function armarKardex(platos, movimientos, desde, hasta) {
 }
 
 function aplicarVentasEnFilas(filas, ventas) {
-    const ventaCocido = {};
+    const ventaPor = {};
     (ventas || []).forEach((v) => {
         const rubro = v && (v.rubro || v.plato);
         const cantidad = Number(v && v.cantidad) || 0;
         if (!rubro || cantidad <= 0) return;
-        ventaCocido[rubro] = (ventaCocido[rubro] || 0) + cantidad;
+        const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
+        ventaPor[key] = (ventaPor[key] || 0) + cantidad;
     });
     return (filas || []).map((f) => {
-        if (!f || f.tipoProducto !== 'cocido') return f;
-        const venta = ventaCocido[f.rubro || f.plato] || 0;
+        if (!f) return f;
+        const venta = ventaPor[(f.rubro || f.plato) + '|' + f.tipoProducto] || 0;
         if (!venta) return f;
         const balance = (f.cierre != null ? Number(f.cierre) : Number(f.baja) || 0) - venta;
         const minimo = Number(f.umbral) || 0;

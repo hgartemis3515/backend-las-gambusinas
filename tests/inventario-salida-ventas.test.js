@@ -17,7 +17,8 @@ test('cada tipo de arroz descuenta su fila y el chaufa de pollo no', () => {
     expect(porRubro['arroz-mariscos']).toBe(1);
     expect(porRubro['arroz-chaufa']).toBe(3);
     expect(porRubro['arroz-blanco']).toBe(1);
-    expect(porRubro.filete).toBe(1);
+    expect(porRubro['chaufa-pollo']).toBe(1);
+    expect(porRubro.filete).toBeUndefined();
 });
 
 test('cada gaseosa y cada licor descuentan su propia fila', () => {
@@ -95,7 +96,7 @@ test('un ingreso guardado no se convierte en egreso', () => {
     expect(fila.cierre).toBe(20);
 });
 
-test('el filete junior come 0.5, la fuente come 2 y el resto de platos de filete come 1', () => {
+test('cada plato de filete baja su propia fila y la fuente sigue bajando filete', () => {
     const porRubro = aplicarMapa([
         { nombre: 'Filete junior', cantidad: 2 },
         { nombre: 'Fuente de Chicharrón pollo', cantidad: 1 },
@@ -105,10 +106,13 @@ test('el filete junior come 0.5, la fuente come 2 y el resto de platos de filete
         { nombre: 'Chicharrón de pollo chico + yuca frita + zarza criolla', cantidad: 1 },
         { nombre: 'Lomo saltado de pollo', cantidad: 1 }
     ]);
-    expect(porRubro.filete).toBe(2 * 0.5 + 2 + 1 + 1 + 1 + 1 + 1);
-    expect(porRubro['chaufa-pollo']).toBeUndefined();
-    expect(porRubro['chi-pollo-bbq']).toBeUndefined();
-    expect(porRubro['salt-pollo']).toBeUndefined();
+    expect(porRubro['filete-junior']).toBe(1);
+    expect(porRubro.filete).toBe(2);
+    expect(porRubro['chaufa-pollo']).toBe(1);
+    expect(porRubro['chi-pollo-acevichada']).toBe(1);
+    expect(porRubro['chi-pollo-bbq']).toBe(1);
+    expect(porRubro['chicharron-pollo']).toBe(1);
+    expect(porRubro['salt-pollo']).toBe(1);
 });
 
 test('el arroz con pato de pecho come pechuga y el de pierna come pierna', () => {

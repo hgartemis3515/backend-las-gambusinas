@@ -284,29 +284,31 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       white-space: normal;
       max-width: 0;
     }
-    /* Sistema de círculos de Saldo Real y líneas conectoras entre productos relacionados */
-    .celda-producto-conector {
-      position: relative;
+    /* Círculos de Saldo Real: el riel ocupa todo el alto de la celda para que la línea cruce de fila a fila */
+    main table.tabla-hoja td.celda-producto-conector {
       text-align: left !important;
-      overflow: hidden;
+      padding: 0 !important;
+      overflow: visible;
     }
     .circulo-conector-track {
-      position: relative;
-      width: 34px;
-      min-height: 36px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      position: absolute;
+      top: -1px;
+      bottom: -1px;
+      left: 0;
+      width: 44px;
+      pointer-events: none;
+      z-index: 5;
     }
     .circulo-saldo {
-      position: relative;
-      z-index: 3;
-      left: 4px;
-      width: 11px;
-      height: 11px;
+      position: absolute;
+      left: 19px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 6;
+      width: 12px;
+      height: 12px;
       border-radius: 9999px;
-      transition: background-color 250ms ease, box-shadow 250ms ease, transform 200ms ease;
+      transition: background-color 250ms ease, box-shadow 250ms ease;
     }
     .circulo-saldo-verde {
       background-color: #34d399;
@@ -318,67 +320,65 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       border: 2px solid #fecdd3;
       box-shadow: 0 0 8px rgba(244, 63, 94, 0.8);
     }
-    /* Línea vertical que conecta con el círculo de la fila de arriba */
-    .conector-linea-arriba {
+    .conector-linea-arriba,
+    .conector-linea-abajo,
+    .conector-linea-continua {
       position: absolute;
-      left: 20px;
-      top: -14px;
-      height: calc(50% + 14px);
+      left: 24px;
       width: 2px;
       background-color: #d4af37;
-      opacity: 0.88;
-      z-index: 1;
+      opacity: 0.95;
+      z-index: 2;
       pointer-events: none;
     }
-    /* Línea vertical que conecta con el círculo de la fila de abajo */
-    .conector-linea-abajo {
-      position: absolute;
-      left: 20px;
-      top: 50%;
-      bottom: -14px;
-      width: 2px;
-      background-color: #d4af37;
-      opacity: 0.88;
-      z-index: 1;
-      pointer-events: none;
-    }
+    .conector-linea-arriba { top: 0; height: 50%; }
+    .conector-linea-abajo { top: 50%; bottom: 0; }
+    .conector-linea-continua { top: 0; bottom: 0; }
     /* Puente troncal lateral: conecta Pollo fresco directamente con Pierna de Pollo saltando Chaufa de pollo */
     .conector-troncal-inicio {
       position: absolute;
-      left: 6px;
+      left: 8px;
       top: 50%;
-      bottom: -14px;
-      width: 15px;
+      bottom: 0;
+      width: 17px;
       border-left: 2px solid #38bdf8;
       border-top: 2px solid #38bdf8;
       border-top-left-radius: 4px;
-      opacity: 0.9;
-      z-index: 2;
+      opacity: 0.95;
+      z-index: 3;
       pointer-events: none;
     }
     .conector-troncal-paso {
       position: absolute;
-      left: 6px;
-      top: -14px;
-      bottom: -14px;
+      left: 8px;
+      top: 0;
+      bottom: 0;
       width: 2px;
       background-color: #38bdf8;
-      opacity: 0.75;
-      z-index: 2;
+      opacity: 0.95;
+      z-index: 3;
       pointer-events: none;
     }
     .conector-troncal-fin {
       position: absolute;
-      left: 6px;
-      top: -14px;
-      height: calc(50% + 15px);
-      width: 15px;
+      left: 8px;
+      top: 0;
+      height: 50%;
+      width: 17px;
       border-left: 2px solid #38bdf8;
       border-bottom: 2px solid #38bdf8;
       border-bottom-left-radius: 4px;
       opacity: 0.95;
       z-index: 2;
       pointer-events: none;
+    }
+    .tabla-scroll-fija {
+      max-height: calc(100vh - 210px);
+      overflow: auto;
+    }
+    .tabla-scroll-fija thead th {
+      position: sticky;
+      z-index: 25;
     }
 
     main .paso-num {
@@ -667,15 +667,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <button
           type="button"
-          @click="activeTab = 'crudo_cocido'"
-          :class="activeTab === 'crudo_cocido' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
-          class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
-        >
-          Crudo y cocido
-        </button>
-
-        <button
-          type="button"
           @click="activeTab = 'transformar'"
           :class="activeTab === 'transformar' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
           class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
@@ -886,28 +877,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <!-- TABLA REDISEÑADA (TEMA OSCURO #14141f / #1a1a28, BANDAS Y COLUMNAS CON COLORES DISTINTOS) -->
       <div class="tabla-impresion bg-[#14141f] border border-[#26263a] overflow-hidden shadow-2xl" :class="compactView ? 'rounded-none' : 'rounded-xl'">
         <h2 class="titulo-impresion">Hoja de Producción del Día</h2>
-        <div class="overflow-x-auto">
+        <div class="tabla-scroll-fija">
           <table class="tabla-hoja text-left">
             <thead>
-              <tr class="bg-[#12121a] uppercase font-bold">
-                <th colspan="2" class="text-left px-3 py-2 border-b border-[#d4af37]/40 text-[#d4af37]">1. Apertura</th>
-                <th colspan="3" class="text-left px-3 py-2 border-b border-l border-[#d4af37]/40 text-emerald-300">2. Entró hoy</th>
-                <th colspan="2" class="text-left px-3 py-2 border-b border-l border-[#d4af37]/40 text-amber-300">3. Salió hoy</th>
-                <th colspan="5" class="text-left px-3 py-2 border-b border-l border-[#d4af37]/40 text-sky-300">4. Queda (una sola cifra de cierre)</th>
+              <tr class="bg-[#101018] uppercase font-bold">
+                <th colspan="2" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-[#26263a] text-[#d4af37]">1. Apertura</th>
+                <th colspan="3" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-emerald-300">2. Entró hoy</th>
+                <th colspan="2" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-amber-300">3. Salió hoy</th>
+                <th colspan="5" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-sky-300">4. Queda (cierre y auditoría)</th>
               </tr>
-              <tr class="bg-[#151522] font-semibold">
-                <th class="bg-[#1e2436] text-white sticky left-0 z-10 text-left px-3 py-2">Producto</th>
-                <th class="bg-[#232038] text-purple-200 text-right px-2.5 py-2" title="Cierre arrastrado. Solo lectura: para ajustar usa Corrección.">Saldo ant.</th>
-                <th class="bg-[#16302b] text-emerald-200 text-center px-2.5 py-2 border-l border-[#26263a]">Ingreso</th>
-                <th class="bg-[#332818] text-amber-200 text-right px-2.5 py-2" title="Ajuste con motivo obligatorio">Corrección</th>
-                <th class="bg-[#182e38] text-white text-right px-2.5 py-2" title="Con corrección: saldo anterior + corrección. Sin corrección: saldo anterior + ingreso">Ingreso total</th>
-                <th class="bg-[#361c24] text-rose-200 text-right px-2.5 py-2 border-l border-[#26263a]" title="Ventas de comandas, solo lectura">Venta comandas</th>
-                <th class="bg-[#2f2416] text-orange-200 text-left px-2.5 py-2">Transformación</th>
-                <th class="bg-[#1a2740] text-sky-200 text-right px-2.5 py-2 border-l border-[#26263a]" title="Ingreso total − venta − transformación">Saldo</th>
-                <th class="bg-[#1d2b3a] text-blue-200 text-right px-2.5 py-2">Conteo</th>
-                <th class="bg-[#d4af37]/15 text-[#d4af37] text-right px-2.5 py-2 font-extrabold">Queda (Saldo real)</th>
-                <th class="bg-[#2b1f33] text-pink-200 text-center px-2.5 py-2" title="Conteo − saldo">Diferencia</th>
-                <th class="bg-[#1a1a28] text-white text-left px-3 py-2">Estado / Mín.</th>
+              <tr class="font-semibold">
+                <th class="sticky top-[32px] left-0 z-40 bg-[#1e2436] text-white text-left px-3 py-2">Producto</th>
+                <th class="sticky top-[32px] z-30 bg-[#232038] text-purple-200 text-right px-2.5 py-2">Saldo ant.</th>
+                <th class="sticky top-[32px] z-30 bg-[#16302b] text-emerald-200 text-center px-2.5 py-2">Ingreso</th>
+                <th class="sticky top-[32px] z-30 bg-[#332818] text-amber-200 text-center px-2.5 py-2">Corrección</th>
+                <th class="sticky top-[32px] z-30 bg-[#182e38] text-cyan-200 text-right px-2.5 py-2">Ingreso total</th>
+                <th class="sticky top-[32px] z-30 bg-[#361c24] text-rose-200 text-right px-2.5 py-2">Venta comandas</th>
+                <th class="sticky top-[32px] z-30 bg-[#2f2416] text-orange-200 text-left px-2.5 py-2">Transformación</th>
+                <th class="sticky top-[32px] z-30 bg-[#1a2740] text-sky-200 text-right px-2.5 py-2">Saldo</th>
+                <th class="sticky top-[32px] z-30 bg-[#1d2b3a] text-blue-200 text-center px-2.5 py-2">Conteo</th>
+                <th class="sticky top-[32px] z-30 bg-[#2b2210] text-[#d4af37] text-right px-2.5 py-2 font-extrabold">Queda (Saldo real)</th>
+                <th class="sticky top-[32px] z-30 bg-[#2b1f33] text-pink-200 text-center px-2.5 py-2">Diferencia</th>
+                <th class="sticky top-[32px] z-30 bg-[#1a1a28] text-white text-left px-3 py-2">Estado</th>
               </tr>
             </thead>
 
@@ -916,8 +907,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <!-- ============================================================= -->
             <template x-for="group in tableGroups" :key="'grp-body-' + group.id">
               <tbody x-show="groupHasMatch(group.id)" class="divide-y divide-[#26263a] text-sm border-t-2 border-[#26263a]">
-                <tr x-show="group.sinDatos" @click="toggleGroup(group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer">
-                  <td class="py-3 px-4 font-bold text-white sticky left-0 bg-[#1a1a28]">
+                <tr x-show="group.sinDatos" @click="toggleGroup(group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer" :style="rowBgColors[group.id] ? ('background-color:' + rowBgColors[group.id]) : ''">
+                  <td class="py-3 px-4 font-bold text-white sticky left-0" :class="rowBgColors[group.id] ? '' : 'bg-[#1a1a28]'" :style="rowBgColors[group.id] ? ('background-color:' + rowBgColors[group.id]) : ''">
                     <div class="flex items-center gap-2.5">
                       <span class="w-6 h-6 rounded-md bg-[#0a0a0f] border border-[#26263a] inline-flex items-center justify-center text-xs text-[#d4af37]" :class="group.open ? 'rotate-0' : '-rotate-90'">▼</span>
                       <span class="text-[16px] text-white font-bold" x-text="group.nombre"></span>
@@ -945,20 +936,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       updatedRows[row.id] ? 'row-updated-bar' : '',
                       item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]'
                     ]"
-                    :style="'animation-delay: ' + (idx * 45) + 'ms; transition-delay: ' + (idx * 45) + 'ms'"
+                    :style="'animation-delay: ' + (idx * 45) + 'ms; transition-delay: ' + (idx * 45) + 'ms' + (rowBgColors[row.id] ? ';background-color:' + rowBgColors[row.id] : '')"
                     class="hover:bg-[#232336] transition-colors"
                   >
                     <td
                       class="celda-producto-conector pr-4 pl-2 font-medium text-white sticky left-0 border-l-2 border-[#d4af37]/40"
-                      :class="item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]'"
+                      :class="rowBgColors[row.id] ? '' : (item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]')"
+                      :style="rowBgColors[row.id] ? ('background-color:' + rowBgColors[row.id]) : ''"
                     >
-                      <div class="flex items-center min-h-[42px]">
-                        <!-- Riel vertical de círculos conectados (solo conecta productos/platos relacionados) -->
                         <div class="circulo-conector-track" :title="item.connectorTitle || ''">
-                          <!-- Línea hacia la fila relacionada de arriba -->
-                          <span x-show="item.connectUp" class="conector-linea-arriba"></span>
-                          <!-- Línea hacia la fila relacionada de abajo -->
-                          <span x-show="item.connectDown" class="conector-linea-abajo"></span>
+                          <span x-show="item.connectUp && item.connectDown" class="conector-linea-continua"></span>
+                          <span x-show="item.connectUp && !item.connectDown" class="conector-linea-arriba"></span>
+                          <span x-show="!item.connectUp && item.connectDown" class="conector-linea-abajo"></span>
                           <!-- Conector troncal directo: Pollo fresco -> Pierna de Pollo (sin conectar Chaufa de pollo con Pierna) -->
                           <span x-show="item.trunkStartPolloFresco" class="conector-troncal-inicio"></span>
                           <span x-show="item.trunkPassThrough" class="conector-troncal-paso"></span>
@@ -972,8 +961,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           ></span>
                         </div>
 
-                        <!-- Nombre del producto / agrupador con su nivel de árbol -->
-                        <div class="flex items-center gap-2 py-2" :style="'padding-left:' + (item.depth * 14) + 'px'">
+                        <div class="flex items-center gap-2 py-2.5 pr-3 min-h-[46px]" :style="'padding-left:' + (46 + item.depth * 14) + 'px'">
                           <button
                             type="button"
                             x-show="item.hasChildren"
@@ -981,149 +969,196 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             class="w-6 h-6 rounded-md bg-[#0a0a0f] border border-[#26263a] inline-flex items-center justify-center text-xs text-[#d4af37] cursor-pointer transition-transform duration-300"
                             :class="item.node && item.node.open ? 'rotate-0' : '-rotate-90'"
                           >▼</button>
-                          <span class="font-semibold text-white" x-text="item.nombre"></span>
+                          <span class="font-semibold text-white whitespace-nowrap" x-text="item.nombre"></span>
                           <span x-show="item.hasChildren" class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200] tracking-wide">GRUPO</span>
+                          <button
+                            type="button"
+                            @click.stop="abrirModalAuditoria(row)"
+                            class="w-6 h-6 rounded-md bg-[#1a1a2e] hover:bg-[#2b2b45] text-amber-400 border border-amber-500/50 inline-flex items-center justify-center cursor-pointer transition ml-1.5"
+                            :title="'Auditar movimientos de ' + row.nombre"
+                            :aria-label="'Auditar movimientos de ' + row.nombre"
+                          >
+                            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 12h6"></path><path d="M9 16h4"></path></svg>
+                          </button>
                         </div>
-                      </div>
                     </td>
-                    <!-- Saldo anterior (solo lectura, viene del cierre previo) -->
+                    <!-- Saldo anterior: Crudo arriba, Cocido abajo si el producto tiene cocido -->
                     <td class="px-3 py-2.5 text-right num-mono text-purple-200 font-semibold border-r border-[#26263a]/40">
-                      <span x-text="formatNum(row.saldoAnterior)"></span>
+                      <template x-if="row.tieneCocido">
+                        <div class="flex flex-col items-end gap-1 py-0.5">
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-bold text-emerald-400 font-sans tracking-wide">Crudo</span>
+                            <span class="num-mono font-medium text-purple-200" x-text="formatNum(valorTipo(row, 'saldoAnterior', 'crudo'))"></span>
+                          </div>
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-bold text-[#d4af37] font-sans tracking-wide">Cocido</span>
+                            <span class="num-mono font-medium text-amber-200" x-text="formatNum(valorTipo(row, 'saldoAnterior', 'cocido'))"></span>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!row.tieneCocido">
+                        <span x-text="formatNum(row.saldoAnterior)"></span>
+                      </template>
                     </td>
 
-                    <!-- Ingreso (editable con stepper − input + directo en tabla) -->
+                    <!-- Ingreso: Crudo arriba, Cocido abajo -->
                     <td class="px-3 py-2.5 text-right">
-                      <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
-                        <button
-                          type="button"
-                          @click="stepField(row.id, 'ingreso', -1)"
-                          class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer"
-                        >−</button>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          :value="row.ingreso"
-                          @change="updateIngresoDirecto(row.id, $event.target.value)"
-                          class="num-claro w-12 text-center num-mono font-bold text-sm focus:outline-none"
-                          :aria-label="'Ingreso de ' + row.nombre"
-                        />
-                        <button
-                          type="button"
-                          @click="stepField(row.id, 'ingreso', 1)"
-                          class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer"
-                        >+</button>
+                      <div class="flex flex-col items-end gap-1">
+                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-ing-' + tipo">
+                          <div class="flex items-center gap-1">
+                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                            <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
+                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, -1)">−</button>
+                              <input type="number" min="0" step="1" class="num-claro w-12 text-center num-mono font-bold text-sm focus:outline-none" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
+                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, 1)">+</button>
+                            </div>
+                          </div>
+                        </template>
                       </div>
                     </td>
 
-                    <!-- Corrección (con motivo / marca #) -->
+                    <!-- Corrección: Crudo arriba, Cocido abajo -->
                     <td class="px-3 py-2.5 text-right">
-                      <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
-                        <button
-                          type="button"
-                          @click="updateCorreccion(row.id, Number(row.correccion || 0) - 1)"
-                          class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer"
-                        >−</button>
-                        <input
-                          type="number"
-                          step="1"
-                          :value="row.correccion"
-                          @change="updateCorreccion(row.id, $event.target.value)"
-                          class="num-claro w-10 text-center num-mono font-semibold text-sm focus:outline-none"
-                          :aria-label="'Corrección de ' + row.nombre"
-                        />
-                        <button
-                          type="button"
-                          @click="updateCorreccion(row.id, Number(row.correccion || 0) + 1)"
-                          class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer"
-                        >+</button>
+                      <div class="flex flex-col items-end gap-1">
+                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-cor-' + tipo">
+                          <div class="flex items-center gap-1">
+                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                            <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
+                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, -1)">−</button>
+                              <input type="number" step="1" class="num-claro w-10 text-center num-mono font-semibold text-sm focus:outline-none" :value="valorTipo(row, 'correccion', tipo)" :aria-label="'Corrección ' + tipo + ' de ' + row.nombre" @change="fijarCampo(row.id, 'correccion', tipo, $event.target.value)">
+                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, 1)">+</button>
+                            </div>
+                            <span x-show="valorTipo(row, 'correccion', tipo) !== 0" class="text-[#d4af37] font-bold text-xs num-mono">#</span>
+                          </div>
+                        </template>
                       </div>
-                      <span x-show="Number(row.correccion) !== 0" class="text-[#d4af37] font-bold text-xs ml-0.5 num-mono">#</span>
                     </td>
 
-                    <!-- Ingreso total (con destello fluido sobre oro #d4af37 y scale-up sutil) -->
+                    <!-- Ingreso total -->
                     <td class="px-3 py-2.5 text-right border-r border-[#26263a]/40">
-                      <span
-                        class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40"
-                        :class="updatedRows[row.id] ? 'total-gold-flash' : ''"
-                        x-text="formatNum(calcIngresoTotal(row))"
-                      ></span>
+                      <template x-if="row.tieneCocido">
+                        <div class="flex flex-col items-end gap-0.5 text-xs">
+                          <div class="flex items-center gap-1 text-[11px]">
+                            <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
+                            <span class="num-mono font-semibold text-cyan-200" x-text="formatNum(calcIngresoTotalTipo(row, 'crudo'))"></span>
+                          </div>
+                          <div class="flex items-center gap-1 text-[11px]">
+                            <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
+                            <span class="num-mono font-semibold text-cyan-300" x-text="formatNum(calcIngresoTotalTipo(row, 'cocido'))"></span>
+                          </div>
+                          <div class="border-t border-cyan-800/40 pt-0.5 flex items-center gap-1">
+                            <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
+                            <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!row.tieneCocido">
+                        <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                      </template>
                     </td>
 
                     <!-- Venta (solo lectura, viene de comandas) -->
                     <td class="px-3 py-2.5 text-right num-mono">
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-rose-400/80" title="Viene de comandas"></span>
-                        <span class="text-rose-200 font-semibold" x-text="formatNum(row.venta)"></span>
+                        <div class="flex flex-col items-end gap-1">
+                          <template x-for="tipo in tiposDe(row)" :key="row.id + '-ven-' + tipo">
+                            <div class="flex items-center gap-1">
+                              <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                              <span class="text-rose-200 font-semibold" x-text="formatNum(valorTipo(row, 'venta', tipo))"></span>
+                            </div>
+                          </template>
+                        </div>
                         <button type="button" class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="abrirVentaFila(row)">
                           <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                         </button>
-                        <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: restar unidades" @click="abrirVentaManual(row)">−</button>
+                        <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: resta cocido, luego crudo y luego la reserva" @click="abrirVentaManual(row)">−</button>
                       </div>
                     </td>
 
-                    <!-- Transformación (muestra traslado claro) -->
+                    <!-- Transformación -->
                     <td class="px-3 py-2.5 text-right border-r border-[#26263a]/40">
-                      <button
-                        type="button"
-                        @click="activeTab = 'transformar'"
-                        class="caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer"
-                      >
-                        <span class="num-mono font-bold text-[#111111]" x-text="formatNum(row.transformacion)"></span>
+                      <button type="button" @click="activeTab = 'transformar'" class="caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer">
+                        <span class="num-mono font-bold text-[#111111]" x-text="formatNum(valorTipo(row, 'transformacion', 'crudo') + valorTipo(row, 'transformacion', 'cocido'))"></span>
                       </button>
                     </td>
 
-                    <!-- Saldo (con tooltip de la cuenta exacta de esa fila + destello fluido sobre #d4af37) -->
-                    <td
-                      class="px-3 py-2.5 text-right bg-[#d4af37]/[0.07]"
-                      :title="formulaTooltip(row)"
-                    >
-                      <span
-                        class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40"
-                        :class="updatedRows[row.id] ? 'total-gold-flash' : ''"
-                        x-text="formatNum(calcSaldo(row))"
-                      ></span>
+                    <!-- Saldo -->
+                    <td class="px-3 py-2.5 text-right bg-[#d4af37]/[0.07]" :title="formulaTooltip(row)">
+                      <div class="flex flex-col items-end gap-1">
+                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-sal-' + tipo">
+                          <div class="flex items-center gap-1">
+                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoTipo(row, tipo))"></span>
+                          </div>
+                        </template>
+                      </div>
                     </td>
 
-                    <!-- Inventario (conteo físico en cámara) -->
+                    <!-- Conteo físico: Crudo arriba, Cocido abajo -->
                     <td class="px-3 py-2.5 text-right num-mono">
-                      <button
-                        type="button"
-                        @click="openCountModal(row.id)"
-                        class="caja-clara px-2.5 py-1 rounded-lg border num-mono text-xs font-bold text-[#111111] transition cursor-pointer"
-                      >
-                        <span x-text="row.inventario === null ? '— Contar' : formatNum(row.inventario) + ' #'"></span>
-                      </button>
+                      <template x-if="row.tieneCocido">
+                        <div class="flex flex-col items-end gap-1 text-xs">
+                          <template x-for="tipo in ['crudo', 'cocido']" :key="row.id + '-cnt-' + tipo">
+                            <button type="button" @click="openCountModal(row.id, tipo)" class="caja-clara px-2 py-0.5 rounded-md border text-[11px] font-bold text-[#111111] transition cursor-pointer">
+                              <span class="text-[10px] font-sans font-bold mr-1" :class="tipo === 'cocido' ? 'text-amber-800' : 'text-emerald-700'" x-text="etiquetaTipo(tipo) + ':'"></span>
+                              <span x-text="conteoTipo(row, tipo) === null ? '— contar' : formatNum(conteoTipo(row, tipo)) + ' #'"></span>
+                            </button>
+                          </template>
+                        </div>
+                      </template>
+                      <template x-if="!row.tieneCocido">
+                        <button type="button" @click="openCountModal(row.id, 'crudo')" class="caja-clara px-2.5 py-1 rounded-lg border num-mono text-xs font-bold text-[#111111] transition cursor-pointer">
+                          <span x-text="conteoTipo(row, 'crudo') === null ? '— Contar' : formatNum(conteoTipo(row, 'crudo')) + ' #'"></span>
+                        </button>
+                      </template>
                     </td>
 
-                    <!-- Saldo real (única cifra de "queda", con destello fluido sobre #d4af37) -->
+                    <!-- Queda (saldo real) -->
                     <td class="px-3 py-2.5 text-right">
-                      <span
-                        class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40"
-                        :class="updatedRows[row.id] ? 'total-gold-flash' : ''"
-                        x-text="formatNum(calcSaldoReal(row))"
-                      ></span>
+                      <template x-if="row.tieneCocido">
+                        <div class="flex flex-col items-end gap-0.5 text-xs">
+                          <div class="flex items-center gap-1">
+                            <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
+                            <span class="num-mono font-bold text-teal-300" x-text="formatNum(calcSaldoRealTipo(row, 'crudo'))"></span>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
+                            <span class="num-mono font-bold text-teal-200" x-text="formatNum(calcSaldoRealTipo(row, 'cocido'))"></span>
+                          </div>
+                          <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
+                            <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
+                            <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!row.tieneCocido">
+                        <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                      </template>
                     </td>
 
                     <!-- Diferencia (azul si sobra, rojo si falta, vacío si nadie contó) -->
                     <td class="px-3 py-2.5 text-right num-mono font-bold border-r border-[#26263a]/40">
-                      <template x-if="calcDiferencia(row) === null">
-                        <span class="text-[#5a5a7a]">—</span>
-                      </template>
-                      <template x-if="calcDiferencia(row) !== null">
-                        <span
-                          class="px-2 py-0.5 rounded-md text-xs font-extrabold"
-                          :class="calcDiferencia(row) < 0 ? 'bg-rose-600 text-white' : (calcDiferencia(row) > 0 ? 'bg-blue-600 text-white' : 'bg-emerald-900/60 text-emerald-300')"
-                          x-text="(calcDiferencia(row) > 0 ? '+' : '') + formatNum(calcDiferencia(row))"
-                        ></span>
-                      </template>
+                      <div class="flex flex-col items-end gap-1">
+                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-dif-' + tipo">
+                          <div class="flex items-center gap-1">
+                            <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                            <span x-show="calcDiferenciaTipo(row, tipo) === null" class="text-[#5a5a7a]">—</span>
+                            <span
+                              x-show="calcDiferenciaTipo(row, tipo) !== null"
+                              class="px-2 py-0.5 rounded-md text-xs font-extrabold"
+                              :class="calcDiferenciaTipo(row, tipo) < 0 ? 'bg-rose-600 text-white' : (calcDiferenciaTipo(row, tipo) > 0 ? 'bg-blue-600 text-white' : 'bg-emerald-900/60 text-emerald-300')"
+                              x-text="(calcDiferenciaTipo(row, tipo) > 0 ? '+' : '') + formatNum(calcDiferenciaTipo(row, tipo))"
+                            ></span>
+                          </div>
+                        </template>
+                      </div>
                     </td>
 
-                    <td class="px-3 py-2.5 text-left whitespace-nowrap">
+                    <td class="px-3 py-2 text-left whitespace-nowrap">
                       <div class="inline-flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full shrink-0" :class="estadoFila(row) === 'Crítico' ? 'bg-rose-500' : (estadoFila(row) === 'Bajo' ? 'bg-amber-400' : 'bg-emerald-400')"></span>
-                        <span class="text-xs font-semibold" :class="estadoFila(row) === 'Crítico' ? 'text-rose-300' : (estadoFila(row) === 'Bajo' ? 'text-amber-200' : 'text-[#a0a0b8]')" x-text="estadoFila(row)"></span>
-                        <span class="text-[11px] font-mono text-[#a0a0b8]" x-show="Number(row.stockMinimo) > 0" x-text="'(mín ' + row.stockMinimo + ')'"></span>
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="esSaldoSuficiente(row) ? 'bg-emerald-400' : 'bg-rose-500'"></span>
+                        <span class="text-xs font-semibold" :class="esSaldoSuficiente(row) ? 'text-emerald-300' : 'text-rose-300'" x-text="estadoFila(row)"></span>
                       </div>
                     </td>
 
@@ -1139,148 +1174,208 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <template x-for="row in getFilteredLooseRows()" :key="row.id">
                 <tr
                   :class="updatedRows[row.id] ? 'row-updated-bar' : ''"
+                  :style="rowBgColors[row.id] ? ('background-color:' + rowBgColors[row.id]) : ''"
                   class="bg-[#14141f] hover:bg-[#1a1a28] transition-colors"
                 >
                   <!-- Producto (Fila sola de primer nivel, sin conexión con otras filas solas) -->
-                  <td class="celda-producto-conector pr-4 pl-2 font-semibold text-white sticky left-0 bg-[#14141f]">
-                    <div class="flex items-center min-h-[42px]">
-                      <div class="circulo-conector-track">
-                        <span
-                          class="circulo-saldo"
-                          :class="esSaldoSuficiente(row) ? 'circulo-saldo-verde' : 'circulo-saldo-rojo dot-critico'"
-                          :title="esSaldoSuficiente(row) ? ('Saldo real suficiente: ' + formatNum(calcSaldoReal(row))) : ('Saldo real cero o poco: ' + formatNum(calcSaldoReal(row)))"
-                        ></span>
-                      </div>
-                      <span class="text-white font-bold py-2" x-text="row.nombre"></span>
-                    </div>
-                  </td>
-                  <!-- Saldo anterior -->
-                  <td class="px-3 py-3 text-right num-mono text-purple-200 font-semibold border-r border-[#26263a]/40" x-text="formatNum(row.saldoAnterior)"></td>
-
-                  <!-- Ingreso -->
-                  <td class="px-3 py-3 text-right">
-                    <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
-                      <button
-                        type="button"
-                        @click="stepField(row.id, 'ingreso', -1)"
-                        class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer"
-                      >−</button>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        :value="row.ingreso"
-                        @change="updateIngresoDirecto(row.id, $event.target.value)"
-                        class="num-claro w-12 text-center num-mono font-bold text-sm focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        @click="stepField(row.id, 'ingreso', 1)"
-                        class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer"
-                      >+</button>
-                    </div>
-                  </td>
-
-                  <!-- Corrección -->
-                  <td class="px-3 py-3 text-right">
-                    <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
-                      <button
-                        type="button"
-                        @click="updateCorreccion(row.id, Number(row.correccion || 0) - 1)"
-                        class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer"
-                      >−</button>
-                      <input
-                        type="number"
-                        step="1"
-                        :value="row.correccion"
-                        @change="updateCorreccion(row.id, $event.target.value)"
-                        class="num-claro w-10 text-center num-mono font-semibold text-sm focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        @click="updateCorreccion(row.id, Number(row.correccion || 0) + 1)"
-                        class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer"
-                      >+</button>
-                    </div>
-                  </td>
-
-                  <!-- Ingreso total -->
-                  <td class="px-3 py-3 text-right border-r border-[#26263a]/40">
-                    <span
-                      class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40"
-                      :class="updatedRows[row.id] ? 'total-gold-flash' : ''"
-                      x-text="formatNum(calcIngresoTotal(row))"
-                    ></span>
-                  </td>
-
-                  <!-- Venta -->
-                  <td class="px-3 py-3 text-right num-mono">
-                    <div class="inline-flex items-center justify-end gap-1.5">
-                      <span class="w-1.5 h-1.5 rounded-full bg-rose-400/80"></span>
-                      <span class="text-rose-200 font-semibold" x-text="formatNum(row.venta)"></span>
-                      <button type="button" class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="abrirVentaFila(row)">
-                        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-                      </button>
-                      <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: restar unidades" @click="abrirVentaManual(row)">−</button>
-                    </div>
-                  </td>
-
-                  <!-- Transformación -->
-                  <td class="px-3 py-3 text-right num-mono border-r border-[#26263a]/40">
-                    <span class="caja-clara inline-flex px-2.5 py-1 rounded-lg border num-mono font-bold text-[#111111]" x-text="formatNum(row.transformacion)"></span>
-                  </td>
-
-                  <!-- Saldo -->
-                  <td
-                    class="px-3 py-3 text-right bg-[#d4af37]/[0.07]"
-                    :title="formulaTooltip(row)"
-                  >
-                    <span
-                      class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40"
-                      :class="updatedRows[row.id] ? 'total-gold-flash' : ''"
-                      x-text="formatNum(calcSaldo(row))"
-                    ></span>
-                  </td>
-
-                  <!-- Inventario -->
-                  <td class="px-3 py-3 text-right num-mono">
-                    <button
-                      type="button"
-                      @click="openCountModal(row.id)"
-                      class="caja-clara px-2.5 py-1 rounded-lg border num-mono text-xs font-bold text-[#111111] transition cursor-pointer"
-                    >
-                      <span x-text="row.inventario === null ? '— Contar' : formatNum(row.inventario) + ' #'"></span>
-                    </button>
-                  </td>
-
-                  <!-- Saldo real -->
-                  <td class="px-3 py-3 text-right">
-                    <span
-                      class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40"
-                      :class="updatedRows[row.id] ? 'total-gold-flash' : ''"
-                      x-text="formatNum(calcSaldoReal(row))"
-                    ></span>
-                  </td>
-
-                  <!-- Diferencia -->
-                  <td class="px-3 py-3 text-right num-mono font-bold border-r border-[#26263a]/40">
-                    <template x-if="calcDiferencia(row) === null">
-                      <span class="text-[#5a5a7a]">—</span>
-                    </template>
-                    <template x-if="calcDiferencia(row) !== null">
+                  <td class="celda-producto-conector pr-4 pl-2 font-semibold text-white sticky left-0" :class="rowBgColors[row.id] ? '' : 'bg-[#14141f]'" :style="rowBgColors[row.id] ? ('background-color:' + rowBgColors[row.id]) : ''">
+                    <div class="circulo-conector-track">
                       <span
-                        class="px-2 py-0.5 rounded-md text-xs font-extrabold"
-                        :class="calcDiferencia(row) < 0 ? 'bg-rose-600 text-white' : (calcDiferencia(row) > 0 ? 'bg-blue-600 text-white' : 'bg-emerald-900/60 text-emerald-300')"
-                        x-text="(calcDiferencia(row) > 0 ? '+' : '') + formatNum(calcDiferencia(row))"
+                        class="circulo-saldo"
+                        :class="esSaldoSuficiente(row) ? 'circulo-saldo-verde' : 'circulo-saldo-rojo dot-critico'"
+                        :title="esSaldoSuficiente(row) ? ('Saldo real suficiente: ' + formatNum(calcSaldoReal(row))) : ('Saldo real cero o poco: ' + formatNum(calcSaldoReal(row)))"
                       ></span>
-                    </template>
+                    </div>
+                    <div class="flex items-center gap-2 py-2.5 pr-3 min-h-[46px]" style="padding-left: 46px">
+                      <span class="text-white font-bold whitespace-nowrap" x-text="row.nombre"></span>
+                      <button
+                        type="button"
+                        @click.stop="abrirModalAuditoria(row)"
+                        class="w-6 h-6 rounded-md bg-[#1a1a2e] hover:bg-[#2b2b45] text-amber-400 border border-amber-500/50 inline-flex items-center justify-center cursor-pointer transition ml-1.5"
+                        :title="'Auditar movimientos de ' + row.nombre"
+                        :aria-label="'Auditar movimientos de ' + row.nombre"
+                      >
+                        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 12h6"></path><path d="M9 16h4"></path></svg>
+                      </button>
+                    </div>
                   </td>
+                    <!-- Saldo anterior: Crudo arriba, Cocido abajo si el producto tiene cocido -->
+                    <td class="px-3 py-3 text-right num-mono text-purple-200 font-semibold border-r border-[#26263a]/40">
+                      <template x-if="row.tieneCocido">
+                        <div class="flex flex-col items-end gap-1 py-0.5">
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-bold text-emerald-400 font-sans tracking-wide">Crudo</span>
+                            <span class="num-mono font-medium text-purple-200" x-text="formatNum(valorTipo(row, 'saldoAnterior', 'crudo'))"></span>
+                          </div>
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-bold text-[#d4af37] font-sans tracking-wide">Cocido</span>
+                            <span class="num-mono font-medium text-amber-200" x-text="formatNum(valorTipo(row, 'saldoAnterior', 'cocido'))"></span>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!row.tieneCocido">
+                        <span x-text="formatNum(row.saldoAnterior)"></span>
+                      </template>
+                    </td>
 
-                  <td class="px-3 py-3 text-left whitespace-nowrap">
+                    <!-- Ingreso: Crudo arriba, Cocido abajo -->
+                    <td class="px-3 py-3 text-right">
+                      <div class="flex flex-col items-end gap-1">
+                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-ing-' + tipo">
+                          <div class="flex items-center gap-1">
+                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                            <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
+                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, -1)">−</button>
+                              <input type="number" min="0" step="1" class="num-claro w-12 text-center num-mono font-bold text-sm focus:outline-none" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
+                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, 1)">+</button>
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </td>
+
+                    <!-- Corrección: Crudo arriba, Cocido abajo -->
+                    <td class="px-3 py-3 text-right">
+                      <div class="flex flex-col items-end gap-1">
+                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-cor-' + tipo">
+                          <div class="flex items-center gap-1">
+                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                            <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
+                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, -1)">−</button>
+                              <input type="number" step="1" class="num-claro w-10 text-center num-mono font-semibold text-sm focus:outline-none" :value="valorTipo(row, 'correccion', tipo)" :aria-label="'Corrección ' + tipo + ' de ' + row.nombre" @change="fijarCampo(row.id, 'correccion', tipo, $event.target.value)">
+                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, 1)">+</button>
+                            </div>
+                            <span x-show="valorTipo(row, 'correccion', tipo) !== 0" class="text-[#d4af37] font-bold text-xs num-mono">#</span>
+                          </div>
+                        </template>
+                      </div>
+                    </td>
+
+                    <!-- Ingreso total -->
+                    <td class="px-3 py-3 text-right border-r border-[#26263a]/40">
+                      <template x-if="row.tieneCocido">
+                        <div class="flex flex-col items-end gap-0.5 text-xs">
+                          <div class="flex items-center gap-1 text-[11px]">
+                            <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
+                            <span class="num-mono font-semibold text-cyan-200" x-text="formatNum(calcIngresoTotalTipo(row, 'crudo'))"></span>
+                          </div>
+                          <div class="flex items-center gap-1 text-[11px]">
+                            <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
+                            <span class="num-mono font-semibold text-cyan-300" x-text="formatNum(calcIngresoTotalTipo(row, 'cocido'))"></span>
+                          </div>
+                          <div class="border-t border-cyan-800/40 pt-0.5 flex items-center gap-1">
+                            <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
+                            <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!row.tieneCocido">
+                        <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                      </template>
+                    </td>
+
+                    <!-- Venta (solo lectura, viene de comandas) -->
+                    <td class="px-3 py-3 text-right num-mono">
+                      <div class="inline-flex items-center justify-end gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400/80" title="Viene de comandas"></span>
+                        <div class="flex flex-col items-end gap-1">
+                          <template x-for="tipo in tiposDe(row)" :key="row.id + '-ven-' + tipo">
+                            <div class="flex items-center gap-1">
+                              <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                              <span class="text-rose-200 font-semibold" x-text="formatNum(valorTipo(row, 'venta', tipo))"></span>
+                            </div>
+                          </template>
+                        </div>
+                        <button type="button" class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="abrirVentaFila(row)">
+                          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                        </button>
+                        <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: resta cocido, luego crudo y luego la reserva" @click="abrirVentaManual(row)">−</button>
+                      </div>
+                    </td>
+
+                    <!-- Transformación -->
+                    <td class="px-3 py-3 text-right border-r border-[#26263a]/40">
+                      <button type="button" @click="activeTab = 'transformar'" class="caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer">
+                        <span class="num-mono font-bold text-[#111111]" x-text="formatNum(valorTipo(row, 'transformacion', 'crudo') + valorTipo(row, 'transformacion', 'cocido'))"></span>
+                      </button>
+                    </td>
+
+                    <!-- Saldo -->
+                    <td class="px-3 py-3 text-right bg-[#d4af37]/[0.07]" :title="formulaTooltip(row)">
+                      <div class="flex flex-col items-end gap-1">
+                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-sal-' + tipo">
+                          <div class="flex items-center gap-1">
+                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoTipo(row, tipo))"></span>
+                          </div>
+                        </template>
+                      </div>
+                    </td>
+
+                    <!-- Conteo físico: Crudo arriba, Cocido abajo -->
+                    <td class="px-3 py-3 text-right num-mono">
+                      <template x-if="row.tieneCocido">
+                        <div class="flex flex-col items-end gap-1 text-xs">
+                          <template x-for="tipo in ['crudo', 'cocido']" :key="row.id + '-cnt-' + tipo">
+                            <button type="button" @click="openCountModal(row.id, tipo)" class="caja-clara px-2 py-0.5 rounded-md border text-[11px] font-bold text-[#111111] transition cursor-pointer">
+                              <span class="text-[10px] font-sans font-bold mr-1" :class="tipo === 'cocido' ? 'text-amber-800' : 'text-emerald-700'" x-text="etiquetaTipo(tipo) + ':'"></span>
+                              <span x-text="conteoTipo(row, tipo) === null ? '— contar' : formatNum(conteoTipo(row, tipo)) + ' #'"></span>
+                            </button>
+                          </template>
+                        </div>
+                      </template>
+                      <template x-if="!row.tieneCocido">
+                        <button type="button" @click="openCountModal(row.id, 'crudo')" class="caja-clara px-2.5 py-1 rounded-lg border num-mono text-xs font-bold text-[#111111] transition cursor-pointer">
+                          <span x-text="conteoTipo(row, 'crudo') === null ? '— Contar' : formatNum(conteoTipo(row, 'crudo')) + ' #'"></span>
+                        </button>
+                      </template>
+                    </td>
+
+                    <!-- Queda (saldo real) -->
+                    <td class="px-3 py-3 text-right">
+                      <template x-if="row.tieneCocido">
+                        <div class="flex flex-col items-end gap-0.5 text-xs">
+                          <div class="flex items-center gap-1">
+                            <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
+                            <span class="num-mono font-bold text-teal-300" x-text="formatNum(calcSaldoRealTipo(row, 'crudo'))"></span>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
+                            <span class="num-mono font-bold text-teal-200" x-text="formatNum(calcSaldoRealTipo(row, 'cocido'))"></span>
+                          </div>
+                          <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
+                            <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
+                            <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                          </div>
+                        </div>
+                      </template>
+                      <template x-if="!row.tieneCocido">
+                        <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                      </template>
+                    </td>
+
+                    <!-- Diferencia (azul si sobra, rojo si falta, vacío si nadie contó) -->
+                    <td class="px-3 py-3 text-right num-mono font-bold border-r border-[#26263a]/40">
+                      <div class="flex flex-col items-end gap-1">
+                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-dif-' + tipo">
+                          <div class="flex items-center gap-1">
+                            <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
+                            <span x-show="calcDiferenciaTipo(row, tipo) === null" class="text-[#5a5a7a]">—</span>
+                            <span
+                              x-show="calcDiferenciaTipo(row, tipo) !== null"
+                              class="px-2 py-0.5 rounded-md text-xs font-extrabold"
+                              :class="calcDiferenciaTipo(row, tipo) < 0 ? 'bg-rose-600 text-white' : (calcDiferenciaTipo(row, tipo) > 0 ? 'bg-blue-600 text-white' : 'bg-emerald-900/60 text-emerald-300')"
+                              x-text="(calcDiferenciaTipo(row, tipo) > 0 ? '+' : '') + formatNum(calcDiferenciaTipo(row, tipo))"
+                            ></span>
+                          </div>
+                        </template>
+                      </div>
+                    </td>
+
+                  <td class="px-3 py-2 text-left whitespace-nowrap">
                     <div class="inline-flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full shrink-0" :class="estadoFila(row) === 'Crítico' ? 'bg-rose-500' : (estadoFila(row) === 'Bajo' ? 'bg-amber-400' : 'bg-emerald-400')"></span>
-                      <span class="text-xs font-semibold" :class="estadoFila(row) === 'Crítico' ? 'text-rose-300' : (estadoFila(row) === 'Bajo' ? 'text-amber-200' : 'text-[#a0a0b8]')" x-text="estadoFila(row)"></span>
-                      <span class="text-[11px] font-mono text-[#a0a0b8]" x-show="Number(row.stockMinimo) > 0" x-text="'(mín ' + row.stockMinimo + ')'"></span>
+                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="esSaldoSuficiente(row) ? 'bg-emerald-400' : 'bg-rose-500'"></span>
+                      <span class="text-xs font-semibold" :class="esSaldoSuficiente(row) ? 'text-emerald-300' : 'text-rose-300'" x-text="estadoFila(row)"></span>
                     </div>
                   </td>
 
@@ -1294,7 +1389,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <!-- =================================================================== -->
     <!-- PESTAÑA 2: CRUDO Y COCIDO                                           -->
     <!-- =================================================================== -->
-    <section x-show="activeTab === 'crudo_cocido'" x-cloak class="space-y-4">
+    <section x-show="false" x-cloak class="space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <p class="text-xs text-[#a0a0b8]">Cada cuadro es el del commit anterior: saldo anterior, cocido, crudo, total y final. Cocido y crudo se anotan en la misma fila de Inventario Tabla. El día corre de 04:00 a 04:00.</p>
         <button type="button" @click="abrirReporteDia(fechaReporteDia(), 'hoja')" class="px-4 py-2.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-bold text-sm cursor-pointer">Reporte del día</button>
@@ -2617,6 +2712,276 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
   </div>
 
+  <!-- =================================================================== -->
+  <!-- MODAL DE AUDITORÍA Y HISTORIAL DE MOVIMIENTOS CON FILTRO DE PERÍODOS -->
+  <!-- =================================================================== -->
+  <div
+    x-show="showAuditoriaModal"
+    x-cloak
+    class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm"
+    @keydown.escape.window="cerrarModalAuditoria()"
+  >
+    <div
+      class="bg-[#14141f] border-2 border-[#d4af37]/60 rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+      @click.outside="cerrarModalAuditoria()"
+    >
+      <div class="bg-[#101018] border-b border-[#26263a] px-5 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[#d4af37]">
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              <path d="M9 12h6"></path>
+              <path d="M9 16h4"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-bold text-white tracking-wide">Auditoría de Movimientos y Kárdex</h2>
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-[#d4af37] text-[#1a1200]" x-text="auditoriaRow ? auditoriaRow.nombre : ''"></span>
+            </div>
+            <p class="text-xs text-[#a0a0b8] mt-0.5">Consulta de trazabilidad, motivos de corrección y variaciones históricas filtradas por período.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          @click="cerrarModalAuditoria()"
+          class="w-8 h-8 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#a0a0b8] hover:text-white flex items-center justify-center cursor-pointer transition font-bold"
+          aria-label="Cerrar modal de auditoría"
+        >✕</button>
+      </div>
+
+      <template x-if="auditoriaRow">
+        <div class="bg-[#0c0c14] border-b border-[#26263a] px-5 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
+            <span class="text-[#a0a0b8] block">Saldo Anterior</span>
+            <div class="flex items-baseline gap-1 mt-0.5">
+              <span class="text-base font-extrabold text-purple-200 num-mono" x-text="formatNum(valorTipo(auditoriaRow, 'saldoAnterior', 'crudo') + valorTipo(auditoriaRow, 'saldoAnterior', 'cocido'))"></span>
+              <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+            </div>
+            <div x-show="auditoriaRow.tieneCocido" class="text-[10px] text-[#a0a0b8] mt-1 flex gap-2">
+              <span>Crudo: <strong class="text-emerald-300" x-text="formatNum(valorTipo(auditoriaRow, 'saldoAnterior', 'crudo'))"></strong></span>
+              <span>Cocido: <strong class="text-[#d4af37]" x-text="formatNum(valorTipo(auditoriaRow, 'saldoAnterior', 'cocido'))"></strong></span>
+            </div>
+          </div>
+          <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
+            <span class="text-[#a0a0b8] block">Ingreso Acumulado</span>
+            <div class="flex items-baseline gap-1 mt-0.5">
+              <span class="text-base font-extrabold text-cyan-200 num-mono" x-text="formatNum(calcIngresoTotal(auditoriaRow) - valorTipo(auditoriaRow, 'saldoAnterior', 'crudo') - valorTipo(auditoriaRow, 'saldoAnterior', 'cocido'))"></span>
+              <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+            </div>
+            <span class="text-[10px] text-[#71718a] block mt-1">Ingresos + correcciones del día</span>
+          </div>
+          <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
+            <span class="text-[#a0a0b8] block">Salidas Totales</span>
+            <div class="flex items-baseline gap-1 mt-0.5">
+              <span class="text-base font-extrabold text-rose-300 num-mono" x-text="formatNum(salidasAuditoria().venta + salidasAuditoria().transformacion)"></span>
+              <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+            </div>
+            <div class="text-[10px] text-[#a0a0b8] mt-1 flex gap-2">
+              <span>Venta: <strong class="text-rose-300" x-text="formatNum(salidasAuditoria().venta)"></strong></span>
+              <span>Transf: <strong class="text-orange-300" x-text="formatNum(salidasAuditoria().transformacion)"></strong></span>
+            </div>
+          </div>
+          <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[#a0a0b8] block">Saldo Real Actual</span>
+              <span class="w-2.5 h-2.5 rounded-full" :class="esSaldoSuficiente(auditoriaRow) ? 'bg-emerald-400' : 'bg-rose-500 animate-pulse'"></span>
+            </div>
+            <div class="flex items-baseline gap-1 mt-0.5">
+              <span class="text-base font-extrabold text-[#d4af37] num-mono" x-text="formatNum(calcSaldoReal(auditoriaRow))"></span>
+              <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+            </div>
+            <span class="text-[10px] font-semibold block mt-1" :class="esSaldoSuficiente(auditoriaRow) ? 'text-emerald-300' : 'text-rose-300'" x-text="estadoFila(auditoriaRow)"></span>
+          </div>
+        </div>
+      </template>
+
+      <div class="bg-[#101018] px-5 py-3 border-b border-[#26263a] space-y-2.5 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-xs font-bold text-[#d4af37] mr-1 flex items-center gap-1">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Período:</span>
+            </span>
+            <template x-for="p in [['hoy', 'Hoy'], ['ayer', 'Ayer'], ['7dias', 'Últimos 7 días'], ['todos', 'Todos'], ['personalizado', 'Personalizado']]" :key="'aud-p-' + p[0]">
+              <button
+                type="button"
+                @click="setAuditoriaPeriodo(p[0])"
+                class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
+                :class="auditoriaFiltroPeriodo === p[0] ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#1c1c2b] text-[#a0a0b8] hover:text-white'"
+                x-text="p[1]"
+              ></button>
+            </template>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <template x-if="auditoriaRow && auditoriaRow.tieneCocido">
+              <div class="flex items-center gap-1 bg-[#141422] border border-[#26263a] rounded-lg p-0.5">
+                <button type="button" @click="auditoriaFiltroTipo = 'todos'" class="px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer" :class="auditoriaFiltroTipo === 'todos' ? 'bg-[#26263a] text-white' : 'text-[#71718a] hover:text-white'">Todos</button>
+                <button type="button" @click="auditoriaFiltroTipo = 'crudo'" class="px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer" :class="auditoriaFiltroTipo === 'crudo' ? 'bg-emerald-950 text-emerald-300 font-bold' : 'text-[#71718a] hover:text-emerald-300'">Crudo</button>
+                <button type="button" @click="auditoriaFiltroTipo = 'cocido'" class="px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer" :class="auditoriaFiltroTipo === 'cocido' ? 'bg-amber-950 text-[#d4af37] font-bold' : 'text-[#71718a] hover:text-[#d4af37]'">Cocido</button>
+              </div>
+            </template>
+            <select x-model="auditoriaFiltroClase" class="bg-[#141422] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-[#d4af37]">
+              <option value="todos">Todas las operaciones</option>
+              <option value="correccion">Solo Correcciones / Ajustes</option>
+              <option value="ingreso">Solo Ingresos</option>
+              <option value="conteo">Solo Conteo en Cámara</option>
+              <option value="venta">Solo Ventas</option>
+              <option value="transformacion">Solo Transformaciones</option>
+            </select>
+          </div>
+        </div>
+
+        <div x-show="auditoriaFiltroPeriodo === 'personalizado'" class="pt-2 border-t border-[#26263a] flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[#a0a0b8]">Desde:</span>
+            <input type="date" x-model="auditoriaFechaDesde" @change="cargarAuditoria()" class="bg-[#0a0a0f] border border-[#26263a] rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#d4af37]">
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[#a0a0b8]">Hasta:</span>
+            <input type="date" x-model="auditoriaFechaHasta" @change="cargarAuditoria()" class="bg-[#0a0a0f] border border-[#26263a] rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#d4af37]">
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-y-auto max-h-[46vh] flex-1 p-4">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-[#101018] text-[#a0a0b8] border-b border-[#26263a] sticky top-0">
+              <th class="px-3 py-2 font-semibold">Fecha y Hora</th>
+              <th class="px-2.5 py-2 font-semibold">Período</th>
+              <th class="px-2.5 py-2 font-semibold">Operación</th>
+              <th class="px-2.5 py-2 font-semibold">Variante</th>
+              <th class="px-3 py-2 font-semibold">Motivo / Detalle de Auditoría</th>
+              <th class="px-2.5 py-2 font-semibold text-right">Variación (+/−)</th>
+              <th class="px-2.5 py-2 font-semibold text-right">Saldo Resultante</th>
+              <th class="px-3 py-2 font-semibold">Auditor / Responsable</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#1e1e2d]">
+            <template x-for="mov in getMovimientosFiltrados()" :key="'aud-mov-' + mov.id">
+              <tr class="hover:bg-[#1a1a2b] transition-colors">
+                <td class="px-3 py-2.5 num-mono text-white whitespace-nowrap" x-text="mov.fecha"></td>
+                <td class="px-2.5 py-2.5 whitespace-nowrap">
+                  <span
+                    class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+                    :class="mov.periodoTag === 'hoy' ? 'bg-[#d4af37]/20 text-[#d4af37]' : (mov.periodoTag === 'ayer' ? 'bg-purple-950 text-purple-300' : 'bg-[#1c1c2b] text-[#a0a0b8]')"
+                    x-text="mov.periodoTag === '7dias' ? '7 días' : mov.periodoTag"
+                  ></span>
+                </td>
+                <td class="px-2.5 py-2.5 whitespace-nowrap">
+                  <span
+                    class="px-2 py-0.5 rounded text-[10px] font-bold"
+                    :class="{
+                      'bg-amber-950 text-amber-300 border border-amber-500/30': mov.clase === 'correccion',
+                      'bg-emerald-950 text-emerald-300 border border-emerald-500/30': mov.clase === 'ingreso',
+                      'bg-blue-950 text-blue-300 border border-blue-500/30': mov.clase === 'conteo',
+                      'bg-rose-950 text-rose-300 border border-rose-500/30': mov.clase === 'venta',
+                      'bg-orange-950 text-orange-300 border border-orange-500/30': mov.clase === 'transformacion'
+                    }"
+                    x-text="mov.clase === 'correccion' ? 'Corrección' : (mov.clase === 'ingreso' ? 'Ingreso' : (mov.clase === 'conteo' ? 'Conteo Cámara' : (mov.clase === 'venta' ? 'Venta Comandas' : 'Transformación')))"
+                  ></span>
+                </td>
+                <td class="px-2.5 py-2.5 whitespace-nowrap">
+                  <span
+                    class="px-1.5 py-0.5 rounded text-[10px] font-bold font-sans"
+                    :class="mov.tipoProducto === 'cocido' ? 'bg-amber-950 text-[#d4af37]' : 'bg-emerald-950 text-emerald-300'"
+                    x-text="mov.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo'"
+                  ></span>
+                </td>
+                <td class="px-3 py-2.5 text-white max-w-[280px]">
+                  <p class="truncate font-medium" :title="mov.motivo" x-text="mov.motivo"></p>
+                </td>
+                <td class="px-2.5 py-2.5 text-right num-mono font-bold whitespace-nowrap">
+                  <span
+                    :class="mov.clase === 'conteo' ? 'text-blue-300' : (Number(mov.cantidad) > 0 ? 'text-emerald-400' : (Number(mov.cantidad) < 0 ? 'text-rose-400' : 'text-[#a0a0b8]'))"
+                    x-text="mov.clase === 'conteo' ? ('= ' + formatNum(mov.cantidad)) : ((Number(mov.cantidad) > 0 ? '+' : '') + formatNum(mov.cantidad))"
+                  ></span>
+                </td>
+                <td class="px-2.5 py-2.5 text-right num-mono font-bold text-cyan-200 whitespace-nowrap">
+                  <span x-text="mov.saldoResultante !== null && mov.saldoResultante !== undefined ? formatNum(mov.saldoResultante) : '—'"></span>
+                </td>
+                <td class="px-3 py-2.5 text-[#a0a0b8] whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1">
+                    <svg viewBox="0 0 24 24" class="w-3 h-3 text-[#71718a]" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span x-text="mov.auditor || '—'"></span>
+                  </span>
+                </td>
+              </tr>
+            </template>
+            <tr x-show="!auditoriaCargando && getMovimientosFiltrados().length === 0">
+              <td colspan="8" class="text-center py-8 text-[#71718a]">
+                <p class="text-sm font-semibold text-[#a0a0b8]">No se encontraron movimientos para el filtro seleccionado.</p>
+                <p class="text-xs mt-1">Prueba seleccionando «Todos» o cambiando el rango de fechas.</p>
+              </td>
+            </tr>
+            <tr x-show="auditoriaCargando">
+              <td colspan="8" class="text-center py-8 text-[#a0a0b8]">Cargando movimientos…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div x-show="nuevoAjusteForm.abierto" class="bg-[#0c0c16] border-t border-[#26263a] px-5 py-3 space-y-2.5 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-[#d4af37]">Nuevo ajuste manual (se guarda como corrección)</span>
+          <button type="button" @click="nuevoAjusteForm.abierto = false" class="text-[#a0a0b8] hover:text-white cursor-pointer">✕ Cancelar</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-[#a0a0b8] mb-1">Cantidad (+ o − unidades):</label>
+            <input type="number" step="1" x-model.number="nuevoAjusteForm.cantidad" class="w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2.5 py-1.5 text-white font-mono font-bold focus:outline-none focus:border-[#d4af37]">
+          </div>
+          <div x-show="auditoriaRow && auditoriaRow.tieneCocido">
+            <label class="block text-[#a0a0b8] mb-1">Variante:</label>
+            <select x-model="nuevoAjusteForm.tipo" class="w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-[#d4af37]">
+              <option value="crudo">Crudo</option>
+              <option value="cocido">Cocido</option>
+            </select>
+          </div>
+          <div :class="(auditoriaRow && auditoriaRow.tieneCocido) ? 'sm:col-span-2' : 'sm:col-span-3'">
+            <label class="block text-[#a0a0b8] mb-1">Motivo justificado:</label>
+            <input type="text" x-model="nuevoAjusteForm.motivo" maxlength="200" placeholder="Ej. Merma de corte, grasa, comanda devuelta" class="w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-[#d4af37]">
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" @click="nuevoAjusteForm.abierto = false" class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] text-[#a0a0b8] hover:text-white cursor-pointer">Cancelar</button>
+          <button type="button" @click="guardarNuevoAjusteModal()" class="px-4 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-bold hover:brightness-110 cursor-pointer shadow-md">✓ Registrar Ajuste</button>
+        </div>
+      </div>
+
+      <div class="bg-[#101018] border-t border-[#26263a] px-5 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-3 text-[#a0a0b8]">
+          <span x-text="getMovimientosFiltrados().length + ' movimientos listados'"></span>
+          <span class="text-[#71718a]">· Período: <strong class="text-white" x-text="auditoriaFiltroPeriodo.toUpperCase()"></strong></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            x-show="!nuevoAjusteForm.abierto"
+            @click="nuevoAjusteForm.abierto = true"
+            class="px-3 py-1.5 rounded-lg bg-[#1a1a2b] hover:bg-[#25253b] border border-amber-500/40 text-amber-300 font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
+          >
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Registrar Ajuste</span>
+          </button>
+          <button
+            type="button"
+            @click="exportarAuditoriaCsv()"
+            class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] border border-[#26263a] text-white font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
+            title="Descargar lista de movimientos en CSV para Excel"
+          >
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Descargar CSV</span>
+          </button>
+          <button type="button" @click="cerrarModalAuditoria()" class="px-4 py-1.5 rounded-lg bg-[#26263a] hover:bg-[#33334d] text-white font-bold cursor-pointer transition">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================================================================== -->
   <!-- MODAL 1: «CONTAR CÁMARA» (CONTEO FÍSICO EN COLUMNA INVENTARIO)        -->
   <!-- ===================================================================== -->
@@ -2649,10 +3014,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </select>
         </div>
 
+        <div x-show="countForm.rowId && getRow(countForm.rowId).tieneCocido" class="grid grid-cols-2 gap-2">
+          <template x-for="tipo in ['crudo', 'cocido']" :key="'cnt-tipo-' + tipo">
+            <button
+              type="button"
+              @click="countForm.tipo = tipo; syncCountFormValue()"
+              class="px-3 py-2 rounded-lg border text-sm font-bold cursor-pointer"
+              :class="countForm.tipo === tipo ? 'border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]' : 'border-[#26263a] bg-[#0a0a0f] text-[#a0a0b8]'"
+              x-text="etiquetaTipo(tipo)"
+            ></button>
+          </template>
+        </div>
+
         <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 flex items-center justify-between">
           <div>
             <span class="block text-xs text-[#a0a0b8]">Saldo calculado en hoja</span>
-            <span class="num-mono font-extrabold text-xl text-white" x-text="countForm.rowId ? calcSaldo(getRow(countForm.rowId)) : 0"></span>
+            <span class="num-mono font-extrabold text-xl text-white" x-text="countForm.rowId ? calcSaldoTipo(getRow(countForm.rowId), getRow(countForm.rowId).tieneCocido ? countForm.tipo : 'crudo') : 0"></span>
           </div>
           <div class="text-right">
             <label class="block text-xs text-[#d4af37] font-semibold mb-1">Conteo físico en cámara</label>
@@ -2937,6 +3314,51 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <p class="text-xs text-white leading-relaxed">
             «Entran directo, sin transformación»
           </p>
+        </div>
+
+        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="sec-title">Colores de filas y grupos</h3>
+            <button type="button" class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] text-xs text-[#a0a0b8] cursor-pointer" @click="resetearColoresFilas()">Restablecer</button>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-52 overflow-y-auto">
+            <template x-for="g in tableGroups" :key="'col-g-' + g.id">
+              <label class="flex items-center justify-between gap-2 bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1.5 text-xs text-white">
+                <span x-text="g.nombre"></span>
+                <input type="color" :value="rowBgColors[g.id] || '#1a1a28'" @input="setRowBgColor(g.id, $event.target.value)">
+              </label>
+            </template>
+            <template x-for="r in rows" :key="'col-r-' + r.id">
+              <label class="flex items-center justify-between gap-2 bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1.5 text-xs text-white">
+                <span class="truncate" x-text="r.nombre"></span>
+                <input type="color" :value="rowBgColors[r.id] || '#14141f'" @input="setRowBgColor(r.id, $event.target.value)">
+              </label>
+            </template>
+          </div>
+        </div>
+
+        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-3">
+          <h3 class="sec-title">Cuadro de cocido</h3>
+          <p class="text-xs text-[#a0a0b8] leading-relaxed">
+            Al vender se resta primero el cocido, luego el crudo y luego la reserva. Pollo fresco, filete, pechuga y pierna no tienen cocido.
+          </p>
+          <div class="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+            <template x-for="d in draftCocido" :key="'cfg-coc-' + d.clave">
+              <div class="flex items-center gap-3 bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2">
+                <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                  <input type="checkbox" x-model="d.tieneCocido" class="accent-[#d4af37] w-4 h-4">
+                  <span class="text-sm text-white truncate" x-text="d.nombre"></span>
+                </label>
+                <select x-model="d.reservaClave" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1.5 text-xs text-white" :aria-label="'Reserva de ' + d.nombre">
+                  <option value="">Sin reserva</option>
+                  <option value="pollo-origen">Pollo fresco</option>
+                  <option value="pechuga-pollo">Pechuga pollo</option>
+                  <option value="pierna-pollo">Pierna pollo</option>
+                  <option value="filete">Filete pollo crudo</option>
+                </select>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -3382,8 +3804,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         countForm: {
           rowId: 'pollo_fresco',
+          tipo: 'crudo',
           valor: 0
         },
+        rowBgColors: {},
+        auditoriaCargando: false,
+        showAuditoriaModal: false,
+        auditoriaRow: null,
+        auditoriaMovs: [],
+        auditoriaFiltroPeriodo: 'hoy',
+        auditoriaFiltroTipo: 'todos',
+        auditoriaFiltroClase: 'todos',
+        auditoriaFechaDesde: '',
+        auditoriaFechaHasta: '',
+        nuevoAjusteForm: { abierto: false, tipo: 'crudo', cantidad: -1, motivo: '' },
 
         claveDeFila: {
           pollo_fresco: 'pollo-origen',
@@ -3393,6 +3827,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           filete_junior: 'filete-junior',
           pollo_pachamanca: 'pachamanca-pollo',
           pollo_lena: 'pollo-lena',
+          pierna_lena: 'pierna-lena',
           pollada: 'pollada',
           menu: 'menu',
           chi_pollo_bbq: 'chi-pollo-bbq',
@@ -3439,6 +3874,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.restaurarEjemploDespiece(true);
           this.vaciarNumeros();
           this.leerConfigLocal();
+          this.cargarColoresLocal();
           await this.cargarMapas();
           await this.cargarPlatos();
           await this.cargarKardex();
@@ -3475,6 +3911,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             r.venta = 0;
             r.transformacion = 0;
             r.inventario = null;
+            r.saldoAnteriorCocido = 0;
+            r.ingresoCocido = 0;
+            r.correccionCocido = 0;
+            r.ventaCocido = 0;
+            r.transformacionCocido = 0;
+            r.inventarioCocido = null;
             r.crudo = 0;
             r.cocido = 0;
             r.detalle = '';
@@ -3642,6 +4084,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ventaManualGuardando: false,
         ingresoAbierto: {},
         ventasPeriodo: [],
+        cocidoOpciones: [],
+        draftCocido: [],
         movimientosPeriodo: [],
         ventaInfo: null,
 
@@ -3879,7 +4323,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const k = await this.api('/inventario/kardex?carta=1&ciclo=04&desde=' + r.desde + '&hasta=' + r.hasta);
             const movs = await this.api('/inventario/movimientos?ciclo=04&desde=' + r.desde + '&hasta=' + r.hasta);
             this.ventasPeriodo = k.ventas || [];
+            this.cocidoOpciones = k.cocidoOpciones || [];
             this.movimientosPeriodo = movs.movimientos || [];
+            this.aplicarOpcionesCocido(this.cocidoOpciones);
             this.aplicarKardex(k.filas || [], this.movimientosPeriodo, this.ventasPeriodo);
           } catch (e) {
             this.toastMessage = e.message;
@@ -3892,7 +4338,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const rubro = v && (v.rubro || v.plato);
             const n = Number(v && v.cantidad) || 0;
             if (!rubro || n <= 0) return;
-            ventaComanda[rubro] = (ventaComanda[rubro] || 0) + n;
+            const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
+            ventaComanda[key] = (ventaComanda[key] || 0) + n;
           });
           const porClave = {};
           (filas || []).forEach((f) => {
@@ -3905,20 +4352,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const clave = this.claveDeFila[row.id];
             const partes = porClave[clave] || [];
             if (!partes.length) return;
-            const sum = (campo) => partes.reduce((a, p) => a + (Number(p[campo]) || 0), 0);
-            const pasa = (movimientos || []).filter((m) => (m.rubro === clave) && m.clase === 'ingreso' && String(m.motivo || '').indexOf('Pasa a ') === 0 && Number(m.cantidad) < 0);
-            const sale = pasa.reduce((a, m) => a + Math.abs(Number(m.cantidad) || 0), 0);
-            row.saldoAnterior = sum('saldoInicial');
-            row.ingreso = sum('ingresos') + sale;
-            row.correccion = sum('regulacion');
-            row.venta = sum('egreso') + (ventaComanda[clave] || 0);
-            row.transformacion = sale;
-            const crudo = partes.find((p) => p.tipoProducto === 'crudo');
-            const cocido = partes.find((p) => p.tipoProducto === 'cocido');
-            const saldoTipo = (p) => p ? (Number(p.baja) || 0) : 0;
-            row.crudo = saldoTipo(crudo);
-            row.cocido = saldoTipo(cocido);
-            row.inventario = partes.some((p) => p.tieneConteo) ? partes.reduce((a, p) => a + (p.tieneConteo ? (Number(p.conteo) || 0) : 0), 0) : null;
+            const sale = (tipo) => (movimientos || [])
+              .filter((m) => m.rubro === clave && (m.tipoProducto || 'crudo') === tipo && m.clase === 'ingreso' && String(m.motivo || '').indexOf('Pasa a ') === 0 && Number(m.cantidad) < 0)
+              .reduce((a, m) => a + Math.abs(Number(m.cantidad) || 0), 0);
+            const crudo = partes.find((p) => p.tipoProducto === 'crudo') || {};
+            const cocido = partes.find((p) => p.tipoProducto === 'cocido') || {};
+            const carga = (p, tipo) => {
+              const s = sale(tipo);
+              row[this.campoTipo('saldoAnterior', tipo)] = Number(p.saldoInicial) || 0;
+              row[this.campoTipo('ingreso', tipo)] = (Number(p.ingresos) || 0) + s;
+              row[this.campoTipo('correccion', tipo)] = Number(p.regulacion) || 0;
+              row[this.campoTipo('venta', tipo)] = (Number(p.egreso) || 0) + (ventaComanda[clave + '|' + tipo] || 0);
+              row[this.campoTipo('transformacion', tipo)] = s;
+              row[this.campoTipo('inventario', tipo)] = p.tieneConteo ? (Number(p.conteo) || 0) : null;
+            };
+            carga(crudo, 'crudo');
+            carga(cocido, 'cocido');
+            if (!row.tieneCocido) {
+              ['saldoAnterior', 'ingreso', 'correccion', 'venta', 'transformacion'].forEach((b) => {
+                row[b] += Number(row[b + 'Cocido']) || 0;
+                row[b + 'Cocido'] = 0;
+              });
+              if (row.inventarioCocido !== null) row.inventario = (Number(row.inventario) || 0) + Number(row.inventarioCocido);
+              row.inventarioCocido = null;
+            }
+            row.crudo = Number(crudo.baja) || 0;
+            row.cocido = Number(cocido.baja) || 0;
           });
           this.eventos.forEach((ev) => {
             const partes = porClave[ev.clave] || [];
@@ -3931,17 +4390,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
-        async paso(rubro, tipo, cantidad, motivo, clase, nombre) {
+        async paso(rubro, tipo, cantidad, motivo, clase, nombre, fecha) {
           const n = Number(cantidad) || 0;
-          if (!n) return;
           const claseFinal = clase || 'ingreso';
+          if (!n && claseFinal !== 'inventario') return;
           const body = {
             rubro,
             tipoProducto: tipo || 'crudo',
             clase: claseFinal,
             cantidad: claseFinal === 'egreso' ? Math.abs(n) : n,
             motivo,
-            fecha: this.fechaHoy() + 'T12:00:00-05:00'
+            fecha: fecha || (this.fechaHoy() + 'T12:00:00-05:00')
           };
           if (nombre) body.nombre = nombre;
           await this.api('/inventario/movimientos', {
@@ -3971,7 +4430,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           this.ventaManualGuardando = true;
           try {
-            await this.paso(clave, 'cocido', n, 'Venta manual', 'egreso', row.nombre);
+            for (const p of this.repartirVentaManual(clave, row, n)) {
+              await this.paso(p.rubro, p.tipo, p.cantidad, 'Venta manual', 'egreso', p.nombre);
+            }
             this.ventaManualAbierta = false;
             this.toastMessage = 'Se restaron ' + n + ' de ' + row.nombre + '.';
             await this.cargarKardex();
@@ -4625,7 +5086,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         getRow(id) {
-          return this.rows.find(r => r.id === id) || { saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, transformacion: 0, inventario: null, crudo: 0, cocido: 0 };
+          return this.rows.find(r => r.id === id) || { saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, transformacion: 0, inventario: null, saldoAnteriorCocido: 0, ingresoCocido: 0, correccionCocido: 0, ventaCocido: 0, transformacionCocido: 0, inventarioCocido: null, tieneCocido: false, crudo: 0, cocido: 0 };
         },
 
         getGroupName(groupId) {
@@ -4635,41 +5096,361 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Fórmulas de Inventario Tabla
+        tiposDe(row) {
+          return row && row.tieneCocido ? ['crudo', 'cocido'] : ['crudo'];
+        },
+
+        campoTipo(base, tipo) {
+          return tipo === 'cocido' ? base + 'Cocido' : base;
+        },
+
+        valorTipo(row, base, tipo) {
+          return Number(row && row[this.campoTipo(base, tipo)]) || 0;
+        },
+
+        etiquetaTipo(tipo) {
+          return tipo === 'cocido' ? 'Cocido' : 'Crudo';
+        },
+
+        conteoTipo(row, tipo) {
+          const v = row ? row[this.campoTipo('inventario', tipo)] : null;
+          return v === null || v === undefined || v === '' ? null : Number(v);
+        },
+
+        calcIngresoTotalTipo(row, tipo) {
+          return this.valorTipo(row, 'saldoAnterior', tipo) + this.valorTipo(row, 'ingreso', tipo) + this.valorTipo(row, 'correccion', tipo);
+        },
+
+        calcSaldoTipo(row, tipo) {
+          return this.calcIngresoTotalTipo(row, tipo) - this.valorTipo(row, 'venta', tipo) - this.valorTipo(row, 'transformacion', tipo);
+        },
+
+        calcSaldoRealTipo(row, tipo) {
+          const c = this.conteoTipo(row, tipo);
+          return c === null ? this.calcSaldoTipo(row, tipo) : c;
+        },
+
+        calcDiferenciaTipo(row, tipo) {
+          const c = this.conteoTipo(row, tipo);
+          return c === null ? null : c - this.calcSaldoTipo(row, tipo);
+        },
+
         calcIngresoTotal(row) {
-          return Number(row.saldoAnterior || 0) + Number(row.ingreso || 0) + Number(row.correccion || 0);
+          return this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0);
         },
 
         calcSaldo(row) {
-          return this.calcIngresoTotal(row) - Number(row.venta || 0) - Number(row.transformacion || 0);
+          return this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0);
         },
 
         calcSaldoReal(row) {
-          return row.inventario !== null && row.inventario !== '' ? Number(row.inventario) : this.calcSaldo(row);
+          return this.tiposDe(row).reduce((a, t) => a + this.calcSaldoRealTipo(row, t), 0);
         },
 
         calcDiferencia(row) {
-          if (row.inventario === null || row.inventario === '') return null;
-          return Number(row.inventario) - this.calcSaldo(row);
+          const tipos = this.tiposDe(row).filter((t) => this.conteoTipo(row, t) !== null);
+          if (!tipos.length) return null;
+          return tipos.reduce((a, t) => a + this.calcDiferenciaTipo(row, t), 0);
+        },
+
+        esMateriaClave(clave) {
+          return ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete'].indexOf(clave) !== -1;
+        },
+
+        aplicarOpcionesCocido(lista) {
+          const map = {};
+          (lista || []).forEach((o) => { if (o && o.clave) map[o.clave] = o; });
+          this.rows.forEach((row) => {
+            const clave = this.claveDeFila[row.id];
+            const op = map[clave];
+            const materia = this.esMateriaClave(clave);
+            if (op) {
+              row.tieneCocido = !materia && op.tieneCocido === true;
+              row.reservaClave = materia ? '' : (op.reservaClave || '');
+              row.stockMinimo = Number(op.stockMinimo) || 0;
+            } else if (row.tieneCocido === undefined) {
+              row.tieneCocido = false;
+              row.reservaClave = '';
+            }
+          });
+        },
+
+        filaPorClave(clave) {
+          const id = Object.keys(this.claveDeFila).find((k) => this.claveDeFila[k] === clave);
+          return id ? this.filaReal(id) : null;
+        },
+
+        async moverCampo(id, base, tipo, delta) {
+          const row = this.filaReal(id);
+          if (!row) return;
+          await this.fijarCampo(id, base, tipo, this.valorTipo(row, base, tipo) + delta);
+        },
+
+        async fijarCampo(id, base, tipo, valor) {
+          const row = this.filaReal(id);
+          if (!row || (tipo === 'cocido' && !row.tieneCocido)) return;
+          let next = Math.round(Number(valor));
+          if (!Number.isFinite(next)) return;
+          if (base !== 'correccion') next = Math.max(0, next);
+          const campo = this.campoTipo(base, tipo);
+          const actual = Number(row[campo]) || 0;
+          const cambio = next - actual;
+          if (!cambio) return;
+          row[campo] = next;
+          this.pulseRowTotal(row.id);
+          const clave = this.claveDeFila[row.id];
+          if (!clave) return;
+          const nombres = { ingreso: 'Ingreso', correccion: 'Corrección', saldoAnterior: 'Saldo anterior' };
+          const clase = base === 'correccion' ? 'regulacion' : 'ingreso';
+          const fecha = base === 'saldoAnterior' ? this.rangoPeriodo().desde + 'T03:59:00-05:00' : undefined;
+          try {
+            await this.paso(clave, tipo, cambio, nombres[base] + ' ' + tipo, clase, row.nombre, fecha);
+            await this.cargarKardex();
+          } catch (e) {
+            row[campo] = actual;
+            this.toastMessage = e.message || 'No se guardó';
+          }
+        },
+
+        cadenaDeFila(clave, row) {
+          if (this.esMateriaClave(clave)) return [{ rubro: clave, tipo: 'crudo' }];
+          const cadena = [];
+          if (row && row.tieneCocido) cadena.push({ rubro: clave, tipo: 'cocido' });
+          cadena.push({ rubro: clave, tipo: 'crudo' });
+          if (row && row.reservaClave && this.esMateriaClave(row.reservaClave)) {
+            cadena.push({ rubro: row.reservaClave, tipo: 'crudo' });
+          }
+          return cadena;
+        },
+
+        repartirVentaManual(clave, row, n) {
+          const cadena = this.cadenaDeFila(clave, row);
+          let falta = n;
+          const partes = [];
+          cadena.forEach((es, i) => {
+            if (falta <= 0) return;
+            const fila = es.rubro === clave ? row : this.filaPorClave(es.rubro);
+            const saldo = fila ? this.calcSaldoTipo(fila, es.tipo) : 0;
+            const toma = i === cadena.length - 1 ? falta : Math.min(falta, Math.max(0, saldo));
+            if (toma > 0) {
+              partes.push({ rubro: es.rubro, tipo: es.tipo, cantidad: toma, nombre: fila ? fila.nombre : es.rubro });
+              falta -= toma;
+            }
+          });
+          return partes;
         },
 
         esSaldoSuficiente(row) {
           const n = Number(this.calcSaldoReal(row)) || 0;
           const min = Number(row.stockMinimo) || 0;
-          const umbralPoco = min > 0 ? min : 4;
-          return n > umbralPoco;
+          if (min > 0) return n > min;
+          return n > 3;
         },
 
         estadoFila(row) {
           const n = Number(this.calcSaldoReal(row)) || 0;
           const min = Number(row.stockMinimo) || 0;
           if (min > 0) {
-            if (n <= min) return 'Crítico';
-            if (n <= min * 2) return 'Bajo';
-            return 'Normal';
+            if (n <= min) return 'Crítico (≤ mín)';
+            if (n <= min * 1.5) return 'Bajo';
+            return 'Óptimo';
           }
-          if (n <= 0) return 'Crítico';
+          if (n <= 0) return 'Crítico (≤ 0)';
           if (n <= 4) return 'Bajo';
           return 'Normal';
+        },
+
+        fmtFecha(fecha) {
+          const d = new Date(fecha);
+          if (!Number.isFinite(d.getTime())) return '';
+          const dia = this.diaDeMovimiento(fecha);
+          const hora = d.toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: false });
+          const hoy = this.fechaHoy();
+          if (dia === hoy) return 'Hoy ' + hora;
+          if (dia === this.diaOffset(hoy, -1)) return 'Ayer ' + hora;
+          return dia + ' ' + hora;
+        },
+
+        diaDeMovimiento(fecha) {
+          const t = new Date(fecha).getTime();
+          if (!Number.isFinite(t)) return '';
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(t - 4 * 3600 * 1000));
+        },
+
+        periodoDeMovimiento(fecha) {
+          const dia = this.diaDeMovimiento(fecha);
+          const hoy = this.fechaHoy();
+          if (dia === hoy) return 'hoy';
+          if (dia === this.diaOffset(hoy, -1)) return 'ayer';
+          if (dia >= this.diaOffset(hoy, -6)) return '7dias';
+          return 'histórico';
+        },
+
+        salidasAuditoria() {
+          const row = this.auditoriaRow;
+          if (!row) return { venta: 0, transformacion: 0 };
+          return {
+            venta: this.valorTipo(row, 'venta', 'crudo') + this.valorTipo(row, 'venta', 'cocido'),
+            transformacion: this.valorTipo(row, 'transformacion', 'crudo') + this.valorTipo(row, 'transformacion', 'cocido')
+          };
+        },
+
+        cerrarModalAuditoria() {
+          this.showAuditoriaModal = false;
+          this.nuevoAjusteForm.abierto = false;
+        },
+
+        rangoAuditoria() {
+          const hoy = this.fechaHoy();
+          const p = this.auditoriaFiltroPeriodo;
+          if (p === 'ayer') { const a = this.diaOffset(hoy, -1); return { desde: a, hasta: a }; }
+          if (p === '7dias') return { desde: this.diaOffset(hoy, -6), hasta: hoy };
+          if (p === 'todos') return { desde: '2020-01-01', hasta: hoy };
+          if (p === 'personalizado') return { desde: this.auditoriaFechaDesde || hoy, hasta: this.auditoriaFechaHasta || hoy };
+          return { desde: hoy, hasta: hoy };
+        },
+
+        claseAuditoria(m) {
+          if (!m) return 'ingreso';
+          if (m.clase === 'inventario') return 'conteo';
+          if (m.clase === 'egreso') return 'venta';
+          if (m.clase === 'regulacion') return 'correccion';
+          if (String(m.motivo || '').indexOf('Pasa a ') === 0) return 'transformacion';
+          return 'ingreso';
+        },
+
+        async abrirModalAuditoria(row) {
+          this.auditoriaRow = row;
+          this.auditoriaFiltroPeriodo = 'hoy';
+          this.auditoriaFiltroTipo = 'todos';
+          this.auditoriaFiltroClase = 'todos';
+          this.auditoriaFechaDesde = this.diaOffset(this.fechaHoy(), -6);
+          this.auditoriaFechaHasta = this.fechaHoy();
+          this.nuevoAjusteForm = { abierto: false, tipo: row && row.tieneCocido ? 'cocido' : 'crudo', cantidad: -1, motivo: '' };
+          this.showAuditoriaModal = true;
+          await this.cargarAuditoria();
+        },
+
+        async setAuditoriaPeriodo(p) {
+          this.auditoriaFiltroPeriodo = p;
+          await this.cargarAuditoria();
+        },
+
+        async cargarAuditoria() {
+          const row = this.auditoriaRow;
+          if (!row) return;
+          const clave = this.claveDeFila[row.id];
+          const r = this.rangoAuditoria();
+          this.auditoriaCargando = true;
+          try {
+            const [movs, k] = await Promise.all([
+              this.api('/inventario/movimientos?ciclo=04&desde=' + r.desde + '&hasta=' + r.hasta),
+              this.api('/inventario/kardex?carta=1&ciclo=04&desde=' + r.desde + '&hasta=' + r.hasta)
+            ]);
+            if (this.auditoriaRow !== row) return;
+            const guardados = (movs.movimientos || []).filter((m) => m.rubro === clave).map((m) => ({
+              id: String(m._id),
+              t: new Date(m.fecha).getTime(),
+              fecha: m.fecha,
+              claseBase: m.clase,
+              clase: this.claseAuditoria(m),
+              tipoProducto: m.tipoProducto === 'cocido' ? 'cocido' : 'crudo',
+              motivo: m.motivo || '',
+              cantidad: m.clase === 'egreso' ? -Math.abs(Number(m.cantidad) || 0) : (Number(m.cantidad) || 0),
+              auditor: m.usuario || ''
+            }));
+            const ventas = (k.ventas || []).filter((v) => (v.rubro || v.plato) === clave).map((v, i) => ({
+              id: 'venta-' + i + '-' + (v.fecha || ''),
+              t: new Date(v.fecha).getTime(),
+              fecha: v.fecha,
+              claseBase: 'egreso',
+              clase: 'venta',
+              tipoProducto: v.tipoProducto === 'crudo' ? 'crudo' : 'cocido',
+              motivo: v.nombre || v.motivo || 'Venta de comandas',
+              cantidad: -Math.abs(Number(v.cantidad) || 0),
+              auditor: 'Comandas'
+            }));
+            const saldo = {};
+            (k.filas || []).forEach((f) => {
+              if ((f.rubro || f.plato) === clave) saldo[f.tipoProducto] = Number(f.saldoInicial) || 0;
+            });
+            const lista = guardados.concat(ventas).sort((a, b) => a.t - b.t);
+            lista.forEach((m) => {
+              const tipo = m.tipoProducto;
+              const base = Number(saldo[tipo]) || 0;
+              saldo[tipo] = m.claseBase === 'inventario' ? m.cantidad : base + m.cantidad;
+              m.saldoResultante = saldo[tipo];
+              m.periodoTag = this.periodoDeMovimiento(m.fecha);
+              m.fecha = this.fmtFecha(m.fecha);
+            });
+            this.auditoriaMovs = lista.reverse();
+          } catch (e) {
+            this.toastMessage = e.message || 'No se cargó la auditoría';
+          } finally {
+            this.auditoriaCargando = false;
+          }
+        },
+
+        getMovimientosFiltrados() {
+          return (this.auditoriaMovs || []).filter((m) => {
+            if (this.auditoriaFiltroTipo !== 'todos' && m.tipoProducto !== this.auditoriaFiltroTipo) return false;
+            if (this.auditoriaFiltroClase !== 'todos' && m.clase !== this.auditoriaFiltroClase) return false;
+            return true;
+          });
+        },
+
+        async guardarNuevoAjusteModal() {
+          const row = this.auditoriaRow;
+          if (!row) return;
+          const cant = parseInt(this.nuevoAjusteForm.cantidad, 10);
+          if (!cant) { this.toastMessage = 'La cantidad no puede ser 0'; return; }
+          const motivo = (this.nuevoAjusteForm.motivo || '').trim();
+          if (!motivo) { this.toastMessage = 'Escribe el motivo'; return; }
+          const tipo = row.tieneCocido ? (this.nuevoAjusteForm.tipo || 'crudo') : 'crudo';
+          const clave = this.claveDeFila[row.id];
+          if (!clave) return;
+          try {
+            await this.paso(clave, tipo, cant, motivo, 'regulacion', row.nombre);
+            await this.cargarKardex();
+            await this.cargarAuditoria();
+            this.nuevoAjusteForm.abierto = false;
+            this.toastMessage = 'Ajuste guardado en ' + row.nombre;
+          } catch (e) {
+            this.toastMessage = e.message || 'No se guardó el ajuste';
+          }
+        },
+
+        exportarAuditoriaCsv() {
+          const row = this.auditoriaRow;
+          if (!row) return;
+          const lineas = ['Fecha,Operacion,Tipo,Motivo,Cantidad,Quien'];
+          this.getMovimientosFiltrados().forEach((m) => {
+            lineas.push([m.fecha, m.clase, m.tipoProducto, '"' + String(m.motivo || '').replace(/"/g, '""') + '"', m.cantidad, '"' + String(m.auditor || '') + '"'].join(','));
+          });
+          const blob = new Blob([lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'Auditoria_' + (row.id || 'producto') + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        },
+
+        setRowBgColor(id, color) {
+          this.rowBgColors = Object.assign({}, this.rowBgColors, { [id]: color });
+          localStorage.setItem('inventario-row-colors', JSON.stringify(this.rowBgColors));
+        },
+
+        resetearColoresFilas() {
+          this.rowBgColors = {};
+          localStorage.removeItem('inventario-row-colors');
+        },
+
+        cargarColoresLocal() {
+          try {
+            const raw = localStorage.getItem('inventario-row-colors');
+            if (raw) this.rowBgColors = JSON.parse(raw) || {};
+          } catch (e) {}
         },
 
         // Necesidad predictiva: sugiere pedido mínimo para mañana según tasa de Venta actual y Saldo
@@ -4825,30 +5606,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         stepField(rowId, field, delta) {
-          const row = this.getRow(rowId);
-          const next = Math.max(0, Number(row[field] || 0) + delta);
-          row[field] = next;
-          const nuevoSaldo = this.calcSaldo(row);
-          row.crudo = Math.max(0, nuevoSaldo - row.cocido);
-          this.pulseRowTotal(rowId);
+          return this.moverCampo(rowId, field, 'crudo', delta);
         },
 
         updateIngresoDirecto(rowId, val) {
-          const row = this.getRow(rowId);
-          const num = Math.max(0, parseInt(val, 10) || 0);
-          row.ingreso = num;
-          const nuevoSaldo = this.calcSaldo(row);
-          row.crudo = Math.max(0, nuevoSaldo - row.cocido);
-          this.pulseRowTotal(rowId);
+          return this.fijarCampo(rowId, 'ingreso', 'crudo', parseInt(val, 10) || 0);
         },
 
         updateCorreccion(rowId, val) {
-          const row = this.getRow(rowId);
-          const num = parseInt(val, 10) || 0;
-          row.correccion = num;
-          const nuevoSaldo = this.calcSaldo(row);
-          row.crudo = Math.max(0, nuevoSaldo - row.cocido);
-          this.pulseRowTotal(rowId);
+          return this.fijarCampo(rowId, 'correccion', 'crudo', parseInt(val, 10) || 0);
         },
 
         adjustCrudoCocido(rowId, field, newVal) {
@@ -5216,29 +5982,48 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Modal Contar Cámara
-        openCountModal(rowId = 'pollo_fresco') {
+        openCountModal(rowId = 'pollo_fresco', tipo = 'crudo') {
           this.countForm.rowId = rowId;
+          this.countForm.tipo = tipo;
           this.syncCountFormValue();
           this.showCountModal = true;
         },
 
         syncCountFormValue() {
           const row = this.getRow(this.countForm.rowId);
-          this.countForm.valor = row.inventario !== null ? row.inventario : this.calcSaldo(row);
+          if (!row.tieneCocido) this.countForm.tipo = 'crudo';
+          const tipo = this.countForm.tipo || 'crudo';
+          const c = this.conteoTipo(row, tipo);
+          this.countForm.valor = c !== null ? c : this.calcSaldoTipo(row, tipo);
         },
 
-        guardarConteoCamara() {
+        async guardarConteoCamara() {
           const row = this.getRow(this.countForm.rowId);
-          row.inventario = Math.max(0, parseInt(this.countForm.valor, 10) || 0);
+          const tipo = row.tieneCocido ? (this.countForm.tipo || 'crudo') : 'crudo';
+          const campo = this.campoTipo('inventario', tipo);
+          const antes = row[campo] === undefined ? null : row[campo];
+          const valor = Math.max(0, parseInt(this.countForm.valor, 10) || 0);
+          row[campo] = valor;
           this.showCountModal = false;
           this.pulseRowTotal(row.id);
+          const clave = this.claveDeFila[row.id];
+          if (clave) {
+            try {
+              await this.paso(clave, tipo, valor, 'Conteo ' + tipo, 'inventario', row.nombre);
+              await this.cargarKardex();
+            } catch (e) {
+              row[campo] = antes;
+              this.toastMessage = e.message || 'No se guardó el conteo';
+              return;
+            }
+          }
           this.playUiSound();
-          this.toastMessage = 'Conteo físico guardado para ' + row.nombre + ': ' + row.inventario + '.';
+          this.toastMessage = 'Conteo ' + tipo + ' de ' + row.nombre + ': ' + valor + '.';
         },
 
         limpiarConteoProducto() {
           const row = this.getRow(this.countForm.rowId);
-          row.inventario = null;
+          row[this.campoTipo('inventario', row.tieneCocido ? (this.countForm.tipo || 'crudo') : 'crudo')] = null;
           this.showCountModal = false;
           this.pulseRowTotal(row.id);
         },
@@ -5307,6 +6092,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         openConversionesModal() {
           this.configError = '';
           this.draftConfig = JSON.parse(JSON.stringify(this.config));
+          const actual = this.porClaveCocido(this.cocidoOpciones);
+          this.draftCocido = this.filasConfigCocido().map((r) => {
+            const clave = this.claveDeFila[r.id];
+            const o = actual[clave] || {};
+            return { clave, nombre: r.nombre, tieneCocido: !!o.tieneCocido, reservaClave: o.reservaClave || '' };
+          });
           this.showConversionesModal = true;
         },
 
@@ -5368,8 +6159,42 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.guardarConfigLocal();
           this.volcarConfigAlMapaPollo();
           this.guardarMapasEnServidor().catch((e) => { this.toastMessage = e.message; });
+          this.guardarCocidoConfig().catch((e) => { this.toastMessage = e.message; });
           this.showConversionesModal = false;
           this.toastMessage = 'Configuración guardada. El despiece usa estos factores al pasar a la hoja.';
+        },
+
+        async guardarCocidoConfig() {
+          const antes = this.porClaveCocido(this.cocidoOpciones);
+          const cambios = this.draftCocido.filter((d) => {
+            const a = antes[d.clave] || {};
+            return !!a.tieneCocido !== !!d.tieneCocido || (a.reservaClave || '') !== (d.reservaClave || '');
+          });
+          for (const d of cambios) {
+            await this.api('/inventario/rubros/' + encodeURIComponent(d.clave), {
+              method: 'PUT',
+              body: JSON.stringify({ tieneCocido: !!d.tieneCocido, reservaClave: d.reservaClave || '' })
+            });
+          }
+          this.cocidoOpciones = JSON.parse(JSON.stringify(this.draftCocido));
+          this.aplicarOpcionesCocido(this.cocidoOpciones);
+          if (cambios.length) await this.cargarKardex();
+        },
+
+        porClaveCocido(lista) {
+          const m = {};
+          (lista || []).forEach((o) => { if (o && o.clave) m[o.clave] = o; });
+          return m;
+        },
+
+        filasConfigCocido() {
+          const vistas = {};
+          return this.rows.filter((r) => {
+            const clave = this.claveDeFila[r.id];
+            if (!clave || vistas[clave] || this.esMateriaClave(clave)) return false;
+            vistas[clave] = true;
+            return true;
+          });
         },
 
         tieneMapa(id) {

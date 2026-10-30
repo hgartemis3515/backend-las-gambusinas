@@ -7,6 +7,7 @@ const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventario
 const MapaSemantico = require('../database/models/inventarioMapa.model');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
+const { atribuirVentas, semillaCocido, validarCocidoConfig, esMateria } = require('../utils/inventarioCascadaVenta');
 const Rubro = require('../database/models/inventarioRubro.model');
 const Reporte = require('../database/models/inventarioReporte.model');
 const logger = require('../utils/logger');
@@ -192,14 +193,15 @@ function lineasReporte(filas, ventas) {
         const rubro = v && (v.rubro || v.plato);
         const cantidad = Number(v && v.cantidad) || 0;
         if (!rubro || cantidad <= 0) return;
-        ventaPorRubro[rubro] = (ventaPorRubro[rubro] || 0) + cantidad;
+        const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
+        ventaPorRubro[key] = (ventaPorRubro[key] || 0) + cantidad;
     });
     return (filas || []).map((f) => {
         const rubro = f.rubro || f.plato || '';
         const anterior = Number(f.saldoInicial) || 0;
         const ingreso = Number(f.ingresos) || 0;
         const reg = Number(f.regulacion) || 0;
-        const venta = f.tipoProducto === 'cocido' ? (ventaPorRubro[rubro] || 0) : 0;
+        const venta = ventaPorRubro[rubro + '|' + f.tipoProducto] || 0;
         const salida = (Number(f.egreso) || 0) + venta;
         const base = reg !== 0 ? anterior + reg : anterior + ingreso;
         return {
@@ -214,27 +216,55 @@ function lineasReporte(filas, ventas) {
     }).filter((l) => l.saldoAnterior || l.ingreso || l.salida || l.saldoFinal);
 }
 
+async function opcionesCocido() {
+    const docs = await Rubro.find({}).select('clave tieneCocido reservaClave stockMinimo').lean();
+    const porClave = {};
+    (docs || []).forEach((d) => { porClave[d.clave] = d; });
+    const mapas = await leerGuardados().catch(() => []);
+    const defs = clavesGuardables().concat(clavesExtra(mapas).filter((e) => !claveDe(e.clave)));
+    return defs.map((d) => {
+        const sem = semillaCocido(d.clave);
+        const doc = porClave[d.clave];
+        const guardado = doc && typeof doc.tieneCocido === 'boolean';
+        let tieneCocido = guardado ? doc.tieneCocido : sem.tieneCocido;
+        let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
+        if (esMateria(d.clave)) {
+            tieneCocido = false;
+            reservaClave = '';
+        }
+        return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
+    });
+}
+
+function porClave(lista) {
+    const map = {};
+    (lista || []).forEach((o) => { map[o.clave] = o; });
+    return map;
+}
+
 async function filasCartaEn(desde, hasta) {
     const mapas = await leerGuardados().catch(() => []);
-    const [guardados, ventasPack, umbrales] = await Promise.all([
+    const [guardados, ventasPack, umbrales, opciones] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
             .select('rubro tipoProducto clase cantidad fecha')
             .lean(),
         egresosVentaHasta(hasta),
-        umbralesRubro()
+        umbralesRubro(),
+        opcionesCocido()
     ]);
+    const atribuidas = atribuirVentas(guardados, ventasPack.ventas, porClave(opciones));
     const filas = aplicarSaldoPrevioDeVentas(
         filasDeRubros(guardados, desde, hasta, umbrales, clavesExtra(mapas)),
-        ventasPack.ventas,
+        atribuidas,
         desde
     );
     const desdeMs = desde.getTime();
     const hastaMs = hasta.getTime();
-    const ventas = (ventasPack.ventas || []).filter((v) => {
+    const ventas = atribuidas.filter((v) => {
         const t = new Date(v.fecha).getTime();
         return t >= desdeMs && t <= hastaMs;
     });
-    return { filas, ventas };
+    return { filas, ventas, cocidoOpciones: opciones };
 }
 
 function aplicarSaldoPrevioDeVentas(filas, ventas, desde) {
@@ -245,11 +275,12 @@ function aplicarSaldoPrevioDeVentas(filas, ventas, desde) {
         const n = Number(v && v.cantidad) || 0;
         const t = new Date(v && v.fecha).getTime();
         if (!rubro || n <= 0 || !(t < desdeMs)) return;
-        antes[rubro] = (antes[rubro] || 0) + n;
+        const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
+        antes[key] = (antes[key] || 0) + n;
     });
     return (filas || []).map((f) => {
-        if (!f || f.tipoProducto !== 'cocido') return f;
-        const previo = antes[f.rubro || f.plato] || 0;
+        if (!f) return f;
+        const previo = antes[(f.rubro || f.plato) + '|' + f.tipoProducto] || 0;
         if (!previo) return f;
         const saldoInicial = (Number(f.saldoInicial) || 0) - previo;
         const ingresos = Number(f.ingresos) || 0;
@@ -307,8 +338,8 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
     const { desde, hasta } = (desdeStr || hastaStr)
         ? rango(desdeStr, hastaStr || desdeStr, ciclo)
         : hoy();
-    const { filas, ventas } = await filasCartaEn(desde, hasta);
-    const data = { desde, hasta, filas, carta: await cartaConMapas(), ventas };
+    const { filas, ventas, cocidoOpciones } = await filasCartaEn(desde, hasta);
+    const data = { desde, hasta, filas, carta: await cartaConMapas(), ventas, cocidoOpciones };
     if (operativo && desdeStr && desdeStr === (hastaStr || desdeStr)) {
         const fecha = String(desdeStr);
         const hoyOp = ymdOperativo();
@@ -380,7 +411,8 @@ async function guardarMapas(lista) {
 }
 
 async function guardarUmbralRubro(clave, body) {
-    const def = claveDe(clave);
+    let def = claveDe(clave);
+    if (!def) def = clavesExtra(await leerGuardados().catch(() => [])).find((e) => e.clave === clave) || null;
     if (!def) {
         const err = new Error('Ese producto no está en el inventario');
         err.statusCode = 400;
@@ -391,9 +423,29 @@ async function guardarUmbralRubro(clave, body) {
         if (!Number.isFinite(n) || n < 0) return 0;
         return n;
     };
+    const set = {};
+    if (body && body.crudo !== undefined) set.crudo = minimo(body.crudo);
+    if (body && body.cocido !== undefined) set.cocido = minimo(body.cocido);
+    if (body && body.stockMinimo !== undefined) {
+        const n = minimo(body.stockMinimo);
+        set.stockMinimo = n;
+        set.crudo = n;
+        set.cocido = n;
+    }
+    if (body && (body.tieneCocido !== undefined || body.reservaClave !== undefined)) {
+        const valido = validarCocidoConfig(def.clave, body);
+        if (!valido.valido) {
+            const err = new Error(valido.error);
+            err.statusCode = 400;
+            throw err;
+        }
+        set.tieneCocido = valido.tieneCocido;
+        set.reservaClave = valido.reservaClave;
+    }
+    if (!Object.keys(set).length) return { clave: def.clave };
     await Rubro.findOneAndUpdate(
         { clave: def.clave },
-        { crudo: minimo(body && body.crudo), cocido: minimo(body && body.cocido) },
+        { $set: set },
         { upsert: true, new: true }
     );
     const despues = await alertasActuales();
@@ -403,16 +455,17 @@ async function guardarUmbralRubro(clave, body) {
 
 async function alertasRubro() {
     const hasta = new Date();
-    const [guardados, ventasPack, umbrales] = await Promise.all([
+    const [guardados, ventasPack, umbrales, opciones] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] } })
             .select('rubro tipoProducto clase cantidad fecha')
             .lean(),
         egresosVentaHasta(hasta),
-        umbralesRubro()
+        umbralesRubro(),
+        opcionesCocido()
     ]);
     const filas = aplicarVentasEnFilas(
         filasDeRubros(guardados, new Date(0), hasta, umbrales, clavesExtra(await leerGuardados().catch(() => []))),
-        ventasPack.ventas
+        atribuirVentas(guardados, ventasPack.ventas, porClave(opciones))
     );
     return alertasDeFilas(filas);
 }
