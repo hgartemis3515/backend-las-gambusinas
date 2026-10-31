@@ -57,5 +57,6 @@ const turnoCajaSchema = new Schema({
 }, { timestamps: true, collection: 'turnos_caja' });
 
 turnoCajaSchema.index({ terminal: 1, estado: 1 });
+turnoCajaSchema.index({ estado: 1, cajero: 1 }, { name: 'idx_turno_estado_cajero' });
 
 module.exports = mongoose.models.TurnoCaja || mongoose.model('TurnoCaja', turnoCajaSchema);

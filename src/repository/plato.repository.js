@@ -426,12 +426,16 @@ const listarPlatos = async () => {
 };
 
 const listarPlatosCartaMozo = async () => {
+    const hit = await redisCache.getCustom('mozos', 'carta');
+    if (hit) return hit;
     const data = await plato
         .find(queryActivos())
         .select(CARTA_MOZO_SELECT)
         .sort(PLATO_SORT_MOZO)
         .lean();
-    return (data || []).map((d) => toCartaMozo(d)).filter(Boolean);
+    const carta = (data || []).map((d) => toCartaMozo(d)).filter(Boolean);
+    await redisCache.setCustom('mozos', 'carta', carta, 300);
+    return carta;
 };
 
 function emitPlatoMenu(plato, op, extra) {
@@ -1204,6 +1208,7 @@ const borrarPlato = async (id) => {
 function invalidatePlatoMenuCache(tipo) {
     if (!tipo) return;
     redisCache.invalidateCustom(PLATO_MENU_CACHE_PREFIX, tipo).catch(() => {});
+    redisCache.invalidateCustom('mozos', 'carta').catch(() => {});
 }
 
 /**

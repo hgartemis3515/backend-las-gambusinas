@@ -63,9 +63,12 @@ if (!mongoUri) {
 }
 
 const opcionesMongoose = {
-  // Evita esperas de ~100s: falla antes y muestra el mensaje de ayuda
   serverSelectionTimeoutMS: 15_000,
   connectTimeoutMS: 15_000,
+  maxPoolSize: 10,
+  minPoolSize: 2,
+  maxIdleTimeMS: 30_000,
+  waitQueueTimeoutMS: 5_000,
 };
 
 const db = mongoose.connection;

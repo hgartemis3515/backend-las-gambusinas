@@ -15,6 +15,7 @@ const motorTributario = require('../services/motorTributario');
 const { consultarPadron } = require('../services/padronService');
 const { asegurarSerie } = require('../services/serieService');
 const { obtenerConfiguracionFiscal } = require('../services/configuracionFiscal');
+const { leerCatalogo } = require('../constants/catalogosSunat');
 const { construirPreCuenta } = require('../services/precuentaService');
 const { imprimir, destinoDesdeEnv } = require('../print/imprimir');
 const { generarRvie } = require('../services/sireRvie');
@@ -302,6 +303,16 @@ function leerCertificado() {
     return { presente: true, legible: true, vence, dias: Math.floor((vence.getTime() - Date.now()) / 86400000) };
 }
 
+router.get('/facturacion/catalogos/:nombre', adminAuth, async (req, res) => {
+    try {
+        const data = await leerCatalogo(req.params.nombre);
+        if (!data) return res.status(404).json({ message: 'Catálogo no existe' });
+        res.json(data);
+    } catch (err) {
+        responderError(res, err);
+    }
+});
+
 router.get('/facturacion/configuracion', adminAuth, async (req, res) => {
     try {
         const cfg = await obtenerConfiguracionFiscal();
@@ -352,6 +363,8 @@ router.post('/facturacion/configuracion', adminAuth, async (req, res) => {
             doc.markModified('datosFiscales');
         }
         await doc.save();
+        const { invalidarConfiguracionFiscal } = require('../services/configuracionFiscal');
+        await invalidarConfiguracionFiscal();
         res.json(await obtenerConfiguracionFiscal());
     } catch (err) {
         responderError(res, err);

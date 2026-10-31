@@ -134,6 +134,40 @@ const isCorsOriginAllowed = (origin) => {
   }
 };
 
+async function cablearRedisAdapter(io) {
+  if (process.env.REDIS_ENABLED === 'false') return;
+  let pub;
+  let sub;
+  try {
+    const Redis = require('ioredis');
+    const { createAdapter } = require('@socket.io/redis-adapter');
+    const url = process.env.REDIS_URL;
+    pub = url
+      ? new Redis(url, { maxRetriesPerRequest: 1, enableOfflineQueue: false })
+      : new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        password: process.env.REDIS_PASSWORD || undefined,
+        maxRetriesPerRequest: 1,
+        enableOfflineQueue: false,
+      });
+    sub = pub.duplicate();
+    const callar = () => {};
+    pub.on('error', callar);
+    sub.on('error', callar);
+    await Promise.race([
+      Promise.all([pub.ping(), sub.ping()]),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+    ]);
+    io.adapter(createAdapter(pub, sub));
+    logger.info('Socket.io usando adaptador Redis');
+  } catch (error) {
+    logger.info('Socket.io sin adaptador Redis', { error: error.message });
+    try { pub && pub.disconnect(); } catch (_) { /* noop */ }
+    try { sub && sub.disconnect(); } catch (_) { /* noop */ }
+  }
+}
+
 // Configurar Socket.io con CORS (misma política que Express: apps nativas / Expo Go)
 const io = new Server(server, {
   cors: {
@@ -344,15 +378,28 @@ app.post('/api/hub/import', require('./src/middleware/adminAuth').adminAuth, asy
 });
 
 // Servir archivos estáticos desde la carpeta public
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders(res, filePath) {
+    const base = path.basename(filePath);
+    if (filePath.includes(`${path.sep}assets${path.sep}`) && /\.[0-9a-f]{8,}\./i.test(base)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+  },
+}));
 // Audios de alertas: /sounds/alertas/*.mp3 servidos estáticamente
-app.use('/sounds/alertas', express.static(path.join(__dirname, 'public', 'sounds', 'alertas')));
+app.use('/sounds/alertas', express.static(path.join(__dirname, 'public', 'sounds', 'alertas'), {
+  setHeaders(res) { res.setHeader('Cache-Control', 'public, max-age=86400'); },
+}));
 
 // Mensajería: servir audios de notas de voz subidos
-app.use('/uploads/mensajes', express.static(path.join(__dirname, 'uploads', 'mensajes')));
-app.use('/uploads/categorias', express.static(path.join(__dirname, 'uploads', 'categorias')));
+const cacheDia = (res) => { res.setHeader('Cache-Control', 'public, max-age=86400'); };
+app.use('/uploads/mensajes', express.static(path.join(__dirname, 'uploads', 'mensajes'), { setHeaders: cacheDia }));
+app.use('/uploads/categorias', express.static(path.join(__dirname, 'uploads', 'categorias'), { setHeaders: cacheDia }));
 app.use('/uploads/noticias', express.static(path.join(__dirname, 'uploads', 'noticias'), {
   setHeaders(res) {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   },
 }));
@@ -693,6 +740,7 @@ app.get('/metrics', async (req, res) => {
 
 // No abrir HTTP hasta que MongoDB responda (evita API “media viva” sin BD)
 whenConnected.then(async () => {
+await cablearRedisAdapter(io);
 try {
   const { backfillNumeroComandaDia } = require('./src/utils/numeroComandaDia');
   const numeracion = await backfillNumeroComandaDia();

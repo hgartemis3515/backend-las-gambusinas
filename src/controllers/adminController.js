@@ -883,6 +883,7 @@ router.put('/admin/cocina/clave-universal', adminAuth, async (req, res) => {
         try {
             const redisCache = require('../utils/redisCache');
             await redisCache.invalidateCustom('configuracion', 'sistema');
+            await redisCache.invalidateCustom('facturacion', 'fiscal');
         } catch (_) { /* cache opcional */ }
         logger.info('Clave universal cocina actualizada', { adminId: req.admin.id, configurada: !!pin });
         return res.json({ success: true, pin: pin || '' });
@@ -929,6 +930,7 @@ async function invalidarCacheConfiguracion() {
     try {
         const redisCache = require('../utils/redisCache');
         await redisCache.invalidateCustom('configuracion', 'sistema');
+        await redisCache.invalidateCustom('facturacion', 'fiscal');
     } catch (_) { /* cache opcional */ }
 }
 

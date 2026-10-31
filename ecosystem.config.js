@@ -13,7 +13,7 @@ module.exports = {
       // ============================================
       // Cluster Mode (Multi-CPU)
       // ============================================
-      instances: process.env.PM2_INSTANCES || 'max', // 4-8 workers según CPU cores
+      instances: process.env.PM2_INSTANCES || 2,
       exec_mode: 'cluster', // Cluster mode para balanceo de carga
       
       // ============================================
@@ -58,7 +58,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: process.env.PORT || 3000,
-        PM2_INSTANCES: process.env.PM2_INSTANCES || 'max'
+        PM2_INSTANCES: process.env.PM2_INSTANCES || 2
       },
       env_development: {
         NODE_ENV: 'development',

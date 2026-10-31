@@ -1153,6 +1153,7 @@ configuracionSistemaSchema.statics.obtenerConfiguracion = async function() {
             try {
                 const redisCache = require('../../utils/redisCache');
                 await redisCache.invalidateCustom('configuracion', 'sistema');
+                await redisCache.invalidateCustom('facturacion', 'fiscal');
             } catch (_) { /* no bloquear lectura */ }
         }
     }
@@ -1169,6 +1170,7 @@ configuracionSistemaSchema.statics.obtenerConfiguracion = async function() {
             try {
                 const redisCache = require('../../utils/redisCache');
                 await redisCache.invalidateCustom('configuracion', 'sistema');
+                await redisCache.invalidateCustom('facturacion', 'fiscal');
             } catch (_) { /* no bloquear lectura */ }
         }
     }
