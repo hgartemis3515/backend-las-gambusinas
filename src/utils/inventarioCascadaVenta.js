@@ -2,8 +2,15 @@
 
 const MATERIAS = ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete'];
 
+const NOMBRE_MATERIA = {
+    'pollo-origen': 'Pollo fresco',
+    'pechuga-pollo': 'Pechuga de Pollo',
+    'pierna-pollo': 'Pierna de Pollo',
+    filete: 'Filete Pollo crudo'
+};
+
 const SEMILLA = {
-    pollada: { tieneCocido: true, reservaClave: '' },
+    pollada: { tieneCocido: true, reservaClave: 'pechuga-pollo' },
     menu: { tieneCocido: true, reservaClave: '' },
     'pollo-lena': { tieneCocido: true, reservaClave: '' },
     'pierna-lena': { tieneCocido: true, reservaClave: '' },
@@ -67,6 +74,27 @@ function repartirVenta(cantidad, cadena, bases) {
     return resultado;
 }
 
+function nombreUso(origen, parte) {
+    if (!parte || parte.rubro === origen) return parte && parte.tipo === 'cocido' ? 'Cocido' : 'Crudo';
+    return NOMBRE_MATERIA[parte.rubro] || parte.rubro;
+}
+
+function detalleParaParte(detalle, cantidadParte, cantidadTotal) {
+    if (!Array.isArray(detalle) || !detalle.length || typeof detalle[0] !== 'object') return [];
+    const total = detalle.reduce((a, d) => a + (Number(d && d.cantidad) || 0), 0);
+    if (!(cantidadParte > 0)) return [];
+    if (!(total > 0) || Math.abs(total - cantidadParte) < 0.001) {
+        return detalle.map((d) => Object.assign({}, d));
+    }
+    let queda = cantidadParte;
+    return detalle.map((d) => {
+        const n = Math.min(queda, Number(d && d.cantidad) || 0);
+        queda -= n;
+        const factor = Number(d && d.factor) > 0 ? Number(d.factor) : 1;
+        return Object.assign({}, d, { cantidad: n, platos: factor ? n / factor : n });
+    }).filter((d) => (Number(d.cantidad) || 0) > 0);
+}
+
 function validarCocidoConfig(clave, config) {
     const body = config || {};
     if (esMateria(clave)) return { valido: true, tieneCocido: false, reservaClave: '' };
@@ -98,7 +126,8 @@ function aplicarMovimiento(bases, mov) {
 /**
  * Reparte cada venta, en orden de hora, contra el saldo que dejan los movimientos guardados.
  * Un rubro sin cuadro cocido gasta primero el cocido que quedó de antes (Transformar o ventas viejas).
- * El detalle del plato queda solo en el primer balde para no contarlo dos veces.
+ * El detalle del plato queda en el producto relacionado. Si el stock sale del producto anterior,
+ * esa parte no vuelve a bajar el saldo del relacionado: llega marcada con sinSaldo.
  */
 function atribuirVentas(movimientos, ventas, opciones) {
     const eventos = [];
@@ -125,17 +154,39 @@ function atribuirVentas(movimientos, ventas, opciones) {
         const op = (opciones && opciones[rubro]) || semillaCocido(rubro);
         const cadena = cadenaDe(rubro, op);
         if (cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
-        repartirVenta(cant, cadena, bases).forEach((p, i) => {
+        const partes = repartirVenta(cant, cadena, bases);
+        const algunaLocal = partes.some((p) => p.rubro === rubro);
+        let cubierta = 0;
+        partes.forEach((p) => {
+            if (p.rubro !== rubro) cubierta += p.cantidad;
+            const usoNombre = nombreUso(rubro, p);
             out.push({
                 rubro: p.rubro,
+                origen: rubro,
                 nombre: v.nombre,
                 cantidad: p.cantidad,
                 fecha: v.fecha,
                 motivo: v.motivo,
-                detalle: i === 0 ? (v.detalle || []) : [],
-                tipoProducto: p.tipo
+                detalle: detalleParaParte(v.detalle, p.cantidad, cant),
+                tipoProducto: p.tipo,
+                usoNombre: usoNombre,
+                sinSaldo: false
             });
         });
+        if (cubierta > 0) {
+            out.push({
+                rubro: rubro,
+                origen: rubro,
+                nombre: v.nombre,
+                cantidad: cubierta,
+                fecha: v.fecha,
+                motivo: v.motivo,
+                detalle: algunaLocal ? [] : detalleParaParte(v.detalle, cubierta, cant),
+                tipoProducto: op.tieneCocido ? 'cocido' : 'crudo',
+                usoNombre: algunaLocal ? '' : nombreUso(rubro, partes[partes.length - 1]),
+                sinSaldo: true
+            });
+        }
     });
     return out;
 }
@@ -147,5 +198,6 @@ module.exports = {
     cadenaDe,
     repartirVenta,
     validarCocidoConfig,
-    atribuirVentas
+    atribuirVentas,
+    nombreUso
 };

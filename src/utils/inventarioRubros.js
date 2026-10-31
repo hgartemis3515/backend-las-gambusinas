@@ -150,6 +150,19 @@ function claveDe(clave) {
     return clavesGuardables().find((c) => c.clave === clave) || null;
 }
 
+function extrasDeVentas(ventas) {
+    const out = [];
+    const ya = new Set();
+    (ventas || []).forEach((v) => {
+        const clave = v && (v.rubro || v.plato);
+        if (!clave || ya.has(clave) || v.sinSaldo) return;
+        ya.add(clave);
+        const detalle = Array.isArray(v.detalle) ? v.detalle.find((d) => d && d.nombre) : null;
+        out.push({ clave, nombre: (detalle && detalle.nombre) || v.nombre || clave });
+    });
+    return out;
+}
+
 function filasDeRubros(movimientos, desde, hasta, umbralPorClave, extras) {
     const defs = clavesGuardables();
     const ya = new Set(defs.map((d) => d.clave));
@@ -235,6 +248,7 @@ module.exports = {
     claveDe,
     clavesGuardables,
     filasDeRubros,
+    extrasDeVentas,
     ceroFila,
     sumarFilas,
     carta

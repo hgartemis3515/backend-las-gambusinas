@@ -1,14 +1,10 @@
 'use strict';
 
-const moment = require('moment-timezone');
 const { matchComandasEstadisticas } = require('./estadisticasComandas');
 const { armarContadorPlatos } = require('./contadorPlatosReporte');
-const { ymdCalendario } = require('./diaOperativoRestaurante');
 const { claveDe } = require('./inventarioRubros');
 const { semilla, consumoDeFila, leerGuardados } = require('./inventarioMapas');
 const logger = require('./logger');
-
-const ZONA = 'America/Lima';
 
 /**
  * Fila del contador de reportes → rubro de inventario.
@@ -37,12 +33,56 @@ function norm(s) {
         .trim();
 }
 
+function esGaseosa(n) {
+    return /gaseosa|inca kola|inkakola|coca[- ]?cola|sprite|fanta|guarana/.test(n);
+}
+
+function esLicor(n) {
+    return /\b(vino|vinos|cerveza|pisco|ron|whisky|whiskey|vodka|chilcano|tequila|sangria|licor|licores|gin)\b/.test(n) && !n.includes('vinagre');
+}
+
+function slugBebida(nombre, prefijo) {
+    const n = norm(nombre);
+    const s = n.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'bebida';
+    return prefijo + '-' + s;
+}
+
+function claveBebida(nombre) {
+    const n = norm(nombre);
+    if (esGaseosa(n)) return slugBebida(nombre, 'gaseosa');
+    if (esLicor(n)) return slugBebida(nombre, 'licor');
+    return '';
+}
+
+function tipoBebidaPlato(plato) {
+    const n = norm(plato && plato.nombre);
+    const cat = norm([plato && plato.categoria].concat((plato && plato.categorias) || []).join(' '));
+    const grupo = norm(plato && plato.grupoSos);
+    if (esGaseosa(n) || grupo === 'gaseosas' || cat.includes('gaseosa')) return 'gaseosas';
+    if (!n.includes('vinagre') && (esLicor(n) || grupo === 'alcohol' || cat.includes('vino') || cat.includes('licor'))) return 'licores';
+    return '';
+}
+
+function indiceBebidas(catalogo) {
+    const map = {};
+    (catalogo || []).forEach((p) => {
+        const tipo = tipoBebidaPlato(p);
+        if (!tipo || !p.nombre) return;
+        map[norm(p.nombre)] = claveBebida(p.nombre) || slugBebida(p.nombre, tipo === 'gaseosas' ? 'gaseosa' : 'licor');
+    });
+    return map;
+}
+
 function filasDelContador(contador) {
     if (!contador) return [];
+    const bebidas = (contador.guarniciones || [])
+        .filter((g) => g && claveBebida(g.nombre))
+        .map((g) => ({ nombre: g.nombre, cantidad: g.cantidad }));
     return []
         .concat(contador.pollos || [])
         .concat(contador.carnes || [])
-        .concat(contador.platos || []);
+        .concat(contador.platos || [])
+        .concat(bebidas);
 }
 
 function partirSalida(filas, comanda, mapasVenta, meta) {
@@ -68,7 +108,7 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
         detalle[rubro][key].platos += Number(platos) || 0;
     };
     for (const fila of filas || []) {
-        const mapas = rubrosDeFila(fila, mapasVenta);
+        const mapas = rubrosDeFila(fila, mapasVenta, meta && meta.bebidas);
         const cantidad = Number(fila && fila.cantidad) || 0;
         if (!mapas.length || cantidad <= 0) continue;
         const fuentes = fila && fila.fuentes && typeof fila.fuentes === 'object' ? fila.fuentes : null;
@@ -96,7 +136,7 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
     return { porRubro, detalle: listas };
 }
 
-function rubrosDeFila(fila, mapas) {
+function rubrosDeFila(fila, mapas, bebidas) {
     const nombre = fila && fila.nombre;
     const n = norm(nombre);
     const directo = MAPA_SALIDA[n];
@@ -124,12 +164,10 @@ function rubrosDeFila(fila, mapas) {
     else if (n.includes('chaufa') && n.includes('pollo')) add('chaufa-pollo');
     else if (n.includes('saltado') && n.includes('pollo')) add('salt-pollo');
     else if (n.includes('pan con pollo')) add('menu');
+    else if (n.includes('pollada')) add('pollada');
     else if (n.includes('tamal')) add('tamal');
-    else if (/gaseosa|inca kola|inkakola|coca[- ]?cola|sprite|fanta|guarana/.test(n)) {
-        add('gaseosa-' + (n.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'bebida'));
-    } else if (/\b(vino|vinos|cerveza|pisco|ron|whisky|whiskey|vodka|chilcano|tequila|sangria|licor|licores|gin)\b/.test(n) && !n.includes('vinagre')) {
-        add('licor-' + (n.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'bebida'));
-    }
+    else if (bebidas && bebidas[n]) add(bebidas[n]);
+    else if (claveBebida(nombre)) add(claveBebida(nombre));
     const propio = rubroPropioDeNombre(n);
     if (propio) {
         for (let i = 0; i < lista.length; i++) {
@@ -166,12 +204,8 @@ function rubrosDeNombre(nombre, mapas) {
     return rubrosDeFila({ nombre: nombre }, mapas);
 }
 
-function aplicarMapa(filas, mapas) {
-    return partirSalida(filas, '', mapas).porRubro;
-}
-
-function fechaEnDia(ymd) {
-    return moment.tz(String(ymd), 'YYYY-MM-DD', ZONA).hour(12).minute(0).second(0).millisecond(0).toDate();
+function aplicarMapa(filas, mapas, bebidas) {
+    return partirSalida(filas, '', mapas, { bebidas: bebidas }).porRubro;
 }
 
 function lineasDeComanda(comanda) {
@@ -205,17 +239,9 @@ async function egresosVentaHasta(hasta) {
                 .populate('platos.plato', 'nombre nombreCocina categoria complementos complementosUnidosAlPlato precio')
                 .lean(),
             Plato.find({ isActive: { $ne: false } })
-                .select('nombre nombreCocina categoria complementos complementosUnidosAlPlato')
+                .select('nombre nombreCocina categoria categorias grupoSos complementos complementosUnidosAlPlato')
                 .lean()
         ]);
-        const porDia = new Map();
-        for (const comanda of comandas || []) {
-            if (!comanda || !comanda.createdAt) continue;
-            const ymd = ymdCalendario(comanda.createdAt);
-            if (!lineasDeComanda(comanda).length) continue;
-            if (!porDia.has(ymd)) porDia.set(ymd, []);
-            porDia.get(ymd).push(comanda);
-        }
         const movs = [];
         const ventas = [];
         let mapasVenta = semilla();
@@ -224,43 +250,28 @@ async function egresosVentaHasta(hasta) {
         } catch (errorMapa) {
             logger.warn('Inventario usa los mapas de semilla', { error: errorMapa.message });
         }
-        for (const [ymd, lista] of porDia) {
-            const porRubro = {};
-            const detalle = {};
-            lista.forEach((comanda) => {
-                const nro = comanda.numeroComandaDia;
-                const etiqueta = nro != null && nro !== '' ? ('Comanda ' + nro) : 'Sin número';
-                const partido = partirSalida(
-                    filasDelContador(armarContadorPlatos(lineasDeComanda(comanda), catalogo)),
-                    etiqueta,
-                    mapasVenta,
-                    { comandaId: comanda._id, hora: comanda.createdAt }
-                );
-                Object.keys(partido.porRubro).forEach((rubro) => {
-                    porRubro[rubro] = (porRubro[rubro] || 0) + partido.porRubro[rubro];
-                    if (!detalle[rubro]) detalle[rubro] = [];
-                    detalle[rubro] = detalle[rubro].concat(partido.detalle[rubro] || []);
-                });
-            });
-            const fecha = fechaEnDia(ymd);
-            Object.keys(porRubro).forEach((rubro) => {
-                const cantidad = porRubro[rubro];
+        const bebidas = indiceBebidas(catalogo);
+        for (const comanda of comandas || []) {
+            if (!comanda || !comanda.createdAt || !lineasDeComanda(comanda).length) continue;
+            const nro = comanda.numeroComandaDia;
+            const etiqueta = nro != null && nro !== '' ? ('Comanda ' + nro) : 'Sin número';
+            const partido = partirSalida(
+                filasDelContador(armarContadorPlatos(lineasDeComanda(comanda), catalogo)),
+                etiqueta,
+                mapasVenta,
+                { comandaId: comanda._id, hora: comanda.createdAt, bebidas: bebidas }
+            );
+            Object.keys(partido.porRubro).forEach((rubro) => {
+                const cantidad = partido.porRubro[rubro];
                 if (!cantidad) return;
                 const def = claveDe(rubro);
-                movs.push({
-                    rubro,
-                    tipoProducto: 'cocido',
-                    clase: 'egreso',
-                    cantidad,
-                    fecha
-                });
                 ventas.push({
                     rubro,
                     nombre: def ? def.nombre : rubro,
                     cantidad,
-                    fecha,
+                    fecha: comanda.createdAt,
                     motivo: 'Venta (reportes)',
-                    detalle: detalle[rubro] || []
+                    detalle: partido.detalle[rubro] || []
                 });
             });
         }
@@ -278,5 +289,6 @@ module.exports = {
     rubrosDeNombre,
     partirSalida,
     filasDelContador,
+    indiceBebidas,
     egresosVentaHasta
 };

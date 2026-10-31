@@ -83,7 +83,7 @@ function aplicarVentasEnFilas(filas, ventas) {
     (ventas || []).forEach((v) => {
         const rubro = v && (v.rubro || v.plato);
         const cantidad = Number(v && v.cantidad) || 0;
-        if (!rubro || cantidad <= 0) return;
+        if (!rubro || cantidad <= 0 || v.sinSaldo) return;
         const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
         ventaPor[key] = (ventaPor[key] || 0) + cantidad;
     });

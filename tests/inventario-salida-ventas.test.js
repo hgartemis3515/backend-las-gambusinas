@@ -1,4 +1,4 @@
-const { aplicarMapa } = require('../src/utils/inventarioSalidaVentas');
+const { aplicarMapa, filasDelContador, indiceBebidas } = require('../src/utils/inventarioSalidaVentas');
 const { filasDeRubros } = require('../src/utils/inventarioRubros');
 
 function dia(ymd, hora) {
@@ -19,6 +19,30 @@ test('cada tipo de arroz descuenta su fila y el chaufa de pollo no', () => {
     expect(porRubro['arroz-blanco']).toBe(1);
     expect(porRubro['chaufa-pollo']).toBe(1);
     expect(porRubro.filete).toBeUndefined();
+});
+
+test('la pollada de la carta descuenta pollada, papas y arroz', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Pollada + papa fritas + Arroz + ensalada', cantidad: 2 }
+    ]);
+    expect(porRubro.pollada).toBe(2);
+    expect(porRubro.papas).toBe(2);
+    expect(porRubro['arroz-tipo-pollo']).toBe(2);
+});
+
+test('una gaseosa pedida como guarnición descuenta su fila', () => {
+    const filas = filasDelContador({
+        platos: [{ nombre: 'Filete de pollo', cantidad: 1 }],
+        guarniciones: [{ nombre: 'Inca Kola', cantidad: 2 }]
+    });
+    expect(aplicarMapa(filas)['gaseosa-inca-kola']).toBe(2);
+    expect(aplicarMapa(filas).filete).toBe(1);
+});
+
+test('un vino sin la palabra vino descuenta su fila de licor', () => {
+    const bebidas = indiceBebidas([{ nombre: 'Tabernero Borgoña', categoria: 'VINO', grupoSos: 'Alcohol' }]);
+    const porRubro = aplicarMapa([{ nombre: 'Tabernero Borgoña', cantidad: 1 }], undefined, bebidas);
+    expect(porRubro['licor-tabernero-borgona']).toBe(1);
 });
 
 test('cada gaseosa y cada licor descuentan su propia fila', () => {
@@ -141,6 +165,16 @@ test('la pota solo sale en ceviche de chicharrón de pota y en chicharrón de po
     ]);
     expect(porRubro.pota).toBe(3);
     expect(porRubro.ceviche).toBeUndefined();
+});
+
+test('una gaseosa vendida tiene fila aunque nadie la haya ingresado', () => {
+    const { filasDeRubros, extrasDeVentas } = require('../src/utils/inventarioRubros');
+    const ventas = [{ rubro: 'gaseosa-inca-kola-1-2-litro', nombre: 'Inca Kola 1/2 litro', cantidad: 2, tipoProducto: 'crudo' }];
+    const filas = filasDeRubros([], dia('2026-10-31', '04:00:00'), dia('2026-11-01', '03:59:59'), {}, extrasDeVentas(ventas));
+    const fila = filas.find((f) => f.rubro === 'gaseosa-inca-kola-1-2-litro' && f.tipoProducto === 'crudo');
+    expect(fila).toBeTruthy();
+    expect(fila.nombre).toBe('Inca Kola 1/2 litro');
+    expect(fila.egreso).toBe(0);
 });
 
 test('la venta del día entra en salida y al día siguiente abre el saldo anterior', () => {

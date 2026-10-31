@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
-const { claveDe, clavesGuardables, filasDeRubros, carta } = require('../utils/inventarioRubros');
+const { claveDe, clavesGuardables, filasDeRubros, extrasDeVentas, carta } = require('../utils/inventarioRubros');
 const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventarioMapas');
 const MapaSemantico = require('../database/models/inventarioMapa.model');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
@@ -15,10 +15,21 @@ const logger = require('../utils/logger');
 function rango(desde, hasta, ciclo) {
     const iniStr = String(desde || '').trim();
     const finStr = String(hasta || desde || '').trim();
-    if (!esSoloFechaYMD(iniStr) || !esSoloFechaYMD(finStr)) {
-        const err = new Error('Usa fechas YYYY-MM-DD');
+    const iso = (s) => !esSoloFechaYMD(s);
+    if ((iso(iniStr) || iso(finStr)) && (esSoloFechaYMD(iniStr) || esSoloFechaYMD(finStr))) {
+        const err = new Error('Usa las dos fechas en el mismo formato');
         err.statusCode = 400;
         throw err;
+    }
+    if (iso(iniStr)) {
+        const desde = new Date(iniStr);
+        const hasta = new Date(finStr);
+        if (Number.isNaN(desde.getTime()) || Number.isNaN(hasta.getTime()) || hasta < desde) {
+            const err = new Error('Rango de fechas inválido');
+            err.statusCode = 400;
+            throw err;
+        }
+        return { desde, hasta };
     }
     if (finStr < iniStr) {
         const err = new Error('La fecha hasta es anterior a desde');
@@ -192,7 +203,7 @@ function lineasReporte(filas, ventas) {
     (ventas || []).forEach((v) => {
         const rubro = v && (v.rubro || v.plato);
         const cantidad = Number(v && v.cantidad) || 0;
-        if (!rubro || cantidad <= 0) return;
+        if (!rubro || cantidad <= 0 || v.sinSaldo) return;
         const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
         ventaPorRubro[key] = (ventaPorRubro[key] || 0) + cantidad;
     });
@@ -228,6 +239,7 @@ async function opcionesCocido() {
         const guardado = doc && typeof doc.tieneCocido === 'boolean';
         let tieneCocido = guardado ? doc.tieneCocido : sem.tieneCocido;
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
+        if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
         if (esMateria(d.clave)) {
             tieneCocido = false;
             reservaClave = '';
@@ -254,7 +266,7 @@ async function filasCartaEn(desde, hasta) {
     ]);
     const atribuidas = atribuirVentas(guardados, ventasPack.ventas, porClave(opciones));
     const filas = aplicarSaldoPrevioDeVentas(
-        filasDeRubros(guardados, desde, hasta, umbrales, clavesExtra(mapas)),
+        filasDeRubros(guardados, desde, hasta, umbrales, clavesExtra(mapas).concat(extrasDeVentas(atribuidas))),
         atribuidas,
         desde
     );
@@ -274,7 +286,7 @@ function aplicarSaldoPrevioDeVentas(filas, ventas, desde) {
         const rubro = v && (v.rubro || v.plato);
         const n = Number(v && v.cantidad) || 0;
         const t = new Date(v && v.fecha).getTime();
-        if (!rubro || n <= 0 || !(t < desdeMs)) return;
+        if (!rubro || n <= 0 || v.sinSaldo || !(t < desdeMs)) return;
         const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
         antes[key] = (antes[key] || 0) + n;
     });
@@ -455,17 +467,19 @@ async function guardarUmbralRubro(clave, body) {
 
 async function alertasRubro() {
     const hasta = new Date();
-    const [guardados, ventasPack, umbrales, opciones] = await Promise.all([
+    const [guardados, ventasPack, umbrales, opciones, mapas] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] } })
             .select('rubro tipoProducto clase cantidad fecha')
             .lean(),
         egresosVentaHasta(hasta),
         umbralesRubro(),
-        opcionesCocido()
+        opcionesCocido(),
+        leerGuardados().catch(() => [])
     ]);
+    const atribuidas = atribuirVentas(guardados, ventasPack.ventas, porClave(opciones));
     const filas = aplicarVentasEnFilas(
-        filasDeRubros(guardados, new Date(0), hasta, umbrales, clavesExtra(await leerGuardados().catch(() => []))),
-        atribuirVentas(guardados, ventasPack.ventas, porClave(opciones))
+        filasDeRubros(guardados, new Date(0), hasta, umbrales, clavesExtra(mapas).concat(extrasDeVentas(atribuidas))),
+        atribuidas
     );
     return alertasDeFilas(filas);
 }
