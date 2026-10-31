@@ -239,6 +239,9 @@ comprobanteSchema.index({ 'origen.pedido': 1 });
 comprobanteSchema.index({ 'origen.boucher': 1 });
 comprobanteSchema.index({ 'origen.ticket': 1, estado: 1 });
 comprobanteSchema.index({ fechaEmision: -1 });
+comprobanteSchema.index({ ruc: 1, fechaEmision: -1 }, { name: 'idx_comprobante_ruc_fecha' });
+comprobanteSchema.index({ cajero: 1, fechaEmision: -1 }, { name: 'idx_comprobante_cajero_fecha' });
+comprobanteSchema.index({ estado: 1, fechaEmision: -1 }, { name: 'idx_comprobante_estado_fecha' });
 
 const errorBorrado = () => Object.assign(
     new Error('Los comprobantes electrónicos no se eliminan: emita Nota de Crédito o Comunicación de Baja'),

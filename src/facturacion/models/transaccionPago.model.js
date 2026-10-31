@@ -49,5 +49,6 @@ transaccionPagoSchema.index(
     { proveedor: 1, idTransaccionExterna: 1 },
     { unique: true, partialFilterExpression: { idTransaccionExterna: { $type: 'string' } } }
 );
+transaccionPagoSchema.index({ cajero: 1, recibidoEn: -1 }, { name: 'idx_pago_cajero_recibido' });
 
 module.exports = mongoose.models.TransaccionPago || mongoose.model('TransaccionPago', transaccionPagoSchema);

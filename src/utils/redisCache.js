@@ -21,6 +21,23 @@ class RedisCache {
     this.stats = { hits: 0, misses: 0, sets: 0, invalidates: 0 };
   }
 
+  variosProcesos() {
+    const n = String(process.env.PM2_INSTANCES || '1');
+    if (n === 'max') return true;
+    const num = Number(n);
+    return Number.isFinite(num) && num > 1;
+  }
+
+  redisListo() {
+    return Boolean(this.enabled && this.client && this.client.status === 'ready');
+  }
+
+  /** Con varios workers y Redis caído, no guardar una copia distinta por proceso. */
+  memoriaOk() {
+    if (this.redisListo()) return true;
+    return !this.variosProcesos();
+  }
+
   /**
    * Inicializar cliente Redis
    */
@@ -190,8 +207,11 @@ class RedisCache {
   async get(comandaId) {
     try {
       // Si Redis no está habilitado o no está listo, usar memoria directamente
-      if (!this.enabled || !this.client || !this.client.status || this.client.status !== 'ready') {
-        // Fallback: cache en memoria (silencioso)
+      if (!this.redisListo()) {
+        if (!this.memoriaOk()) {
+          this.stats.misses++;
+          return null;
+        }
         const cached = this.memoryCache.get(comandaId);
         if (cached && cached.expiresAt > Date.now()) {
           return cached.data;
@@ -231,11 +251,12 @@ class RedisCache {
       const key = `${this.keyPrefix}comanda:${comandaId}`;
       const data = JSON.stringify(comanda);
 
-      // Guardar siempre en memoria (fallback)
-      this.memoryCache.set(comandaId, {
-        data: comanda,
-        expiresAt: Date.now() + (cacheTtl * 1000)
-      });
+      if (this.memoriaOk()) {
+        this.memoryCache.set(comandaId, {
+          data: comanda,
+          expiresAt: Date.now() + (cacheTtl * 1000)
+        });
+      }
       
       // Limpiar expirados cada 60s (solo una vez)
       if (!this.cleanupInterval) {
@@ -320,7 +341,11 @@ class RedisCache {
   async getCustom(prefix, keySuffix) {
     const fullKey = `${this.keyPrefix || ''}${prefix}:${keySuffix}`;
     try {
-      if (!this.enabled || !this.client || this.client.status !== 'ready') {
+      if (!this.redisListo()) {
+        if (!this.memoriaOk()) {
+          this.stats.misses++;
+          return null;
+        }
         const cached = this.memoryCache.get(fullKey);
         if (cached && cached.expiresAt > Date.now()) {
           this.stats.hits++;
@@ -355,10 +380,12 @@ class RedisCache {
   async setCustom(prefix, keySuffix, value, ttlSeconds = 300) {
     const fullKey = `${this.keyPrefix || ''}${prefix}:${keySuffix}`;
     try {
-      this.memoryCache.set(fullKey, {
-        data: value,
-        expiresAt: Date.now() + (ttlSeconds * 1000)
-      });
+      if (this.memoriaOk()) {
+        this.memoryCache.set(fullKey, {
+          data: value,
+          expiresAt: Date.now() + (ttlSeconds * 1000)
+        });
+      }
       if (this.enabled && this.client && this.client.status === 'ready') {
         try {
           await this.client.setex(fullKey, ttlSeconds, JSON.stringify(value));

@@ -120,7 +120,29 @@ const REGEX_SERIE = Object.freeze({
     '07': /^(FC|BC)[0-9]{2}$/,
 });
 
+const POR_NOMBRE = {
+    '01': TIPO_DOCUMENTO,
+    '06': TIPO_DOC_IDENTIDAD,
+    '07': AFECTACION_IGV,
+    '09': MOTIVO_NOTA_CREDITO,
+    '59': MEDIO_PAGO_SUNAT,
+};
+
+/** Primera lectura guarda el catálogo 24 h. El seed vive en este archivo: al cambiarlo, el TTL vence solo. */
+async function leerCatalogo(nombre) {
+    const clave = String(nombre || '');
+    const dato = POR_NOMBRE[clave];
+    if (!dato) return null;
+    const redisCache = require('../../utils/redisCache');
+    const hit = await redisCache.getCustom('facturacion:catalogo', clave);
+    if (hit) return hit;
+    const plano = JSON.parse(JSON.stringify(dato));
+    await redisCache.setCustom('facturacion:catalogo', clave, plano, 86400);
+    return plano;
+}
+
 module.exports = {
+    leerCatalogo,
     TIPO_DOCUMENTO,
     TIPO_DOC_IDENTIDAD,
     AFECTACION_IGV,

@@ -78,10 +78,22 @@ function armarConfiguracionFiscal(cfg = {}, env = process.env) {
     };
 }
 
+const FISCAL_TTL = 300;
+
 /** @returns {Promise<ConfiguracionFiscal>} */
 async function obtenerConfiguracionFiscal() {
+    const redisCache = require('../../utils/redisCache');
+    const hit = await redisCache.getCustom('facturacion', 'fiscal');
+    if (hit) return hit;
     const cfg = await ConfiguracionSistema.obtenerConfiguracion();
-    return armarConfiguracionFiscal(cfg);
+    const fiscal = armarConfiguracionFiscal(cfg);
+    await redisCache.setCustom('facturacion', 'fiscal', fiscal, FISCAL_TTL);
+    return fiscal;
 }
 
-module.exports = { obtenerConfiguracionFiscal, armarConfiguracionFiscal };
+async function invalidarConfiguracionFiscal() {
+    const redisCache = require('../../utils/redisCache');
+    await redisCache.invalidateCustom('facturacion', 'fiscal');
+}
+
+module.exports = { obtenerConfiguracionFiscal, armarConfiguracionFiscal, invalidarConfiguracionFiscal };

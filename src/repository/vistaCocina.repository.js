@@ -177,15 +177,27 @@ async function obtenerPantallasCocina() {
     }
 }
 
+async function invalidarCachePantallas() {
+    try {
+        const redisCache = require('../utils/redisCache');
+        await redisCache.invalidateCustom('cocina', 'pantallas');
+    } catch (_) { /* no bloquear la escritura */ }
+}
+
 async function obtenerPantallasActivas() {
     try {
-        return await PantallaCocina.find({ activo: true })
+        const redisCache = require('../utils/redisCache');
+        const hit = await redisCache.getCustom('cocina', 'pantallas');
+        if (Array.isArray(hit)) return hit;
+        const data = await PantallaCocina.find({ activo: true })
             .sort({ numeroPantalla: 1 })
             .populate('vistaCocinaId', 'nombre descripcion color icono filtrosPlatos configVisual ordenamiento configCronometro')
             .populate('cocineroId', 'nombre alias name')
             .populate('cocineroIds', 'nombre alias name')
             .populate('perfilVerCocinaId', 'nombre')
             .lean();
+        await redisCache.setCustom('cocina', 'pantallas', data, 120);
+        return data;
     } catch (error) {
         // Fallback: si un doc tiene cocineroId/vistaCocinaId/perfilVerCocinaId invalido (string vacio,
         // no-ObjectId), el populate lanza CastError. Reintentamos sin populate para
@@ -468,24 +480,32 @@ async function revocarDeviceToken(pantallaId) {
     }
 }
 
+function alGuardar(fn) {
+    return async (...args) => {
+        const result = await fn(...args);
+        await invalidarCachePantallas();
+        return result;
+    };
+}
+
 module.exports = {
     obtenerVistasCocina,
     obtenerVistasCocinaActivas,
     obtenerVistaCocinaPorId,
-    crearVistaCocina,
-    actualizarVistaCocina,
-    eliminarVistaCocina,
-    reactivarVistaCocina,
+    crearVistaCocina: alGuardar(crearVistaCocina),
+    actualizarVistaCocina: alGuardar(actualizarVistaCocina),
+    eliminarVistaCocina: alGuardar(eliminarVistaCocina),
+    reactivarVistaCocina: alGuardar(reactivarVistaCocina),
     obtenerPantallasCocina,
     obtenerPantallasActivas,
-    crearPantallaCocina,
-    actualizarPantallaCocina,
-    eliminarPantallaCocina,
+    crearPantallaCocina: alGuardar(crearPantallaCocina),
+    actualizarPantallaCocina: alGuardar(actualizarPantallaCocina),
+    eliminarPantallaCocina: alGuardar(eliminarPantallaCocina),
     obtenerPantallaPorNumero,
     verificarDeviceToken,
-    generarDeviceToken,
-    revocarDeviceToken,
-    actualizarDistribucionPantallas,
-    guardarConfigVisualPantalla,
+    generarDeviceToken: alGuardar(generarDeviceToken),
+    revocarDeviceToken: alGuardar(revocarDeviceToken),
+    actualizarDistribucionPantallas: alGuardar(actualizarDistribucionPantallas),
+    guardarConfigVisualPantalla: alGuardar(guardarConfigVisualPantalla),
     obtenerConfigVisualPantalla
 };

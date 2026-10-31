@@ -380,6 +380,7 @@ const actualizarApariencia = async (apariencia) => {
 const invalidarCache = async () => {
     try {
         await redisCache.invalidateCustom(CACHE_KEY_PREFIX, 'sistema');
+        await redisCache.invalidateCustom('facturacion', 'fiscal');
         logger.debug('Caché de configuración invalidado');
     } catch (error) {
         // No lanzar error si falla la invalidación del caché
