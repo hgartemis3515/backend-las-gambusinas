@@ -148,7 +148,8 @@ async function crearMovimiento(data, usuarioId) {
         err.statusCode = 400;
         throw err;
     }
-    const motivo = String(data.motivo || '').trim();
+    let motivo = String(data.motivo || '').trim();
+    if (!motivo && clase === 'regulacion') motivo = 'Corrección';
     if (!motivo) {
         const err = new Error('Escribe el motivo');
         err.statusCode = 400;

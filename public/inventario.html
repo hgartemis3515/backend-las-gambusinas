@@ -316,6 +316,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       border: 2px solid #a7f3d0;
       box-shadow: 0 0 8px rgba(52, 211, 153, 0.75);
     }
+    .circulo-saldo-ambar {
+      background-color: #fbbf24;
+      border: 2px solid #fde68a;
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.75);
+    }
     .circulo-saldo-rojo {
       background-color: #f43f5e;
       border: 2px solid #fecdd3;
@@ -900,7 +905,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <th class="sticky top-[32px] left-0 z-40 bg-[#1e2436] text-white text-left px-3 py-2">Producto</th>
                 <th class="sticky top-[32px] z-30 bg-[#232038] text-purple-200 text-right px-2.5 py-2">Saldo ant.</th>
                 <th class="sticky top-[32px] z-30 bg-[#16302b] text-emerald-200 text-center px-2.5 py-2">Ingreso</th>
-                <th class="sticky top-[32px] z-30 bg-[#332818] text-amber-200 text-center px-2.5 py-2">Corrección</th>
+                <th class="sticky top-[32px] z-30 bg-[#332818] text-amber-200 text-center px-2.5 py-2" title="Solo si hay que ajustar. Si queda en 0, no se registra.">Corrección <span class="block text-[9px] font-bold tracking-wide text-amber-400/80">OPCIONAL</span></th>
                 <th class="sticky top-[32px] z-30 bg-[#182e38] text-cyan-200 text-right px-2.5 py-2">Ingreso total</th>
                 <th class="sticky top-[32px] z-30 bg-[#361c24] text-rose-200 text-right px-2.5 py-2">Venta comandas</th>
                 <th class="sticky top-[32px] z-30 bg-[#2f2416] text-orange-200 text-left px-2.5 py-2">Transformación</th>
@@ -966,8 +971,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <!-- Círculo de Saldo Real: ROJO si tiene cero o poco, VERDE si tiene suficiente saldo real -->
                           <span
                             class="circulo-saldo"
-                            :class="esSaldoSuficiente(row) ? 'circulo-saldo-verde' : 'circulo-saldo-rojo dot-critico'"
-                            :title="esSaldoSuficiente(row) ? ('Saldo real suficiente: ' + formatNum(calcSaldoReal(row))) : ('Saldo real cero o poco: ' + formatNum(calcSaldoReal(row)))"
+                            :class="claseCirculoEstado(row)"
+                            :title="tituloEstado(row)"
                           ></span>
                         </div>
 
@@ -1167,8 +1172,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
                     <td class="px-3 py-2 text-left whitespace-nowrap">
                       <div class="inline-flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="esSaldoSuficiente(row) ? 'bg-emerald-400' : 'bg-rose-500'"></span>
-                        <span class="text-xs font-semibold" :class="esSaldoSuficiente(row) ? 'text-emerald-300' : 'text-rose-300'" x-text="estadoFila(row)"></span>
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="clasePuntoEstado(row)"></span>
+                        <span class="text-xs font-semibold" :class="claseTextoEstado(row)" x-text="estadoFila(row)"></span>
                       </div>
                     </td>
 
@@ -1192,8 +1197,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="circulo-conector-track">
                       <span
                         class="circulo-saldo"
-                        :class="esSaldoSuficiente(row) ? 'circulo-saldo-verde' : 'circulo-saldo-rojo dot-critico'"
-                        :title="esSaldoSuficiente(row) ? ('Saldo real suficiente: ' + formatNum(calcSaldoReal(row))) : ('Saldo real cero o poco: ' + formatNum(calcSaldoReal(row)))"
+                        :class="claseCirculoEstado(row)"
+                        :title="tituloEstado(row)"
                       ></span>
                     </div>
                     <div class="flex items-center gap-2 py-2.5 pr-3 min-h-[46px]" style="padding-left: 46px">
@@ -1384,8 +1389,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
                   <td class="px-3 py-2 text-left whitespace-nowrap">
                     <div class="inline-flex items-center gap-2">
-                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="esSaldoSuficiente(row) ? 'bg-emerald-400' : 'bg-rose-500'"></span>
-                      <span class="text-xs font-semibold" :class="esSaldoSuficiente(row) ? 'text-emerald-300' : 'text-rose-300'" x-text="estadoFila(row)"></span>
+                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="clasePuntoEstado(row)"></span>
+                      <span class="text-xs font-semibold" :class="claseTextoEstado(row)" x-text="estadoFila(row)"></span>
                     </div>
                   </td>
 
@@ -2455,7 +2460,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
         <div class="space-y-2">
           <h1 class="sec-title">Gráfico estadístico</h1>
-          <p class="text-xs text-[#a0a0b8]">Ingreso, ventas y saldo de la hoja, día por día, en el período elegido.</p>
+          <p class="text-xs text-[#a0a0b8]" x-text="graficoProducto ? ('Solo ' + nombreGraficoProducto() + ', día por día, en el período elegido.') : 'Ingreso, ventas y saldo de la hoja, día por día, en el período elegido.'"></p>
+          <label class="flex flex-wrap items-center gap-2 text-xs text-[#a0a0b8]">
+            <span class="uppercase tracking-wider font-semibold text-white">Producto</span>
+            <select x-model="graficoProducto" @change="cargarSerieGrafico()" aria-label="Ver un solo producto" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1.5 text-sm text-white min-w-[220px] max-w-full">
+              <option value="">Todos</option>
+              <template x-for="p in productosGrafico()" :key="'graf-prod-' + p.id">
+                <option :value="p.id" x-text="p.nombre"></option>
+              </template>
+            </select>
+          </label>
           <div class="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#0a0a0f] border border-[#26263a] p-1">
             <span class="px-3 text-[11px] uppercase tracking-wider text-white font-semibold">Período</span>
             <template x-for="p in periodosVisibles()" :key="'graf-' + p.id">
@@ -2502,14 +2516,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
         <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 360px;">
           <h2 class="font-semibold text-sm">Gráfico de anillo</h2>
-          <p class="text-[11px] text-[#a0a0b8] mb-3">Qué parte de las ventas lleva cada producto. El centro es el total.</p>
+          <p class="text-[11px] text-[#a0a0b8] mb-3" x-text="graficoProducto ? 'Ventas de este producto. El centro es el total.' : 'Qué parte de las ventas lleva cada producto. El centro es el total.'"></p>
           <div class="relative flex-1 min-h-0">
             <canvas id="chartInventarioAnillo"></canvas>
           </div>
         </div>
         <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 360px;">
           <h2 class="font-semibold text-sm">Barras horizontales</h2>
-          <p class="text-[11px] text-[#a0a0b8] mb-3">Los 10 productos con más ventas, de mayor a menor.</p>
+          <p class="text-[11px] text-[#a0a0b8] mb-3" x-text="graficoProducto ? 'Ventas de este producto.' : 'Los 10 productos con más ventas, de mayor a menor.'"></p>
           <div class="relative flex-1 min-h-0">
             <canvas id="chartInventarioEmbudo"></canvas>
           </div>
@@ -2535,7 +2549,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 flex flex-col" style="height: 420px;">
         <h2 class="font-semibold text-sm">Lo realizado por producto</h2>
-        <p class="text-[11px] text-[#a0a0b8] mb-3">Ingreso registrado y ventas de los 10 productos con más movimiento.</p>
+        <p class="text-[11px] text-[#a0a0b8] mb-3" x-text="graficoProducto ? 'Ingreso y ventas de este producto.' : 'Ingreso registrado y ventas de los 10 productos con más movimiento.'"></p>
         <div class="relative flex-1 min-h-0">
           <canvas id="chartInventarioRealizado"></canvas>
         </div>
@@ -2927,13 +2941,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
             <div class="flex items-center justify-between">
               <span class="text-[#a0a0b8] block">Saldo Real Actual</span>
-              <span class="w-2.5 h-2.5 rounded-full" :class="esSaldoSuficiente(auditoriaRow) ? 'bg-emerald-400' : 'bg-rose-500 animate-pulse'"></span>
+              <span class="w-2.5 h-2.5 rounded-full" :class="clasePuntoEstado(auditoriaRow)"></span>
             </div>
             <div class="flex items-baseline gap-1 mt-0.5">
               <span class="text-base font-extrabold text-[#d4af37] num-mono" x-text="formatNum(calcSaldoReal(auditoriaRow))"></span>
               <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
             </div>
-            <span class="text-[10px] font-semibold block mt-1" :class="esSaldoSuficiente(auditoriaRow) ? 'text-emerald-300' : 'text-rose-300'" x-text="estadoFila(auditoriaRow)"></span>
+            <span class="text-[10px] font-semibold block mt-1" :class="claseTextoEstado(auditoriaRow)" x-text="estadoFila(auditoriaRow)"></span>
           </div>
         </div>
       </template>
@@ -2966,7 +2980,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </template>
             <select x-model="auditoriaFiltroClase" class="bg-[#141422] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-[#d4af37]">
               <option value="todos">Todas las operaciones</option>
-              <option value="correccion">Solo Correcciones / Ajustes</option>
+              <option value="correccion">Solo correcciones (opcional)</option>
               <option value="ingreso">Solo Ingresos</option>
               <option value="conteo">Solo Conteo en Cámara</option>
               <option value="venta">Solo Ventas</option>
@@ -3022,7 +3036,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       'bg-rose-950 text-rose-300 border border-rose-500/30': mov.clase === 'venta',
                       'bg-orange-950 text-orange-300 border border-orange-500/30': mov.clase === 'transformacion'
                     }"
-                    x-text="mov.clase === 'correccion' ? 'Corrección' : (mov.clase === 'ingreso' ? 'Ingreso' : (mov.clase === 'conteo' ? 'Conteo Cámara' : (mov.clase === 'venta' ? 'Venta Comandas' : 'Transformación')))"
+                    x-text="mov.clase === 'correccion' ? 'Corrección (opcional)' : (mov.clase === 'ingreso' ? 'Ingreso' : (mov.clase === 'conteo' ? 'Conteo Cámara' : (mov.clase === 'venta' ? 'Venta Comandas' : 'Transformación')))"
                   ></span>
                 </td>
                 <td class="px-2.5 py-2.5 whitespace-nowrap">
@@ -3083,8 +3097,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </select>
           </div>
           <div :class="(auditoriaRow && auditoriaRow.tieneCocido) ? 'sm:col-span-2' : 'sm:col-span-3'">
-            <label class="block text-[#a0a0b8] mb-1">Motivo justificado:</label>
-            <input type="text" x-model="nuevoAjusteForm.motivo" maxlength="200" placeholder="Ej. Merma de corte, grasa, comanda devuelta" class="w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-[#d4af37]">
+            <label class="block text-[#a0a0b8] mb-1">Motivo <span class="text-amber-300 font-bold">OPCIONAL</span>:</label>
+            <input type="text" x-model="nuevoAjusteForm.motivo" maxlength="200" placeholder="Puedes dejarlo vacío. Ej. Merma de corte, grasa, comanda devuelta" class="w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-[#d4af37]">
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-1">
@@ -4254,6 +4268,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ingresoAbierto: {},
         ventasPeriodo: [],
         graficoSerie: [],
+        graficoProducto: '',
         graficoCargando: false,
         graficoRecortado: false,
         cocidoOpciones: [],
@@ -4349,22 +4364,44 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return partes[2] + '/' + partes[1];
         },
 
+        productosGrafico() {
+          return (this.rows || [])
+            .filter((r) => r && r.nombre)
+            .slice()
+            .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
+        },
+
+        nombreGraficoProducto() {
+          const row = (this.rows || []).find((r) => r.id === this.graficoProducto);
+          return row ? row.nombre : 'este producto';
+        },
+
+        claveGrafico() {
+          if (!this.graficoProducto) return '';
+          return this.claveDeFila[this.graficoProducto] || this.graficoProducto;
+        },
+
+        rowsGrafico() {
+          if (!this.graficoProducto) return this.rows || [];
+          return (this.rows || []).filter((row) => row.id === this.graficoProducto);
+        },
+
         sumarBase(base) {
-          return (this.rows || []).reduce((a, row) => a + this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, base, t), 0), 0);
+          return this.rowsGrafico().reduce((a, row) => a + this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, base, t), 0), 0);
         },
 
         sumarSaldo() {
-          return (this.rows || []).reduce((a, row) => a + this.calcSaldo(row), 0);
+          return this.rowsGrafico().reduce((a, row) => a + this.calcSaldo(row), 0);
         },
 
         filasGrafico() {
-          const lista = (this.rows || []).map((row) => ({
+          const lista = this.rowsGrafico().map((row) => ({
             id: row.id,
             nombre: row.nombre,
             ingreso: this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, 'ingreso', t), 0),
             ventas: this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, 'venta', t) - this.valorTipo(row, 'cubierta', t), 0),
             saldo: this.calcSaldo(row)
-          })).filter((f) => f.ingreso || f.ventas || f.saldo);
+          })).filter((f) => this.graficoProducto || f.ingreso || f.ventas || f.saldo);
           lista.sort((a, b) => (b.ventas - a.ventas) || (b.ingreso - a.ingreso) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
           return lista;
         },
@@ -4383,8 +4420,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const egreso = {};
           const reg = {};
           const ventaComanda = {};
+          const clave = this.claveGrafico();
           (this.movimientosPeriodo || []).forEach((m) => {
             if (!m || !m.fecha) return;
+            if (clave && m.rubro !== clave) return;
             const dia = this.ymdOperativo(new Date(m.fecha));
             const n = Number(m.cantidad) || 0;
             if (m.clase === 'ingreso') {
@@ -4399,6 +4438,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
           (this.ventasPeriodo || []).forEach((v) => {
             if (!v || !v.fecha || v.sinSaldo) return;
+            if (clave && (v.rubro || v.plato) !== clave) return;
             const n = Number(v.cantidad) || 0;
             if (n <= 0) return;
             const dia = this.ymdOperativo(new Date(v.fecha));
@@ -5895,24 +5935,51 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return partes;
         },
 
-        esSaldoSuficiente(row) {
+        nivelEstado(row) {
           const n = Number(this.calcSaldoReal(row)) || 0;
-          const min = Number(row.stockMinimo) || 0;
-          if (min > 0) return n > min;
-          return n > 3;
+          if (n > 10) return 'normal';
+          if (n > 5) return 'bajo';
+          return 'critico';
+        },
+
+        esSaldoSuficiente(row) {
+          return this.nivelEstado(row) === 'normal';
         },
 
         estadoFila(row) {
-          const n = Number(this.calcSaldoReal(row)) || 0;
-          const min = Number(row.stockMinimo) || 0;
-          if (min > 0) {
-            if (n <= min) return 'Crítico (≤ mín)';
-            if (n <= min * 1.5) return 'Bajo';
-            return 'Óptimo';
-          }
-          if (n <= 0) return 'Crítico (≤ 0)';
-          if (n <= 4) return 'Bajo';
-          return 'Normal';
+          const nivel = this.nivelEstado(row);
+          if (nivel === 'normal') return 'Normal';
+          if (nivel === 'bajo') return 'Bajo';
+          return 'Crítico';
+        },
+
+        tituloEstado(row) {
+          const n = this.formatNum(this.calcSaldoReal(row));
+          const nivel = this.nivelEstado(row);
+          if (nivel === 'normal') return 'Normal: más de 10. Quedan ' + n;
+          if (nivel === 'bajo') return 'Bajo: 10 o menos. Conviene preparar más. Quedan ' + n;
+          return 'Crítico: 5 o menos. Hay que preparar más. Quedan ' + n;
+        },
+
+        claseCirculoEstado(row) {
+          const nivel = this.nivelEstado(row);
+          if (nivel === 'normal') return 'circulo-saldo-verde';
+          if (nivel === 'bajo') return 'circulo-saldo-ambar';
+          return 'circulo-saldo-rojo dot-critico';
+        },
+
+        clasePuntoEstado(row) {
+          const nivel = this.nivelEstado(row);
+          if (nivel === 'normal') return 'bg-emerald-400';
+          if (nivel === 'bajo') return 'bg-amber-400';
+          return 'bg-rose-500';
+        },
+
+        claseTextoEstado(row) {
+          const nivel = this.nivelEstado(row);
+          if (nivel === 'normal') return 'text-emerald-300';
+          if (nivel === 'bajo') return 'text-amber-300';
+          return 'text-rose-300';
         },
 
         fmtFecha(fecha) {
@@ -6059,8 +6126,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!row) return;
           const cant = parseInt(this.nuevoAjusteForm.cantidad, 10);
           if (!cant) { this.toastMessage = 'La cantidad no puede ser 0'; return; }
-          const motivo = (this.nuevoAjusteForm.motivo || '').trim();
-          if (!motivo) { this.toastMessage = 'Escribe el motivo'; return; }
+          const motivo = (this.nuevoAjusteForm.motivo || '').trim() || 'Corrección';
           const tipo = row.tieneCocido ? (this.nuevoAjusteForm.tipo || 'crudo') : 'crudo';
           const clave = this.claveDeFila[row.id];
           if (!clave) return;
