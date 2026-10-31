@@ -1414,11 +1414,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <td class="px-3 py-2 font-semibold text-white" x-text="fila.nombre"></td>
                     <td class="text-center px-2 font-mono text-[#a0a0b8]" x-text="fila.anterior"></td>
                     <td class="text-center px-2 whitespace-nowrap">
-                      <div class="inline-flex items-center gap-0.5 w-max mx-auto">
+                      <div x-show="fila.tieneCocido" class="inline-flex items-center gap-0.5 w-max mx-auto">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer shrink-0" @click="ajustarCrudoCampo(fila.id, 'cocido', -1)">−</button>
                         <input type="number" min="0" class="paso-num text-center num-mono bg-[#0a0a0f] border border-[#26263a] rounded text-white" :value="fila.cocido" @change="fijarCrudoCampo(fila.id, 'cocido', $event.target.value)">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer shrink-0" @click="ajustarCrudoCampo(fila.id, 'cocido', 1)">+</button>
                       </div>
+                      <span x-show="!fila.tieneCocido" class="text-[#5a5a7a]">—</span>
                     </td>
                     <td class="text-center px-2 whitespace-nowrap">
                       <div class="inline-flex items-center gap-0.5 w-max mx-auto">
@@ -3340,16 +3341,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-3">
           <h3 class="sec-title">Cuadro de cocido</h3>
           <p class="text-xs text-[#a0a0b8] leading-relaxed">
-            Al vender se resta primero el cocido, luego el crudo y luego la reserva. Pollo fresco, filete, pechuga y pierna no tienen cocido.
+            Al vender se resta primero el cocido, luego el crudo y luego la reserva. Pollo fresco, pechuga, pierna y filete solo se transforman.
           </p>
           <div class="max-h-72 overflow-y-auto space-y-1.5 pr-1">
             <template x-for="d in draftCocido" :key="'cfg-coc-' + d.clave">
-              <div class="flex items-center gap-3 bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2">
-                <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
-                  <input type="checkbox" x-model="d.tieneCocido" class="accent-[#d4af37] w-4 h-4">
+              <div class="flex items-center gap-3 bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2" :class="d.materia ? 'opacity-70' : ''">
+                <label class="flex items-center gap-2 flex-1 min-w-0" :class="d.materia ? 'cursor-not-allowed' : 'cursor-pointer'">
+                  <input type="checkbox" x-model="d.tieneCocido" class="accent-[#d4af37] w-4 h-4" :disabled="d.materia">
                   <span class="text-sm text-white truncate" x-text="d.nombre"></span>
                 </label>
-                <select x-model="d.reservaClave" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1.5 text-xs text-white" :aria-label="'Reserva de ' + d.nombre">
+                <span x-show="d.materia" class="text-[11px] font-semibold text-[#a0a0b8] shrink-0">Solo se transforma</span>
+                <select x-show="!d.materia" x-model="d.reservaClave" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1.5 text-xs text-white" :aria-label="'Reserva de ' + d.nombre">
                   <option value="">Sin reserva</option>
                   <option value="pollo-origen">Pollo fresco</option>
                   <option value="pechuga-pollo">Pechuga pollo</option>
@@ -3613,6 +3615,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   open: true,
                   children: [
                     { id: 'milanesa', nombre: 'Milanesa de pollo' },
+                    { id: 'milanesa_junior', nombre: 'Milanesa junior' },
                     { id: 'filete_junior', nombre: 'Filete junior' },
                     { id: 'chi_pollo_bbq', nombre: 'Chi. pollo a la BBQ' },
                     { id: 'chi_pollo_acevichada', nombre: 'Chi. pollo acevichada' },
@@ -3656,7 +3659,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             open: true,
             children: [
               { id: 'trozo_panceta', nombre: 'Trozo de panceta' },
-              { id: 'cerdo_pachamanca', nombre: 'Cerdo pachamanca' }
+              { id: 'cerdo_pachamanca', nombre: 'Cerdo pachamanca' },
+              { id: 'chancho_lena', nombre: 'Chancho a la leña' },
+              { id: 'chancho_lena_bbq', nombre: 'Chancho a la leña BBQ' }
             ]
           },
           carnero: {
@@ -3836,8 +3841,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           salt_pollo: 'salt-pollo',
           chaufa_pollo: 'chaufa-pollo',
           milanesa: 'milanesa',
+          milanesa_junior: 'milanesa-junior',
           panceta: 'panceta',
           trozo_panceta: 'trozo-panceta',
+          chancho_lena: 'chancho-lena',
+          chancho_lena_bbq: 'chancho-lena-bbq',
           carne_bistec: 'bisteck',
           lomo_fino: 'lomo-fino',
           carne_pachamanca: 'pachamanca-res',
@@ -4767,6 +4775,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               anterior: Number(row.saldoAnterior) || 0,
               cocido: cocido,
               crudo: crudo,
+              tieneCocido: row.tieneCocido === true,
               total: cocido + crudo,
               final: this.calcSaldoReal(row)
             };
@@ -4777,12 +4786,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
           return [
             cuadro('Pachamanca', [['pollo_pachamanca', 'Pollo pachamanca'], ['cerdo_pachamanca', 'Cerdo pachamanca'], ['carnero_pachamanca', 'Carnero pachamanca'], ['carne_pachamanca', 'Carne Pachamanca']]),
-            cuadro('Pollo', [['pollo_fresco', 'Pollo fresco'], ['pechuga', 'Pechuga de Pollo'], ['pierna', 'Pierna de Pollo'], ['filete', 'Filete Pollo Crudo'], ['milanesa', 'Milanesa de pollo'], ['filete_junior', 'Filete de pollo'], ['pollada', 'Pollada'], ['pollo_pachamanca', 'Pollo pachamanca'], ['pollo_lena', 'Pecho a la leña'], ['pierna_lena', 'Pierna a la leña'], ['menu', 'Menú']]),
+            cuadro('Pollo', [
+              ['pollo_fresco', 'Pollo fresco'],
+              ['pechuga', 'Pechuga de Pollo'],
+              ['pierna', 'Pierna de Pollo'],
+              ['filete', 'Filete Pollo Crudo'],
+              ['milanesa', 'Milanesa de pollo'],
+              ['milanesa_junior', 'Milanesa junior'],
+              ['filete_junior', 'Filete junior'],
+              ['chicharron_pollo', 'Chicharrón de pollo'],
+              ['salt_pollo', 'Salt de pollo'],
+              ['chaufa_pollo', 'Chaufa de pollo'],
+              ['chi_pollo_bbq', 'Chi. pollo a la BBQ'],
+              ['chi_pollo_acevichada', 'Chi. pollo acevichada'],
+              ['pollada', 'Pollada'],
+              ['pollo_pachamanca', 'Pollo pachamanca'],
+              ['pollo_lena', 'Pecho a la leña'],
+              ['pierna_lena', 'Pierna a la leña'],
+              ['menu', 'Menú']
+            ]),
             cuadro('Pescado', [['pescado_entero', 'Pescado entero']]),
-            cuadro('Panceta', [['panceta', 'Panceta'], ['trozo_panceta', 'Trozo de panceta']]),
+            cuadro('Panceta', [['panceta', 'Panceta'], ['trozo_panceta', 'Trozo de panceta'], ['chancho_lena', 'Chancho a la leña'], ['chancho_lena_bbq', 'Chancho a la leña BBQ']]),
+            cuadro('Carnes', [['carne_bistec', 'Carne Bistec'], ['lomo_fino', 'Lomo Fino'], ['carne_guiso', 'Carne Guiso']]),
+            cuadro('Trucha', [['trucha_entera', 'Trucha entera'], ['filete_trucha', 'Filete de trucha']]),
             cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos'], ['arroz_pollo', 'Arroz pollo']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pechuga de pato'], ['pierna_pato', 'Pierna de pato']]),
-            cuadro('Pota', [['pota', 'Pota']])
+            cuadro('Pota', [['pota', 'Pota']]),
+            cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal']])
           ].filter((c) => c.filas.length);
         },
 
@@ -4908,6 +4938,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'salt_pollo', grupo: 'pollo', nombre: 'Salt de pollo', detalle: 'Por completar en la relación', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chaufa_pollo', grupo: 'pollo', nombre: 'Chaufa de pollo', detalle: 'No sale del arroz blanco', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'milanesa', grupo: 'pollo', nombre: 'Milanesa de pollo', detalle: 'Come 1 filete', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'milanesa_junior', grupo: 'pollo', nombre: 'Milanesa junior', detalle: 'Sin cuadro cocido. Si no hay saldo, resta filete', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
 
             { id: 'pato_fresco', grupo: 'pato', nombre: 'Pato fresco', detalle: '1 pato = 2 pechugas y 2 piernas', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'pechuga_pato', grupo: 'pato', nombre: 'Pechuga de pato', detalle: 'Abarca el arroz con pato de pecho', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -4917,6 +4948,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             // GRUPO PANCETA
             { id: 'panceta', grupo: 'panceta', nombre: 'Panceta', detalle: '1 panceta salió a trozos, quedan 4', unidad: 'unid', saldoAnterior: 5, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 3, transformacion: 1, destinoTrans: '→ 12 trozos', inventario: null, crudo: 4, cocido: 0 },
             { id: 'trozo_panceta', grupo: 'panceta', nombre: 'Trozo de panceta', detalle: 'Anotados a mano desde 1 panceta', unidad: 'trozos', saldoAnterior: 0, ingreso: 12, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 0, destinoTrans: '', inventario: null, crudo: 4, cocido: 8 },
+            { id: 'chancho_lena', grupo: 'panceta', nombre: 'Chancho a la leña', detalle: 'Entra directo. Solo crudo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'chancho_lena_bbq', grupo: 'panceta', nombre: 'Chancho a la leña BBQ', detalle: 'Entra directo. Solo crudo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
 
             // GRUPO CARNES (Sin transformación, ingreso directo)
             { id: 'carne_bistec', grupo: 'carnes', nombre: 'Carne Bistec', detalle: 'Ingreso directo, sin transformación', unidad: 'porc', saldoAnterior: 0, ingreso: 8, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 8, cocido: 0 },
@@ -4945,6 +4978,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'tamal', grupo: null, nombre: 'Tamal', detalle: 'Guarnición y plato', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
           ];
+          this.aplicarOpcionesCocido(this.cocidoOpciones);
 
           if (!silent) {
             this.playUiSound();
@@ -5053,9 +5087,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               destinoTrans: '',
               inventario: null,
               crudo: 0,
-              cocido: 0
+              cocido: 0,
+              tieneCocido: false,
+              reservaClave: ''
             });
           });
+          this.aplicarOpcionesCocido(this.cocidoOpciones);
         },
 
         groupHasMatch(groupId) {
@@ -5157,21 +5194,44 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete'].indexOf(clave) !== -1;
         },
 
+        semillaCocido: {
+          pollada: { tieneCocido: true, reservaClave: '' },
+          menu: { tieneCocido: true, reservaClave: '' },
+          'pollo-lena': { tieneCocido: true, reservaClave: '' },
+          'pierna-lena': { tieneCocido: true, reservaClave: '' },
+          'pachamanca-pollo': { tieneCocido: true, reservaClave: '' },
+          'pachamanca-chancho': { tieneCocido: true, reservaClave: '' },
+          'pachamanca-res': { tieneCocido: true, reservaClave: '' },
+          'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
+          'salt-pollo': { tieneCocido: true, reservaClave: 'filete' },
+          'chaufa-pollo': { tieneCocido: true, reservaClave: 'filete' },
+          milanesa: { tieneCocido: true, reservaClave: 'filete' },
+          'filete-junior': { tieneCocido: true, reservaClave: 'filete' },
+          'chicharron-pollo': { tieneCocido: true, reservaClave: 'filete' },
+          'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
+          'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
+          'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' }
+        },
+
+        opcionCocidoDe(clave) {
+          if (!clave || this.esMateriaClave(clave)) return { tieneCocido: false, reservaClave: '' };
+          const s = this.semillaCocido[clave];
+          if (!s) return { tieneCocido: false, reservaClave: '' };
+          return { tieneCocido: s.tieneCocido === true, reservaClave: s.reservaClave || '' };
+        },
+
         aplicarOpcionesCocido(lista) {
           const map = {};
           (lista || []).forEach((o) => { if (o && o.clave) map[o.clave] = o; });
           this.rows.forEach((row) => {
             const clave = this.claveDeFila[row.id];
+            if (!clave) return;
             const op = map[clave];
             const materia = this.esMateriaClave(clave);
-            if (op) {
-              row.tieneCocido = !materia && op.tieneCocido === true;
-              row.reservaClave = materia ? '' : (op.reservaClave || '');
-              row.stockMinimo = Number(op.stockMinimo) || 0;
-            } else if (row.tieneCocido === undefined) {
-              row.tieneCocido = false;
-              row.reservaClave = '';
-            }
+            const base = (op && typeof op.tieneCocido === 'boolean') ? op : this.opcionCocidoDe(clave);
+            row.tieneCocido = !materia && base.tieneCocido === true;
+            row.reservaClave = materia ? '' : (base.reservaClave || '');
+            if (op) row.stockMinimo = Number(op.stockMinimo) || 0;
           });
         },
 
@@ -6095,8 +6155,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const actual = this.porClaveCocido(this.cocidoOpciones);
           this.draftCocido = this.filasConfigCocido().map((r) => {
             const clave = this.claveDeFila[r.id];
-            const o = actual[clave] || {};
-            return { clave, nombre: r.nombre, tieneCocido: !!o.tieneCocido, reservaClave: o.reservaClave || '' };
+            const materia = this.esMateriaClave(clave);
+            const o = actual[clave];
+            const base = (o && typeof o.tieneCocido === 'boolean') ? o : this.opcionCocidoDe(clave);
+            return {
+              clave,
+              nombre: r.nombre,
+              materia,
+              tieneCocido: materia ? false : base.tieneCocido === true,
+              reservaClave: materia ? '' : (base.reservaClave || '')
+            };
           });
           this.showConversionesModal = true;
         },
@@ -6167,7 +6235,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         async guardarCocidoConfig() {
           const antes = this.porClaveCocido(this.cocidoOpciones);
           const cambios = this.draftCocido.filter((d) => {
-            const a = antes[d.clave] || {};
+            if (d.materia) return false;
+            const a = antes[d.clave] || this.opcionCocidoDe(d.clave);
             return !!a.tieneCocido !== !!d.tieneCocido || (a.reservaClave || '') !== (d.reservaClave || '');
           });
           for (const d of cambios) {
@@ -6189,12 +6258,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         filasConfigCocido() {
           const vistas = {};
-          return this.rows.filter((r) => {
+          const materias = [];
+          const resto = [];
+          const ordenMateria = ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete'];
+          this.rows.forEach((r) => {
             const clave = this.claveDeFila[r.id];
-            if (!clave || vistas[clave] || this.esMateriaClave(clave)) return false;
+            if (!clave || vistas[clave]) return;
             vistas[clave] = true;
-            return true;
+            if (this.esMateriaClave(clave)) materias.push(r);
+            else resto.push(r);
           });
+          materias.sort((a, b) => ordenMateria.indexOf(this.claveDeFila[a.id]) - ordenMateria.indexOf(this.claveDeFila[b.id]));
+          return materias.concat(resto);
         },
 
         tieneMapa(id) {
@@ -6386,8 +6461,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             destinoTrans: '',
             inventario: null,
             crudo: 0,
-            cocido: 0
+            cocido: 0,
+            tieneCocido: false,
+            reservaClave: ''
           });
+          this.aplicarOpcionesCocido(this.cocidoOpciones);
         },
 
         asegurarFilasDeMapas() {
