@@ -3740,7 +3740,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           { id: 'carnero', nombre: 'Carnero', open: true, staggerKey: 1, nota: '1 a 1 a Carnero pachamanca' },
           { id: 'arroz', nombre: 'Arroz crudo', open: true, staggerKey: 1, nota: '1 crudo nace 8 blanco, 6 verde, 4 pato, 4 chaufa o 4 con mariscos' },
           { id: 'gaseosas', nombre: 'Gaseosas', open: true, staggerKey: 1, nota: '', sinDatos: true },
-          { id: 'licores', nombre: 'Licores', open: true, staggerKey: 1, nota: '', sinDatos: true }
+          { id: 'licores', nombre: 'Licores', open: true, staggerKey: 1, nota: '', sinDatos: true },
+          { id: 'bebidas', nombre: 'Bebidas', open: true, staggerKey: 1, nota: 'Aguas de la carta', sinDatos: true }
         ],
 
         arbolPollo: {
@@ -4009,6 +4010,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           arroz_mariscos: 'arroz-mariscos',
           papas: 'papas',
           tamal: 'tamal',
+          delicias: 'delicias',
+          helados: 'helados',
+          hotdog: 'hotdog',
           gaseosas: 'gaseosas',
           pato_fresco: 'pato',
           pechuga_pato: 'pechuga-pato',
@@ -4200,6 +4204,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               else if (n.includes('arroz con pollo')) push(p, 'Arroz con pollo', 1, 'aderezo');
               else if (/\btamal\b/.test(n)) push(p, 'Tamal', 1, 'tamal');
               else if (/gaseosa|inca kola|coca[- ]?cola|sprite|fanta/.test(n)) push(p, 'Gaseosas', 1, 'gaseosa');
+              else if (/\bagua\b/.test(n)) push(p, 'Bebidas', 1, 'agua');
+              else if (n === 'delicia' || n.includes('delicias')) push(p, 'Delicias', 1, 'delicia');
+              else if (/\bhelados?\b/.test(n)) push(p, 'Helados', 1, 'helado');
+              else if (n.includes('salchipapa') || n.includes('hotdog') || n.includes('hot dog')) push(p, 'Hotdog', 1, 'hotdog');
               else if (/papa frita|papas fritas/.test(n)) push(p, 'Papas', 1, 'papa fritas');
               const guarnicion = (extra) => (p.complemento ? p.complemento + ' · ' : '') + extra;
               const ya = (rubro) => relaciones.some((r) => r.plato === p.nombre && r.rubro === rubro);
@@ -4215,6 +4223,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               }
               if (/gaseosa|inca kola|coca[- ]?cola|sprite|fanta/.test(texto) && !ya('Gaseosas')) {
                 push(p, 'Gaseosas', 1, 'gaseosa', guarnicion('Guarnición: gaseosa'));
+              }
+              if (/\bagua\b/.test(texto) && !ya('Bebidas')) {
+                push(p, 'Bebidas', 1, 'agua', guarnicion('Guarnición: agua'));
               }
             });
             relaciones.push({ id: relaciones.length + 1, rubro: 'Filete', plato: 'Filete junior', complemento: 'Rubro de inventario, sin plato con ese nombre', cantidad: 0.5, unidadNota: 'filete' });
@@ -4901,7 +4912,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const rubro = v && (v.rubro || v.plato);
             if (!rubro || v.sinSaldo || vistos.has(rubro) || this.filaPorClave(rubro)) return;
             vistos.add(rubro);
-            const grupo = rubro.indexOf('gaseosa-') === 0 ? 'gaseosas' : (rubro.indexOf('licor-') === 0 ? 'licores' : '');
+            const grupo = rubro.indexOf('gaseosa-') === 0 ? 'gaseosas' : (rubro.indexOf('licor-') === 0 ? 'licores' : (rubro.indexOf('agua-') === 0 ? 'bebidas' : ''));
             if (!grupo) return;
             const detalle = Array.isArray(v.detalle) ? v.detalle.find((d) => d && d.nombre) : null;
             this.claveDeFila[rubro] = rubro;
@@ -4909,7 +4920,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               id: rubro,
               grupo: grupo,
               nombre: (detalle && detalle.nombre) || v.nombre || rubro,
-              detalle: grupo === 'gaseosas' ? 'Gaseosa' : 'Licor',
+              detalle: grupo === 'gaseosas' ? 'Gaseosa' : (grupo === 'bebidas' ? 'Agua' : 'Licor'),
               unidad: 'unid',
               saldoAnterior: 0,
               ingreso: 0,
@@ -5404,7 +5415,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos'], ['arroz_pollo', 'Arroz pollo']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pechuga de pato'], ['pierna_pato', 'Pierna de pato']]),
             cuadro('Pota', [['pota', 'Pota']]),
-            cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal']])
+            cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal']]),
+            cuadro('Carta', [['delicias', 'Delicias'], ['helados', 'Helados'], ['hotdog', 'Hotdog']])
           ].filter((c) => c.filas.length);
         },
 
@@ -5569,6 +5581,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'arroz_mariscos', grupo: 'arroz', nombre: 'Arroz con mariscos', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'tamal', grupo: null, nombre: 'Tamal', detalle: 'Guarnición y plato', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'delicias', grupo: null, nombre: 'Delicias', detalle: 'Venta del plato Delicia', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'helados', grupo: null, nombre: 'Helados', detalle: 'Venta del plato Helado Artesanal', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'hotdog', grupo: null, nombre: 'Hotdog', detalle: 'Sale 1 por cada Salchipapa', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
           ];
           this.aplicarOpcionesCocido(this.cocidoOpciones);
 
@@ -5638,7 +5653,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (/gaseosa|inca kola|inkakola|coca[- ]?cola|sprite|fanta|guarana/.test(n) || extra.indexOf('gaseosa') !== -1) return 'gaseosas';
           const licor = /\b(vino|vinos|cerveza|pisco|ron|whisky|whiskey|vodka|chilcano|tequila|sangria|licor|licores|gin)\b/.test(n) || extra.indexOf('alcohol') !== -1 || extra.indexOf('vino') !== -1 || extra.indexOf('licor') !== -1;
           if (licor && !n.includes('vinagre')) return 'licores';
+          if (/\bagua\b/.test(n)) return 'bebidas';
           return '';
+        },
+
+        prefijoBebida(tipo) {
+          if (tipo === 'gaseosas') return 'gaseosa';
+          if (tipo === 'bebidas') return 'agua';
+          return 'licor';
+        },
+
+        detalleBebida(tipo) {
+          if (tipo === 'gaseosas') return 'Gaseosa';
+          if (tipo === 'bebidas') return 'Agua';
+          return 'Licor';
         },
 
         claveBebida(prefijo, nombre) {
@@ -5652,13 +5680,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           (this.platosCarta || []).forEach((p) => {
             const tipo = this.tipoBebida(p);
             if (!tipo) return;
-            const clave = this.claveBebida(tipo === 'gaseosas' ? 'gaseosa' : 'licor', p.nombre);
+            const clave = this.claveBebida(this.prefijoBebida(tipo), p.nombre);
             if (vistos.has(clave)) return;
             vistos.add(clave);
             lista.push({ tipo, clave, nombre: p.nombre });
           });
           lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-          this.rows = this.rows.filter((r) => (r.grupo !== 'gaseosas' && r.grupo !== 'licores') || vistos.has(r.id));
+          this.rows = this.rows.filter((r) => (r.grupo !== 'gaseosas' && r.grupo !== 'licores' && r.grupo !== 'bebidas') || vistos.has(r.id));
           lista.forEach((b) => {
             this.claveDeFila[b.clave] = b.clave;
             const ya = this.filaReal(b.clave);
@@ -5671,7 +5699,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               id: b.clave,
               grupo: b.tipo,
               nombre: b.nombre,
-              detalle: b.tipo === 'gaseosas' ? 'Gaseosa' : 'Licor',
+              detalle: this.detalleBebida(b.tipo),
               unidad: 'unid',
               saldoAnterior: 0,
               ingreso: 0,
@@ -6718,6 +6746,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           let rubro = rubroTrim;
           if (lower.includes('papa frita') || lower.includes('papas fritas') || lower === 'papas') rubro = 'Papas';
           if (lower === 'gaseosa' || lower === 'gaseosas') rubro = 'Gaseosas';
+          if (lower === 'agua' || lower === 'aguas' || lower === 'bebida' || lower === 'bebidas') rubro = 'Bebidas';
+          if (lower === 'delicia' || lower === 'delicias') rubro = 'Delicias';
+          if (lower === 'helado' || lower === 'helados') rubro = 'Helados';
+          if (lower === 'hotdog' || lower === 'hot dog') rubro = 'Hotdog';
           if (lower === 'tamal' || lower === 'tamales') rubro = 'Tamal';
           this.nuevaRelacion.rubro = rubro;
 

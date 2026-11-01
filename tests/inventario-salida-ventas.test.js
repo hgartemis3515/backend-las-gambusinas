@@ -45,6 +45,40 @@ test('un vino sin la palabra vino descuenta su fila de licor', () => {
     expect(porRubro['licor-tabernero-borgona']).toBe(1);
 });
 
+test('cada agua de la carta descuenta su fila de bebidas', () => {
+    const bebidas = indiceBebidas([
+        { nombre: 'Agua mineral 1/2', categoria: 'BEBIDAS, REFRESCOS Y JUGOS' },
+        { nombre: 'Agua San Mateo 1/2 Ltr.', categoria: 'BEBIDAS FRÍAS (Carta normal)' },
+        { nombre: 'Agua San Mateo 2 1/2 Ltrs.', categoria: 'BEBIDAS FRÍAS (Carta normal)' }
+    ]);
+    const porRubro = aplicarMapa([
+        { nombre: 'Agua mineral 1/2', cantidad: 3 },
+        { nombre: 'Agua San Mateo 1/2 Ltr.', cantidad: 1 },
+        { nombre: 'Agua San Mateo 2 1/2 Ltrs.', cantidad: 2 }
+    ], undefined, bebidas);
+    expect(porRubro['agua-agua-mineral-1-2']).toBe(3);
+    expect(porRubro['agua-agua-san-mateo-1-2-ltr']).toBe(1);
+    expect(porRubro['agua-agua-san-mateo-2-1-2-ltrs']).toBe(2);
+});
+
+test('delicia y helado descuentan su fila', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Delicia', cantidad: 4 },
+        { nombre: 'Helado Artesanal', cantidad: 2 }
+    ]);
+    expect(porRubro.delicias).toBe(4);
+    expect(porRubro.helados).toBe(2);
+});
+
+test('la salchipapa descuenta un hotdog', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Salchipapa', cantidad: 5 },
+        { nombre: 'Hotdog', cantidad: 1 }
+    ]);
+    expect(porRubro.hotdog).toBe(6);
+    expect(porRubro.papas).toBeUndefined();
+});
+
 test('cada gaseosa y cada licor descuentan su propia fila', () => {
     const porRubro = aplicarMapa([
         { nombre: 'Inca Kola 1/2 litro', cantidad: 2 },

@@ -41,6 +41,10 @@ function esLicor(n) {
     return /\b(vino|vinos|cerveza|pisco|ron|whisky|whiskey|vodka|chilcano|tequila|sangria|licor|licores|gin)\b/.test(n) && !n.includes('vinagre');
 }
 
+function esAgua(n) {
+    return /\bagua\b/.test(n);
+}
+
 function slugBebida(nombre, prefijo) {
     const n = norm(nombre);
     const s = n.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'bebida';
@@ -51,6 +55,7 @@ function claveBebida(nombre) {
     const n = norm(nombre);
     if (esGaseosa(n)) return slugBebida(nombre, 'gaseosa');
     if (esLicor(n)) return slugBebida(nombre, 'licor');
+    if (esAgua(n)) return slugBebida(nombre, 'agua');
     return '';
 }
 
@@ -60,6 +65,7 @@ function tipoBebidaPlato(plato) {
     const grupo = norm(plato && plato.grupoSos);
     if (esGaseosa(n) || grupo === 'gaseosas' || cat.includes('gaseosa')) return 'gaseosas';
     if (!n.includes('vinagre') && (esLicor(n) || grupo === 'alcohol' || cat.includes('vino') || cat.includes('licor'))) return 'licores';
+    if (esAgua(n)) return 'bebidas';
     return '';
 }
 
@@ -68,7 +74,8 @@ function indiceBebidas(catalogo) {
     (catalogo || []).forEach((p) => {
         const tipo = tipoBebidaPlato(p);
         if (!tipo || !p.nombre) return;
-        map[norm(p.nombre)] = claveBebida(p.nombre) || slugBebida(p.nombre, tipo === 'gaseosas' ? 'gaseosa' : 'licor');
+        const prefijo = tipo === 'gaseosas' ? 'gaseosa' : (tipo === 'bebidas' ? 'agua' : 'licor');
+        map[norm(p.nombre)] = claveBebida(p.nombre) || slugBebida(p.nombre, prefijo);
     });
     return map;
 }
@@ -174,6 +181,9 @@ function rubrosDeFila(fila, mapas, bebidas) {
             if (lista[i].rubro === 'filete') lista[i] = Object.assign({}, lista[i], { rubro: propio });
         }
     }
+    if ((n.includes('salchipapa') || n.includes('hotdog') || n.includes('hot dog')) && !lista.some((x) => x.rubro === 'hotdog')) add('hotdog');
+    if ((n === 'delicia' || n.includes('delicias')) && !lista.some((x) => x.rubro === 'delicias')) add('delicias');
+    if (/\bhelados?\b/.test(n) && !lista.some((x) => x.rubro === 'helados')) add('helados');
     if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
     if (n.includes('arroz verde')) add('arroz-verde');
     else if (n.includes('arroz con mariscos') || n.includes('arroz de mariscos') || n.includes('arroz mariscos')) add('arroz-mariscos');
