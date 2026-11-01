@@ -81,11 +81,12 @@ tailwind.config = {
         </optgroup>
         <optgroup label="📦 Inventario">
           <option value="INVENTARIO">Inventario (todas)</option>
-          <option value="INVENTARIO_CORRECCION">Corrección</option>
+          <option value="INVENTARIO_CORRECCION">Corrección (opcional)</option>
           <option value="INVENTARIO_CONTEO">Inventario</option>
           <option value="INVENTARIO_INGRESO">Ingreso</option>
           <option value="INVENTARIO_EGRESO">Salida</option>
           <option value="INVENTARIO_DIA_BORRADO">Borrar día</option>
+          <option value="INVENTARIO_PUESTA_EN_CERO">Puesta en cero</option>
         </optgroup>
       </select>
       
@@ -260,6 +261,10 @@ tailwind.config = {
         <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
           <h3 class="text-[#d4af37] font-bold mb-3">Qué cambió</h3>
           <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="col-span-2" x-show="selectedRegistro?.metadata?.resumen">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Movimiento</p>
+              <p class="font-medium" x-text="selectedRegistro.metadata.resumen"></p>
+            </div>
             <div>
               <p class="text-[10px] text-[#5a5a7a] mb-0.5">Producto</p>
               <p class="font-medium" x-text="selectedRegistro?.metadata?.producto || '—'"></p>
@@ -962,7 +967,7 @@ function auditoriaApp() {
       if (this.esAccionAnulacion(reg.accion)) return 'Detalle de Anulación';
       if (this.esAccionReversion(reg.accion)) return 'Detalle de Reversión';
       if (this.esAccionLiberacion(reg.accion)) return 'Detalle de Liberación';
-      if (reg.accion === 'INVENTARIO_CORRECCION') return 'Detalle de Corrección';
+      if (reg.accion === 'INVENTARIO_CORRECCION') return 'Detalle de Corrección (opcional)';
       if (reg.accion === 'INVENTARIO_CONTEO') return 'Detalle de Inventario';
       if (this.esAccionInventario(reg.accion)) return 'Detalle de movimiento';
       return 'Detalle de Auditoría';
@@ -1006,11 +1011,12 @@ function auditoriaApp() {
         'TICKET_VERIFICADO_CIERRE': '✅ Ticket Verificado',
         'TICKETS_VERIFICADOS_CIERRE_MASIVO': '✅ Tickets Verificados',
         'TICKET_ANULADO_COCINA': '🗑️ Ticket anulado (tabla cocina)',
-        'INVENTARIO_CORRECCION': '✏️ Corrección',
+        'INVENTARIO_CORRECCION': '✏️ Corrección (opcional)',
         'INVENTARIO_CONTEO': '📦 Inventario',
         'INVENTARIO_INGRESO': '📥 Ingreso',
         'INVENTARIO_EGRESO': '📤 Salida',
-        'INVENTARIO_DIA_BORRADO': '🗑️ Inventario del día'
+        'INVENTARIO_DIA_BORRADO': '🗑️ Inventario del día',
+        'INVENTARIO_PUESTA_EN_CERO': '0️⃣ Inventario en cero'
       };
       return labels[accion] || accion;
     },
