@@ -21,6 +21,7 @@ const { encolarFirmarEnviar } = require('../jobs/queues');
 const { construir, nombreArchivo, partesLima } = require('./ublBuilder');
 const { firmarXml, codigoQr } = require('./firmaService');
 const { formatearTicket } = require('../print/escposFormatter');
+const { bloquesTicket } = require('../print/vistaComprobante');
 const { imprimir, destinoDesdeEnv } = require('../print/imprimir');
 const { autorizarSupervisor } = require('./autorizarSupervisor');
 const { TIPO_DOCUMENTO, ESTADO_COMPROBANTE } = require('../constants/catalogosSunat');
@@ -253,21 +254,9 @@ function firmarLocal(doc) {
 /** @param {Object} doc @param {string} qr */
 function ticketFiscal(doc, qr) {
     const efectivo = (doc.mediosPago || []).filter((m) => m.medio === 'efectivo').reduce((s, m) => s + Number(m.monto), 0);
-    const emisor = doc.emisor || {};
-    const lineas = [
-        emisor.nombreComercial || emisor.razonSocial,
-        emisor.razonSocial && emisor.nombreComercial && emisor.razonSocial !== emisor.nombreComercial ? emisor.razonSocial : '',
-        `RUC ${doc.ruc}`,
-        emisor.direccion || '',
-        emisor.telefono ? `Tel. ${emisor.telefono}` : '',
-        doc.idCompleto,
-        `TOTAL ${Number(doc.totales.importeTotal).toFixed(2)}`,
-    ].filter(Boolean);
     return formatearTicket({
-        titulo: doc.tipo === '01' ? 'FACTURA ELECTRONICA' : 'BOLETA DE VENTA ELECTRONICA',
-        lineas,
+        bloques: bloquesTicket(doc),
         qr,
-        hash: doc.hash,
         montoEfectivo: efectivo,
     });
 }

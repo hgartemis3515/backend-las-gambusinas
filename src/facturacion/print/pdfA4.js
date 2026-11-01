@@ -1,76 +1,96 @@
 /**
- * Representación impresa A4. No usa Chromium.
+ * Representación impresa en ticket de 80 mm. No usa Chromium.
  * @module facturacion/print/pdfA4
  */
 
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
+const { datosTicket } = require('./vistaComprobante');
 
-const TITULOS = {
-    '01': 'FACTURA ELECTRÓNICA',
-    '03': 'BOLETA DE VENTA ELECTRÓNICA',
-    '07': 'NOTA DE CRÉDITO ELECTRÓNICA',
-};
+const ANCHO = 226;
+const MARGEN = 10;
+const CUERPO = ANCHO - MARGEN * 2;
 
 /**
  * @param {Object} comprobante
  * @returns {Promise<Buffer>}
  */
 async function generarPdfA4(comprobante) {
-    const emisor = comprobante.emisor || {};
-    const receptor = comprobante.receptor || {};
-    const totales = comprobante.totales || {};
-    const letras = (comprobante.leyendas || []).find((l) => l.codigo === '1000')?.valor || '';
-    const qrTexto = [
-        comprobante.ruc,
-        comprobante.tipo,
-        comprobante.serie,
-        comprobante.numero,
-        Number(totales.igv || 0).toFixed(2),
-        Number(totales.importeTotal || 0).toFixed(2),
-        comprobante.hash || '',
-    ].join('|');
-    const qr = await QRCode.toBuffer(qrTexto, { width: 120, margin: 0 });
+    const vista = datosTicket(comprobante);
+    const qr = await QRCode.toBuffer(vista.qrTexto || vista.serie || 'cpe', { width: 180, margin: 0 });
+    const alto = 640 + (vista.items.length * 16);
     return new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ size: 'A4', margin: 40 });
+        const doc = new PDFDocument({ size: [ANCHO, alto], margin: 0 });
         const trozos = [];
         doc.on('data', (c) => trozos.push(c));
         doc.on('end', () => resolve(Buffer.concat(trozos)));
         doc.on('error', reject);
-        doc.fontSize(16).text(emisor.razonSocial || 'Las Gambusinas', { align: 'left' });
-        doc.fontSize(10).fillColor('#333');
-        if (emisor.nombreComercial) doc.text(emisor.nombreComercial);
-        doc.text(`RUC ${emisor.ruc || comprobante.ruc || ''}`);
-        if (emisor.direccion) doc.text(emisor.direccion);
-        if (emisor.telefono) doc.text(`Tel. ${emisor.telefono}`);
-        if (emisor.email) doc.text(emisor.email);
-        doc.text(`Establecimiento ${emisor.codigoEstablecimiento || '0000'}`);
-        doc.moveDown();
-        doc.rect(340, 40, 215, 70).stroke();
-        doc.fontSize(11).fillColor('#000').text(`RUC ${comprobante.ruc}`, 350, 50, { width: 195, align: 'center' });
-        doc.fontSize(12).text(TITULOS[comprobante.tipo] || 'COMPROBANTE', 350, 68, { width: 195, align: 'center' });
-        doc.text(comprobante.idCompleto || `${comprobante.serie}-${comprobante.numero}`, 350, 86, { width: 195, align: 'center' });
-        doc.moveDown(4);
-        doc.fontSize(10)
-            .text(`Cliente: ${receptor.nombre || ''}`)
-            .text(`Documento: ${receptor.tipoDoc || ''} ${receptor.numDoc || ''}`)
-            .text(`Dirección: ${receptor.direccion || ''}`)
-            .text(`Fecha: ${new Date(comprobante.fechaEmision).toISOString().slice(0, 10)}    Moneda: ${comprobante.moneda || 'PEN'}`);
-        doc.moveDown();
-        doc.font('Helvetica-Bold').text('Cant.  Unid.  Descripción                         V. unit.   Total');
-        doc.font('Helvetica');
-        for (const item of comprobante.items || []) {
-            doc.text(`${item.cantidad}  ${item.unidad || 'NIU'}  ${item.descripcion}    ${Number(item.valorUnitario || 0).toFixed(2)}    ${Number(item.precioTotal || 0).toFixed(2)}`);
+        let y = 12;
+
+        const centro = (texto, size, bold) => {
+            doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(size).fillColor('#000');
+            const h = doc.heightOfString(texto, { width: CUERPO, align: 'center' });
+            doc.text(texto, MARGEN, y, { width: CUERPO, align: 'center' });
+            y += h + 1;
+        };
+        const raya = () => {
+            y += 3;
+            doc.save();
+            doc.dash(1, { space: 2 }).strokeColor('#000').lineWidth(0.6)
+                .moveTo(MARGEN, y).lineTo(ANCHO - MARGEN, y).stroke();
+            doc.restore();
+            y += 6;
+        };
+        const izquierda = (texto, size, bold) => {
+            doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(size).fillColor('#000');
+            const h = doc.heightOfString(texto, { width: CUERPO });
+            doc.text(texto, MARGEN, y, { width: CUERPO });
+            y += h + 1;
+        };
+        const derecha = (texto, size, bold) => {
+            doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(size).fillColor('#000');
+            doc.text(texto, MARGEN, y, { width: CUERPO, align: 'right' });
+            y += size + 3;
+        };
+
+        for (const linea of vista.cabecera) {
+            const font = linea.bold ? 'Helvetica-Bold' : (linea.italic ? 'Helvetica-Oblique' : 'Helvetica');
+            doc.font(font).fontSize(linea.bold ? 10 : 8).fillColor('#000');
+            const h = doc.heightOfString(linea.texto, { width: CUERPO, align: 'center' });
+            doc.text(linea.texto, MARGEN, y, { width: CUERPO, align: 'center' });
+            y += h + 1;
         }
-        doc.moveDown();
-        doc.text(`Op. gravadas: ${Number(totales.gravadas || 0).toFixed(2)}`);
-        doc.text(`Op. gratuitas: ${Number(totales.gratuitas || 0).toFixed(2)}`);
-        doc.text(`IGV ${comprobante.porcentajeIgv || 10.5}%: ${Number(totales.igv || 0).toFixed(2)}`);
-        doc.font('Helvetica-Bold').text(`Total a pagar: ${Number(totales.importeTotal || 0).toFixed(2)}`);
-        doc.font('Helvetica').text(letras);
-        doc.image(qr, 40, 680, { width: 110 });
-        doc.fontSize(8).text(`Hash: ${comprobante.hash || ''}`, 170, 700, { width: 380 });
-        doc.text('Representación impresa de la Factura Electrónica. Consulte su documento en https://lasgambusinas.pe/cpe', 170, 730, { width: 380 });
+        raya();
+        izquierda(vista.titulo, 9, true);
+        izquierda(vista.serie, 10, true);
+        for (const f of vista.filas) izquierda(`${f.k} ${f.v}`, 8, false);
+        raya();
+        doc.font('Helvetica-Bold').fontSize(8);
+        doc.text('Cant.', MARGEN, y, { width: 28, lineBreak: false });
+        doc.text('Descripción', MARGEN + 30, y, { width: 78, lineBreak: false });
+        doc.text('Precio', MARGEN + 108, y, { width: 42, align: 'right', lineBreak: false });
+        doc.text('Importe', MARGEN + 150, y, { width: CUERPO - 150, align: 'right' });
+        y += 12;
+        doc.font('Helvetica').fontSize(8);
+        for (const it of vista.items) {
+            const h = doc.heightOfString(it.desc, { width: 78 });
+            doc.text(it.cant, MARGEN, y, { width: 28, lineBreak: false });
+            doc.text(it.desc, MARGEN + 30, y, { width: 78 });
+            doc.text(it.precio, MARGEN + 108, y, { width: 42, align: 'right', lineBreak: false });
+            doc.text(it.importe, MARGEN + 150, y, { width: CUERPO - 150, align: 'right', lineBreak: false });
+            y += Math.max(12, h + 2);
+        }
+        raya();
+        for (const t of vista.totalesFilas) derecha(`${t.label} ${t.monto}`, t.fuerte ? 10 : 8, Boolean(t.fuerte));
+        if (vista.letras) {
+            y += 2;
+            izquierda(vista.letras, 7, false);
+        }
+        y += 6;
+        const qw = 88;
+        doc.image(qr, (ANCHO - qw) / 2, y, { width: qw });
+        y += qw + 6;
+        for (const linea of vista.pie) centro(linea, 7, false);
         doc.end();
     });
 }

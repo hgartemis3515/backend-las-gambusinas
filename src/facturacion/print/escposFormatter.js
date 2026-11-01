@@ -37,6 +37,7 @@ const linea = (texto) => Buffer.from(`${texto}\n`, 'latin1');
  * @returns {Buffer}
  */
 function formatearTicket(ticket) {
+    if (Array.isArray(ticket.bloques)) return formatearBloques(ticket);
     const partes = [INIT, CENTRO, NEGRITA_ON];
     if (ticket.precuenta) {
         partes.push(DOBLE, linea('CONTROL INTERNO'), NORMAL, linea('NO VALIDO COMO COMPROBANTE'), NEGRITA_OFF);
@@ -53,6 +54,28 @@ function formatearTicket(ticket) {
         if (ticket.hash) partes.push(linea(`HASH ${String(ticket.hash).slice(0, 28)}`));
     }
     partes.push(linea(''), CORTE);
+    if (!ticket.precuenta && Number(ticket.montoEfectivo) > 0) partes.push(GAVETA);
+    return Buffer.concat(partes);
+}
+
+/** @param {{ bloques: Object[], qr?: string, precuenta?: boolean, copia?: number, montoEfectivo?: number }} ticket */
+function formatearBloques(ticket) {
+    const partes = [INIT];
+    if (ticket.copia) {
+        const n = String(ticket.copia).padStart(2, '0');
+        partes.push(CENTRO, NEGRITA_ON, DOBLE, linea(`*** COPIA / REIMPRESION #${n} ***`), NORMAL, NEGRITA_OFF);
+    }
+    for (const b of ticket.bloques) {
+        if (b.qr) {
+            if (ticket.qr) partes.push(CENTRO, comandoQr(ticket.qr));
+            continue;
+        }
+        partes.push(b.centro ? CENTRO : IZQUIERDA);
+        partes.push(b.negrita ? NEGRITA_ON : NEGRITA_OFF);
+        partes.push(b.doble ? DOBLE : NORMAL);
+        partes.push(linea(b.texto || ''));
+    }
+    partes.push(NORMAL, NEGRITA_OFF, linea(''), CORTE);
     if (!ticket.precuenta && Number(ticket.montoEfectivo) > 0) partes.push(GAVETA);
     return Buffer.concat(partes);
 }
