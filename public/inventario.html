@@ -65,6 +65,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="/assets/css/dashboard.css">
   <link rel="stylesheet" href="/assets/css/cosmos-search.css">
+  
   <style>[x-cloak]{display:none !important}</style>
 
   <style>
@@ -682,20 +683,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <button
           type="button"
-          @click="abrirGrafico()"
-          :class="activeTab === 'grafico' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
-          class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
-        >
-          Gráfico estadístico
-        </button>
-
-        <button
-          type="button"
           @click="activeTab = 'stock'"
           :class="activeTab === 'stock' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
           class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
         >
           Stock
+        </button>
+
+        <button
+          type="button"
+          @click="abrirGrafico()"
+          :class="activeTab === 'grafico' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
+          class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
+        >
+          Gráfico de Inventario
         </button>
 
         <button
@@ -767,8 +768,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               @click="configMenuOpen = false; openConversionesModal()"
               class="w-full text-left px-4 py-3 text-white hover:bg-[#1c1c2b] font-semibold text-sm flex items-center justify-between cursor-pointer"
             >
-              <span>Conversiones</span>
-              <span class="text-xs text-[#d4af37] num-mono">Factores</span>
+              <span>Ajustes</span>
+              <span class="text-xs text-[#d4af37] num-mono">Factores y Colores</span>
             </button>
             <button
               type="button"
@@ -820,75 +821,214 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <!-- PESTAÑA 1: INVENTARIO TABLA (REDISEÑO MODERNO DEL 27 DE OCTUBRE)    -->
     <!-- =================================================================== -->
     <section x-show="activeTab === 'tabla'" class="hoja-seccion space-y-4">
-      <!-- Encabezado de hoja con buscador, leyenda fija de una línea y acciones -->
-      <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-start justify-between gap-4">
-        <div class="space-y-3 min-w-0">
+      <!-- ENCABEZADO DE HOJA DE PRODUCCIÓN DEL PERÍODO Y BUSCADOR AVANZADO -->
+      <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 sm:p-5 space-y-4 shadow-xl">
+        <!-- Fila 1: Título de hoja, ciclo operativo y botones principales de acción -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
           <div class="flex flex-wrap items-center gap-3">
-            <h1 class="sec-title">Hoja de Producción del Día — Inventario Tabla</h1>
-            <span class="px-2.5 py-0.5 rounded-md bg-[#1c1c2b] border border-[#26263a] text-[11px] text-[#a0a0b8] num-mono">
-              Mismo período que Reportes · 04:00 a 04:00
-            </span>
-          </div>
-          <div class="flex flex-col items-start gap-2">
-            <div class="flex flex-wrap items-center gap-2">
-              <label class="relative block w-60">
-                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a0a0b8] text-xs">⌕</span>
-                <input
-                  type="search"
-                  x-model="busqueda"
-                  placeholder="Buscar producto o corte..."
-                  autocomplete="off"
-                  aria-label="Buscar producto"
-                  class="w-full bg-[#0a0a0f] border border-[#26263a] focus:border-[#d4af37] rounded-lg pl-8 pr-3 py-2 text-xs text-white placeholder:text-[#5a5a7a] focus:outline-none transition"
-                />
-              </label>
-              <div class="inline-flex items-center gap-1 rounded-full bg-[#0a0a0f] border border-[#26263a] p-1">
-                <span class="px-3 text-[11px] uppercase tracking-wider text-white font-semibold">Período</span>
-                <template x-for="p in periodosVisibles()" :key="p.id">
-                  <button type="button" @click="setPeriodo(p.id)" class="px-3 py-1.5 rounded-full text-sm font-medium transition" :class="periodo === p.id ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'text-white hover:bg-[#1c1c2b]'" x-text="p.label"></button>
-                </template>
+            <div class="w-9 h-9 rounded-lg bg-[#d4af37]/15 border border-[#d4af37]/30 flex items-center justify-center text-[#d4af37]">
+              <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="sec-title text-base sm:text-lg">Hoja de Producción del Día</h1>
+                <span class="px-2.5 py-0.5 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 text-[11px] font-bold text-[#d4af37]">
+                  Inventario Tabla
+                </span>
               </div>
-              <label class="inline-flex items-center gap-2 rounded-full bg-[#0a0a0f] border border-[#26263a] pl-3 pr-1 py-1">
-                <span class="text-[11px] uppercase tracking-wider text-white font-semibold">Ordenar por</span>
-                <select x-model="ordenHoja" aria-label="Ordenar por" class="bg-[#1c1c2b] border border-[#26263a] rounded-full px-3 py-1 text-sm text-white font-semibold focus:outline-none focus:border-[#d4af37]">
-                  <option value="cantidad">Cantidad</option>
-                  <option value="nombre">Nombre</option>
-                  <option value="hoja">Hoja</option>
-                </select>
-              </label>
+              <p class="text-xs text-[#a0a0b8] mt-0.5">
+                Ciclo operativo gastronómico · <span class="text-white font-mono font-semibold">04:00 a 04:00</span> (Lima)
+              </p>
             </div>
-            <div class="flex gap-2">
-              <input type="date" x-model="customDesde" @change="usarRangoManual()" aria-label="Desde" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white">
-              <input type="date" x-model="customHasta" @change="usarRangoManual()" aria-label="Hasta" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white">
-            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              @click="expandAllGroups(true)"
+              title="Desplegar todas las agrupaciones"
+              class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-white text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
+            >
+              <span>▼</span> Abrir grupos
+            </button>
+            <button
+              type="button"
+              @click="expandAllGroups(false)"
+              title="Plegar todas las agrupaciones"
+              class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#a0a0b8] hover:text-white text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
+            >
+              <span>▶</span> Plegar grupos
+            </button>
+            <button
+              type="button"
+              @click="abrirVentaEspecial()"
+              class="px-3.5 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] text-xs font-extrabold hover:brightness-110 transition cursor-pointer flex items-center gap-1.5 shadow-md"
+            >
+              <span>★</span> Venta especial
+            </button>
+            <button
+              type="button"
+              @click="exportarInventarioCSV()"
+              class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-emerald-300 border border-emerald-500/30 text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
+              title="Descargar estado actual como CSV"
+            >
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              CSV
+            </button>
+            <button
+              type="button"
+              @click="imprimirHoja()"
+              class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] border border-[#d4af37]/30 text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
+              title="Imprimir hoja de producción"
+            >
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+              Imprimir
+            </button>
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            @click="expandAllGroups(true)"
-            class="px-3 py-2 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-white text-xs font-semibold cursor-pointer transition"
-          >
-            Abrir todos los grupos
-          </button>
-          <button
-            type="button"
-            @click="expandAllGroups(false)"
-            class="px-3 py-2 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-white text-xs font-semibold cursor-pointer transition"
-          >
-            Plegar grupos
-          </button>
-          <button
-            type="button"
-            @click="abrirVentaEspecial()"
-            class="px-3.5 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-xs font-bold hover:brightness-110 transition cursor-pointer"
-          >
-            Venta especial
-          </button>
+        <!-- Fila 2: Buscador mejorado + Selector de período + Orden de hoja -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <!-- Buscador por nombre de producto o corte -->
+          <div class="flex-1 min-w-[260px] max-w-md relative">
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#d4af37] text-sm font-bold">⌕</span>
+            <input
+              type="search"
+              x-model="busqueda"
+              placeholder="Buscar producto o corte... (ej. Pechuga, Lomo, Filete)"
+              autocomplete="off"
+              aria-label="Buscar producto"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] focus:border-[#d4af37] rounded-lg pl-9 pr-8 py-2 text-xs text-white placeholder:text-[#5a5a7a] focus:outline-none transition shadow-inner"
+            />
+            <button
+              type="button"
+              x-show="busqueda"
+              @click="busqueda = ''"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#a0a0b8] hover:text-white text-xs font-bold px-1"
+              title="Limpiar búsqueda"
+            >✕</button>
+          </div>
+
+          <!-- Selector de períodos con botones claros -->
+          <div class="flex flex-wrap items-center gap-1.5 bg-[#0a0a0f] border border-[#26263a] rounded-xl p-1">
+            <span class="px-2 text-[10px] uppercase tracking-wider text-[#a0a0b8] font-bold">Período:</span>
+            <template x-for="p in periodosVisibles()" :key="p.id">
+              <button
+                type="button"
+                @click="setPeriodo(p.id)"
+                class="px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer"
+                :class="periodo === p.id ? 'bg-[#d4af37] text-[#1a1200] font-bold shadow-sm' : 'text-[#a0a0b8] hover:text-white hover:bg-[#1c1c2b]'"
+                x-text="p.label"
+              ></button>
+            </template>
+            <div class="flex items-center gap-1 pl-1 border-l border-[#26263a]">
+              <input
+                type="date"
+                x-model="customDesde"
+                @change="usarRangoManual()"
+                aria-label="Fecha inicial del período"
+                class="bg-[#14141f] border border-[#26263a] rounded px-1.5 py-1 text-[11px] text-white"
+              />
+              <span class="text-[#5a5a7a] text-xs">→</span>
+              <input
+                type="date"
+                x-model="customHasta"
+                @change="usarRangoManual()"
+                aria-label="Fecha final del período"
+                class="bg-[#14141f] border border-[#26263a] rounded px-1.5 py-1 text-[11px] text-white"
+              />
+            </div>
+          </div>
+
+          <!-- Ordenador de la tabla -->
+          <label class="inline-flex items-center gap-2 bg-[#0a0a0f] border border-[#26263a] rounded-xl px-3 py-1 text-xs">
+            <span class="text-[10px] uppercase tracking-wider text-[#a0a0b8] font-bold">Ordenar:</span>
+            <select
+              x-model="ordenHoja"
+              aria-label="Ordenar filas por"
+              class="bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white font-semibold focus:outline-none focus:border-[#d4af37]"
+            >
+              <option value="hoja">Hoja (Original)</option>
+              <option value="cantidad">Mayor venta</option>
+              <option value="nombre">Nombre (A-Z)</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Fila 3: Filtros rápidos por familia de producto (chips) + Contador de coincidencias -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#26263a]/60">
+          <div class="flex flex-wrap items-center gap-1.5 text-xs">
+            <span class="text-[10px] uppercase tracking-wider text-[#5a5a7a] font-bold mr-1">Familia:</span>
+            <button
+              type="button"
+              @click="setFiltroCategoria('todos')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'todos' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >Todos</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('pollo')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'pollo' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >🍗 Pollo</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('pato')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'pato' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >🦆 Pato</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('panceta')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'panceta' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >🥓 Panceta</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('carnes')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'carnes' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >🥩 Carnes</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('trucha')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'trucha' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >🐟 Trucha</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('carnero')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'carnero' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >🍖 Carnero</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('arroz')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'arroz' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >🍚 Arroces</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('bebidas')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filtroCategoria === 'bebidas' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
+            >🥤 Bebidas</button>
+          </div>
+
+          <!-- Contador dinámico de resultados -->
+          <div class="text-[11px] text-[#a0a0b8] flex items-center gap-2">
+            <span x-show="busqueda || filtroCategoria !== 'todos'" class="px-2 py-0.5 rounded bg-[#d4af37]/15 text-[#d4af37] font-semibold" x-text="filasCoincidentesContador() + ' productos encontrados'"></span>
+            <span class="num-mono" x-text="'Total: ' + rows.length + ' productos'"></span>
+          </div>
         </div>
       </div>
-
+      
       <!-- TABLA REDISEÑADA (TEMA OSCURO #14141f / #1a1a28, BANDAS Y COLUMNAS CON COLORES DISTINTOS) -->
       <div class="tabla-impresion bg-[#14141f] border border-[#26263a] overflow-hidden shadow-2xl" :class="compactView ? 'rounded-none' : 'rounded-xl'">
         <h2 class="titulo-impresion">Hoja de Producción del Día</h2>
@@ -2658,32 +2798,52 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <!-- =================================================================== -->
     <!-- PESTAÑA 5: RELACIÓN DE PLATOS                                       -->
     <!-- =================================================================== -->
+    <!-- PESTAÑA: RELACIÓN DE PLATOS CON RUBROS DE INVENTARIO                -->
+    <!-- =================================================================== -->
     <section x-show="activeTab === 'platos'" x-cloak class="space-y-5">
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 class="sec-title">Relación de platos con rubros de inventario</h1>
+          <div class="flex items-center gap-2">
+            <h1 class="sec-title">Relación de Platos de la Carta con Inventario</h1>
+            <span class="px-2.5 py-0.5 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/40 text-[11px] font-bold text-[#d4af37]">
+              Mapeo de Insumos
+            </span>
+          </div>
           <p class="text-xs text-[#a0a0b8] mt-1">
-            Vincula platos reales de la carta con su rubro de inventario y cantidad decimal. Agrupado por rubro con <span class="text-white font-semibold">▶/▼</span> y pastilla <span class="text-[#d4af37] font-semibold">GRUPO</span> sin sumar cantidades de platos distintos.
+            Vincula los platos comerciales de la comanda con sus insumos de inventario y consumo decimal (ej. 1 milanesa = 1 filete; 1 cuarto pollo = 1 pollo leña).
           </p>
         </div>
-        <button
-          type="button"
-          @click="openConversionesModal()"
-          class="px-4 py-2.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-sm hover:brightness-110 transition cursor-pointer"
-        >
-          Editar
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            @click="abrirModalNuevoPlato()"
+            class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow"
+          >
+            <span>+</span> Agregar plato a la carta
+          </button>
+          <button
+            type="button"
+            @click="openConversionesModal()"
+            class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-xs hover:brightness-110 transition cursor-pointer"
+          >
+            ⚙ Configuración
+          </button>
+        </div>
       </div>
 
-      <!-- HERRAMIENTA PARA AGREGAR UNA LÍNEA DE RELACIÓN -->
+      <!-- HERRAMIENTA RÁPIDA PARA VINCULAR UNA RELACIÓN -->
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-5 space-y-4">
-        <h2 class="sec-title">Agregar línea de relación</h2>
+        <div class="flex items-center justify-between">
+          <h2 class="sec-title text-sm">Vincular Plato con Rubro de Inventario</h2>
+          <span class="text-xs text-[#a0a0b8]">Asigna la cantidad exacta que resta una comanda</span>
+        </div>
+        
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div class="md:col-span-2">
             <label class="block text-xs text-[#a0a0b8] mb-1">Plato de la carta</label>
             <select
               x-model="nuevaRelacion.plato"
-              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2.5 text-sm text-white"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-sm text-white"
             >
               <template x-for="p in platosCarta" :key="p.clave">
                 <option :value="p.nombre" x-text="p.nombre + ' (' + p.categoria + ')'"></option>
@@ -2692,23 +2852,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </div>
 
           <div>
-            <label class="block text-xs text-[#a0a0b8] mb-1">Complemento (opcional)</label>
+            <label class="block text-xs text-[#a0a0b8] mb-1">Complemento / Nota (opcional)</label>
             <input
               type="text"
               x-model="nuevaRelacion.complemento"
-              placeholder="Ej. Sabores: Pollo"
-              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2.5 text-sm text-white"
+              placeholder="Ej. Guarnición papas"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-sm text-white"
             />
           </div>
 
           <div>
-            <label class="block text-xs text-[#a0a0b8] mb-1">Rubro de inventario (escribe o elige)</label>
+            <label class="block text-xs text-[#a0a0b8] mb-1">Rubro de inventario</label>
             <input
               type="text"
               list="rubros-inventario-list"
               x-model="nuevaRelacion.rubro"
-              placeholder="Ej. Filete, Arroz, papa frita..."
-              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2.5 text-sm text-white"
+              placeholder="Ej. Filete, Pollo leña..."
+              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-sm text-white"
             />
             <datalist id="rubros-inventario-list">
               <option value="Filete"></option>
@@ -2733,7 +2893,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <option value="Papas"></option>
               <option value="Tamal"></option>
               <option value="Gaseosas"></option>
-              <option value="ensalada"></option>
+              <option value="Bebidas"></option>
             </datalist>
           </div>
 
@@ -2745,15 +2905,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 step="0.25"
                 min="0.1"
                 x-model.number="nuevaRelacion.cantidad"
-                class="w-full num-mono bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2.5 text-sm text-white font-bold"
+                class="w-full num-mono bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-sm text-white font-bold text-center"
               />
             </div>
             <button
               type="button"
               @click="agregarLineaRelacion()"
-              class="px-4 py-2.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-sm hover:brightness-110 transition cursor-pointer"
+              class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-sm hover:brightness-110 transition cursor-pointer"
             >
-              Agregar
+              Vincular
             </button>
           </div>
         </div>
@@ -2762,102 +2922,99 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           x-show="relacionError"
           x-cloak
           x-transition
-          class="bg-amber-950/80 border-2 border-amber-400 text-amber-200 px-4 py-3 rounded-xl flex items-center justify-between text-sm"
+          class="bg-amber-950/80 border border-amber-400 text-amber-200 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs"
         >
           <div>
-            <span class="px-2 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-xs mr-2">BLOQUEADO</span>
+            <span class="px-2 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] mr-2">AVISO</span>
             <span class="font-bold" x-text="relacionError"></span>
           </div>
-          <button type="button" @click="relacionError = ''" class="text-xs underline">Cerrar</button>
+          <button type="button" @click="relacionError = ''" class="underline font-semibold">Cerrar</button>
         </div>
       </div>
 
-      <!-- LÍNEAS PRECARGADAS AGRUPADAS POR RUBRO DE INVENTARIO -->
+      <!-- LISTADO AGRUPADO DE RELACIONES CON EDICIÓN Y ELIMINACIÓN -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div class="lg:col-span-2 space-y-4">
-          <h2 class="sec-title">Grupos por rubro de inventario</h2>
+          <div class="flex items-center justify-between">
+            <h2 class="sec-title text-sm">Vínculos Agrupados por Insumo de Inventario</h2>
+            <span class="text-xs text-[#a0a0b8]" x-text="config.relaciones.length + ' vínculos activos'"></span>
+          </div>
 
           <template x-for="grp in getRelacionGroups()" :key="'rel-grp-' + grp.rubro">
-            <div class="bg-[#14141f] border border-[#26263a] rounded-xl overflow-hidden">
+            <div class="bg-[#14141f] border border-[#26263a] rounded-xl overflow-hidden shadow-md">
               <div
                 @click="toggleRelGroup(grp.rubro)"
-                class="bg-[#1c1c2b] hover:bg-[#252538] px-4 py-3 flex items-center justify-between cursor-pointer transition"
+                class="bg-[#1c1c2b] hover:bg-[#252538] px-4 py-3 flex items-center justify-between cursor-pointer transition select-none"
               >
                 <div class="flex items-center gap-2.5">
                   <span class="w-6 h-6 rounded bg-[#0a0a0f] border border-[#26263a] flex items-center justify-center text-xs text-[#d4af37]" x-text="isRelGroupOpen(grp.rubro) ? '▼' : '▶'"></span>
-                  <span class="font-bold text-white text-base" x-text="grp.rubro"></span>
-                  <span class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200]">GRUPO</span>
+                  <span class="font-bold text-white text-sm sm:text-base" x-text="grp.rubro"></span>
+                  <span class="px-2 py-0.5 text-[10px] font-extrabold rounded bg-[#d4af37] text-[#1a1200]">GRUPO</span>
                 </div>
                 <span class="text-xs text-[#a0a0b8]">
-                  No suma cantidades en el padre · <strong class="text-white num-mono" x-text="grp.items.length + ' vínculos'"></strong>
+                  <strong class="text-white num-mono" x-text="grp.items.length + ' platos'"></strong>
                 </span>
               </div>
 
               <div x-show="isRelGroupOpen(grp.rubro)" class="divide-y divide-[#26263a]">
                 <template x-for="(item, rIdx) in grp.items" :key="item.id">
-                  <div
-                    x-transition:enter="transition ease-out duration-300 transform"
-                    x-transition:enter-start="opacity-0 -translate-y-2"
-                    x-transition:enter-end="opacity-100 translate-y-0"
-                    :style="'transition-delay: ' + (rIdx * 45) + 'ms'"
-                    class="px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-[#14141f] stagger-fade-in"
-                  >
+                  <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-[#14141f] hover:bg-[#1a1a28] transition">
                     <div>
                       <div class="font-semibold text-white text-sm" x-text="item.plato"></div>
                       <div class="text-xs text-[#a0a0b8]" x-show="item.complemento" x-text="item.complemento"></div>
                     </div>
                     <div class="flex items-center gap-3">
-                      <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#26263a] num-mono font-bold text-[#d4af37] text-sm">
+                      <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#26263a] num-mono font-bold text-[#d4af37] text-xs">
                         <span x-text="item.cantidad"></span>
-                        <span class="text-xs text-[#a0a0b8]" x-text="item.unidadNota"></span>
+                        <span class="text-[10px] text-[#a0a0b8] ml-1" x-text="item.unidadNota || 'unidad'"></span>
                       </span>
+                      <button
+                        type="button"
+                        @click="abrirModalEditarRelacion(item)"
+                        class="px-2.5 py-1 rounded bg-[#1c1c2b] hover:bg-[#26263a] border border-[#26263a] text-xs font-semibold text-sky-300 cursor-pointer transition"
+                        title="Editar relación"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        @click="eliminarRelacion(item.id)"
+                        class="px-2 py-1 rounded bg-rose-950/40 hover:bg-rose-900 text-rose-300 text-xs font-bold cursor-pointer transition"
+                        title="Eliminar este vínculo"
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
                 </template>
               </div>
             </div>
           </template>
-
-          <!-- Aderezos de inventario sin plato homónimo exacto en la carta (Pollada y Menú) -->
-          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-2">
-            <div class="flex items-center justify-between">
-              <h3 class="sec-title">Aderezos de inventario sin plato con ese nombre exacto en la carta</h3>
-              <span class="px-2.5 py-0.5 rounded bg-[#1c1c2b] text-[#d4af37] text-xs font-bold">Rubros de producción</span>
-            </div>
-            <p class="text-xs text-[#a0a0b8]">
-              Se controlan en el despiece de pollo y en Inventario Tabla aunque hoy no exista un plato comercial llamado exactamente así en la carta:
-            </p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg p-3 flex items-center justify-between">
-                <div>
-                  <span class="font-bold text-white text-sm">Pollada</span>
-                  <span class="block text-xs text-[#a0a0b8]">Aderezo de inventario (2 piernas + 2 pechugas)</span>
-                </div>
-                <span class="num-mono font-bold text-[#d4af37] text-sm">Saldo: <span x-text="calcSaldo(getRow('pollada'))"></span></span>
-              </div>
-              <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg p-3 flex items-center justify-between">
-                <div>
-                  <span class="font-bold text-white text-sm">Menú</span>
-                  <span class="block text-xs text-[#a0a0b8]">Aderezo de inventario (1 pierna + 2 pechugas)</span>
-                </div>
-                <span class="num-mono font-bold text-[#d4af37] text-sm">Saldo: <span x-text="calcSaldo(getRow('menu'))"></span></span>
-              </div>
-            </div>
-          </div>
         </div>
 
-        <!-- LISTA DE PLATOS REALES DE LA CARTA CON SU CATEGORÍA Y COMPLEMENTOS -->
+        <!-- PANEL LATERAL: PLATOS REALES DE LA CARTA -->
         <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3 h-fit">
-          <h2 class="sec-title">Platos reales de la carta</h2>
-          <p class="text-xs text-[#a0a0b8]">Catálogo comercial con categoría y complementos.</p>
-          <ul class="divide-y divide-[#26263a] text-sm">
+          <div class="flex items-center justify-between border-b border-[#26263a] pb-2">
+            <div>
+              <h2 class="sec-title text-sm">Platos de la Carta</h2>
+              <p class="text-xs text-[#a0a0b8]">Catálogo activo</p>
+            </div>
+            <button
+              type="button"
+              @click="abrirModalNuevoPlato()"
+              class="px-2.5 py-1 rounded bg-emerald-600/80 hover:bg-emerald-600 text-white text-xs font-bold cursor-pointer transition"
+            >
+              + Nuevo
+            </button>
+          </div>
+          <ul class="divide-y divide-[#26263a] text-xs max-h-[500px] overflow-y-auto pr-1">
             <template x-for="plato in platosCarta" :key="plato.clave">
-              <li class="py-2.5 space-y-1">
+              <li class="py-2 space-y-1">
                 <div class="flex items-start justify-between gap-2">
                   <span class="font-semibold text-white" x-text="plato.nombre"></span>
-                  <span class="px-2 py-0.5 rounded bg-[#1c1c2b] text-[#d4af37] font-mono text-[10px] font-bold shrink-0" x-text="plato.categoria"></span>
+                  <span class="px-1.5 py-0.5 rounded bg-[#1c1c2b] text-[#d4af37] font-mono text-[9px] font-bold shrink-0" x-text="plato.categoria"></span>
                 </div>
-                <div x-show="plato.complemento" class="text-xs text-emerald-300" x-text="plato.complemento"></div>
+                <div x-show="plato.complemento" class="text-[11px] text-[#a0a0b8]" x-text="plato.complemento"></div>
               </li>
             </template>
           </ul>
@@ -2865,8 +3022,207 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </div>
     </section>
 
-  </div>
+    <!-- MODAL PARA AGREGAR NUEVO PLATO A LA CARTA -->
+    <div
+      x-show="showNuevoPlatoModal"
+      x-cloak
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      @keydown.escape.window="showNuevoPlatoModal = false"
+    >
+      <div
+        class="bg-[#14141f] border-2 border-emerald-500 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl"
+        @click.outside="showNuevoPlatoModal = false"
+      >
+        <div class="flex items-center justify-between border-b border-[#26263a] pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-sm">+</span>
+            <h3 class="font-bold text-white text-sm">Nuevo Plato Comercial en Carta</h3>
+          </div>
+          <button type="button" @click="showNuevoPlatoModal = false" class="text-[#a0a0b8] hover:text-white font-bold">✕</button>
+        </div>
 
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block text-[#a0a0b8] mb-1 font-semibold">Nombre del plato comercial</label>
+            <input
+              type="text"
+              x-model="nuevoPlatoForm.nombre"
+              placeholder="Ej. Pechuga a la plancha con papas y arroz"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] focus:border-emerald-500 rounded-lg px-3 py-2 text-white text-xs"
+            />
+          </div>
+
+          <div>
+            <label class="block text-[#a0a0b8] mb-1 font-semibold">Categoría de carta</label>
+            <input
+              type="text"
+              list="cat-platos-list"
+              x-model="nuevoPlatoForm.categoria"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white text-xs"
+            />
+            <datalist id="cat-platos-list">
+              <option value="POLLO - CARNES"></option>
+              <option value="POLLO A LA LEÑA"></option>
+              <option value="PACHAMANCA"></option>
+              <option value="CHAUFAS"></option>
+              <option value="CRIOLLOS"></option>
+              <option value="BEBIDAS"></option>
+              <option value="GUARNICIONES"></option>
+            </datalist>
+          </div>
+
+          <div>
+            <label class="block text-[#a0a0b8] mb-1 font-semibold">Guarnición o Complemento (opcional)</label>
+            <input
+              type="text"
+              x-model="nuevoPlatoForm.complemento"
+              placeholder="Ej. Papas fritas + ensalada"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white text-xs"
+            />
+          </div>
+
+          <div class="pt-2 border-t border-[#26263a]">
+            <span class="block text-[#d4af37] font-semibold mb-2">Vínculo inicial con inventario (opcional)</span>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[#a0a0b8] mb-1">Insumo / Rubro</label>
+                <input
+                  type="text"
+                  x-model="nuevoPlatoForm.rubro"
+                  placeholder="Ej. Filete"
+                  class="w-full bg-[#0a0a0f] border border-[#26263a] rounded px-2.5 py-1.5 text-white"
+                />
+              </div>
+              <div>
+                <label class="block text-[#a0a0b8] mb-1">Cantidad decimal</label>
+                <input
+                  type="number"
+                  step="0.25"
+                  min="0.1"
+                  x-model.number="nuevoPlatoForm.cantidad"
+                  class="w-full bg-[#0a0a0f] border border-[#26263a] rounded px-2.5 py-1.5 text-white font-bold text-center"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-[#26263a]">
+          <button
+            type="button"
+            @click="showNuevoPlatoModal = false"
+            class="px-3.5 py-1.5 rounded-lg bg-[#1c1c2b] text-white text-xs font-semibold cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="guardarNuevoPlatoCarta()"
+            class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition shadow"
+          >
+            Guardar en Carta
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL PARA EDITAR VÍNCULO / RELACIÓN EXISTENTE -->
+    <div
+      x-show="showEditarRelacionModal"
+      x-cloak
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      @keydown.escape.window="showEditarRelacionModal = false"
+    >
+      <div
+        class="bg-[#14141f] border-2 border-[#d4af37] rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl"
+        @click.outside="showEditarRelacionModal = false"
+      >
+        <div class="flex items-center justify-between border-b border-[#26263a] pb-2.5">
+          <div>
+            <h3 class="font-bold text-white text-sm">Editar Relación de Plato</h3>
+            <p class="text-xs text-[#a0a0b8]" x-text="editarRelacionForm.plato"></p>
+          </div>
+          <button type="button" @click="showEditarRelacionModal = false" class="text-[#a0a0b8] hover:text-white font-bold">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block text-[#a0a0b8] mb-1 font-semibold">Rubro de inventario</label>
+            <input
+              type="text"
+              list="rubros-inventario-list"
+              x-model="editarRelacionForm.rubro"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white font-bold text-xs"
+            />
+          </div>
+
+          <div>
+            <label class="block text-[#a0a0b8] mb-1 font-semibold">Cantidad que descuenta por venta</label>
+            <div class="flex items-center gap-2">
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                x-model.number="editarRelacionForm.cantidad"
+                class="w-24 bg-[#0a0a0f] border border-[#d4af37] rounded-lg px-2.5 py-1.5 text-center font-bold text-[#d4af37] text-sm num-mono"
+              />
+              <div class="flex items-center gap-1">
+                <button type="button" @click="editarRelacionForm.cantidad = 0.25" class="px-2 py-1 rounded bg-[#1c1c2b] text-[10px] text-white hover:bg-[#26263a]">0.25</button>
+                <button type="button" @click="editarRelacionForm.cantidad = 0.5" class="px-2 py-1 rounded bg-[#1c1c2b] text-[10px] text-white hover:bg-[#26263a]">0.5</button>
+                <button type="button" @click="editarRelacionForm.cantidad = 1.0" class="px-2 py-1 rounded bg-[#1c1c2b] text-[10px] text-white hover:bg-[#26263a]">1.0</button>
+                <button type="button" @click="editarRelacionForm.cantidad = 2.0" class="px-2 py-1 rounded bg-[#1c1c2b] text-[10px] text-white hover:bg-[#26263a]">2.0</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[#a0a0b8] mb-1 font-semibold">Nota o unidad</label>
+            <input
+              type="text"
+              x-model="editarRelacionForm.unidadNota"
+              placeholder="Ej. filete, porción, pieza"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-1.5 text-white text-xs"
+            />
+          </div>
+
+          <div>
+            <label class="block text-[#a0a0b8] mb-1 font-semibold">Complemento</label>
+            <input
+              type="text"
+              x-model="editarRelacionForm.complemento"
+              class="w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-1.5 text-white text-xs"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-[#26263a]">
+          <button
+            type="button"
+            @click="eliminarRelacion(editarRelacionForm.id); showEditarRelacionModal = false;"
+            class="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 text-xs font-semibold cursor-pointer"
+          >
+            Eliminar Vínculo
+          </button>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="showEditarRelacionModal = false"
+              class="px-3.5 py-1.5 rounded-lg bg-[#1c1c2b] text-white text-xs font-semibold cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              @click="guardarEdicionRelacion()"
+              class="px-4 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] text-xs font-extrabold cursor-pointer hover:brightness-110 shadow"
+            >
+              Guardar Cambios
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
   <!-- =================================================================== -->
   <!-- MODAL DE AUDITORÍA Y HISTORIAL DE MOVIMIENTOS CON FILTRO DE PERÍODOS -->
   <!-- =================================================================== -->
@@ -3230,7 +3586,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </div>
 
   <!-- ===================================================================== -->
-  <!-- MODAL 2: CONFIGURACIÓN -> «CONVERSIONES»                              -->
+  <!-- ===================================================================== -->
+  <!-- MODAL DE AJUSTES Y CONFIGURACIÓN (REDISEÑADO CON PESTAÑAS CÓMODAS)   -->
   <!-- ===================================================================== -->
   <div
     x-show="showConversionesModal"
@@ -3238,300 +3595,499 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     x-transition:enter="transition ease-out duration-150"
     x-transition:enter-start="opacity-0 scale-95"
     x-transition:enter-end="opacity-100 scale-100"
-    class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto"
+    class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-5 overflow-y-auto backdrop-blur-sm"
     @keydown.escape.window="showConversionesModal = false"
   >
-    <div class="bg-[#14141f] border-2 border-[#d4af37] rounded-2xl max-w-4xl w-full p-6 space-y-5 shadow-2xl my-8 max-h-[92vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-[#26263a] pb-3">
-        <div>
-          <h2 class="sec-title">Configuración — Conversiones, Aderezos y Relaciones</h2>
-          <p class="text-xs text-[#a0a0b8]">
-            Guardar solo acepta factores &gt; 0 (salvo <span class="text-white">1 pierna → filetes</span> que puede quedar vacío).
-          </p>
+    <div
+      class="bg-[#14141f] border-2 border-[#d4af37] rounded-2xl max-w-5xl w-full flex flex-col shadow-2xl my-4 max-h-[92vh] overflow-hidden"
+      @click.outside="showConversionesModal = false"
+    >
+      <!-- Encabezado del modal con título y pestañas internas de navegación -->
+      <div class="bg-[#101018] border-b border-[#26263a] p-4 sm:p-5">
+        <div class="flex items-center justify-between pb-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] font-bold text-lg">
+              ⚙
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white tracking-wide">Configuración y Ajustes del Sistema</h2>
+              <p class="text-xs text-[#a0a0b8]">Personaliza colores de filas, factores de despiece, aderezos y parámetros de inventario.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            @click="showConversionesModal = false"
+            class="w-8 h-8 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#a0a0b8] hover:text-white flex items-center justify-center cursor-pointer transition font-bold"
+            aria-label="Cerrar modal de configuración"
+          >✕</button>
         </div>
-        <button type="button" @click="showConversionesModal = false" class="text-[#a0a0b8] hover:text-white text-base font-bold px-2 py-1 cursor-pointer">✕</button>
+
+        <!-- Pestañas internas de Configuración -->
+        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-[#26263a]">
+          <button
+            type="button"
+            @click="tabConfig = 'colores'"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+            :class="tabConfig === 'colores' ? 'bg-[#d4af37] text-[#1a1200] shadow' : 'bg-[#1c1c2b] text-[#a0a0b8] hover:text-white'"
+          >
+            <span>🎨</span> Colores de Filas y Grupos
+          </button>
+          <button
+            type="button"
+            @click="tabConfig = 'factores'"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+            :class="tabConfig === 'factores' ? 'bg-[#d4af37] text-[#1a1200] shadow' : 'bg-[#1c1c2b] text-[#a0a0b8] hover:text-white'"
+          >
+            <span>⚙️</span> Factores de Despiece
+          </button>
+          <button
+            type="button"
+            @click="tabConfig = 'aderezos'"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+            :class="tabConfig === 'aderezos' ? 'bg-[#d4af37] text-[#1a1200] shadow' : 'bg-[#1c1c2b] text-[#a0a0b8] hover:text-white'"
+          >
+            <span>🌿</span> Aderezos Activos
+          </button>
+          <button
+            type="button"
+            @click="tabConfig = 'cocido'"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+            :class="tabConfig === 'cocido' ? 'bg-[#d4af37] text-[#1a1200] shadow' : 'bg-[#1c1c2b] text-[#a0a0b8] hover:text-white'"
+          >
+            <span>🍳</span> Cuadro de Cocido y Reservas
+          </button>
+          <button
+            type="button"
+            @click="tabConfig = 'preferencias'"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+            :class="tabConfig === 'preferencias' ? 'bg-[#d4af37] text-[#1a1200] shadow' : 'bg-[#1c1c2b] text-[#a0a0b8] hover:text-white'"
+          >
+            <span>🔔</span> Alertas y Preferencias
+          </button>
+        </div>
       </div>
 
       <div
         x-show="configError"
         x-cloak
-        class="bg-rose-950/80 border-2 border-rose-400 text-rose-200 px-4 py-3 rounded-xl text-sm font-semibold"
-        x-text="configError"
-      ></div>
-
-      <!-- 1. POLLO (EDITABLE) -->
-      <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-3">
-        <h3 class="sec-title">Pollo (Factores de despiece editables)</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div class="bg-[#14141f] border border-[#26263a] rounded-lg p-3 flex items-center justify-between">
-            <span class="text-white font-medium">1 fresco → piernas</span>
-            <div class="flex items-center gap-2">
-              <input
-                type="number"
-                min="1"
-                step="1"
-                x-model.number="draftConfig.factorPiernasPorFresco"
-                class="w-20 text-center num-mono font-bold bg-[#0a0a0f] border border-[#d4af37] rounded px-2 py-1 text-white"
-                aria-label="Factor piernas por pollo fresco"
-              />
-              <span class="text-xs text-[#a0a0b8]">piernas</span>
-            </div>
-          </div>
-
-          <div class="bg-[#14141f] border border-[#26263a] rounded-lg p-3 flex items-center justify-between">
-            <span class="text-white font-medium">1 fresco → pechugas</span>
-            <div class="flex items-center gap-2">
-              <input
-                type="number"
-                min="1"
-                step="1"
-                x-model.number="draftConfig.factorPechugasPorFresco"
-                class="w-20 text-center num-mono font-bold bg-[#0a0a0f] border border-[#d4af37] rounded px-2 py-1 text-white"
-                aria-label="Factor pechugas por pollo fresco"
-              />
-              <span class="text-xs text-[#a0a0b8]">pechugas</span>
-            </div>
-          </div>
-
-          <div class="bg-[#14141f] border border-[#26263a] rounded-lg p-3 flex items-center justify-between">
-            <span class="text-white font-medium">1 pechuga → filetes</span>
-            <div class="flex items-center gap-2">
-              <input
-                type="number"
-                min="1"
-                step="1"
-                x-model.number="draftConfig.factorFiletesPorPechuga"
-                class="w-20 text-center num-mono font-bold bg-[#0a0a0f] border border-[#d4af37] rounded px-2 py-1 text-white"
-                aria-label="Factor filetes por pechuga"
-              />
-              <span class="text-xs text-[#a0a0b8]">filetes</span>
-            </div>
-          </div>
-
-          <div class="bg-[#14141f] border border-[#26263a] rounded-lg p-3 flex items-center justify-between">
-            <span class="text-white font-medium">1 pierna → filetes (opcional)</span>
-            <div class="flex items-center gap-2">
-              <input
-                type="number"
-                min="1"
-                step="1"
-                placeholder="vacío"
-                x-model="draftConfig.factorFiletesPorPierna"
-                class="w-20 text-center num-mono font-bold bg-[#0a0a0f] border border-[#26263a] rounded px-2 py-1 text-white placeholder:text-[#5a5a7a]"
-                aria-label="Factor filetes por pierna"
-              />
-              <span class="text-xs text-[#a0a0b8]">filetes</span>
-            </div>
-          </div>
-        </div>
+        class="bg-rose-950/80 border-b border-rose-500 text-rose-200 px-5 py-2.5 text-xs font-semibold flex items-center justify-between"
+      >
+        <span x-text="configError"></span>
+        <button type="button" @click="configError = ''" class="text-rose-400 hover:text-white text-xs underline">Descartar</button>
       </div>
 
-      <!-- 2. ADEREZOS (EDITABLE CON SLIDE-IN HORIZONTAL SUAVE AL AGREGAR) -->
-      <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="sec-title">Aderezos activos en Transformar</h3>
-          <span class="text-xs text-[#a0a0b8]">Quitar un aderezo lo retira inmediatamente de Transformar</span>
-        </div>
-
-        <div class="space-y-2">
-          <template x-for="(ad, idx) in draftConfig.aderezos" :key="ad.id">
-            <div
-              x-transition:enter="transition ease-out duration-300 transform"
-              x-transition:enter-start="-translate-x-8 opacity-0"
-              x-transition:enter-end="translate-x-0 opacity-100"
-              :class="ad.isNew ? 'row-slide-in' : ''"
-              class="bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2.5 flex flex-wrap items-center justify-between gap-3"
-            >
+      <!-- Cuerpo deslizable con el contenido de la pestaña activa -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-5 bg-[#0e0e16]">
+        
+        <!-- ============================================================= -->
+        <!-- PESTAÑA 1: COLORES DE FILAS Y GRUPOS                         -->
+        <!-- ============================================================= -->
+        <div x-show="tabConfig === 'colores'" class="space-y-4">
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="sec-title text-sm">Editor Visual de Colores de Fondo</h3>
+              <p class="text-xs text-[#a0a0b8] mt-0.5">Elige el color de fondo para filas individuales o aplica un tono a toda la familia de productos.</p>
+            </div>
+            <div class="flex items-center gap-2">
               <input
-                type="text"
-                x-model="ad.nombre"
-                class="bg-[#0a0a0f] border border-[#26263a] rounded px-2.5 py-1 text-sm font-bold text-white"
+                type="search"
+                x-model="filtroColoresTexto"
+                placeholder="Filtrar fila o grupo..."
+                class="bg-[#0a0a0f] border border-[#26263a] focus:border-[#d4af37] rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-[#5a5a7a] focus:outline-none"
               />
-              <div class="flex items-center gap-4 text-xs">
-                <label class="inline-flex items-center gap-1.5 text-white cursor-pointer">
-                  <input type="checkbox" x-model="ad.aceptaPierna" class="accent-[#d4af37] w-4 h-4" />
-                  <span>acepta pierna</span>
-                </label>
-                <label class="inline-flex items-center gap-1.5 text-white cursor-pointer">
-                  <input type="checkbox" x-model="ad.aceptaPechuga" class="accent-[#d4af37] w-4 h-4" />
-                  <span>acepta pechuga</span>
-                </label>
-                <button
-                  type="button"
-                  @click="quitarAderezoDraft(idx)"
-                  class="px-2.5 py-1 rounded bg-rose-950/60 hover:bg-rose-900 text-rose-300 font-bold cursor-pointer"
-                >
-                  Quitar <span x-text="ad.nombre"></span>
-                </button>
+              <button
+                type="button"
+                @click="resetearColoresFilas()"
+                class="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-500/40 text-rose-200 text-xs font-semibold cursor-pointer transition"
+              >
+                Restablecer todos
+              </button>
+            </div>
+          </div>
+
+          <!-- Paleta de colores rápidos recomendados -->
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-3 flex flex-wrap items-center gap-2 text-xs">
+            <span class="text-[#a0a0b8] font-semibold text-[11px] uppercase mr-1">Paleta recomendada:</span>
+            <button type="button" @click="paletaRapidaColor = '#14141f'" class="px-2.5 py-1 rounded border border-[#26263a] bg-[#14141f] text-white text-[11px] hover:border-[#d4af37]">Oscuro (#14141f)</button>
+            <button type="button" @click="paletaRapidaColor = '#241e0f'" class="px-2.5 py-1 rounded border border-[#26263a] bg-[#241e0f] text-[#d4af37] text-[11px] hover:border-[#d4af37]">Oro (#241e0f)</button>
+            <button type="button" @click="paletaRapidaColor = '#0f241a'" class="px-2.5 py-1 rounded border border-[#26263a] bg-[#0f241a] text-emerald-300 text-[11px] hover:border-[#d4af37]">Esmeralda (#0f241a)</button>
+            <button type="button" @click="paletaRapidaColor = '#101d2d'" class="px-2.5 py-1 rounded border border-[#26263a] bg-[#101d2d] text-sky-300 text-[11px] hover:border-[#d4af37]">Azul (#101d2d)</button>
+            <button type="button" @click="paletaRapidaColor = '#28121a'" class="px-2.5 py-1 rounded border border-[#26263a] bg-[#28121a] text-rose-300 text-[11px] hover:border-[#d4af37]">Borgoña (#28121a)</button>
+            <button type="button" @click="paletaRapidaColor = '#1f1429'" class="px-2.5 py-1 rounded border border-[#26263a] bg-[#1f1429] text-purple-300 text-[11px] hover:border-[#d4af37]">Amatista (#1f1429)</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Colores de Grupos -->
+            <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
+              <div class="flex items-center justify-between pb-2 border-b border-[#26263a]">
+                <h4 class="font-bold text-white text-xs uppercase tracking-wider">Grupos de la Hoja</h4>
+                <span class="text-[11px] text-[#a0a0b8]" x-text="tableGroups.length + ' grupos'"></span>
+              </div>
+              <div class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                <template x-for="g in tableGroups.filter(x => !filtroColoresTexto || x.nombre.toLowerCase().includes(filtroColoresTexto.toLowerCase()))" :key="'col-grp-' + g.id">
+                  <div
+                    class="p-2.5 rounded-lg border border-[#26263a] flex items-center justify-between gap-3 transition"
+                    :style="'background-color: ' + (rowBgColors[g.id] || '#1a1a28')"
+                  >
+                    <div>
+                      <span class="font-bold text-white text-sm" x-text="g.nombre"></span>
+                      <span class="block text-[10px] text-[#a0a0b8]" x-text="g.nota || 'Grupo de productos'"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <input
+                        type="color"
+                        :value="rowBgColors[g.id] || '#1a1a28'"
+                        @input="setRowBgColor(g.id, $event.target.value)"
+                        class="w-8 h-8 rounded border border-white/20 cursor-pointer bg-transparent"
+                        :title="'Color del grupo ' + g.nombre"
+                      />
+                      <button
+                        type="button"
+                        @click="aplicarColorAGrupo(g.id, rowBgColors[g.id] || '#1a1a28')"
+                        class="px-2 py-1 rounded bg-[#0a0a0f] hover:bg-black text-[10px] font-bold text-[#d4af37] border border-[#26263a] cursor-pointer"
+                        title="Aplica este color a todas las filas del grupo"
+                      >
+                        Hijos ↳
+                      </button>
+                    </div>
+                  </div>
+                </template>
               </div>
             </div>
-          </template>
-        </div>
 
-        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-[#26263a]">
-          <input
-            type="text"
-            x-model="nuevoAderezoNombre"
-            @keydown.enter.prevent="agregarAderezoDraft()"
-            placeholder="Nuevo aderezo (ej. Pollo broaster)"
-            class="bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2 text-sm text-white"
-          />
-          <button
-            type="button"
-            @click="agregarAderezoDraft()"
-            class="px-3.5 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-xs font-extrabold cursor-pointer"
-          >
-            + Agregar aderezo
-          </button>
-        </div>
-      </div>
-
-      <!-- 3. RELACIONES (EDITABLE: CANTIDADES DECIMALES) -->
-      <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-3">
-        <h3 class="sec-title">Relaciones de platos (Cantidades decimales editables)</h3>
-        <div class="space-y-2">
-          <template x-for="rel in draftConfig.relaciones" :key="'cfg-rel-' + rel.id">
-            <div class="bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-sm">
-              <div>
-                <span class="font-bold text-[#d4af37]" x-text="rel.rubro + ' → '"></span>
-                <span class="text-white font-medium" x-text="rel.plato"></span>
-                <span class="text-xs text-[#a0a0b8] ml-1" x-show="rel.complemento" x-text="'(' + rel.complemento + ')'"></span>
+            <!-- Colores de Filas Individuales -->
+            <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
+              <div class="flex items-center justify-between pb-2 border-b border-[#26263a]">
+                <h4 class="font-bold text-white text-xs uppercase tracking-wider">Filas de Producto Individuales</h4>
+                <span class="text-[11px] text-[#a0a0b8]" x-text="rows.length + ' filas'"></span>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="space-y-2 max-h-80 overflow-y-auto pr-1">
+                <template x-for="r in rows.filter(x => !filtroColoresTexto || x.nombre.toLowerCase().includes(filtroColoresTexto.toLowerCase()))" :key="'col-row-' + r.id">
+                  <div
+                    class="p-2.5 rounded-lg border border-[#26263a] flex items-center justify-between gap-3 transition"
+                    :style="'background-color: ' + (rowBgColors[r.id] || '#14141f')"
+                  >
+                    <div class="min-w-0 flex-1">
+                      <span class="font-semibold text-white text-xs truncate block" x-text="r.nombre"></span>
+                      <span class="text-[10px] text-[#a0a0b8]" x-text="r.grupo ? ('Grupo: ' + r.grupo) : 'Fila sola'"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="num-mono text-[10px] text-[#a0a0b8]" x-text="rowBgColors[r.id] || '#14141f'"></span>
+                      <input
+                        type="color"
+                        :value="rowBgColors[r.id] || '#14141f'"
+                        @input="setRowBgColor(r.id, $event.target.value)"
+                        class="w-7 h-7 rounded border border-white/20 cursor-pointer bg-transparent"
+                      />
+                      <button
+                        type="button"
+                        x-show="rowBgColors[r.id]"
+                        @click="revertirColor(r.id)"
+                        class="text-[11px] text-[#a0a0b8] hover:text-white px-1"
+                        title="Revertir color individual"
+                      >✕</button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- PESTAÑA 2: FACTORES DE DESPIECE                              -->
+        <!-- ============================================================= -->
+        <div x-show="tabConfig === 'factores'" class="space-y-4">
+          <!-- Pollo -->
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between border-b border-[#26263a] pb-2">
+              <h3 class="sec-title text-sm">Pollo fresco — Despiece Primario y Filetes</h3>
+              <span class="px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37] font-bold text-[11px]">1 Pollo = 2 Piernas + 2 Pechugas</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+              <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg p-3 space-y-1.5">
+                <span class="text-xs text-[#a0a0b8] block">1 fresco → piernas</span>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    x-model.number="draftConfig.factorPiernasPorFresco"
+                    class="w-full text-center num-mono font-bold bg-[#14141f] border border-[#d4af37] rounded px-2 py-1.5 text-white"
+                  />
+                  <span class="text-xs text-[#a0a0b8]">pzas</span>
+                </div>
+              </div>
+
+              <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg p-3 space-y-1.5">
+                <span class="text-xs text-[#a0a0b8] block">1 fresco → pechugas</span>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    x-model.number="draftConfig.factorPechugasPorFresco"
+                    class="w-full text-center num-mono font-bold bg-[#14141f] border border-[#d4af37] rounded px-2 py-1.5 text-white"
+                  />
+                  <span class="text-xs text-[#a0a0b8]">pzas</span>
+                </div>
+              </div>
+
+              <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg p-3 space-y-1.5">
+                <span class="text-xs text-[#a0a0b8] block">1 pechuga → filetes</span>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    x-model.number="draftConfig.factorFiletesPorPechuga"
+                    class="w-full text-center num-mono font-bold bg-[#14141f] border border-[#d4af37] rounded px-2 py-1.5 text-white"
+                  />
+                  <span class="text-xs text-[#a0a0b8]">filetes</span>
+                </div>
+              </div>
+
+              <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg p-3 space-y-1.5">
+                <span class="text-xs text-[#a0a0b8] block">1 pierna → filetes (opcional)</span>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="vacío"
+                    x-model="draftConfig.factorFiletesPorPierna"
+                    class="w-full text-center num-mono font-bold bg-[#14141f] border border-[#26263a] rounded px-2 py-1.5 text-white placeholder:text-[#5a5a7a]"
+                  />
+                  <span class="text-xs text-[#a0a0b8]">filetes</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Carnero y Arroz -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
+              <h3 class="sec-title text-sm">Carnero</h3>
+              <div class="flex items-center justify-between text-sm bg-[#0a0a0f] p-3 rounded-lg border border-[#26263a]">
+                <span class="text-white font-medium">1 Carnero → Carnero pachamanca:</span>
                 <input
                   type="number"
-                  step="0.1"
-                  min="0.1"
-                  x-model.number="rel.cantidad"
-                  class="w-20 text-center num-mono font-bold bg-[#0a0a0f] border border-[#d4af37] rounded px-2 py-1 text-white"
+                  min="1"
+                  step="1"
+                  x-model.number="draftConfig.factorCarneroPachamanca"
+                  class="w-20 text-center num-mono font-bold bg-[#14141f] border border-[#d4af37] rounded px-2 py-1.5 text-white"
                 />
-                <span class="text-xs text-[#a0a0b8]" x-text="rel.unidadNota"></span>
+              </div>
+              <p class="text-xs text-[#a0a0b8]">Clave interna: cordero. El despiece convierte de 1 a 1 hacia pachamanca.</p>
+            </div>
+
+            <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
+              <h3 class="sec-title text-sm">Panceta y Carnes Directas</h3>
+              <p class="text-xs text-white leading-relaxed bg-[#0a0a0f] p-3 rounded-lg border border-[#26263a]">
+                Chancho y cerdo son <span class="text-[#d4af37] font-bold">Panceta</span>. Los trozos se anotan en Transformar a mano (10, 12 u otro número). Las carnes (Bistec, Lomo Fino) y Truchas entran directo a la tabla sin despiece.
+              </p>
+            </div>
+          </div>
+
+          <!-- Factores de Arroz -->
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between border-b border-[#26263a] pb-2">
+              <h3 class="sec-title text-sm">Arroz — Factores por 1 unidad de Arroz Crudo</h3>
+              <span class="text-xs text-[#a0a0b8]">Rendimiento según olla o preparación</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
+              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
+                <span class="text-[#a0a0b8] block mb-1">Blanco</span>
+                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozBlanco" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
+              </label>
+              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
+                <span class="text-[#a0a0b8] block mb-1">Verde</span>
+                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozVerde" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
+              </label>
+              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
+                <span class="text-[#a0a0b8] block mb-1">Pato</span>
+                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPato" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
+              </label>
+              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
+                <span class="text-[#a0a0b8] block mb-1">Chaufa</span>
+                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozChaufa" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
+              </label>
+              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
+                <span class="text-[#a0a0b8] block mb-1">Mariscos</span>
+                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozMariscos" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
+              </label>
+              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
+                <span class="text-[#a0a0b8] block mb-1">Pollo</span>
+                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPollo" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- PESTAÑA 3: ADEREZOS ACTIVOS EN TRANSFORMAR                   -->
+        <!-- ============================================================= -->
+        <div x-show="tabConfig === 'aderezos'" class="space-y-4">
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="sec-title text-sm">Aderezos Activos de Despiece</h3>
+              <p class="text-xs text-[#a0a0b8]">Define qué preparaciones reciben piezas de pierna o pechuga al transformar pollo fresco.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                x-model="nuevoAderezoNombre"
+                @keydown.enter.prevent="agregarAderezoDraft()"
+                placeholder="Nuevo aderezo (ej. Broaster)"
+                class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-1.5 text-xs text-white"
+              />
+              <button
+                type="button"
+                @click="agregarAderezoDraft()"
+                class="px-3.5 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] text-xs font-bold cursor-pointer"
+              >
+                + Añadir
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <template x-for="(ad, idx) in draftConfig.aderezos" :key="ad.id">
+              <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <input
+                    type="text"
+                    x-model="ad.nombre"
+                    class="bg-[#0a0a0f] border border-[#26263a] rounded px-2.5 py-1 text-sm font-bold text-white flex-1"
+                  />
+                  <button
+                    type="button"
+                    @click="quitarAderezoDraft(idx)"
+                    class="px-2 py-1 rounded bg-rose-950/60 hover:bg-rose-900 text-rose-300 text-xs font-semibold cursor-pointer"
+                  >
+                    Quitar
+                  </button>
+                </div>
+                <div class="flex items-center gap-4 text-xs pt-1 border-t border-[#26263a]">
+                  <label class="inline-flex items-center gap-1.5 text-white cursor-pointer">
+                    <input type="checkbox" x-model="ad.aceptaPierna" class="accent-[#d4af37] w-4 h-4" />
+                    <span>Acepta Pierna</span>
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-white cursor-pointer">
+                    <input type="checkbox" x-model="ad.aceptaPechuga" class="accent-[#d4af37] w-4 h-4" />
+                    <span>Acepta Pechuga</span>
+                  </label>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- PESTAÑA 4: CUADRO DE COCIDO Y RESERVAS                        -->
+        <!-- ============================================================= -->
+        <div x-show="tabConfig === 'cocido'" class="space-y-4">
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4">
+            <h3 class="sec-title text-sm">Asignación de Cuadro Cocido y Cadena de Reserva</h3>
+            <p class="text-xs text-[#a0a0b8] mt-1">
+              Los productos con cuadro cocido descuentan ventas primero del stock cocido, luego del crudo, y finalmente de su reserva autorizada. Las materias primas nunca llevan cuadro cocido.
+            </p>
+          </div>
+
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl overflow-hidden max-h-96 overflow-y-auto">
+            <table class="w-full text-xs text-left">
+              <thead class="bg-[#0a0a0f] text-[#a0a0b8] uppercase sticky top-0 border-b border-[#26263a]">
+                <tr>
+                  <th class="px-4 py-2.5">Producto</th>
+                  <th class="px-4 py-2.5 text-center">Tiene Cuadro Cocido</th>
+                  <th class="px-4 py-2.5">Reserva en Caso de Agotarse</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#26263a]">
+                <template x-for="d in draftCocido" :key="'cfg-coc-' + d.clave">
+                  <tr class="hover:bg-[#1c1c2b]/50" :class="d.materia ? 'opacity-60 bg-[#0a0a0f]/40' : ''">
+                    <td class="px-4 py-2.5 font-semibold text-white">
+                      <span x-text="d.nombre"></span>
+                      <span x-show="d.materia" class="ml-2 text-[10px] text-amber-400 font-normal">(Materia prima)</span>
+                    </td>
+                    <td class="px-4 py-2.5 text-center">
+                      <input
+                        type="checkbox"
+                        x-model="d.tieneCocido"
+                        class="accent-[#d4af37] w-4 h-4"
+                        :disabled="d.materia"
+                      />
+                    </td>
+                    <td class="px-4 py-2.5">
+                      <select
+                        x-show="!d.materia"
+                        x-model="d.reservaClave"
+                        class="bg-[#0a0a0f] border border-[#26263a] rounded px-2 py-1 text-xs text-white"
+                      >
+                        <option value="">Sin reserva</option>
+                        <option value="pollo-origen">Pollo fresco</option>
+                        <option value="pechuga-pollo">Pechuga pollo</option>
+                        <option value="pierna-pollo">Pierna pollo</option>
+                        <option value="filete">Filete pollo crudo</option>
+                      </select>
+                      <span x-show="d.materia" class="text-[#a0a0b8] text-[11px]">Solo se transforma</span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- PESTAÑA 5: ALERTAS Y PREFERENCIAS                             -->
+        <!-- ============================================================= -->
+        <div x-show="tabConfig === 'preferencias'" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
+              <h3 class="sec-title text-sm">Alertas de Stock Mínimo</h3>
+              <p class="text-xs text-[#a0a0b8]">El círculo de Saldo Real cambiará automáticamente a rojo cuando el saldo esté por debajo del stock mínimo fijado.</p>
+              <div class="space-y-2 pt-2 border-t border-[#26263a]">
+                <label class="flex items-center justify-between text-xs text-white">
+                  <span>Stock mínimo global por defecto:</span>
+                  <input type="number" min="1" step="1" value="5" class="w-16 bg-[#0a0a0f] border border-[#26263a] rounded px-2 py-1 text-center font-bold text-[#d4af37]" />
+                </label>
               </div>
             </div>
-          </template>
-        </div>
-      </div>
 
-      <!-- 4. CARNERO, PANCETA Y CARNES / TRUCHA / PESCADO ENTERO -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-2">
-          <h3 class="sec-title">Carnero</h3>
-          <div class="flex items-center justify-between text-sm bg-[#14141f] p-2.5 rounded-lg border border-[#26263a]">
-            <span class="text-white">1 Carnero →</span>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              x-model.number="draftConfig.factorCarneroPachamanca"
-              class="w-16 text-center num-mono font-bold bg-[#0a0a0f] border border-[#d4af37] rounded px-2 py-1 text-white"
-            />
-            <span class="text-xs text-[#a0a0b8]">Carnero pachamanca</span>
-          </div>
-          <p class="text-xs text-[#d4af37] font-semibold">
-            «La clave guardada sigue siendo cordero»
-          </p>
-        </div>
-
-        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-2">
-          <h3 class="sec-title">Panceta</h3>
-          <p class="text-xs text-white leading-relaxed">
-            «Chancho y cerdo son Panceta. Los trozos se anotan en Transformar; pueden ser 10, 12 u otro número»
-          </p>
-        </div>
-
-        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-2">
-          <h3 class="sec-title">Arroz</h3>
-          <p class="text-xs text-white leading-relaxed">1 crudo nace 8 blanco, 6 verde, 4 pato, 4 chaufa o 4 con mariscos. Arroz pollo sigue como guarnición.</p>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <label class="text-xs text-[#a0a0b8]">Arroz blanco
-              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozBlanco" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
-            </label>
-            <label class="text-xs text-[#a0a0b8]">Arroz verde
-              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozVerde" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
-            </label>
-            <label class="text-xs text-[#a0a0b8]">Arroz pato
-              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPato" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
-            </label>
-            <label class="text-xs text-[#a0a0b8]">Arroz chaufa
-              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozChaufa" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
-            </label>
-            <label class="text-xs text-[#a0a0b8]">Arroz con mariscos
-              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozMariscos" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
-            </label>
-            <label class="text-xs text-[#a0a0b8]">Arroz pollo
-              <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPollo" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-2 text-white num-mono">
-            </label>
-          </div>
-        </div>
-
-        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-2">
-          <h3 class="sec-title">Carnes, Trucha y Pescado entero</h3>
-          <p class="text-xs text-white leading-relaxed">
-            «Entran directo, sin transformación»
-          </p>
-        </div>
-
-        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-3">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="sec-title">Colores de filas y grupos</h3>
-            <button type="button" class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] text-xs text-[#a0a0b8] cursor-pointer" @click="resetearColoresFilas()">Restablecer</button>
-          </div>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-52 overflow-y-auto">
-            <template x-for="g in tableGroups" :key="'col-g-' + g.id">
-              <label class="flex items-center justify-between gap-2 bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1.5 text-xs text-white">
-                <span x-text="g.nombre"></span>
-                <input type="color" :value="rowBgColors[g.id] || '#1a1a28'" @input="setRowBgColor(g.id, $event.target.value)">
-              </label>
-            </template>
-            <template x-for="r in rows" :key="'col-r-' + r.id">
-              <label class="flex items-center justify-between gap-2 bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1.5 text-xs text-white">
-                <span class="truncate" x-text="r.nombre"></span>
-                <input type="color" :value="rowBgColors[r.id] || '#14141f'" @input="setRowBgColor(r.id, $event.target.value)">
-              </label>
-            </template>
-          </div>
-        </div>
-
-        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-4 space-y-3">
-          <h3 class="sec-title">Cuadro de cocido</h3>
-          <p class="text-xs text-[#a0a0b8] leading-relaxed">
-            Al vender se resta primero el cocido, luego el crudo y luego la reserva. Pollo fresco, pechuga, pierna y filete solo se transforman.
-          </p>
-          <div class="max-h-72 overflow-y-auto space-y-1.5 pr-1">
-            <template x-for="d in draftCocido" :key="'cfg-coc-' + d.clave">
-              <div class="flex items-center gap-3 bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2" :class="d.materia ? 'opacity-70' : ''">
-                <label class="flex items-center gap-2 flex-1 min-w-0" :class="d.materia ? 'cursor-not-allowed' : 'cursor-pointer'">
-                  <input type="checkbox" x-model="d.tieneCocido" class="accent-[#d4af37] w-4 h-4" :disabled="d.materia">
-                  <span class="text-sm text-white truncate" x-text="d.nombre"></span>
+            <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
+              <h3 class="sec-title text-sm">Visualización y Sonido</h3>
+              <div class="space-y-2.5 pt-2">
+                <label class="flex items-center gap-2 text-xs text-white cursor-pointer">
+                  <input type="checkbox" x-model="compactView" class="accent-[#d4af37] w-4 h-4" />
+                  <span>Modo de tabla ultra-compacto</span>
                 </label>
-                <span x-show="d.materia" class="text-[11px] font-semibold text-[#a0a0b8] shrink-0">Solo se transforma</span>
-                <select x-show="!d.materia" x-model="d.reservaClave" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1.5 text-xs text-white" :aria-label="'Reserva de ' + d.nombre">
-                  <option value="">Sin reserva</option>
-                  <option value="pollo-origen">Pollo fresco</option>
-                  <option value="pechuga-pollo">Pechuga pollo</option>
-                  <option value="pierna-pollo">Pierna pollo</option>
-                  <option value="filete">Filete pollo crudo</option>
-                </select>
+                <label class="flex items-center gap-2 text-xs text-white cursor-pointer">
+                  <input type="checkbox" x-model="soundEnabled" class="accent-[#d4af37] w-4 h-4" />
+                  <span>Efectos de sonido en transacciones</span>
+                </label>
               </div>
-            </template>
+            </div>
           </div>
         </div>
+
       </div>
 
-      <div class="flex items-center justify-end gap-3 pt-3 border-t border-[#26263a]">
+      <!-- Pie del modal con acciones Guardar / Cancelar -->
+      <div class="bg-[#101018] border-t border-[#26263a] px-5 py-3.5 flex items-center justify-end gap-3">
         <button
           type="button"
           @click="showConversionesModal = false"
-          class="px-4 py-2.5 rounded-lg bg-[#1c1c2b] text-white text-sm font-semibold cursor-pointer"
+          class="px-4 py-2 rounded-lg bg-[#1c1c2b] text-white text-xs font-semibold hover:bg-[#26263a] cursor-pointer transition"
         >
           Cancelar
         </button>
         <button
           type="button"
           @click="guardarConfiguracion()"
-          class="px-6 py-2.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-sm hover:brightness-110 transition cursor-pointer"
+          class="px-6 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-xs hover:brightness-110 shadow-md cursor-pointer transition"
         >
-          Guardar
+          Guardar Cambios
         </button>
       </div>
     </div>
@@ -3728,6 +4284,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ordenHoja: 'cantidad',
         configMenuOpen: false,
         showConversionesModal: false,
+        tabConfig: 'colores',
+        filtroColoresTexto: '',
+        filtroCategoria: 'todos',
+        paletaRapidaColor: '#14141f',
+        showNuevoPlatoModal: false,
+        nuevoPlatoForm: {
+          nombre: '',
+          categoria: 'POLLO - CARNES',
+          complemento: '',
+          rubro: 'Filete',
+          cantidad: 1
+        },
+        showEditarRelacionModal: false,
+        editarRelacionForm: {
+          id: null,
+          rubro: '',
+          plato: '',
+          complemento: '',
+          cantidad: 1,
+          unidadNota: ''
+        },
         showCountModal: false,
         toastMessage: '',
         transformWarning: '',
@@ -5657,6 +6234,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         matchesSearch(row) {
+          if (this.filtroCategoria && this.filtroCategoria !== 'todos') {
+            if (this.filtroCategoria === 'bebidas') {
+              if (row.grupo !== 'gaseosas' && row.grupo !== 'licores' && row.grupo !== 'bebidas') return false;
+            } else if (row.grupo !== this.filtroCategoria) {
+              return false;
+            }
+          }
           const q = (this.busqueda || '').trim().toLowerCase();
           if (!q) return true;
           return row.nombre.toLowerCase().includes(q) || (row.detalle && row.detalle.toLowerCase().includes(q));
@@ -5759,6 +6343,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         groupHasMatch(groupId) {
+          if (this.filtroCategoria && this.filtroCategoria !== 'todos') {
+            if (this.filtroCategoria === 'bebidas') {
+              if (groupId !== 'gaseosas' && groupId !== 'licores' && groupId !== 'bebidas') return false;
+            } else if (groupId !== this.filtroCategoria) {
+              return false;
+            }
+          }
           const grupo = this.tableGroups.find((g) => g.id === groupId);
           if (grupo && grupo.sinDatos) {
             const busca = (this.busqueda || '').trim();
@@ -6188,6 +6779,107 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         setRowBgColor(id, color) {
           this.rowBgColors = Object.assign({}, this.rowBgColors, { [id]: color });
           localStorage.setItem('inventario-row-colors', JSON.stringify(this.rowBgColors));
+        },
+
+        filasCoincidentesContador() {
+          return this.rows.filter(r => this.matchesSearch(r)).length;
+        },
+
+        setFiltroCategoria(cat) {
+          this.filtroCategoria = cat;
+          if (cat === 'todos') {
+            this.busqueda = '';
+          }
+        },
+
+        aplicarColorAGrupo(groupId, color) {
+          this.rowBgColors[groupId] = color;
+          this.rows.filter(r => r.grupo === groupId).forEach(r => {
+            this.rowBgColors[r.id] = color;
+          });
+          this.rowBgColors = Object.assign({}, this.rowBgColors);
+          localStorage.setItem('inventario-row-colors', JSON.stringify(this.rowBgColors));
+          this.toastMessage = 'Color aplicado a ' + groupId + ' y todas sus filas.';
+        },
+
+        revertirColor(id) {
+          delete this.rowBgColors[id];
+          this.rowBgColors = Object.assign({}, this.rowBgColors);
+          localStorage.setItem('inventario-row-colors', JSON.stringify(this.rowBgColors));
+        },
+
+        abrirModalNuevoPlato() {
+          this.nuevoPlatoForm = {
+            nombre: '',
+            categoria: 'POLLO - CARNES',
+            complemento: '',
+            rubro: 'Filete',
+            cantidad: 1
+          };
+          this.showNuevoPlatoModal = true;
+        },
+
+        guardarNuevoPlatoCarta() {
+          if (!this.nuevoPlatoForm.nombre.trim()) {
+            this.toastMessage = 'Escribe el nombre del plato comercial.';
+            return;
+          }
+          const clave = 'plato-nuevo-' + Date.now();
+          const nuevo = {
+            clave: clave,
+            nombre: this.nuevoPlatoForm.nombre.trim(),
+            categoria: this.nuevoPlatoForm.categoria || 'POLLO - CARNES',
+            complemento: this.nuevoPlatoForm.complemento.trim(),
+            id: clave
+          };
+          this.platosCarta.unshift(nuevo);
+          
+          if (this.nuevoPlatoForm.rubro.trim()) {
+            this.config.relaciones.unshift({
+              id: Date.now(),
+              rubro: this.nuevoPlatoForm.rubro.trim(),
+              plato: nuevo.nombre,
+              complemento: nuevo.complemento,
+              cantidad: Number(this.nuevoPlatoForm.cantidad) > 0 ? Number(this.nuevoPlatoForm.cantidad) : 1,
+              unidadNota: 'porción'
+            });
+            this.guardarConfigLocal();
+          }
+          
+          this.showNuevoPlatoModal = false;
+          this.toastMessage = 'Plato "' + nuevo.nombre + '" añadido a la carta y vinculado.';
+        },
+
+        abrirModalEditarRelacion(rel) {
+          this.editarRelacionForm = {
+            id: rel.id,
+            rubro: rel.rubro,
+            plato: rel.plato,
+            complemento: rel.complemento || '',
+            cantidad: rel.cantidad || 1,
+            unidadNota: rel.unidadNota || 'unidad'
+          };
+          this.showEditarRelacionModal = true;
+        },
+
+        guardarEdicionRelacion() {
+          const form = this.editarRelacionForm;
+          const rel = this.config.relaciones.find(r => r.id === form.id);
+          if (rel) {
+            rel.rubro = form.rubro;
+            rel.cantidad = Number(form.cantidad) > 0 ? Number(form.cantidad) : 1;
+            rel.unidadNota = form.unidadNota;
+            rel.complemento = form.complemento;
+            this.guardarConfigLocal();
+            this.toastMessage = 'Relación de ' + rel.plato + ' actualizada.';
+          }
+          this.showEditarRelacionModal = false;
+        },
+
+        eliminarRelacion(relId) {
+          this.config.relaciones = this.config.relaciones.filter(r => r.id !== relId);
+          this.guardarConfigLocal();
+          this.toastMessage = 'Relación eliminada.';
         },
 
         resetearColoresFilas() {
