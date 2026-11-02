@@ -595,6 +595,199 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       background: #d4af37;
     }
 
+    /* ===================================================================== */
+    /* COLUMNA TRANSFORMACIÓN: CUADRO EN ROJO RESALTANTE (RESTA) + LUPA ROJA */
+    /* ===================================================================== */
+    @keyframes pulseRedSubtract {
+      0%, 100% {
+        box-shadow: 0 0 10px rgba(255, 42, 75, 0.42), inset 0 0 6px rgba(255, 77, 109, 0.25);
+      }
+      50% {
+        box-shadow: 0 0 16px rgba(255, 42, 75, 0.72), inset 0 0 10px rgba(255, 77, 109, 0.4);
+      }
+    }
+
+    .caja-transformacion-resta {
+      background: linear-gradient(135deg, #4c0519 0%, #881337 100%) !important;
+      border: 2px solid #ff2e4c !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 12px rgba(255, 42, 75, 0.5), inset 0 0 6px rgba(255, 77, 109, 0.25);
+      animation: pulseRedSubtract 2.2s 2 ease-in-out;
+      transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), filter 200ms ease, box-shadow 200ms ease;
+    }
+    .caja-transformacion-resta:hover {
+      transform: translateY(-1px) scale(1.04);
+      filter: brightness(1.12);
+    }
+
+    .flecha-resta-anim {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fda4af;
+      transition: transform 220ms ease;
+    }
+    .caja-transformacion-resta:hover .flecha-resta-anim {
+      transform: translateY(2px);
+    }
+
+    .btn-lupa-roja {
+      border: 2px solid #ff2e4c !important;
+      background: linear-gradient(180deg, rgba(136, 19, 55, 0.55) 0%, rgba(76, 5, 25, 0.85) 100%) !important;
+      color: #ff4d6d !important;
+      box-shadow: 0 0 10px rgba(255, 46, 76, 0.38);
+      transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .btn-lupa-roja:hover {
+      background: #e11d48 !important;
+      color: #ffffff !important;
+      border-color: #fda4af !important;
+      transform: scale(1.08);
+      box-shadow: 0 0 16px rgba(255, 46, 76, 0.75);
+    }
+
+    .btn-lupa-roja-suave {
+      border: 1.5px solid rgba(255, 46, 76, 0.55) !important;
+      background: rgba(76, 5, 25, 0.35) !important;
+      color: #fb7185 !important;
+      transition: all 200ms ease;
+    }
+    .btn-lupa-roja-suave:hover {
+      border-color: #ff2e4c !important;
+      background: rgba(225, 29, 72, 0.25) !important;
+      color: #ffffff !important;
+      transform: scale(1.06);
+      box-shadow: 0 0 12px rgba(255, 46, 76, 0.45);
+    }
+
+    /* ===================================================================== */
+    /* FLECHAS DE INGRESO TOTAL: ARRIBA EN VERDE (SUMA) / ABAJO EN ROJO      */
+    /* ===================================================================== */
+    .badge-flecha-up-verde {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 1px 5px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      background: rgba(6, 78, 59, 0.75);
+      border: 1.5px solid #10b981;
+      color: #34d399;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+    }
+    .badge-flecha-up-inactiva {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 3px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(6, 78, 59, 0.22);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: rgba(52, 211, 153, 0.5);
+    }
+    .badge-flecha-down-roja {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 1px 5px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      background: rgba(136, 19, 55, 0.8);
+      border: 1.5px solid #ff2e4c;
+      color: #fda4af;
+      box-shadow: 0 0 8px rgba(255, 46, 76, 0.35);
+    }
+    .badge-flecha-down-inactiva {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 3px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(136, 19, 55, 0.22);
+      border: 1px solid rgba(255, 46, 76, 0.3);
+      color: rgba(251, 113, 133, 0.5);
+    }
+
+    /* ===================================================================== */
+    /* LUPA DE QUEDA (SALDO REAL)                                            */
+    /* ===================================================================== */
+    .btn-lupa-saldo-real {
+      border: 1.5px solid #14b8a6 !important;
+      background: linear-gradient(180deg, rgba(19, 78, 74, 0.65) 0%, rgba(15, 23, 42, 0.9) 100%) !important;
+      color: #5eead4 !important;
+      box-shadow: 0 0 8px rgba(20, 184, 166, 0.3);
+      transition: all 180ms ease;
+    }
+    .btn-lupa-saldo-real:hover {
+      background: #0d9488 !important;
+      color: #ffffff !important;
+      border-color: #99f6e4 !important;
+      transform: scale(1.08);
+      box-shadow: 0 0 14px rgba(20, 184, 166, 0.65);
+    }
+
+    /* ===================================================================== */
+    /* UI SKELETON LOADER (SHIMMER EN TABLA Y DATOS)                         */
+    /* ===================================================================== */
+    @keyframes skeletonWave {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #181826 25%, #26263d 50%, #181826 75%);
+      background-size: 200% 100%;
+      animation: skeletonWave 1.4s ease-in-out 3;
+      border-radius: 6px;
+    }
+
+    /* ===================================================================== */
+    /* RESALTADO DE FILA AL PULSAR BOTÓN "IR" DESDE EL MODAL                 */
+    /* ===================================================================== */
+    @keyframes highlightRowPulse {
+      0%, 100% {
+        box-shadow: inset 0 0 0 2px #d4af37, 0 0 22px rgba(212, 175, 55, 0.55);
+      }
+      50% {
+        box-shadow: inset 0 0 0 3px #10b981, 0 0 30px rgba(16, 185, 129, 0.7);
+      }
+    }
+    .fila-resaltada-ir {
+      background: linear-gradient(90deg, rgba(212, 175, 55, 0.28) 0%, rgba(16, 185, 129, 0.2) 50%, rgba(212, 175, 55, 0.22) 100%) !important;
+      animation: highlightRowPulse 1s ease-in-out 3;
+      position: relative;
+      z-index: 25;
+    }
+    .fila-resaltada-ir td {
+      background-color: transparent !important;
+    }
+
+    /* ===================================================================== */
+    /* MODAL GRÁFICO SIMÉTRICO VERTICAL DE TRANSFORMACIÓN                    */
+    /* ===================================================================== */
+    @keyframes popInSymmetric {
+      0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.97);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .simetrico-card-anim {
+      animation: popInSymmetric 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .conector-flujo-vertical {
+      width: 4px;
+      background: linear-gradient(180deg, #ff2e4c 0%, #d4af37 50%, #34d399 100%);
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.45);
+    }
+
     .titulo-impresion { display: none; }
     @page { size: A4 landscape; margin: 8mm; }
     @media print {
@@ -883,6 +1076,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </button>
             <button
               type="button"
+              @click="activarSkeletonTabla(450); cargarKardex()"
+              class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-cyan-300 border border-cyan-500/30 text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
+              title="Recargar datos de la tabla con Skeleton Loader"
+            >
+              <span>↻</span> Recargar datos
+            </button>
+            <button
+              type="button"
               @click="imprimirHoja()"
               class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] border border-[#d4af37]/30 text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
               title="Imprimir hoja de producción"
@@ -1029,8 +1230,56 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
       </div>
       
+      <!-- UI SKELETON LOADER DE DATOS Y TABLA -->
+      <div
+        x-show="cargandoDatosTabla"
+        class="bg-[#14141f] border border-[#26263a] rounded-xl overflow-hidden shadow-2xl p-4 space-y-4"
+        aria-busy="true"
+        aria-label="Cargando datos del inventario"
+      >
+        <!-- Skeleton de resumen de datos superiores -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pb-3 border-b border-[#26263a]">
+          <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-3 space-y-2">
+            <div class="h-3 w-24 skeleton-shimmer"></div>
+            <div class="h-6 w-16 skeleton-shimmer"></div>
+          </div>
+          <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-3 space-y-2">
+            <div class="h-3 w-28 skeleton-shimmer"></div>
+            <div class="h-6 w-20 skeleton-shimmer"></div>
+          </div>
+          <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-3 space-y-2">
+            <div class="h-3 w-24 skeleton-shimmer"></div>
+            <div class="h-6 w-16 skeleton-shimmer"></div>
+          </div>
+          <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-3 space-y-2">
+            <div class="h-3 w-28 skeleton-shimmer"></div>
+            <div class="h-6 w-20 skeleton-shimmer"></div>
+          </div>
+        </div>
+        <!-- Skeleton de filas de la tabla -->
+        <div class="space-y-2.5">
+          <template x-for="sk in [1,2,3,4,5,6,7,8]" :key="'sk-row-' + sk">
+            <div class="flex items-center justify-between gap-3 py-2.5 px-3 bg-[#101018] rounded-lg border border-[#26263a]/60">
+              <div class="flex items-center gap-3 min-w-[200px]">
+                <div class="w-4 h-4 rounded-full skeleton-shimmer shrink-0"></div>
+                <div class="h-4 w-36 skeleton-shimmer"></div>
+              </div>
+              <div class="h-5 w-12 skeleton-shimmer"></div>
+              <div class="h-7 w-20 skeleton-shimmer"></div>
+              <div class="h-7 w-20 skeleton-shimmer"></div>
+              <div class="h-6 w-16 skeleton-shimmer"></div>
+              <div class="h-6 w-16 skeleton-shimmer"></div>
+              <div class="h-7 w-16 skeleton-shimmer"></div>
+              <div class="h-6 w-14 skeleton-shimmer"></div>
+              <div class="h-6 w-16 skeleton-shimmer"></div>
+              <div class="h-6 w-16 skeleton-shimmer"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <!-- TABLA REDISEÑADA (TEMA OSCURO #14141f / #1a1a28, BANDAS Y COLUMNAS CON COLORES DISTINTOS) -->
-      <div class="tabla-impresion bg-[#14141f] border border-[#26263a] overflow-hidden shadow-2xl" :class="compactView ? 'rounded-none' : 'rounded-xl'">
+      <div x-show="!cargandoDatosTabla" class="tabla-impresion bg-[#14141f] border border-[#26263a] overflow-hidden shadow-2xl" :class="compactView ? 'rounded-none' : 'rounded-xl'">
         <h2 class="titulo-impresion">Hoja de Producción del Día</h2>
         <div class="tabla-scroll-fija">
           <table class="tabla-hoja text-left">
@@ -1062,8 +1311,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <!-- ============================================================= -->
             <template x-for="group in tableGroups" :key="'grp-body-' + group.id">
               <tbody x-show="groupHasMatch(group.id)" class="divide-y divide-[#26263a] text-sm border-t-2 border-[#26263a]">
-                <tr x-show="group.sinDatos" @click="toggleGroup(group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer" :style="rowBgColors[group.id] ? ('background-color:' + rowBgColors[group.id]) : ''">
-                  <td class="py-3 px-4 font-bold text-white sticky left-0" :class="rowBgColors[group.id] ? '' : 'bg-[#1a1a28]'" :style="rowBgColors[group.id] ? ('background-color:' + rowBgColors[group.id]) : ''">
+                <tr x-show="esGrupoSinDatos(group)" @click="toggleGroup(group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer" :style="colorFondoGrupo(group) ? ('background-color:' + colorFondoGrupo(group)) : ''">
+                  <td class="py-3 px-4 font-bold text-white sticky left-0" :class="colorFondoGrupo(group) ? '' : 'bg-[#1a1a28]'" :style="colorFondoGrupo(group) ? ('background-color:' + colorFondoGrupo(group)) : ''">
                     <div class="flex items-center gap-2.5">
                       <span class="w-6 h-6 rounded-md bg-[#0a0a0f] border border-[#26263a] inline-flex items-center justify-center text-xs text-[#d4af37]" :class="group.open ? 'rotate-0' : '-rotate-90'">▼</span>
                       <span class="text-[16px] text-white font-bold" x-text="group.nombre"></span>
@@ -1078,6 +1327,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <!-- Filas del grupo: la raíz es el producto (como Pollo fresco) y lleva ingreso -->
                 <template x-for="(item, idx) in filasDeGrupo(group)" :key="item.key + '-' + group.staggerKey">
                   <tr
+                    :id="'fila-prod-' + row.id"
                     x-show="item.visible || busqueda.trim() !== ''"
                     x-data="{ get row() { return item.row } }"
                     x-transition:enter="transition ease-out duration-300 transform"
@@ -1089,15 +1339,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     :class="[
                       row.isNew ? 'row-slide-in' : 'stagger-fade-in',
                       updatedRows[row.id] ? 'row-updated-bar' : '',
+                      filaResaltadaId === row.id ? 'fila-resaltada-ir' : '',
                       item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]'
                     ]"
-                    :style="'animation-delay: ' + (idx * 45) + 'ms; transition-delay: ' + (idx * 45) + 'ms' + (rowBgColors[row.id] ? ';background-color:' + rowBgColors[row.id] : '')"
+                    :style="'animation-delay: ' + (idx * 45) + 'ms; transition-delay: ' + (idx * 45) + 'ms' + (colorFondoFila(row, group, item) ? ';background-color:' + colorFondoFila(row, group, item) : '')"
                     class="hover:bg-[#232336] transition-colors"
                   >
                     <td
                       class="celda-producto-conector pr-4 pl-2 font-medium text-white sticky left-0 border-l-2 border-[#d4af37]/40"
-                      :class="rowBgColors[row.id] ? '' : (item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]')"
-                      :style="rowBgColors[row.id] ? ('background-color:' + rowBgColors[row.id]) : ''"
+                      :class="colorFondoFila(row, group, item) ? '' : (item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]')"
+                      :style="colorFondoFila(row, group, item) ? ('background-color:' + colorFondoFila(row, group, item)) : ''"
                     >
                         <div class="circulo-conector-track" :title="item.connectorTitle || ''">
                           <span x-show="item.connectUp && item.connectDown" class="conector-linea-continua"></span>
@@ -1189,7 +1440,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </div>
                     </td>
 
-                    <!-- Ingreso total -->
+                    <!-- Ingreso total con flechas de Arriba (Verde = Sumando) y Abajo (Rojo = Restando), ocultas si son 0 -->
                     <td class="px-3 py-2.5 text-right border-r border-[#26263a]/40">
                       <template x-if="row.tieneCocido">
                         <div class="flex flex-col items-end gap-0.5 text-xs">
@@ -1204,11 +1455,38 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="border-t border-cyan-800/40 pt-0.5 flex items-center gap-1">
                             <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
                             <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                            <!-- Flechas de Arriba (Verde) y Abajo (Rojo) solo visibles si hay suma o resta -->
+                            <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="inline-flex items-center gap-0.5 ml-0.5">
+                              <span
+                                x-show="sumaIngresoTotalFila(row) > 0"
+                                class="badge-flecha-up-verde"
+                                :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'"
+                              >↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
+                              <span
+                                x-show="restaIngresoTotalFila(row) > 0"
+                                class="badge-flecha-down-roja"
+                                :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'"
+                              >↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
+                            </div>
                           </div>
                         </div>
                       </template>
                       <template x-if="!row.tieneCocido">
-                        <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                        <div class="inline-flex items-center justify-end gap-1.5">
+                          <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                          <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="inline-flex items-center gap-1">
+                            <span
+                              x-show="sumaIngresoTotalFila(row) > 0"
+                              class="badge-flecha-up-verde"
+                              :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'"
+                            >↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
+                            <span
+                              x-show="restaIngresoTotalFila(row) > 0"
+                              class="badge-flecha-down-roja"
+                              :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'"
+                            >↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
+                          </div>
+                        </div>
                       </template>
                     </td>
 
@@ -1231,11 +1509,45 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </div>
                     </td>
 
-                    <!-- Transformación -->
+                    <!-- Transformación (en negativo y rojo resaltante con flecha si resta > 0 + icono Lupa de contorno rojo) -->
                     <td class="px-3 py-2.5 text-right border-r border-[#26263a]/40">
-                      <button type="button" @click="activeTab = 'transformar'" class="caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer">
-                        <span class="num-mono font-bold text-[#111111]" x-text="formatNum(valorTipo(row, 'transformacion', 'crudo') + valorTipo(row, 'transformacion', 'cocido'))"></span>
-                      </button>
+                      <div class="inline-flex items-center justify-end gap-1.5">
+                        <!-- Cuadro del número transformado -->
+                        <button
+                          type="button"
+                          @click="abrirModalTransformacion(row)"
+                          :class="totalTransformacionFila(row) > 0 ? 'caja-transformacion-resta px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer' : 'caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer hover:border-[#d4af37]'"
+                          :title="totalTransformacionFila(row) > 0 ? ('Se transformaron ' + formatNum(totalTransformacionFila(row)) + ' ' + (row.unidad || 'unid') + ' (se resta del Ingreso Total para dar el Saldo). Clic para ver gráfico simétrico vertical.') : 'Sin salida por transformación hoy. Clic para ver detalle.'"
+                        >
+                          <!-- Flecha que indica que está restando del saldo -->
+                          <span x-show="totalTransformacionFila(row) > 0" class="flecha-resta-anim" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 4v16"></path>
+                              <path d="m18 14-6 6-6-6"></path>
+                            </svg>
+                          </span>
+                          <span
+                            class="num-mono font-extrabold text-sm"
+                            :class="totalTransformacionFila(row) > 0 ? 'text-white' : 'text-[#111111]'"
+                            x-text="totalTransformacionFila(row) > 0 ? ('−' + formatNum(totalTransformacionFila(row))) : '0'"
+                          ></span>
+                        </button>
+
+                        <!-- Icono de Lupa de contorno rojo y resaltante a la derecha -->
+                        <button
+                          type="button"
+                          @click.stop="abrirModalTransformacion(row)"
+                          :class="totalTransformacionFila(row) > 0 ? 'btn-lupa-roja' : 'btn-lupa-roja-suave'"
+                          class="w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
+                          :aria-label="'Ver gráfico de transformación de ' + row.nombre"
+                          :title="'Ver qué se transformó de ' + row.nombre + ', en qué cortes/platos se convirtió y cuánto queda'"
+                        >
+                          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-3.5-3.5"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
 
                     <!-- Saldo -->
@@ -1269,27 +1581,43 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </template>
                     </td>
 
-                    <!-- Queda (saldo real) -->
+                    <!-- Queda (saldo real) + Icono de Lupa de procedimiento a la derecha -->
                     <td class="px-3 py-2.5 text-right">
-                      <template x-if="row.tieneCocido">
-                        <div class="flex flex-col items-end gap-0.5 text-xs">
-                          <div class="flex items-center gap-1">
-                            <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                            <span class="num-mono font-bold text-teal-300" x-text="formatNum(calcSaldoRealTipo(row, 'crudo'))"></span>
+                      <div class="inline-flex items-center justify-end gap-1.5">
+                        <template x-if="row.tieneCocido">
+                          <div class="flex flex-col items-end gap-0.5 text-xs">
+                            <div class="flex items-center gap-1">
+                              <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
+                              <span class="num-mono font-bold text-teal-300" x-text="formatNum(calcSaldoRealTipo(row, 'crudo'))"></span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
+                              <span class="num-mono font-bold text-teal-200" x-text="formatNum(calcSaldoRealTipo(row, 'cocido'))"></span>
+                            </div>
+                            <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
+                              <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
+                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                            </div>
                           </div>
-                          <div class="flex items-center gap-1">
-                            <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                            <span class="num-mono font-bold text-teal-200" x-text="formatNum(calcSaldoRealTipo(row, 'cocido'))"></span>
-                          </div>
-                          <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
-                            <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
-                            <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
-                          </div>
-                        </div>
-                      </template>
-                      <template x-if="!row.tieneCocido">
-                        <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
-                      </template>
+                        </template>
+                        <template x-if="!row.tieneCocido">
+                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                        </template>
+
+                        <!-- Icono de Lupa a la derecha de Queda (Saldo real) -->
+                        <button
+                          type="button"
+                          @click.stop="abrirModalProcedimientoSaldoReal(row)"
+                          class="btn-lupa-saldo-real w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
+                          :aria-label="'Ver procedimiento de Saldo Real de ' + row.nombre"
+                          :title="'Ver todo el procedimiento de sumas y restas para llegar al Saldo Real de ' + row.nombre + ' en el período seleccionado'"
+                        >
+                          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-3.5-3.5"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
 
                     <!-- Diferencia (azul si sobra, rojo si falta, vacío si nadie contó) -->
@@ -1328,7 +1656,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <tbody class="divide-y divide-[#26263a] text-sm border-t-2 border-[#26263a]">
               <template x-for="row in getFilteredLooseRows()" :key="row.id">
                 <tr
-                  :class="updatedRows[row.id] ? 'row-updated-bar' : ''"
+                  :id="'fila-prod-' + row.id"
+                  :class="[updatedRows[row.id] ? 'row-updated-bar' : '', filaResaltadaId === row.id ? 'fila-resaltada-ir' : '']"
                   :style="rowBgColors[row.id] ? ('background-color:' + rowBgColors[row.id]) : ''"
                   class="bg-[#14141f] hover:bg-[#1a1a28] transition-colors"
                 >
@@ -1406,7 +1735,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </div>
                     </td>
 
-                    <!-- Ingreso total -->
+                    <!-- Ingreso total con flechas de Arriba (Verde = Sumando) y Abajo (Rojo = Restando), ocultas si son 0 -->
                     <td class="px-3 py-3 text-right border-r border-[#26263a]/40">
                       <template x-if="row.tieneCocido">
                         <div class="flex flex-col items-end gap-0.5 text-xs">
@@ -1421,11 +1750,37 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="border-t border-cyan-800/40 pt-0.5 flex items-center gap-1">
                             <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
                             <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                            <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="inline-flex items-center gap-0.5 ml-0.5">
+                              <span
+                                x-show="sumaIngresoTotalFila(row) > 0"
+                                class="badge-flecha-up-verde"
+                                :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'"
+                              >↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
+                              <span
+                                x-show="restaIngresoTotalFila(row) > 0"
+                                class="badge-flecha-down-roja"
+                                :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'"
+                              >↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
+                            </div>
                           </div>
                         </div>
                       </template>
                       <template x-if="!row.tieneCocido">
-                        <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                        <div class="inline-flex items-center justify-end gap-1.5">
+                          <span class="total-cell-base num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                          <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="inline-flex items-center gap-1">
+                            <span
+                              x-show="sumaIngresoTotalFila(row) > 0"
+                              class="badge-flecha-up-verde"
+                              :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'"
+                            >↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
+                            <span
+                              x-show="restaIngresoTotalFila(row) > 0"
+                              class="badge-flecha-down-roja"
+                              :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'"
+                            >↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
+                          </div>
+                        </div>
                       </template>
                     </td>
 
@@ -1448,11 +1803,42 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </div>
                     </td>
 
-                    <!-- Transformación -->
+                    <!-- Transformación (en negativo y rojo resaltante con flecha si resta > 0 + icono Lupa de contorno rojo) -->
                     <td class="px-3 py-3 text-right border-r border-[#26263a]/40">
-                      <button type="button" @click="activeTab = 'transformar'" class="caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer">
-                        <span class="num-mono font-bold text-[#111111]" x-text="formatNum(valorTipo(row, 'transformacion', 'crudo') + valorTipo(row, 'transformacion', 'cocido'))"></span>
-                      </button>
+                      <div class="inline-flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          @click="abrirModalTransformacion(row)"
+                          :class="totalTransformacionFila(row) > 0 ? 'caja-transformacion-resta px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer' : 'caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer hover:border-[#d4af37]'"
+                          :title="totalTransformacionFila(row) > 0 ? ('Se transformaron ' + formatNum(totalTransformacionFila(row)) + ' ' + (row.unidad || 'unid') + ' (se resta del Ingreso Total). Clic para ver gráfico simétrico vertical.') : 'Sin salida por transformación hoy. Clic para ver detalle.'"
+                        >
+                          <span x-show="totalTransformacionFila(row) > 0" class="flecha-resta-anim" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 4v16"></path>
+                              <path d="m18 14-6 6-6-6"></path>
+                            </svg>
+                          </span>
+                          <span
+                            class="num-mono font-extrabold text-sm"
+                            :class="totalTransformacionFila(row) > 0 ? 'text-white' : 'text-[#111111]'"
+                            x-text="totalTransformacionFila(row) > 0 ? ('−' + formatNum(totalTransformacionFila(row))) : '0'"
+                          ></span>
+                        </button>
+
+                        <button
+                          type="button"
+                          @click.stop="abrirModalTransformacion(row)"
+                          :class="totalTransformacionFila(row) > 0 ? 'btn-lupa-roja' : 'btn-lupa-roja-suave'"
+                          class="w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
+                          :aria-label="'Ver gráfico de transformación de ' + row.nombre"
+                          :title="'Ver qué se transformó de ' + row.nombre + ', en qué cortes/platos se convirtió y cuánto queda'"
+                        >
+                          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-3.5-3.5"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
 
                     <!-- Saldo -->
@@ -1486,27 +1872,43 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </template>
                     </td>
 
-                    <!-- Queda (saldo real) -->
+                    <!-- Queda (saldo real) + Icono de Lupa de procedimiento a la derecha -->
                     <td class="px-3 py-3 text-right">
-                      <template x-if="row.tieneCocido">
-                        <div class="flex flex-col items-end gap-0.5 text-xs">
-                          <div class="flex items-center gap-1">
-                            <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                            <span class="num-mono font-bold text-teal-300" x-text="formatNum(calcSaldoRealTipo(row, 'crudo'))"></span>
+                      <div class="inline-flex items-center justify-end gap-1.5">
+                        <template x-if="row.tieneCocido">
+                          <div class="flex flex-col items-end gap-0.5 text-xs">
+                            <div class="flex items-center gap-1">
+                              <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
+                              <span class="num-mono font-bold text-teal-300" x-text="formatNum(calcSaldoRealTipo(row, 'crudo'))"></span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
+                              <span class="num-mono font-bold text-teal-200" x-text="formatNum(calcSaldoRealTipo(row, 'cocido'))"></span>
+                            </div>
+                            <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
+                              <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
+                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                            </div>
                           </div>
-                          <div class="flex items-center gap-1">
-                            <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                            <span class="num-mono font-bold text-teal-200" x-text="formatNum(calcSaldoRealTipo(row, 'cocido'))"></span>
-                          </div>
-                          <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
-                            <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
-                            <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
-                          </div>
-                        </div>
-                      </template>
-                      <template x-if="!row.tieneCocido">
-                        <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
-                      </template>
+                        </template>
+                        <template x-if="!row.tieneCocido">
+                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                        </template>
+
+                        <!-- Icono de Lupa a la derecha de Queda (Saldo real) -->
+                        <button
+                          type="button"
+                          @click.stop="abrirModalProcedimientoSaldoReal(row)"
+                          class="btn-lupa-saldo-real w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
+                          :aria-label="'Ver procedimiento de Saldo Real de ' + row.nombre"
+                          :title="'Ver todo el procedimiento de sumas y restas para llegar al Saldo Real de ' + row.nombre + ' en el período seleccionado'"
+                        >
+                          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-3.5-3.5"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
 
                     <!-- Diferencia (azul si sobra, rojo si falta, vacío si nadie contó) -->
@@ -1817,7 +2219,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="flex items-center justify-between gap-2">
                               <div>
                                 <h4 class="text-sm font-bold text-white">Filete Pollo Crudo</h4>
-                                <p class="text-[11px] text-emerald-300 font-mono">+ <span x-text="filetesDePechuga()"></span> filetes</p>
+                                <p class="text-[11px] text-emerald-300 font-mono mt-0.5">+ <span x-text="filetesDePechuga()"></span> filetes</p>
                                 <p class="text-[11px] text-[#a0a0b8]">Stock hoja: <strong class="text-white font-mono" x-text="formatNum(calcSaldoReal(getRow('filete')))"></strong></p>
                                 <p class="text-[11px] text-[#a0a0b8]">Pechugas que pasan a filete:</p>
                               </div>
@@ -1853,16 +2255,35 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               </div>
                               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                 <template x-for="plato in platosDelFilete()" :key="'map-filete-' + plato.id">
-                                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                                    <div class="min-w-0">
-                                      <span class="text-xs font-bold text-white block" x-text="plato.nombre"></span>
-                                      <span class="text-[10px] text-[#a0a0b8]" x-text="'Come ' + plato.cantidad + ' filete'"></span>
+                                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
+                                    <div class="flex items-center justify-between gap-2">
+                                      <div class="min-w-0">
+                                        <span class="text-xs font-bold text-white block" x-text="plato.nombre"></span>
+                                        <span class="text-[10px] text-[#a0a0b8] block" x-text="'Come ' + plato.cantidad + ' filete'"></span>
+                                      </div>
+                                      <div class="inline-flex items-center gap-0.5 shrink-0">
+                                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePlatoFilete(plato.id, nudge((despiece.platosFilete && despiece.platosFilete[plato.id]) || 0, -1))">−</button>
+                                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Porciones de ' + plato.nombre" :value="(despiece.platosFilete && despiece.platosFilete[plato.id]) || 0" @change="updatePlatoFilete(plato.id, $event.target.value)">
+                                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePlatoFilete(plato.id, nudge((despiece.platosFilete && despiece.platosFilete[plato.id]) || 0, 1))">+</button>
+                                      </div>
                                     </div>
-                                    <div class="inline-flex items-center gap-0.5 shrink-0">
-                                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePlatoFilete(plato.id, nudge((despiece.platosFilete && despiece.platosFilete[plato.id]) || 0, -1))">−</button>
-                                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Porciones de ' + plato.nombre" :value="(despiece.platosFilete && despiece.platosFilete[plato.id]) || 0" @change="updatePlatoFilete(plato.id, $event.target.value)">
-                                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePlatoFilete(plato.id, nudge((despiece.platosFilete && despiece.platosFilete[plato.id]) || 0, 1))">+</button>
-                                    </div>
+                                    <!-- Pase Crudo → Cocido solo para productos con cocido según semilla -->
+                                    <template x-if="tienePaseCocido(plato.id)">
+                                      <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                                        <div class="flex flex-col">
+                                          <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                                          <span class="text-[10px] font-mono text-[#a0a0b8]">
+                                            Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(plato.id))"></strong>
+                                            · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(plato.id))"></strong>
+                                          </span>
+                                        </div>
+                                        <div class="inline-flex items-center gap-0.5 shrink-0">
+                                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + plato.nombre" @click="pasarCrudoACocido(plato.id, -1)">−</button>
+                                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
+                                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + plato.nombre" @click="pasarCrudoACocido(plato.id, 1)">+</button>
+                                        </div>
+                                      </div>
+                                    </template>
                                   </div>
                                 </template>
                               </div>
@@ -1887,16 +2308,35 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           <template x-for="ad in aderezosDeCorte('pechugas')" :key="'map-pech-' + ad.id">
-                            <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-sky-500/50 rounded-lg px-2.5 py-2 flex items-center justify-between gap-2 transition">
-                              <div class="min-w-0">
-                                <span class="text-xs font-semibold text-white block truncate" x-text="ad.id === 'pollo_lena' ? 'Pollo leña (Pecho)' : ad.nombre"></span>
-                                <span class="text-[10px] text-sky-300/80 font-mono">1 Pechuga → 1 pza</span>
+                            <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-sky-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
+                              <div class="flex items-center justify-between gap-2">
+                                <div class="min-w-0">
+                                  <span class="text-xs font-semibold text-white block truncate" x-text="ad.id === 'pollo_lena' ? 'Pollo leña (Pecho)' : ad.nombre"></span>
+                                  <span class="text-[10px] text-sky-300/80 font-mono">1 Pechuga → 1 pza</span>
+                                </div>
+                                <div class="inline-flex items-center gap-0.5 shrink-0">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'pechugas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0, -1))">−</button>
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="(despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0" @change="updateAderezoCorte(ad.id, 'pechugas', $event.target.value)">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'pechugas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0, 1))">+</button>
+                                </div>
                               </div>
-                              <div class="inline-flex items-center gap-0.5 shrink-0">
-                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'pechugas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0, -1))">−</button>
-                                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="(despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0" @change="updateAderezoCorte(ad.id, 'pechugas', $event.target.value)">
-                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'pechugas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0, 1))">+</button>
-                              </div>
+                              <!-- Pase Crudo → Cocido en la misma fila de la hoja -->
+                              <template x-if="tienePaseCocido(ad.id)">
+                                <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                                  <div class="flex flex-col">
+                                    <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                                    <span class="text-[10px] font-mono text-[#a0a0b8]">
+                                      Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(ad.id))"></strong>
+                                      · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(ad.id))"></strong>
+                                    </span>
+                                  </div>
+                                  <div class="inline-flex items-center gap-0.5 shrink-0">
+                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + ad.nombre + ' (Pechuga)'" @click="pasarCrudoACocido(ad.id, -1)">−</button>
+                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pechuga)'" :value="cocidoActualTransformar(ad.id)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
+                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + ad.nombre + ' (Pechuga)'" @click="pasarCrudoACocido(ad.id, 1)">+</button>
+                                  </div>
+                                </div>
+                              </template>
                             </div>
                           </template>
                         </div>
@@ -1955,16 +2395,35 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           <template x-for="ad in aderezosDeCorte('piernas')" :key="'map-pier-' + ad.id">
-                            <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-emerald-500/50 rounded-lg px-2.5 py-2 flex items-center justify-between gap-2 transition">
-                              <div class="min-w-0">
-                                <span class="text-xs font-semibold text-white block truncate" x-text="ad.id === 'pollo_lena' ? 'Pollo leña (Pierna)' : ad.nombre"></span>
-                                <span class="text-[10px] text-emerald-300/80 font-mono">1 Pierna → 1 pza</span>
+                            <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-emerald-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
+                              <div class="flex items-center justify-between gap-2">
+                                <div class="min-w-0">
+                                  <span class="text-xs font-semibold text-white block truncate" x-text="ad.id === 'pollo_lena' ? 'Pollo leña (Pierna)' : ad.nombre"></span>
+                                  <span class="text-[10px] text-emerald-300/80 font-mono">1 Pierna → 1 pza</span>
+                                </div>
+                                <div class="inline-flex items-center gap-0.5 shrink-0">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'piernas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0, -1))">−</button>
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="(despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0" @change="updateAderezoCorte(ad.id, 'piernas', $event.target.value)">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'piernas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0, 1))">+</button>
+                                </div>
                               </div>
-                              <div class="inline-flex items-center gap-0.5 shrink-0">
-                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'piernas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0, -1))">−</button>
-                                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="(despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0" @change="updateAderezoCorte(ad.id, 'piernas', $event.target.value)">
-                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'piernas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0, 1))">+</button>
-                              </div>
+                              <!-- Pase Crudo → Cocido en la misma fila de la hoja -->
+                              <template x-if="tienePaseCocido(ad.id)">
+                                <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                                  <div class="flex flex-col">
+                                    <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                                    <span class="text-[10px] font-mono text-[#a0a0b8]">
+                                      Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(ad.id))"></strong>
+                                      · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(ad.id))"></strong>
+                                    </span>
+                                  </div>
+                                  <div class="inline-flex items-center gap-0.5 shrink-0">
+                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + ad.nombre + ' (Pierna)'" @click="pasarCrudoACocido(ad.id, -1)">−</button>
+                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pierna)'" :value="cocidoActualTransformar(ad.id)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
+                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + ad.nombre + ' (Pierna)'" @click="pasarCrudoACocido(ad.id, 1)">+</button>
+                                  </div>
+                                </div>
+                              </template>
                             </div>
                           </template>
                         </div>
@@ -2237,12 +2696,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CARNERO</span>
                 <span class="text-[11px] text-[#d4af37] font-mono">1 Carnero = <span x-text="config.factorCarneroPachamanca || 1"></span> Pachamanca</span>
               </div>
-              <div class="flex items-center justify-between gap-2 bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2">
-                <div>
-                  <span class="text-xs font-bold text-white block">Carnero pachamanca</span>
-                  <span class="text-[10px] text-[#a0a0b8]">Clave interna: cordero · Pase directo 1 a 1</span>
+              <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <span class="text-xs font-bold text-white block">Carnero pachamanca</span>
+                    <span class="text-[10px] text-[#a0a0b8]">Clave interna: pachamanca-cordero · Pase directo 1 a 1</span>
+                  </div>
+                  <span class="px-3 py-1 rounded bg-[#14141f] border border-[#d4af37]/40 font-mono font-extrabold text-sm text-[#d4af37]" x-text="(Number(despiece.carneroSalen) || 0) * (Number(config.factorCarneroPachamanca) || 1) + ' porc'"></span>
                 </div>
-                <span class="px-3 py-1 rounded bg-[#14141f] border border-[#d4af37]/40 font-mono font-extrabold text-sm text-[#d4af37]" x-text="(Number(despiece.carneroSalen) || 0) * (Number(config.factorCarneroPachamanca) || 1) + ' porc'"></span>
+                <template x-if="tienePaseCocido('carnero_pachamanca')">
+                  <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                    <div class="flex flex-col">
+                      <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                      <span class="text-[10px] font-mono text-[#a0a0b8]">
+                        Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar('carnero_pachamanca'))"></strong>
+                        · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar('carnero_pachamanca'))"></strong>
+                      </span>
+                    </div>
+                    <div class="inline-flex items-center gap-0.5 shrink-0">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Restar pase a cocido de Carnero pachamanca" @click="pasarCrudoACocido('carnero_pachamanca', -1)">−</button>
+                      <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Carnero pachamanca" :value="cocidoActualTransformar('carnero_pachamanca')" @change="fijarPaseCrudoACocido('carnero_pachamanca', $event.target.value)">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Pasar crudo a cocido en Carnero pachamanca" @click="pasarCrudoACocido('carnero_pachamanca', 1)">+</button>
+                    </div>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -2344,16 +2821,34 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <template x-for="corteId in ['carne_bistec', 'lomo_fino', 'carne_pachamanca', 'cerdo_pachamanca', 'carne_guiso']" :key="'sem-carne-' + corteId">
-                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                  <div>
-                    <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
-                    <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow(corteId)))"></strong></span>
+                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
+                  <div class="flex items-center justify-between gap-2">
+                    <div>
+                      <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
+                      <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow(corteId)))"></strong></span>
+                    </div>
+                    <div class="inline-flex items-center gap-0.5">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', -1)">−</button>
+                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow(corteId).ingreso" @change="updateIngresoDirecto(corteId, $event.target.value)">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', 1)">+</button>
+                    </div>
                   </div>
-                  <div class="inline-flex items-center gap-0.5">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', -1)">−</button>
-                    <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow(corteId).ingreso" @change="updateIngresoDirecto(corteId, $event.target.value)">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', 1)">+</button>
-                  </div>
+                  <template x-if="tienePaseCocido(corteId)">
+                    <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                      <div class="flex flex-col">
+                        <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                        <span class="text-[10px] font-mono text-[#a0a0b8]">
+                          Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(corteId))"></strong>
+                          · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(corteId))"></strong>
+                        </span>
+                      </div>
+                      <div class="inline-flex items-center gap-0.5 shrink-0">
+                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, -1)">−</button>
+                        <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + getRow(corteId).nombre" :value="cocidoActualTransformar(corteId)" @change="fijarPaseCrudoACocido(corteId, $event.target.value)">
+                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, 1)">+</button>
+                      </div>
+                    </div>
+                  </template>
                 </div>
               </template>
             </div>
@@ -4263,6 +4758,465 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </template>
 
   <!-- ===================================================================== -->
+  <!-- MODAL 1: GRÁFICO SIMÉTRICO EN VERTICAL DE TRANSFORMACIÓN + BOTÓN "IR" -->
+  <!-- ===================================================================== -->
+  <div
+    x-show="showTransformacionModal"
+    x-cloak
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 scale-95"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-95"
+    class="fixed inset-0 z-[85] flex items-center justify-center bg-black/85 p-3 sm:p-5 overflow-y-auto"
+    @keydown.escape.window="showTransformacionModal = false"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Desglose gráfico en cuadros verticales de transformación"
+  >
+    <template x-if="transformacionInfo">
+      <div
+        class="bg-[#12121d] border-2 border-[#ff2e4c] rounded-2xl max-w-6xl w-full max-h-[92vh] flex flex-col shadow-[0_0_40px_rgba(255,46,76,0.25)] overflow-hidden"
+        @click.outside="showTransformacionModal = false"
+      >
+        <!-- Encabezado del Modal -->
+        <div class="bg-[#0b0b12] border-b border-[#26263a] px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-rose-950/90 border-2 border-[#ff2e4c] flex items-center justify-center text-[#ff4d6d] shadow-[0_0_12px_rgba(255,46,76,0.4)]">
+              <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="M20 20l-3.5-3.5"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-base sm:text-lg font-extrabold text-white tracking-wide">
+                  Gráfico Simétrico de Transformación
+                </h3>
+                <span class="px-2.5 py-0.5 rounded-md bg-[#ff2e4c] text-white font-extrabold text-xs uppercase tracking-wider" x-text="transformacionInfo.origen.nombre"></span>
+                <button
+                  x-show="transformacionInfo.origenPadreId"
+                  type="button"
+                  @click="abrirModalTransformacion(getRow(transformacionInfo.origenPadreId))"
+                  class="px-2.5 py-0.5 rounded-md bg-[#1c1c2b] hover:bg-[#26263a] border border-[#d4af37]/50 text-[#d4af37] text-xs font-bold cursor-pointer transition"
+                >
+                  ← Volver a <span x-text="transformacionInfo.origenPadreNombre"></span>
+                </button>
+              </div>
+              <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="transformacionInfo.subtitulo"></p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="showTransformacionModal = false; activeTab = 'transformar'"
+              class="px-3.5 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-xs hover:brightness-110 transition cursor-pointer shadow"
+            >
+              Editar en Transformar →
+            </button>
+            <button
+              type="button"
+              @click="showTransformacionModal = false"
+              class="w-8 h-8 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#a0a0b8] hover:text-white flex items-center justify-center font-bold cursor-pointer transition"
+              aria-label="Cerrar modal"
+            >✕</button>
+          </div>
+        </div>
+
+        <!-- Barra de Ecuación de Resta en Vivo -->
+        <div class="bg-[#0e0e17] border-b border-[#26263a] px-5 py-3 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs">
+          <div class="flex items-center gap-1.5 bg-[#161625] border border-cyan-500/30 rounded-lg px-3 py-1.5">
+            <span class="text-[#a0a0b8]">Ingreso Total Disponible:</span>
+            <strong class="num-mono text-sm text-cyan-200" x-text="formatNum(transformacionInfo.origen.ingresoTotal) + ' ' + transformacionInfo.origen.unidad"></strong>
+          </div>
+          <span class="text-rose-400 font-extrabold text-base">−</span>
+          <div class="flex items-center gap-1.5 bg-rose-950/80 border-2 border-[#ff2e4c] rounded-lg px-3 py-1.5 shadow-[0_0_10px_rgba(255,46,76,0.3)]">
+            <span class="text-rose-200 font-bold">Lo Transformado (Resta):</span>
+            <strong class="num-mono text-sm text-white" x-text="transformacionInfo.origen.transformado > 0 ? ('−' + formatNum(transformacionInfo.origen.transformado) + ' ' + transformacionInfo.origen.unidad) : ('0 ' + transformacionInfo.origen.unidad)"></strong>
+          </div>
+          <template x-if="transformacionInfo.origen.ventas > 0">
+            <div class="flex items-center gap-2">
+              <span class="text-rose-400 font-extrabold text-base">−</span>
+              <div class="flex items-center gap-1.5 bg-[#161625] border border-rose-500/30 rounded-lg px-3 py-1.5">
+                <span class="text-[#a0a0b8]">Ventas:</span>
+                <strong class="num-mono text-sm text-rose-300" x-text="'−' + formatNum(transformacionInfo.origen.ventas)"></strong>
+              </div>
+            </div>
+          </template>
+          <span class="text-[#d4af37] font-extrabold text-base">=</span>
+          <div class="flex items-center gap-1.5 bg-emerald-950/60 border-2 border-emerald-400/70 rounded-lg px-3.5 py-1.5">
+            <span class="text-emerald-200 font-bold">Lo que Queda (Saldo):</span>
+            <strong class="num-mono text-sm text-emerald-300" x-text="formatNum(transformacionInfo.origen.queda) + ' ' + transformacionInfo.origen.unidad"></strong>
+          </div>
+        </div>
+
+        <!-- Cuerpo del Gráfico Simétrico DE IZQUIERDA A DERECHA (Origen a la izquierda -> Flechas -> Cuadros Destino apilados verticalmente a la derecha) -->
+        <div class="flex-1 overflow-y-auto p-5 sm:p-6 bg-[#0a0a0f]">
+          <div class="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-0 max-w-5xl mx-auto">
+
+            <!-- ============================================================= -->
+            <!-- COLUMNA IZQUIERDA: 1. CUADRO ORIGEN DEL PRODUCTO              -->
+            <!-- ============================================================= -->
+            <div class="w-full lg:w-[370px] shrink-0 simetrico-card-anim">
+              <div class="bg-[#14141f] border-2 border-[#d4af37] rounded-2xl p-5 shadow-2xl relative overflow-hidden">
+                <div class="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-[#26263a]">
+                  <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[11px] uppercase tracking-wider">1. Cuadro Origen</span>
+                    <h4 class="text-base font-extrabold text-white" x-text="transformacionInfo.origen.nombre"></h4>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-mono text-[#a0a0b8]" x-text="transformacionInfo.origen.unidad"></span>
+                    <button
+                      type="button"
+                      @click="irAFilaProducto(transformacionInfo.origen.id)"
+                      class="px-3 py-1 rounded-lg bg-[#d4af37] hover:brightness-110 text-[#1a1200] font-extrabold text-xs inline-flex items-center gap-1 cursor-pointer shadow transition"
+                      :aria-label="'Ir a la fila de ' + transformacionInfo.origen.nombre"
+                      title="Cerrar modal, desplazarse a esta fila en la tabla y resaltarla"
+                    >
+                      <span>Ir</span>
+                      <span>↗</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 3 Bloques Simétricos del Cuadro Origen -->
+                <div class="grid grid-cols-3 gap-2.5 text-center">
+                  <div class="bg-[#0a0a0f] border border-cyan-500/30 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span class="text-[10px] uppercase tracking-wider text-cyan-300 font-bold">Total Había</span>
+                    <span class="text-2xl font-extrabold num-mono text-white my-1" x-text="formatNum(transformacionInfo.origen.ingresoTotal)"></span>
+                    <span class="text-[9px] text-[#a0a0b8]" x-text="'Ant: ' + formatNum(transformacionInfo.origen.saldoAnterior) + ' + Ing: ' + formatNum(transformacionInfo.origen.ingreso)"></span>
+                  </div>
+
+                  <div class="bg-gradient-to-br from-[#4c0519] to-[#881337] border-2 border-[#ff2e4c] rounded-xl p-2.5 flex flex-col justify-between shadow-[0_0_15px_rgba(255,46,76,0.4)]">
+                    <span class="text-[10px] uppercase tracking-wider text-rose-200 font-extrabold">Se Transformó</span>
+                    <div class="flex items-center justify-center gap-0.5 my-1">
+                      <svg viewBox="0 0 24 24" class="w-4 h-4 text-rose-300 shrink-0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 4v16"></path>
+                        <path d="m18 14-6 6-6-6"></path>
+                      </svg>
+                      <span class="text-2xl font-extrabold num-mono text-white" x-text="transformacionInfo.origen.transformado > 0 ? ('−' + formatNum(transformacionInfo.origen.transformado)) : '0'"></span>
+                    </div>
+                    <span class="text-[9px] text-rose-200 font-semibold">Resta al saldo</span>
+                  </div>
+
+                  <div class="bg-[#0a0a0f] border-2 border-emerald-500/60 rounded-xl p-2.5 flex flex-col justify-between">
+                    <span class="text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">Lo que Queda</span>
+                    <span class="text-2xl font-extrabold num-mono text-emerald-300 my-1" x-text="formatNum(transformacionInfo.origen.queda)"></span>
+                    <span class="text-[9px] text-[#a0a0b8]" x-text="transformacionInfo.origen.ventas > 0 ? ('Tras −' + formatNum(transformacionInfo.origen.ventas) + ' vta') : 'Queda en origen'"></span>
+                  </div>
+                </div>
+
+                <!-- Barra de proporción visual (Transformado vs Queda) -->
+                <div class="mt-3.5 pt-2.5 border-t border-[#26263a]">
+                  <div class="flex justify-between text-[11px] mb-1">
+                    <span class="text-rose-300 font-semibold" x-text="'Transformado: ' + transformacionInfo.origen.pctTransformado + '%'"></span>
+                    <span class="text-emerald-300 font-semibold" x-text="'Queda en origen: ' + transformacionInfo.origen.pctQueda + '%'"></span>
+                  </div>
+                  <div class="w-full h-2.5 bg-[#0a0a0f] rounded-full overflow-hidden flex border border-[#26263a]">
+                    <div class="bg-gradient-to-r from-rose-600 to-[#ff2e4c] h-full transition-all duration-500" :style="'width: ' + transformacionInfo.origen.pctTransformado + '%'"></div>
+                    <div class="bg-emerald-500 h-full transition-all duration-500" :style="'width: ' + transformacionInfo.origen.pctQueda + '%'"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- CONECTOR HORIZONTAL DE IZQUIERDA A DERECHA CON FLECHAS (──►)  -->
+            <!-- ============================================================= -->
+            <div x-show="transformacionInfo.destinos && transformacionInfo.destinos.length > 0" class="flex flex-col lg:flex-row items-center justify-center shrink-0 my-1 lg:my-0">
+              <!-- Línea horizontal izquierda (sale del Cuadro Origen) -->
+              <div class="hidden lg:block w-7 h-1 bg-gradient-to-r from-[#d4af37] to-[#ff2e4c]"></div>
+              <!-- Cuadro de flecha central que explica qué transformación hubo -->
+              <div class="px-3.5 py-2 rounded-xl bg-[#1c1c2b] border-2 border-[#d4af37] text-[#d4af37] text-xs font-extrabold tracking-wide shadow-lg flex flex-col items-center text-center max-w-[195px]">
+                <span class="text-[10px] uppercase text-rose-300 font-bold mb-0.5">Transformación ──►</span>
+                <span class="text-white font-semibold leading-snug" x-text="transformacionInfo.resumenConversion"></span>
+              </div>
+              <!-- Línea horizontal derecha con punta de flecha hacia la columna vertical de cuadros -->
+              <div class="hidden lg:flex items-center">
+                <div class="w-6 h-1 bg-gradient-to-r from-[#ff2e4c] to-emerald-400"></div>
+                <span class="text-emerald-400 font-extrabold text-sm -ml-1">►</span>
+              </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- COLUMNA DERECHA: CUADROS DE TRANSFORMACIÓN APILADOS VERTICAL  -->
+            <!-- ============================================================= -->
+            <template x-if="transformacionInfo.destinos && transformacionInfo.destinos.length > 0">
+              <div class="flex-1 w-full flex flex-col gap-3.5 lg:pl-3 lg:border-l-2 lg:border-[#d4af37]/60">
+                <template x-for="(dest, dIdx) in transformacionInfo.destinos" :key="'dest-vbox-' + dest.id + '-' + dIdx">
+                  <div class="w-full flex items-center gap-2">
+                    <!-- Flecha horizontal de entrada desde la barra vertical hacia cada cuadro destino -->
+                    <div class="hidden lg:flex items-center shrink-0 -ml-3">
+                      <div class="w-4 h-0.5 bg-[#d4af37]"></div>
+                      <span class="text-[#d4af37] text-xs font-extrabold -ml-0.5">►</span>
+                    </div>
+
+                    <!-- Cuadro Destino Apilado Verticalmente a la Derecha -->
+                    <div
+                      class="flex-1 bg-[#14141f] border-2 rounded-2xl p-4 flex flex-col justify-between shadow-xl simetrico-card-anim transition"
+                      :class="dest.color === 'sky' ? 'border-sky-500/80' : (dest.color === 'emerald' ? 'border-emerald-500/80' : (dest.color === 'rose' ? 'border-rose-500/80' : 'border-[#d4af37]/85'))"
+                      :style="'animation-delay: ' + ((dIdx + 1) * 60) + 'ms'"
+                    >
+                      <!-- Cabecera del Cuadro Destino con Botón "Ir" -->
+                      <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[#26263a]">
+                        <div class="flex items-center gap-2">
+                          <span
+                            class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider"
+                            :class="dest.color === 'sky' ? 'bg-sky-400 text-[#0a0a0f]' : (dest.color === 'emerald' ? 'bg-emerald-400 text-[#0a0a0f]' : 'bg-[#d4af37] text-[#1a1200]')"
+                            x-text="'Transformación ' + (dIdx + 1)"
+                          ></span>
+                          <h5 class="text-base font-extrabold text-white leading-tight" x-text="dest.nombre"></h5>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                          <span class="px-2.5 py-0.5 rounded-lg bg-[#0a0a0f] border border-[#26263a] font-mono text-[11px] font-bold text-[#d4af37]" x-text="dest.factorTexto"></span>
+                          <!-- Botón "Ir" para cerrar el modal, hacer scroll a la fila de este producto transformado y resaltarla -->
+                          <button
+                            type="button"
+                            @click="irAFilaProducto(dest.id)"
+                            class="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#062419] font-extrabold text-xs inline-flex items-center gap-1 cursor-pointer shadow-md transition"
+                            :aria-label="'Ir a la fila de ' + dest.nombre"
+                            :title="'Ir a la fila de ' + dest.nombre + ' en la tabla y resaltarla'"
+                          >
+                            <span>Ir</span>
+                            <span>↗</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Tres métricas simétricas del cuadro destino -->
+                      <div class="grid grid-cols-3 gap-2 text-center mb-2.5">
+                        <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-2">
+                          <span class="text-[9px] uppercase text-[#a0a0b8] block font-bold">Usó de Origen</span>
+                          <span class="text-sm font-extrabold num-mono text-rose-300 mt-0.5 block" x-text="dest.usadoDelOrigen > 0 ? ('−' + formatNum(dest.usadoDelOrigen)) : '0'"></span>
+                        </div>
+
+                        <div class="bg-[#0a0a0f] border border-emerald-500/40 rounded-xl p-2">
+                          <span class="text-[9px] uppercase text-emerald-300 block font-bold">Se Obtuvo (+)</span>
+                          <span class="text-base font-extrabold num-mono text-emerald-300 mt-0.5 block" x-text="'+' + formatNum(dest.generado)"></span>
+                        </div>
+
+                        <div class="bg-[#0a0a0f] border border-amber-500/30 rounded-xl p-2">
+                          <span class="text-[9px] uppercase text-amber-300 block font-bold">Salió / Usado</span>
+                          <span class="text-sm font-extrabold num-mono text-amber-200 mt-0.5 block" x-text="(dest.transformadoHijo + dest.ventasHijo) > 0 ? ('−' + formatNum(dest.transformadoHijo + dest.ventasHijo)) : '0'"></span>
+                        </div>
+                      </div>
+
+                      <!-- Recuadro inferior destacado: LO QUE QUEDA en este producto destino -->
+                      <div class="bg-[#0a0a0f] border-2 border-[#26263a] rounded-xl p-2.5 flex items-center justify-between">
+                        <div>
+                          <span class="text-[10px] uppercase tracking-wider font-extrabold text-[#d4af37] block">Lo que queda disponible</span>
+                          <span class="text-[11px] text-[#a0a0b8]" x-text="dest.detalleQueda || ('Saldo actual en ' + dest.nombre)"></span>
+                        </div>
+                        <div class="text-right">
+                          <span class="text-xl font-extrabold num-mono text-white" x-text="formatNum(dest.queda)"></span>
+                          <span class="text-xs text-[#a0a0b8] num-mono ml-0.5" x-text="dest.unidad"></span>
+                        </div>
+                      </div>
+
+                      <!-- Botón para inspeccionar sub-transformación hacia la derecha si este corte también se transforma -->
+                      <button
+                        x-show="dest.tieneSubTransformacion"
+                        type="button"
+                        @click="abrirModalTransformacion(getRow(dest.id))"
+                        class="mt-2 w-full py-1.5 px-3 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] border border-[#d4af37]/40 text-xs font-bold text-[#d4af37] flex items-center justify-center gap-1.5 cursor-pointer transition"
+                      >
+                        <span>🔍 Ver en qué se transforma <span x-text="dest.nombre"></span></span>
+                        <span>→</span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- Mensaje claro cuando el producto es de ingreso directo o no tiene sub-cortes -->
+            <template x-if="!transformacionInfo.destinos || transformacionInfo.destinos.length === 0">
+              <div class="flex-1 w-full bg-[#14141f] border border-[#26263a] rounded-2xl p-5 text-center space-y-3 lg:ml-4">
+                <p class="text-sm font-bold text-white">Este producto no se divide en sub-cortes adicionales</p>
+                <p class="text-xs text-[#a0a0b8]" x-text="transformacionInfo.mensajeSinDestino || 'Su stock se controla directamente en su fila de Inventario Tabla.'"></p>
+                <div>
+                  <button
+                    type="button"
+                    @click="irAFilaProducto(transformacionInfo.origen.id)"
+                    class="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#062419] font-extrabold text-xs inline-flex items-center gap-1.5 cursor-pointer shadow transition"
+                  >
+                    <span>Ir a la fila de <span x-text="transformacionInfo.origen.nombre"></span></span>
+                    <span>↗</span>
+                  </button>
+                </div>
+              </div>
+            </template>
+
+          </div>
+        </div>
+
+        <!-- Pie del Modal -->
+        <div class="bg-[#0b0b12] border-t border-[#26263a] px-5 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <span class="text-[#a0a0b8]">
+            💡 <strong class="text-white">Flujo Vertical Simétrico:</strong> Pulsa <strong class="text-emerald-300">Ir ↗</strong> en cualquier cuadro para ir a su fila en la tabla y resaltarla.
+          </span>
+          <button
+            type="button"
+            @click="showTransformacionModal = false"
+            class="px-5 py-2 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-white font-bold cursor-pointer transition"
+          >
+            Cerrar ventana
+          </button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: PROCEDIMIENTO COMPLETO DE "QUEDA (SALDO REAL)" POR PERÍODO   -->
+  <!-- ===================================================================== -->
+  <div
+    x-show="showSaldoRealModal"
+    x-cloak
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 scale-95"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-95"
+    class="fixed inset-0 z-[88] flex items-center justify-center bg-black/85 p-3 sm:p-5 overflow-y-auto"
+    @keydown.escape.window="showSaldoRealModal = false"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Procedimiento detallado de Queda (Saldo Real)"
+  >
+    <template x-if="saldoRealInfo">
+      <div
+        class="bg-[#12121d] border-2 border-teal-400 rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-[0_0_40px_rgba(20,184,166,0.25)] overflow-hidden"
+        @click.outside="showSaldoRealModal = false"
+      >
+        <!-- Encabezado del Modal de Saldo Real -->
+        <div class="bg-[#0b0b12] border-b border-[#26263a] px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-teal-950/90 border-2 border-teal-400 flex items-center justify-center text-teal-300 shadow-[0_0_12px_rgba(20,184,166,0.35)]">
+              <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="M20 20l-3.5-3.5"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-base sm:text-lg font-extrabold text-white">
+                  Procedimiento de Queda (Saldo Real)
+                </h3>
+                <span class="px-2.5 py-0.5 rounded-md bg-teal-500 text-[#042f2e] font-extrabold text-xs uppercase" x-text="saldoRealInfo.nombre"></span>
+              </div>
+              <p class="text-xs text-[#a0a0b8] mt-0.5">
+                Período evaluado: <strong class="text-[#d4af37]" x-text="saldoRealInfo.etiquetaPeriodo"></strong>
+                <span class="mx-1">·</span>
+                <span class="font-mono text-[11px]" x-text="saldoRealInfo.rangoFechas"></span>
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="irAFilaProducto(saldoRealInfo.id)"
+              class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#062419] font-extrabold text-xs inline-flex items-center gap-1 cursor-pointer shadow transition"
+            >
+              <span>Ir a fila</span>
+              <span>↗</span>
+            </button>
+            <button
+              type="button"
+              @click="showSaldoRealModal = false"
+              class="w-8 h-8 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#a0a0b8] hover:text-white flex items-center justify-center font-bold cursor-pointer transition"
+              aria-label="Cerrar modal de Saldo Real"
+            >✕</button>
+          </div>
+        </div>
+
+        <!-- Cuerpo: Paso a Paso de Sumas y Restas en el Período -->
+        <div class="flex-1 overflow-y-auto p-5 space-y-3 bg-[#0a0a0f]">
+
+          <!-- Resumen rápido de ecuación en una sola línea -->
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span class="text-[#a0a0b8] font-semibold">Fórmula del período (<span class="text-[#d4af37]" x-text="saldoRealInfo.etiquetaPeriodo"></span>):</span>
+            <div class="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+              <span class="px-2 py-0.5 rounded bg-purple-950/60 border border-purple-500/40 text-purple-200" x-text="'Ant: ' + formatNum(saldoRealInfo.saldoAnterior)"></span>
+              <span class="text-emerald-400 font-bold">+</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300" x-text="'Ing: +' + formatNum(saldoRealInfo.ingreso)"></span>
+              <span class="text-amber-300 font-bold" x-text="saldoRealInfo.correccion >= 0 ? '+' : '−'"></span>
+              <span class="px-2 py-0.5 rounded bg-amber-950/60 border border-amber-500/40 text-amber-200" x-text="'Corr: ' + formatNum(Math.abs(saldoRealInfo.correccion))"></span>
+              <span class="text-rose-400 font-bold">−</span>
+              <span class="px-2 py-0.5 rounded bg-rose-950/60 border border-rose-500/40 text-rose-300" x-text="'Vta: −' + formatNum(saldoRealInfo.ventas)"></span>
+              <span class="text-rose-400 font-bold">−</span>
+              <span class="px-2 py-0.5 rounded bg-rose-950/80 border border-[#ff2e4c] text-white" x-text="'Transf: −' + formatNum(saldoRealInfo.transformacion)"></span>
+              <span class="text-[#d4af37] font-bold">=</span>
+              <span class="px-2.5 py-0.5 rounded bg-teal-950/80 border border-teal-400 text-teal-200 font-extrabold" x-text="formatNum(saldoRealInfo.quedaSaldoReal) + ' ' + saldoRealInfo.unidad"></span>
+            </div>
+          </div>
+
+          <!-- Lista vertical de pasos detallados (Suma / Resta / Subtotal) -->
+          <div class="space-y-2">
+            <template x-for="(paso, pIdx) in saldoRealInfo.pasos" :key="'paso-sr-' + pIdx">
+              <div
+                class="rounded-xl p-3.5 border flex items-center justify-between gap-3 transition"
+                :class="paso.tipo === 'suma' ? 'bg-emerald-950/25 border-emerald-500/50' : (paso.tipo === 'resta' ? 'bg-rose-950/30 border-rose-500/60' : (paso.tipo === 'cierre' ? 'bg-teal-950/45 border-2 border-teal-400 shadow-lg' : (paso.tipo === 'subtotal' ? 'bg-[#181828] border-cyan-500/50' : 'bg-[#14141f] border-[#26263a]')))"
+              >
+                <div class="flex items-start gap-3">
+                  <!-- Icono indicador de Suma (↑ Verde), Resta (↓ Rojo), Apertura o Subtotal -->
+                  <div
+                    class="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-sm shrink-0 mt-0.5"
+                    :class="paso.tipo === 'suma' ? 'bg-emerald-500/20 border border-emerald-400 text-emerald-300' : (paso.tipo === 'resta' ? 'bg-rose-500/20 border border-[#ff2e4c] text-rose-300' : (paso.tipo === 'cierre' ? 'bg-teal-400 text-[#042f2e]' : 'bg-[#0a0a0f] border border-[#26263a] text-[#d4af37]'))"
+                    x-text="paso.icono"
+                  ></div>
+                  <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="text-xs sm:text-sm font-extrabold text-white" x-text="paso.titulo"></span>
+                      <span
+                        class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase"
+                        :class="paso.tipo === 'suma' ? 'bg-emerald-500/20 text-emerald-300' : (paso.tipo === 'resta' ? 'bg-rose-500/25 text-rose-200' : (paso.tipo === 'cierre' ? 'bg-teal-400/20 text-teal-200' : 'bg-[#26263a] text-[#a0a0b8]'))"
+                        x-text="paso.etiquetaAccion"
+                      ></span>
+                    </div>
+                    <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="paso.explicacion"></p>
+                    <p x-show="paso.desgloseTipos" class="text-[11px] font-mono text-cyan-200/90 mt-1" x-text="paso.desgloseTipos"></p>
+                  </div>
+                </div>
+
+                <div class="text-right shrink-0">
+                  <span
+                    class="text-lg sm:text-xl font-extrabold num-mono block"
+                    :class="paso.tipo === 'suma' ? 'text-emerald-300' : (paso.tipo === 'resta' ? 'text-rose-300' : (paso.tipo === 'cierre' ? 'text-teal-200 text-2xl' : 'text-white'))"
+                    x-text="paso.valorFormateado"
+                  ></span>
+                  <span class="text-[10px] text-[#a0a0b8] num-mono" x-text="saldoRealInfo.unidad"></span>
+                </div>
+              </div>
+            </template>
+          </div>
+
+        </div>
+
+        <!-- Pie del Modal -->
+        <div class="bg-[#0b0b12] border-t border-[#26263a] px-5 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full" :class="saldoRealInfo.puntoEstado"></span>
+            <span class="text-[#a0a0b8]">Estado actual del Saldo Real: <strong class="text-white" x-text="saldoRealInfo.estadoTexto"></strong></span>
+          </div>
+          <button
+            type="button"
+            @click="showSaldoRealModal = false"
+            class="px-5 py-2 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-white font-bold cursor-pointer transition"
+          >
+            Cerrar procedimiento
+          </button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- ===================================================================== -->
   <!-- LÓGICA ALPINE.JS AUTOCONTENIDA                                        -->
   <!-- ===================================================================== -->
   </div>
@@ -4284,6 +5238,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ordenHoja: 'cantidad',
         configMenuOpen: false,
         showConversionesModal: false,
+        showTransformacionModal: false,
+        transformacionInfo: null,
+        showSaldoRealModal: false,
+        saldoRealInfo: null,
+        cargandoDatosTabla: false,
+        filaResaltadaId: '',
         tabConfig: 'colores',
         filtroColoresTexto: '',
         filtroCategoria: 'todos',
@@ -4351,8 +5311,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   open: true,
                   children: [
                     { id: 'milanesa', nombre: 'Milanesa de pollo' },
-                    { id: 'milanesa_junior', nombre: 'Milanesa junior' },
-                    { id: 'filete_junior', nombre: 'Filete junior' },
                     { id: 'chi_pollo_bbq', nombre: 'Chi. pollo a la BBQ' },
                     { id: 'chi_pollo_acevichada', nombre: 'Chi. pollo acevichada' },
                     { id: 'chicharron_pollo', nombre: 'Chicharrón de pollo' },
@@ -4460,11 +5418,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: true },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', aceptaPierna: true, aceptaPechuga: true },
             { id: 'pollo_lena', nombre: 'Pollo leña', aceptaPierna: true, aceptaPechuga: true },
+            { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false },
             { id: 'menu', nombre: 'Menú', aceptaPierna: true, aceptaPechuga: true }
           ],
           relaciones: [
-            { id: 1, rubro: 'Filete', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'POLLO - CARNES', cantidad: 1, unidadNota: 'filete' },
-            { id: 2, rubro: 'Filete', plato: 'Filete junior', complemento: 'Rubro de inventario (sin plato con ese nombre)', cantidad: 0.5, unidadNota: 'filete' },
+            { id: 1, rubro: 'Filete', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'POLLO - CARNES (A31)', cantidad: 1, unidadNota: 'filete' },
+            { id: 2, rubro: 'Filete', plato: 'Filete junior + papas fritas', complemento: 'PORCIONES - ADICIONALES (U342)', cantidad: 0.5, unidadNota: 'filete' },
             { id: 3, rubro: 'Filete', plato: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', complemento: 'POLLO - CARNES', cantidad: 1, unidadNota: 'pieza' },
             { id: 4, rubro: 'Pollo leña', plato: '1/4 pollo + papas fritas + ensalada', complemento: 'POLLO A LA LEÑA', cantidad: 1, unidadNota: 'pieza de Pollo leña (pierna o pechuga)' },
             { id: 5, rubro: 'Pollo pachamanca', plato: 'Pachamanca 1 sabor', complemento: 'Opción Pollo (Sabores: Pollo, Chancho, Res)', cantidad: 1, unidadNota: 'pieza de Pollo pachamanca' },
@@ -4520,14 +5479,90 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         rows: [],
 
         platosCarta: [
-          { clave: 'seed-1', nombre: 'Filete de pollo + papas fritas + arroz + ensalada', categoria: 'POLLO - CARNES', complemento: '' },
-          { clave: 'seed-2', nombre: '1/4 pollo + papas fritas + ensalada', categoria: 'POLLO A LA LEÑA', complemento: '' },
-          { clave: 'seed-3', nombre: 'Pachamanca 1 sabor', categoria: 'PACHAMANCA', complemento: 'Sabores: Pollo, Chancho, Res' },
-          { clave: 'seed-4', nombre: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', categoria: 'POLLO - CARNES', complemento: '' },
-          { clave: 'seed-5', nombre: 'Arroz chaufa de pollo', categoria: 'CHAUFAS', complemento: '' },
-          { clave: 'seed-6', nombre: 'Lomo saltado de pollo', categoria: 'CRIOLLOS', complemento: '' },
-          { clave: 'seed-7', nombre: 'Milanesa con arroz + papas fritas + ensalada', categoria: 'POLLO - CARNES', complemento: '' },
-          { clave: 'seed-8', nombre: 'Pan con Pollo', categoria: 'SÁNDWICHES', complemento: '' }
+          { clave: 'A1', codigo: 'A1', nombre: 'Pachamanca a la Olla', categoria: 'PACHAMANCA', complemento: '' },
+          { clave: 'A2', codigo: 'A2', nombre: 'Pachamanca 3 sabores', categoria: 'PACHAMANCA', complemento: 'Sabores (máx. 3): Pollo, Chancho, Res · Guarniciones (máx. 1): Tamal' },
+          { clave: 'A3', codigo: 'A3', nombre: 'Pachamanca 2 sabores', categoria: 'PACHAMANCA', complemento: 'Sabores (máx. 2): Pollo, Chancho, Res · Guarniciones (máx. 1): Tamal' },
+          { clave: 'A4', codigo: 'A4', nombre: 'Pachamanca 1 sabor', categoria: 'PACHAMANCA', complemento: 'Sabores (máx. 1): Pollo, Chancho, Res' },
+          { clave: 'A5', codigo: 'A5', nombre: 'Pachamanca de Cordero', categoria: 'PACHAMANCA', complemento: '' },
+          { clave: 'A20', codigo: 'A20', nombre: '1 Pollo + papas fritas + ensalada + gaseosa 1.5 L', categoria: 'POLLO A LA LEÑA', complemento: 'Guarnición (máx. 1): Papa Fritas, Arroz chaufa · Presas (máx. 4): Pierna, Pecho · Bebida (máx. 1): Inca Kola, Coca-Cola' },
+          { clave: 'A21', codigo: 'A21', nombre: '1 Pollo + papas fritas + ensalada', categoria: 'POLLO A LA LEÑA', complemento: 'Guarnición (máx. 1): Papa Fritas, Arroz chaufa · Presas (máx. 4): Pierna, Pecho' },
+          { clave: 'A22', codigo: 'A22', nombre: '1/2 Pollo + papas fritas + ensalada', categoria: 'POLLO A LA LEÑA', complemento: 'Guarnición (máx. 1): Papa Fritas, Arroz chaufa · Presas (máx. 2): Pierna, Pecho' },
+          { clave: 'A23', codigo: 'A23', nombre: '1/4 pollo + papas fritas + ensalada', categoria: 'POLLO A LA LEÑA', complemento: 'Guarnición (máx. 1): Papa Fritas, Arroz chaufa · Presa (máx. 1): Pierna, Pecho' },
+          { clave: 'A24', codigo: 'A24', nombre: 'Mostrito (1/4 pollo + papas + arroz chaufa)', categoria: 'POLLO A LA LEÑA', complemento: 'Presa (máx. 1): Pierna, Pecho' },
+          { clave: 'A25', codigo: 'A25', nombre: '1/2 Pollo + papas + arroz chaufa + ensalada + 1 L chicha', categoria: 'POLLO A LA LEÑA', complemento: 'Guarnición (máx. 2): Papa Fritas, Arroz chaufa · Presas (máx. 2): Pierna, Pecho' },
+          { clave: 'A26', codigo: 'A26', nombre: 'Pollo Familiar (1 pollo + papas + arroz chaufa + 1/4 pollo + gaseosa 1.5 L)', categoria: 'POLLO A LA LEÑA', complemento: 'Guarnición (máx. 2): Papa Fritas, Arroz chaufa · Presas (máx. 5): Pierna, Pecho · Bebida (máx. 1): Inca Kola, Coca-Cola' },
+          { clave: 'A31', codigo: 'A31', nombre: 'Filete de pollo + papas fritas + arroz + ensalada', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 2): Papa Fritas, Arroz' },
+          { clave: 'A32', codigo: 'A32', nombre: 'Milanesa con arroz + papas fritas + ensalada', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 2): Arroz, Papa Fritas' },
+          { clave: 'A33', codigo: 'A33', nombre: 'Fuente de Chicharron de pollo', categoria: 'POLLO - CARNES', complemento: '' },
+          { clave: 'A34', codigo: 'A34', nombre: 'Chicharron de pollo chico', categoria: 'POLLO - CARNES', complemento: 'Guarnición (máx. 2): Papa Fritas, Yuca, Plátano frito' },
+          { clave: 'A35', codigo: 'A35', nombre: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 2): Arroz, Papa Fritas' },
+          { clave: 'A36', codigo: 'A36', nombre: 'Chicharron de pollo acevichada + arroz + papa frita', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 2): Arroz, Papa Fritas' },
+          { clave: 'A37', codigo: 'A37', nombre: 'Pollada + papas doradas + arroz + ensalada', categoria: 'POLLO - CARNES', complemento: 'Guarnición (máx. 2): Papa Fritas, Arroz · Presa (máx. 1): Pierna, Pecho' },
+          { clave: 'A38', codigo: 'A38', nombre: '1/2 Panceta de chancho a la leña + papas doradas + choclo + ensalada', categoria: 'POLLO - CARNES', complemento: 'Guarnición (máx. 1): Papa Fritas, Arroz chaufa' },
+          { clave: 'A39', codigo: 'A39', nombre: 'Panceta de chancho a la leña + papas doradas + plátano + ensalada', categoria: 'POLLO - CARNES', complemento: 'Guarnición (máx. 1): Papa Fritas, Arroz chaufa' },
+          { clave: 'A40', codigo: 'A40', nombre: 'Costillar de chancho a la leña a la BBQ + papas fritas + arroz + ensalada', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 2): Papa Fritas, Arroz' },
+          { clave: 'A41', codigo: 'A41', nombre: 'Bisteck a lo pobre', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 3): Papa Fritas, Plátano frito, Huevo frito · Término de carne (máx. 1): Bien cocido, Tres cuartos, Jugoso' },
+          { clave: 'A42', codigo: 'A42', nombre: 'Chuleta a lo pobre', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 3): Papa Fritas, Plátano frito, Huevo frito' },
+          { clave: 'A43', codigo: 'A43', nombre: 'Chuleta a la parrilla + papas fritas + arroz + ensalada', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 2): Papa Fritas, Arroz' },
+          { clave: 'A44', codigo: 'A44', nombre: 'Bisteck a la parrilla + papas fritas + arroz + ensalada', categoria: 'POLLO - CARNES', complemento: 'Guarniciones (máx. 2): Papa Fritas, Arroz · Término de carne (máx. 1): Bien cocido, Tres cuartos, Jugoso' },
+          { clave: 'A45', codigo: 'A45', nombre: 'Parrilla familiar', categoria: 'POLLO - CARNES', complemento: '' },
+          { clave: 'A46', codigo: 'A46', nombre: '1 kilo de chancho a la leña + papas doradas + ensalada', categoria: 'POLLO - CARNES', complemento: '' },
+          { clave: 'A47', codigo: 'A47', nombre: 'Seco de cordero con frejoles y arroz', categoria: 'CRIOLLOS', complemento: '' },
+          { clave: 'A48', codigo: 'A48', nombre: 'Arroz con pato a la chiclayana', categoria: 'CRIOLLOS', complemento: 'Presa (máx. 1): Pierna, Pecho' },
+          { clave: 'A49', codigo: 'A49', nombre: 'Lomo saltado de res', categoria: 'CRIOLLOS', complemento: 'Guarniciones (máx. 2): Papa Fritas, Arroz' },
+          { clave: 'A50', codigo: 'A50', nombre: 'Lomo saltado de pollo', categoria: 'CRIOLLOS', complemento: 'Guarniciones (máx. 2): Papa Fritas, Arroz' },
+          { clave: 'A51', codigo: 'A51', nombre: 'Lomo saltado a lo pobre', categoria: 'CRIOLLOS', complemento: 'Guarniciones (máx. 3): Papa Fritas, Plátano frito, Huevo frito' },
+          { clave: 'A52', codigo: 'A52', nombre: 'Fetuccini a la huancaina con lomo saltado', categoria: 'CRIOLLOS', complemento: '' },
+          { clave: 'A53', codigo: 'A53', nombre: 'Tallarin saltado de carne', categoria: 'CRIOLLOS', complemento: '' },
+          { clave: 'A54', codigo: 'A54', nombre: 'Tallarin saltado de pollo', categoria: 'CRIOLLOS', complemento: '' },
+          { clave: 'A55', codigo: 'A55', nombre: 'Tacu tacu con lomo fino al jugo', categoria: 'CRIOLLOS', complemento: 'Término de carne (máx. 1): Bien cocido, Tres cuartos, Jugoso' },
+          { clave: 'A64', codigo: 'A64', nombre: 'Arroz chaufa de pollo', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A65', codigo: 'A65', nombre: 'Arroz chaufa de carne', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A66', codigo: 'A66', nombre: 'Arroz chaufa de chancho a la leña', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A67', codigo: 'A67', nombre: 'Arroz chaufa salvaje', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A68', codigo: 'A68', nombre: 'Arroz chaufa 3 sabores', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A69', codigo: 'A69', nombre: 'Aeropuerto de pollo', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A70', codigo: 'A70', nombre: 'Aeropuerto de carne', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A71', codigo: 'A71', nombre: 'Chaufa con chicharron de pollo', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A72', codigo: 'A72', nombre: 'Chaufa con chancho a la leña', categoria: 'CHAUFAS', complemento: '' },
+          { clave: 'A73', codigo: 'A73', nombre: 'Ceviche de pescado', categoria: 'PESCADOS Y MARISCOS', complemento: 'Picante (máx. 1): Normal, Bajo picante, Picante, Sin ají' },
+          { clave: 'A74', codigo: 'A74', nombre: 'Ceviche mixto', categoria: 'PESCADOS Y MARISCOS', complemento: 'Picante (máx. 1): Normal, Bajo picante, Picante, Sin ají' },
+          { clave: 'A75', codigo: 'A75', nombre: 'Ceviche de chicharrón de pota', categoria: 'PESCADOS Y MARISCOS', complemento: 'Picante (máx. 1): Normal, Bajo picante, Picante, Sin ají' },
+          { clave: 'A76', codigo: 'A76', nombre: 'Leche de tigre', categoria: 'PESCADOS Y MARISCOS', complemento: 'Picante (máx. 1): Normal, Bajo picante, Sin ají' },
+          { clave: 'A77', codigo: 'A77', nombre: 'Jalea Mixta personal', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A78', codigo: 'A78', nombre: 'Jalea Mixta familiar', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A79', codigo: 'A79', nombre: 'Arroz con mariscos', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A80', codigo: 'A80', nombre: 'Chicharron de pescado', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A81', codigo: 'A81', nombre: 'Chicharron de pota', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A82', codigo: 'A82', nombre: 'Sudado de pescado', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A83', codigo: 'A83', nombre: 'Parihuela', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A84', codigo: 'A84', nombre: 'Duo marino', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A85', codigo: 'A85', nombre: 'Trio marino', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A86', codigo: 'A86', nombre: 'Ronda marina', categoria: 'PESCADOS Y MARISCOS', complemento: '' },
+          { clave: 'A87', codigo: 'A87', nombre: 'Ceviche de trucha', categoria: 'TRUCHA', complemento: 'Picante (máx. 1): Normal, Bajo picante, Picante, Sin ají' },
+          { clave: 'A88', codigo: 'A88', nombre: 'Trucha frita + papas doradas + arroz + ensalada', categoria: 'TRUCHA', complemento: 'Guarniciones (máx. 2): Papa Fritas, Arroz' },
+          { clave: 'A89', codigo: 'A89', nombre: 'Chicharron de trucha + papas doradas + ensalada', categoria: 'TRUCHA', complemento: '' },
+          { clave: 'A90', codigo: 'A90', nombre: 'Sudado de trucha', categoria: 'TRUCHA', complemento: '' },
+          { clave: 'A91', codigo: 'A91', nombre: 'Trucha a la parrilla', categoria: 'TRUCHA', complemento: '' },
+          { clave: 'A118', codigo: 'A118', nombre: 'Pan con Chicharrón', categoria: 'SÁNDWICHES', complemento: '' },
+          { clave: 'A119', codigo: 'A119', nombre: 'Pan con Pollo', categoria: 'SÁNDWICHES', complemento: '' },
+          { clave: 'A132', codigo: 'A132', nombre: 'Salchipapa clasica', categoria: 'PORCIONES - ADICIONALES', complemento: '' },
+          { clave: 'A133', codigo: 'A133', nombre: 'Porcion de arroz', categoria: 'PORCIONES - ADICIONALES', complemento: '' },
+          { clave: 'A134', codigo: 'A134', nombre: 'Porcion de papa frita', categoria: 'PORCIONES - ADICIONALES', complemento: '' },
+          { clave: 'A135', codigo: 'A135', nombre: 'Porcion de ensalada', categoria: 'PORCIONES - ADICIONALES', complemento: '' },
+          { clave: 'A136', codigo: 'A136', nombre: 'Porcion de cancha', categoria: 'PORCIONES - ADICIONALES', complemento: '' },
+          { clave: 'A137', codigo: 'A137', nombre: 'Tamal', categoria: 'PORCIONES - ADICIONALES', complemento: '' },
+          { clave: 'A138', codigo: 'A138', nombre: 'Humita', categoria: 'PORCIONES - ADICIONALES', complemento: '' },
+          { clave: 'A146', codigo: 'A146', nombre: 'Gaseosa personal', categoria: 'BEBIDAS CON GAS', complemento: 'Sabor (máx. 1): Inca Kola, Coca-Cola, Sprite, Fanta · Temperatura (máx. 1): Helada, Sin helar' },
+          { clave: 'A147', codigo: 'A147', nombre: 'Gaseosa 1 litro', categoria: 'BEBIDAS CON GAS', complemento: 'Sabor (máx. 1): Inca Kola, Coca-Cola · Temperatura (máx. 1): Helada, Sin helar' },
+          { clave: 'A148', codigo: 'A148', nombre: 'Gaseosa 1.5 L', categoria: 'BEBIDAS CON GAS', complemento: 'Sabor (máx. 1): Inca Kola, Coca-Cola · Temperatura (máx. 1): Helada, Sin helar' },
+          { clave: 'A149', codigo: 'A149', nombre: 'Gaseosa 3 L', categoria: 'BEBIDAS CON GAS', complemento: 'Sabor (máx. 1): Inca Kola, Coca-Cola · Temperatura (máx. 1): Helada, Sin helar' },
+          { clave: 'A150', codigo: 'A150', nombre: 'Gaseosa Gordita', categoria: 'BEBIDAS CON GAS', complemento: 'Temperatura (máx. 1): Helada, Sin helar' },
+          { clave: 'A151', codigo: 'A151', nombre: 'Gaseosa Jumbo', categoria: 'BEBIDAS CON GAS', complemento: 'Temperatura (máx. 1): Helada, Sin helar' },
+          { clave: 'A152', codigo: 'A152', nombre: 'Agua mineral con gas', categoria: 'BEBIDAS CON GAS', complemento: 'Temperatura (máx. 1): Helada, Sin helar' },
+          { clave: 'A153', codigo: 'A153', nombre: 'Agua mineral sin gas', categoria: 'BEBIDAS CON GAS', complemento: 'Temperatura (máx. 1): Helada, Sin helar' },
+          { clave: 'U342', codigo: 'U342', nombre: 'Filete junior + papas fritas', categoria: 'PORCIONES - ADICIONALES', complemento: '' },
+          { clave: 'T643', codigo: 'T643', nombre: 'Milanesa junior + papas fritas', categoria: 'PORCIONES - ADICIONALES', complemento: '' }
         ],
 
         nuevaRelacion: {
@@ -4565,7 +5600,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           pierna: 'pierna-pollo',
           pechuga: 'pechuga-pollo',
           filete: 'filete',
-          filete_junior: 'filete-junior',
+          filete_pollo: 'filete',
+          filete_junior: 'filete',
           pollo_pachamanca: 'pachamanca-pollo',
           pollo_lena: 'pollo-lena',
           pierna_lena: 'pierna-lena',
@@ -4577,7 +5613,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           salt_pollo: 'salt-pollo',
           chaufa_pollo: 'chaufa-pollo',
           milanesa: 'milanesa',
-          milanesa_junior: 'milanesa-junior',
           panceta: 'panceta',
           trozo_panceta: 'trozo-panceta',
           chancho_lena: 'chancho-lena',
@@ -4620,6 +5655,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.initSoundClip();
           this.restaurarEjemploDespiece(true);
           this.vaciarNumeros();
+          this.activarSkeletonTabla(260);
           this.leerConfigLocal();
           this.cargarColoresLocal();
           await this.cargarMapas();
@@ -4780,15 +5816,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const c = this.norm(p.complemento);
               const texto = (n + ' ' + c).trim();
               if (n.includes('filete de pollo')) push(p, 'Filete', 1, 'filete');
+              else if (n.includes('filete junior')) push(p, 'Filete', 0.5, 'filete');
               else if (n.includes('1/4 pollo') || n.includes('cuarto de pollo')) push(p, 'Pollo leña', 1, 'pieza de Pollo leña');
               else if (n.includes('pachamanca') && (n.includes('pollo') || c.includes('pollo'))) push(p, 'Pollo pachamanca', 1, 'pieza', 'Sabores: Pollo');
               else if (n.includes('chicharron de pollo a la bbq') || n.includes('chicharron de pollo bbq')) push(p, 'Chi. pollo a la BBQ', 1, 'pieza');
               else if (n.includes('acevichada') && n.includes('pollo')) push(p, 'Chi. pollo acevichada', 1, 'pieza');
               else if (n.includes('chicharron de pollo chico') || n.includes('chicharron pollo chico')) push(p, 'Chicharrón de pollo', 0.5, 'pieza');
-              else if (n.includes('fuente') && n.includes('chicharron') && n.includes('pollo')) push(p, 'Chicharrón de pollo', '—', 'por completar');
-              else if (n.includes('chaufa') && n.includes('pollo')) push(p, 'Chaufa de pollo', '—', 'por completar');
-              else if (n.includes('saltado') && n.includes('pollo')) push(p, 'Salt de pollo', '—', 'por completar');
-              else if (n.includes('milanesa')) push(p, 'Milanesa', 1, 'filete');
+              else if (n.includes('fuente') && n.includes('chicharron') && n.includes('pollo')) push(p, 'Chicharrón de pollo', 2, 'filete');
+              else if (n.includes('chaufa') && n.includes('pollo')) push(p, 'Chaufa de pollo', 1, 'filete');
+              else if (n.includes('saltado') && n.includes('pollo')) push(p, 'Salt de pollo', 1, 'filete');
+              else if (n.includes('milanesa') && !n.includes('junior')) push(p, 'Milanesa', 1, 'filete');
               else if (n.includes('pan con pollo')) push(p, 'Menú', '—', 'por completar');
               else if (n.includes('pollada')) push(p, 'Pollada', 1, 'pollada');
               else if (n.includes('arroz con pato') || n.includes('arroz de pato')) push(p, 'Arroz pato', 1, 'arroz pato');
@@ -4819,7 +5856,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 push(p, 'Bebidas', 1, 'agua', guarnicion('Guarnición: agua'));
               }
             });
-            relaciones.push({ id: relaciones.length + 1, rubro: 'Filete', plato: 'Filete junior', complemento: 'Rubro de inventario, sin plato con ese nombre', cantidad: 0.5, unidadNota: 'filete' });
+            if (!relaciones.some((r) => this.norm(r.plato).includes('filete junior') && r.rubro === 'Filete')) {
+              relaciones.push({ id: relaciones.length + 1, rubro: 'Filete', plato: 'Filete junior', complemento: 'U342 · Descuenta 0.5 de Filete Pollo Crudo', cantidad: 0.5, unidadNota: 'filete' });
+            }
             if (relaciones.length) this.config.relaciones = relaciones;
             if (this.platosCarta[0]) this.nuevaRelacion.plato = this.platosCarta[0].nombre;
             this.sincronizarBebidas();
@@ -4897,6 +5936,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         setPeriodo(id) {
           this.periodo = id;
+          this.activarSkeletonTabla(280);
           const r = this.rangoPeriodo();
           if (r.desde && String(r.desde).indexOf('T') === -1) {
             this.customDesde = r.desde;
@@ -5407,11 +6447,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         abrirVentaFila(row) {
           const clave = this.claveDeFila[row.id];
           const total = this.valorTipo(row, 'venta', 'crudo') + this.valorTipo(row, 'venta', 'cocido');
+          const claves = row.id === 'filete'
+            ? ['filete', 'filete-pollo', 'filete-junior']
+            : (clave ? [clave] : []);
           this.abrirVenta({
             nombre: row.nombre,
             venta: total,
             clave: clave,
-            claves: clave ? [clave] : []
+            claves: claves
           }, { ventas: this.ventasPeriodo || [], movimientos: this.movimientosPeriodo || [] });
         },
 
@@ -5561,10 +6604,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const ventaComanda = {};
           const cubiertaComanda = {};
           (ventas || []).forEach((v) => {
-            const rubro = v && (v.rubro || v.plato);
-            const n = Number(v && v.cantidad) || 0;
-            if (!rubro || n <= 0) return;
-            const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
+            let rubro = v && (v.rubro || v.plato);
+            if (!rubro || rubro === 'milanesa-junior' || rubro === 'milanesa_junior' || (v && v.codigo === 'T643')) return;
+            let n = Number(v && v.cantidad) || 0;
+            let tipo = v && v.tipoProducto === 'crudo' ? 'crudo' : 'cocido';
+            if (rubro === 'filete-pollo' || rubro === 'filete_pollo' || (v && v.codigo === 'A31')) {
+              rubro = 'filete';
+              tipo = 'crudo';
+              if (v.platos != null && !(Number(v.factor) > 0)) n = Number(v.platos) * 1;
+            } else if (rubro === 'filete-junior' || rubro === 'filete_junior' || (v && v.codigo === 'U342')) {
+              rubro = 'filete';
+              tipo = 'crudo';
+              if (v.platos != null) {
+                n = Number(v.platos) * 0.5;
+              } else if (v.factor === 1 || v.factor === undefined) {
+                n = n * 0.5;
+              }
+            }
+            if (n <= 0) return;
+            const key = rubro + '|' + tipo;
             ventaComanda[key] = (ventaComanda[key] || 0) + n;
             if (v.sinSaldo) cubiertaComanda[key] = (cubiertaComanda[key] || 0) + n;
           });
@@ -6012,8 +7070,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               ['pierna', 'Pierna de Pollo'],
               ['filete', 'Filete Pollo Crudo'],
               ['milanesa', 'Milanesa de pollo'],
-              ['milanesa_junior', 'Milanesa junior'],
-              ['filete_junior', 'Filete junior'],
               ['chicharron_pollo', 'Chicharrón de pollo'],
               ['salt_pollo', 'Salt de pollo'],
               ['chaufa_pollo', 'Chaufa de pollo'],
@@ -6121,10 +7177,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             frescos: 10,
             piernasAFilete: 0,
             pechugasAFilete: 6,
-            platosFilete: { filete_junior: 0, milanesa: 0 },
+            platosFilete: { 'filete-pollo': 0, 'filete-junior': 0, filete_junior: 0, milanesa: 0 },
+            paseCocido: {
+              pollada: 2,
+              pollo_pachamanca: 8,
+              pollo_lena: 2,
+              pierna_lena: 0,
+              menu: 3,
+              carnero_pachamanca: 3,
+              cerdo_pachamanca: 0,
+              carne_pachamanca: 6,
+              milanesa: 0,
+              salt_pollo: 0,
+              chaufa_pollo: 0,
+              chicharron_pollo: 0,
+              filete_junior: 0
+            },
             aderezos: {
               pollo_pachamanca: { piernas: 4, pechugas: 4 },
               pollo_lena: { piernas: 3, pechugas: 0 },
+              pierna_lena: { piernas: 0, pechugas: 0 },
               pollada: { piernas: 2, pechugas: 2 },
               menu: { piernas: 1, pechugas: 2 }
             },
@@ -6142,24 +7214,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           };
 
           this.rows = [
-            // GRUPO POLLO
+            // GRUPO POLLO (sin fila aparte para Filete junior ni Milanesa junior; Filete Pollo Crudo es el stock crudo de Filete de pollo y Filete junior)
             { id: 'pollo_fresco', grupo: 'pollo', nombre: 'Pollo fresco', detalle: 'Salieron 10 por transformación', unidad: 'unid', saldoAnterior: 10, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 10, destinoTrans: '→ Piezas', inventario: null, crudo: 0, cocido: 0 },
             { id: 'pierna', grupo: 'pollo', nombre: 'Pierna de Pollo', detalle: 'Agrupa pierna a la leña, pollada y pachamanca', unidad: 'pza', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 10, destinoTrans: '→ Aderezos', inventario: null, crudo: 10, cocido: 0 },
             { id: 'pechuga', grupo: 'pollo', nombre: 'Pechuga de Pollo', detalle: 'Agrupa filete y los platos de pieza de pechuga', unidad: 'pza', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 14, destinoTrans: '→ Filete/Ad.', inventario: null, crudo: 6, cocido: 0 },
-            { id: 'filete', grupo: 'pollo', nombre: 'Filete Pollo Crudo', detalle: 'Agrupa el plato Filete de Pollo y los demás que comen filete', unidad: 'unid', saldoAnterior: 0, ingreso: 12, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 12, cocido: 0 },
-            { id: 'filete_junior', grupo: 'pollo', nombre: 'Filete junior', detalle: 'Come 0.5 filete', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'pollo_pachamanca', grupo: 'pollo', nombre: 'Pollo pachamanca', detalle: '4 piernas + 4 pechugas', unidad: 'pza', saldoAnterior: 0, ingreso: 8, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
-            { id: 'pollo_lena', grupo: 'pollo', nombre: 'Pecho a la leña', detalle: 'Pieza de pechuga a la leña', unidad: 'pza', saldoAnterior: 0, ingreso: 3, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 1, cocido: 2 },
-            { id: 'pierna_lena', grupo: 'pollo', nombre: 'Pierna a la leña', detalle: 'Pieza de pierna a la leña', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'pollada', grupo: 'pollo', nombre: 'Pollada', detalle: 'Si no hay cocido ni crudo, resta la pechuga fresca', unidad: 'pza', saldoAnterior: 0, ingreso: 4, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 2, cocido: 2 },
-            { id: 'menu', grupo: 'pollo', nombre: 'Menú', detalle: '1 pierna + 2 pechugas', unidad: 'pza', saldoAnterior: 0, ingreso: 3, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 3 },
+            { id: 'filete', grupo: 'pollo', nombre: 'Filete Pollo Crudo', detalle: 'Sale de pechuga', unidad: 'unid', saldoAnterior: 0, ingreso: 12, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 12, cocido: 0 },
+            { id: 'pollo_pachamanca', grupo: 'pollo', nombre: 'Pollo pachamanca', detalle: '4 piernas + 4 pechugas', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 8, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
+            { id: 'pollo_lena', grupo: 'pollo', nombre: 'Pecho a la leña', detalle: 'Pieza de pechuga a la leña', unidad: 'pza', saldoAnterior: 0, ingreso: 1, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 1, cocido: 2 },
+            { id: 'pierna_lena', grupo: 'pollo', nombre: 'Pierna a la leña', detalle: 'Pieza de pierna a la leña', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'pollada', grupo: 'pollo', nombre: 'Pollada', detalle: 'Si no hay cocido ni crudo, resta la pechuga fresca', unidad: 'pza', saldoAnterior: 0, ingreso: 2, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 2, cocido: 2 },
+            { id: 'menu', grupo: 'pollo', nombre: 'Menú', detalle: '1 pierna + 2 pechugas', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 3, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 3 },
             { id: 'chi_pollo_bbq', grupo: 'pollo', nombre: 'Chi. pollo a la BBQ', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chi_pollo_acevichada', grupo: 'pollo', nombre: 'Chi. pollo acevichada', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'chicharron_pollo', grupo: 'pollo', nombre: 'Chicharrón de pollo', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'salt_pollo', grupo: 'pollo', nombre: 'Salt de pollo', detalle: 'Por completar en la relación', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'chaufa_pollo', grupo: 'pollo', nombre: 'Chaufa de pollo', detalle: 'No sale del arroz blanco', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'milanesa', grupo: 'pollo', nombre: 'Milanesa de pollo', detalle: 'Come 1 filete', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'milanesa_junior', grupo: 'pollo', nombre: 'Milanesa junior', detalle: 'Sin cuadro cocido. Si no hay saldo, resta filete', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'chicharron_pollo', grupo: 'pollo', nombre: 'Chicharrón de pollo', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'salt_pollo', grupo: 'pollo', nombre: 'Lomo saltado de pollo', detalle: 'Por completar en la relación', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'chaufa_pollo', grupo: 'pollo', nombre: 'Chaufa de pollo', detalle: 'No sale del arroz blanco', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'milanesa', grupo: 'pollo', nombre: 'Milanesa de pollo', detalle: 'Come 1 filete', unidad: 'unid', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
 
             { id: 'pato_fresco', grupo: 'pato', nombre: 'Pato fresco', detalle: '1 pato = 2 pechugas y 2 piernas', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'pechuga_pato', grupo: 'pato', nombre: 'Pechuga de pato', detalle: 'Abarca el arroz con pato de pecho', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -6776,8 +7846,54 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           document.body.removeChild(link);
         },
 
+        esGrupoSinDatos(group) {
+          if (!group) return false;
+          return ['carnes', 'gaseosas', 'licores', 'bebidas'].indexOf(group.id) !== -1;
+        },
+
+        raizProductoDeGrupo(groupId) {
+          const mapa = {
+            pollo: 'pollo_fresco',
+            pato: 'pato_fresco',
+            panceta: 'panceta',
+            carnero: 'carnero',
+            arroz: 'arroz'
+          };
+          return mapa[groupId] || '';
+        },
+
+        grupoDeRaizProducto(rowId) {
+          const mapa = {
+            pollo_fresco: 'pollo',
+            pato_fresco: 'pato',
+            panceta: 'panceta',
+            carnero: 'carnero',
+            arroz: 'arroz'
+          };
+          return mapa[rowId] || '';
+        },
+
+        colorFondoGrupo(group) {
+          if (!group || !this.rowBgColors) return '';
+          return this.rowBgColors[group.id] || '';
+        },
+
+        colorFondoFila(row, group, item) {
+          if (!row || !this.rowBgColors) return '';
+          if (this.rowBgColors[row.id]) return this.rowBgColors[row.id];
+          if (item && item.depth === 0 && group && this.rowBgColors[group.id]) {
+            return this.rowBgColors[group.id];
+          }
+          return '';
+        },
+
         setRowBgColor(id, color) {
-          this.rowBgColors = Object.assign({}, this.rowBgColors, { [id]: color });
+          const next = Object.assign({}, this.rowBgColors, { [id]: color });
+          const raizId = this.raizProductoDeGrupo(id);
+          if (raizId) next[raizId] = color;
+          const grpId = this.grupoDeRaizProducto(id);
+          if (grpId) next[grpId] = color;
+          this.rowBgColors = next;
           localStorage.setItem('inventario-row-colors', JSON.stringify(this.rowBgColors));
         },
 
@@ -6793,18 +7909,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         aplicarColorAGrupo(groupId, color) {
-          this.rowBgColors[groupId] = color;
+          const next = Object.assign({}, this.rowBgColors, { [groupId]: color });
+          const raizId = this.raizProductoDeGrupo(groupId);
+          if (raizId) next[raizId] = color;
           this.rows.filter(r => r.grupo === groupId).forEach(r => {
-            this.rowBgColors[r.id] = color;
+            next[r.id] = color;
           });
-          this.rowBgColors = Object.assign({}, this.rowBgColors);
+          this.rowBgColors = next;
           localStorage.setItem('inventario-row-colors', JSON.stringify(this.rowBgColors));
           this.toastMessage = 'Color aplicado a ' + groupId + ' y todas sus filas.';
         },
 
         revertirColor(id) {
-          delete this.rowBgColors[id];
-          this.rowBgColors = Object.assign({}, this.rowBgColors);
+          const next = Object.assign({}, this.rowBgColors);
+          delete next[id];
+          const raizId = this.raizProductoDeGrupo(id);
+          if (raizId) delete next[raizId];
+          const grpId = this.grupoDeRaizProducto(id);
+          if (grpId) delete next[grpId];
+          this.rowBgColors = next;
           localStorage.setItem('inventario-row-colors', JSON.stringify(this.rowBgColors));
         },
 
@@ -7023,6 +8146,422 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const sal = this.calcSaldo(row);
           const cubre = cub ? ` + ${cub} (lo cubrió el producto anterior)` : '';
           return `${row.nombre}: ${sa} (anterior) + ${ing} (ingreso) + ${cor} (corrección) − ${ven} (venta)${cubre} − ${tr} (transformación) = ${sal}`;
+        },
+
+        activarSkeletonTabla(ms = 320) {
+          this.cargandoDatosTabla = true;
+          setTimeout(() => {
+            this.cargandoDatosTabla = false;
+          }, ms);
+        },
+
+        sumaIngresoTotalFila(row) {
+          if (!row) return 0;
+          const ing = this.tiposDe(row).reduce((a, t) => a + Math.max(0, Number(this.valorTipo(row, 'ingreso', t)) || 0), 0);
+          const corPos = this.tiposDe(row).reduce((a, t) => a + Math.max(0, Number(this.valorTipo(row, 'correccion', t)) || 0), 0);
+          return ing + corPos;
+        },
+
+        restaIngresoTotalFila(row) {
+          if (!row) return 0;
+          const corNeg = this.tiposDe(row).reduce((a, t) => a + Math.abs(Math.min(0, Number(this.valorTipo(row, 'correccion', t)) || 0)), 0);
+          const trans = this.totalTransformacionFila(row);
+          const vtas = this.tiposDe(row).reduce((a, t) => a + Math.max(0, Number(this.valorTipo(row, 'venta', t)) || 0), 0);
+          return corNeg + trans + vtas;
+        },
+
+        irAFilaProducto(prodId) {
+          if (!prodId) return;
+          this.showTransformacionModal = false;
+          this.showSaldoRealModal = false;
+          this.activeTab = 'tabla';
+          this.busqueda = '';
+          this.filtroCategoria = 'todos';
+          this.expandAllGroups(true);
+          this.filaResaltadaId = prodId;
+          const r = this.getRow(prodId);
+          if (r && r.nombre) {
+            this.toastMessage = '📍 Redirigido a la fila: ' + r.nombre;
+          }
+          setTimeout(() => {
+            const el = document.getElementById('fila-prod-' + prodId);
+            if (el && typeof el.scrollIntoView === 'function') {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 90);
+          setTimeout(() => {
+            if (this.filaResaltadaId === prodId) {
+              this.filaResaltadaId = '';
+            }
+          }, 4200);
+        },
+
+        etiquetaPeriodoSeleccionado() {
+          const mapa = {
+            hoy: 'Hoy',
+            ayer: 'Ayer',
+            '7dias': 'Últimos 7 días',
+            '30dias': 'Últimos 30 días',
+            mes: 'Este mes',
+            anio: 'Último año',
+            dia: 'Turno Día',
+            noche: 'Turno Noche',
+            custom: 'Personalizado'
+          };
+          return mapa[this.periodo] || 'Hoy';
+        },
+
+        diasMultiplicadorPeriodo() {
+          const r = this.rangoPeriodo();
+          if (!r || !r.desde || !r.hasta || String(r.desde).indexOf('T') !== -1) return 1;
+          const d1 = new Date(r.desde + 'T00:00:00');
+          const d2 = new Date(r.hasta + 'T00:00:00');
+          const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+          return Math.max(1, Math.min(365, diff || 1));
+        },
+
+        abrirModalProcedimientoSaldoReal(row) {
+          if (!row) return;
+          this.saldoRealInfo = this.construirProcedimientoSaldoReal(row);
+          this.showSaldoRealModal = true;
+        },
+
+        construirProcedimientoSaldoReal(row) {
+          const r = this.rangoPeriodo();
+          const dias = this.diasMultiplicadorPeriodo();
+          const etqPeriodo = this.etiquetaPeriodoSeleccionado();
+          const rangoFechas = (r && r.desde && r.hasta) ? (r.desde === r.hasta ? r.desde : (r.desde + ' → ' + r.hasta + ' (' + dias + ' días)')) : 'Hoy';
+
+          const antCrudo = Number(this.valorTipo(row, 'saldoAnterior', 'crudo')) || 0;
+          const antCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'saldoAnterior', 'cocido')) || 0) : 0;
+          const saldoAnterior = antCrudo + antCocido;
+
+          const ingCrudo = (Number(this.valorTipo(row, 'ingreso', 'crudo')) || 0);
+          const ingCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'ingreso', 'cocido')) || 0) : 0;
+          const ingreso = ingCrudo + ingCocido;
+
+          const corCrudo = (Number(this.valorTipo(row, 'correccion', 'crudo')) || 0);
+          const corCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'correccion', 'cocido')) || 0) : 0;
+          const correccion = corCrudo + corCocido;
+
+          const ingresoTotal = this.calcIngresoTotal(row);
+
+          const vtaCrudo = (Number(this.valorTipo(row, 'venta', 'crudo')) || 0);
+          const vtaCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'venta', 'cocido')) || 0) : 0;
+          const ventas = vtaCrudo + vtaCocido;
+
+          const transCrudo = (Number(this.valorTipo(row, 'transformacion', 'crudo')) || 0);
+          const transCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'transformacion', 'cocido')) || 0) : 0;
+          const transformacion = transCrudo + transCocido;
+
+          const saldoTeorico = this.calcSaldo(row);
+          const quedaSaldoReal = this.calcSaldoReal(row);
+
+          const cntCrudo = this.conteoTipo(row, 'crudo');
+          const cntCocido = row.tieneCocido ? this.conteoTipo(row, 'cocido') : null;
+          const huboConteo = (cntCrudo !== null) || (cntCocido !== null);
+          const difTotal = huboConteo ? (quedaSaldoReal - saldoTeorico) : null;
+
+          const pasos = [
+            {
+              tipo: 'apertura',
+              icono: '1',
+              titulo: '1. Saldo Anterior (Apertura)',
+              etiquetaAccion: 'BASE INICIAL',
+              explicacion: 'Stock con el que abrió ' + row.nombre + ' al iniciar el período (' + etqPeriodo + ').',
+              desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(antCrudo) + ' · Cocido: ' + this.formatNum(antCocido)) : '',
+              valorFormateado: this.formatNum(saldoAnterior)
+            },
+            {
+              tipo: 'suma',
+              icono: '↑',
+              titulo: '2. Ingreso del Período',
+              etiquetaAccion: ingreso > 0 ? '+ SUMA AL INVENTARIO' : 'SIN INGRESO',
+              explicacion: ingreso > 0 ? ('Se sumaron +' + this.formatNum(ingreso) + ' ' + (row.unidad || 'unid') + ' por entrada o despiece en ' + etqPeriodo + '.') : 'No se registraron entradas nuevas en este período.',
+              desgloseTipos: row.tieneCocido ? ('Crudo: +' + this.formatNum(ingCrudo) + ' · Cocido: +' + this.formatNum(ingCocido)) : '',
+              valorFormateado: '+' + this.formatNum(ingreso)
+            },
+            {
+              tipo: correccion < 0 ? 'resta' : 'suma',
+              icono: correccion < 0 ? '↓' : '↑',
+              titulo: '3. Corrección Manual',
+              etiquetaAccion: correccion === 0 ? 'SIN AJUSTE (0)' : (correccion > 0 ? '+ SUMA POR AJUSTE' : '− RESTA POR AJUSTE'),
+              explicacion: correccion === 0 ? 'No hubo ajustes manuales en la columna Corrección.' : ('Ajuste manual aplicado en hoja: ' + (correccion > 0 ? '+' : '−') + this.formatNum(Math.abs(correccion)) + '.'),
+              desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(corCrudo) + ' · Cocido: ' + this.formatNum(corCocido)) : '',
+              valorFormateado: (correccion >= 0 ? '+' : '−') + this.formatNum(Math.abs(correccion))
+            },
+            {
+              tipo: 'subtotal',
+              icono: '=',
+              titulo: 'Subtotal 1: Ingreso Total Disponible',
+              etiquetaAccion: 'APERTURA + INGRESO + CORRECCIÓN',
+              explicacion: 'Total acumulado disponible antes de descontar ventas y transformaciones.',
+              desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(this.calcIngresoTotalTipo(row, 'crudo')) + ' · Cocido: ' + this.formatNum(this.calcIngresoTotalTipo(row, 'cocido'))) : '',
+              valorFormateado: this.formatNum(ingresoTotal)
+            },
+            {
+              tipo: 'resta',
+              icono: '↓',
+              titulo: '4. Resta por Ventas (Comandas / Manual)',
+              etiquetaAccion: ventas > 0 ? '− RESTA POR VENTAS' : 'SIN VENTAS (0)',
+              explicacion: ventas > 0 ? ('Se descontaron −' + this.formatNum(ventas) + ' ' + (row.unidad || 'unid') + ' por platos vendidos en comandas o venta manual.') : 'Sin salidas por ventas registradas en el período.',
+              desgloseTipos: row.tieneCocido ? ('Crudo: −' + this.formatNum(vtaCrudo) + ' · Cocido: −' + this.formatNum(vtaCocido)) : '',
+              valorFormateado: '−' + this.formatNum(ventas)
+            },
+            {
+              tipo: 'resta',
+              icono: '↓',
+              titulo: '5. Resta por Transformación / Despiece',
+              etiquetaAccion: transformacion > 0 ? '− RESTA POR TRANSFORMACIÓN' : 'SIN TRANSFORMACIÓN (0)',
+              explicacion: transformacion > 0 ? ('Se restaron −' + this.formatNum(transformacion) + ' ' + (row.unidad || 'unid') + ' para convertirse en cortes/platos hijos.') : 'Este producto no tuvo salidas por transformación.',
+              desgloseTipos: '',
+              valorFormateado: '−' + this.formatNum(transformacion)
+            },
+            {
+              tipo: 'subtotal',
+              icono: '=',
+              titulo: 'Subtotal 2: Saldo Calculado en Hoja',
+              etiquetaAccion: 'INGRESO TOTAL − VENTAS − TRANSFORMACIÓN',
+              explicacion: 'Lo que teóricamente queda según el flujo matemático del sistema.',
+              desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(this.calcSaldoTipo(row, 'crudo')) + ' · Cocido: ' + this.formatNum(this.calcSaldoTipo(row, 'cocido'))) : '',
+              valorFormateado: this.formatNum(saldoTeorico)
+            },
+            {
+              tipo: difTotal !== null && difTotal < 0 ? 'resta' : 'suma',
+              icono: huboConteo ? '#' : '✓',
+              titulo: '6. Verificación de Conteo Físico en Cámara',
+              etiquetaAccion: huboConteo ? (difTotal === 0 ? 'CUADRA EXACTO' : (difTotal > 0 ? ('SOBRA +' + this.formatNum(difTotal)) : ('FALTA −' + this.formatNum(Math.abs(difTotal))))) : 'SIN CONTEO FÍSICO (USA SALDO)',
+              explicacion: huboConteo ? ('Se contó físicamente en cámara. El conteo físico define el Saldo Real final.') : 'Aún no se ingresó conteo físico manual (— Contar), por lo que el Saldo Real toma el Saldo Calculado.',
+              desgloseTipos: huboConteo && row.tieneCocido ? ('Conteo Crudo: ' + (cntCrudo === null ? '—' : cntCrudo) + ' · Conteo Cocido: ' + (cntCocido === null ? '—' : cntCocido)) : '',
+              valorFormateado: huboConteo ? ((difTotal >= 0 ? '+' : '−') + this.formatNum(Math.abs(difTotal))) : '0'
+            },
+            {
+              tipo: 'cierre',
+              icono: '★',
+              titulo: 'Resultado Final: Queda (Saldo Real)',
+              etiquetaAccion: 'SALDO REAL ACTUAL EN ' + etqPeriodo.toUpperCase(),
+              explicacion: 'Stock real definitivo con el que cuenta cocina y cámara en el período seleccionado.',
+              desgloseTipos: row.tieneCocido ? ('Queda Crudo: ' + this.formatNum(this.calcSaldoRealTipo(row, 'crudo')) + ' · Queda Cocido: ' + this.formatNum(this.calcSaldoRealTipo(row, 'cocido'))) : '',
+              valorFormateado: this.formatNum(quedaSaldoReal)
+            }
+          ];
+
+          return {
+            id: row.id,
+            nombre: row.nombre,
+            unidad: row.unidad || 'unid',
+            etiquetaPeriodo: etqPeriodo,
+            rangoFechas,
+            saldoAnterior,
+            ingreso,
+            correccion,
+            ingresoTotal,
+            ventas,
+            transformacion,
+            saldoTeorico,
+            quedaSaldoReal,
+            estadoTexto: this.estadoFila(row),
+            puntoEstado: this.clasePuntoEstado(row),
+            pasos
+          };
+        },
+
+        totalTransformacionFila(row) {
+          if (!row) return 0;
+          return (Number(this.valorTipo(row, 'transformacion', 'crudo')) || 0) +
+                 (Number(this.valorTipo(row, 'transformacion', 'cocido')) || 0);
+        },
+
+        abrirModalTransformacion(row) {
+          if (!row) return;
+          this.transformacionInfo = this.construirDetalleTransformacion(row);
+          this.showTransformacionModal = true;
+        },
+
+        construirDetalleTransformacion(row) {
+          const id = row.id;
+          const saldoAnterior = this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'saldoAnterior', t), 0);
+          const ingreso = this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'ingreso', t), 0);
+          const correccion = this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'correccion', t), 0);
+          const ingresoTotal = this.calcIngresoTotal(row);
+          const transformado = this.totalTransformacionFila(row);
+          const ventas = this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'venta', t), 0);
+          const queda = this.calcSaldo(row);
+
+          const basePct = Math.max(1, ingresoTotal);
+          const pctTransformado = Math.min(100, Math.round((Math.max(0, transformado) / basePct) * 100));
+          const pctQueda = Math.max(0, Math.min(100 - pctTransformado, Math.round((Math.max(0, queda) / basePct) * 100)));
+
+          const info = {
+            origen: {
+              id: row.id,
+              nombre: row.nombre,
+              unidad: row.unidad || 'unid',
+              saldoAnterior,
+              ingreso,
+              correccion,
+              ingresoTotal,
+              transformado,
+              ventas,
+              queda,
+              pctTransformado,
+              pctQueda
+            },
+            subtitulo: 'Disposición vertical simétrica: arriba el producto origen y debajo los cortes/platos resultantes con botón Ir.',
+            resumenConversion: 'Se transforma verticalmente en:',
+            origenPadreId: '',
+            origenPadreNombre: '',
+            destinos: [],
+            mensajeSinDestino: ''
+          };
+
+          const makeDest = (destRowId, factorTexto, usadoDelOrigen, generado, color, tieneSub = false, detalleQueda = '') => {
+            const rDest = this.getRow(destRowId);
+            const transHijo = this.totalTransformacionFila(rDest);
+            const ventasHijo = this.tiposDe(rDest).reduce((a, t) => a + this.valorTipo(rDest, 'venta', t), 0);
+            return {
+              id: destRowId,
+              nombre: rDest.nombre || destRowId,
+              unidad: rDest.unidad || 'pza',
+              factorTexto,
+              usadoDelOrigen,
+              generado,
+              transformadoHijo: transHijo,
+              ventasHijo,
+              queda: this.calcSaldoReal(rDest),
+              color: color || 'gold',
+              tieneSubTransformacion: tieneSub,
+              detalleQueda
+            };
+          };
+
+          if (id === 'pollo_fresco') {
+            const fPech = Number(this.config.factorPechugasPorFresco) || 2;
+            const fPier = Number(this.config.factorPiernasPorFresco) || 2;
+            const frescos = Number(this.despiece.frescos) || transformado;
+            info.resumenConversion = frescos + ' Pollo(s) Fresco(s) → ' + (frescos * fPech) + ' Pechugas + ' + (frescos * fPier) + ' Piernas';
+            info.destinos = [
+              makeDest('pechuga', '1 Pollo → ' + fPech + ' Pechugas', frescos, frescos * fPech, 'sky', true, 'De ' + (frescos * fPech) + ' pechugas, salieron ' + this.pechugasUsadas() + ' a filetes/platos'),
+              makeDest('pierna', '1 Pollo → ' + fPier + ' Piernas', frescos, frescos * fPier, 'emerald', true, 'De ' + (frescos * fPier) + ' piernas, salieron ' + this.piernasUsadas() + ' a platos')
+            ];
+          } else if (id === 'pechuga') {
+            info.origenPadreId = 'pollo_fresco';
+            info.origenPadreNombre = 'Pollo fresco';
+            const fFil = Number(this.config.factorFiletesPorPechuga) || 2;
+            const pechAFi = Number(this.despiece.pechugasAFilete) || 0;
+            info.resumenConversion = transformado + ' Pechuga(s) repartidas hacia Filete y Platos de Pechuga';
+            info.destinos.push(
+              makeDest('filete', '1 Pechuga → ' + fFil + ' Filetes', pechAFi, pechAFi * fFil, 'gold', true, pechAFi + ' pechugas produjeron ' + (pechAFi * fFil) + ' filetes')
+            );
+            this.aderezosDeCorte('pechugas').forEach((ad) => {
+              const usadas = Number(this.despiece.aderezos?.[ad.id]?.pechugas) || 0;
+              info.destinos.push(
+                makeDest(ad.id, '1 Pechuga → 1 pza', usadas, usadas, 'sky', false, 'Recibió ' + usadas + ' pechuga(s)')
+              );
+            });
+          } else if (id === 'pierna') {
+            info.origenPadreId = 'pollo_fresco';
+            info.origenPadreNombre = 'Pollo fresco';
+            info.resumenConversion = transformado + ' Pierna(s) repartidas hacia Platos de Pierna';
+            if (this.hasFactorPiernaFilete()) {
+              const fFilP = Number(this.config.factorFiletesPorPierna) || 1;
+              const pierAFi = Number(this.despiece.piernasAFilete) || 0;
+              info.destinos.push(
+                makeDest('filete', '1 Pierna → ' + fFilP + ' Filete', pierAFi, pierAFi * fFilP, 'gold', true)
+              );
+            }
+            this.aderezosDeCorte('piernas').forEach((ad) => {
+              const usadas = Number(this.despiece.aderezos?.[ad.id]?.piernas) || 0;
+              info.destinos.push(
+                makeDest(ad.id, '1 Pierna → 1 pza', usadas, usadas, 'emerald', false, 'Recibió ' + usadas + ' pierna(s)')
+              );
+            });
+          } else if (id === 'filete') {
+            info.origenPadreId = 'pechuga';
+            info.origenPadreNombre = 'Pechuga de Pollo';
+            info.resumenConversion = 'Reparto de Filete Pollo Crudo hacia Platos de Filete';
+            this.platosDelFilete().forEach((plato) => {
+              const rPlato = this.filaReal(plato.id);
+              if (!rPlato) return;
+              const cant = Number(this.despiece.platosFilete?.[plato.id]) || 0;
+              const factor = Number(plato.cantidad) || 1;
+              info.destinos.push(
+                makeDest(plato.id, 'Come ' + factor + ' filete', cant * factor, cant, 'gold', false)
+              );
+            });
+          } else if (id === 'panceta') {
+            const sal = Number(this.despiece.pancetasSalen) || transformado;
+            const trozos = sal > 0 ? (Number(this.despiece.trozosPanceta) || 12) : 0;
+            info.resumenConversion = sal + ' Panceta(s) → ' + trozos + ' Trozos de panceta (corte manual)';
+            info.destinos = [
+              makeDest('trozo_panceta', 'Corte manual', sal, trozos, 'gold', false, 'Anotado manualmente según rendimiento de cocina')
+            ];
+          } else if (id === 'carnero') {
+            const sal = Number(this.despiece.carneroSalen) || transformado;
+            const fCar = Number(this.config.factorCarneroPachamanca) || 1;
+            info.resumenConversion = sal + ' Carnero → ' + (sal * fCar) + ' Carnero pachamanca';
+            info.destinos = [
+              makeDest('carnero_pachamanca', '1 → ' + fCar + ' Pachamanca', sal, sal * fCar, 'emerald', false)
+            ];
+          } else if (id === 'arroz') {
+            info.resumenConversion = transformado + ' de Arroz crudo repartido en ollas de arroz cocido';
+            this.destinosArroz().forEach((d) => {
+              const crudos = Number(this.despiece[d.campo]) || 0;
+              const factor = Number(this.config[d.factorKey]) || 1;
+              info.destinos.push(
+                makeDest(d.id, '1 crudo → ' + factor, crudos, crudos * factor, 'sky', false)
+              );
+            });
+          } else if (id === 'pato_fresco') {
+            const mapaPato = (this.mapasCargados ? this.mapas : this.mapasRespaldo()).find(m => m.id === 'pato-fresco');
+            const origPato = this.origenMapa('pato-fresco') || transformado;
+            info.resumenConversion = origPato + ' Pato(s) fresco(s) → Pechugas y Piernas de pato';
+            if (mapaPato && mapaPato.cortes) {
+              mapaPato.cortes.forEach((c, idx) => {
+                const cId = this.idDeClave(c.clave);
+                const f = Number(c.factor) || 2;
+                info.destinos.push(
+                  makeDest(cId, '1 Pato → ' + f, origPato, origPato * f, idx === 0 ? 'sky' : 'emerald', false)
+                );
+              });
+            }
+          } else {
+            const padresMap = {
+              pollo_pachamanca: 'pechuga',
+              pollo_lena: 'pechuga',
+              pierna_lena: 'pierna',
+              pollada: 'pechuga',
+              menu: 'pechuga',
+              milanesa: 'filete',
+              milanesa_junior: 'filete',
+              filete_junior: 'filete',
+              chi_pollo_bbq: 'filete',
+              chi_pollo_acevichada: 'filete',
+              chicharron_pollo: 'filete',
+              salt_pollo: 'filete',
+              chaufa_pollo: 'filete',
+              trozo_panceta: 'panceta',
+              carnero_pachamanca: 'carnero',
+              arroz_blanco: 'arroz',
+              arroz_verde: 'arroz',
+              arroz_pato: 'arroz',
+              arroz_chaufa: 'arroz',
+              arroz_mariscos: 'arroz',
+              arroz_pollo: 'arroz',
+              pechuga_pato: 'pato_fresco',
+              pierna_pato: 'pato_fresco'
+            };
+            if (padresMap[id]) {
+              const pRow = this.getRow(padresMap[id]);
+              info.origenPadreId = padresMap[id];
+              info.origenPadreNombre = pRow ? pRow.nombre : padresMap[id];
+              info.mensajeSinDestino = row.nombre + ' recibe su ingreso desde "' + info.origenPadreNombre + '". Pulsa el botón superior "↑ Subir a ' + info.origenPadreNombre + '" para ver el árbol completo de transformación.';
+            } else {
+              info.mensajeSinDestino = row.nombre + ' es un producto de ingreso directo en la hoja y no requiere transformación intermedia.';
+            }
+          }
+
+          return info;
         },
 
         formatNum(n) {
@@ -7265,14 +8804,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           rFilete.cocido = 0;
           this.pulseRowTotal('filete');
 
+          if (!this.despiece.paseCocido) this.despiece.paseCocido = {};
+          const acumuladosFiletePorFila = {};
           this.platosDelFilete().forEach((plato) => {
-            const row = this.filaReal(plato.id);
-            if (!row) return;
+            const targetId = this.filaIdDePlatoTransformar(plato.id);
+            if (!targetId) return;
             const cant = Number(this.despiece.platosFilete && this.despiece.platosFilete[plato.id] || 0);
-            row.ingreso = cant;
-            row.cocido = cant;
-            row.crudo = 0;
-            this.pulseRowTotal(plato.id);
+            acumuladosFiletePorFila[targetId] = (acumuladosFiletePorFila[targetId] || 0) + cant;
+          });
+          Object.keys(acumuladosFiletePorFila).forEach((rowId) => {
+            const row = this.filaReal(rowId);
+            if (!row) return;
+            const totalBruto = acumuladosFiletePorFila[rowId];
+            if (row.tieneCocido) {
+              const pase = Math.min(totalBruto, Math.max(0, Number(this.despiece.paseCocido[row.id] || 0)));
+              this.despiece.paseCocido[row.id] = pase;
+              row.ingreso = Math.max(0, totalBruto - pase);
+              row.ingresoCocido = pase;
+              row.crudo = this.calcSaldoTipo(row, 'crudo');
+              row.cocido = this.calcSaldoTipo(row, 'cocido');
+            } else {
+              row.ingreso = totalBruto;
+              row.ingresoCocido = 0;
+              row.crudo = this.calcSaldo(row);
+              row.cocido = 0;
+            }
+            this.pulseRowTotal(row.id);
           });
           this.volcarMapasDinamicosEnFilas();
 
@@ -7281,6 +8838,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const p = Number(this.despiece.aderezos[ad.id]?.piernas || 0);
             const pech = Number(this.despiece.aderezos[ad.id]?.pechugas || 0);
             const totalAd = p + pech;
+            const pasePrev = Math.max(0, Number(this.despiece.paseCocido[ad.id] || 0));
+            const pase = Math.min(totalAd, pasePrev);
+            this.despiece.paseCocido[ad.id] = pase;
             if (!row) {
               row = {
                 id: ad.id,
@@ -7289,25 +8849,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 detalle: p + ' piernas + ' + pech + ' pechugas',
                 unidad: 'pza',
                 saldoAnterior: 0,
-                ingreso: totalAd,
+                ingreso: Math.max(0, totalAd - pase),
+                ingresoCocido: pase,
                 correccion: 0,
                 venta: 0,
                 transformacion: 0,
                 destinoTrans: '',
                 inventario: null,
-                crudo: 0,
-                cocido: totalAd,
+                tieneCocido: this.tienePaseCocido(ad.id),
+                crudo: Math.max(0, totalAd - pase),
+                cocido: pase,
                 isNew: true
               };
               this.rows.push(row);
               setTimeout(() => { row.isNew = false; }, 600);
             } else {
               row.nombre = ad.nombre;
-              row.ingreso = totalAd;
               row.detalle = p + ' piernas + ' + pech + ' pechugas';
-              if (row.crudo + row.cocido !== this.calcSaldo(row)) {
-                row.cocido = this.calcSaldo(row);
-                row.crudo = 0;
+              if (row.tieneCocido) {
+                row.ingreso = Math.max(0, totalAd - pase);
+                row.ingresoCocido = pase;
+                row.crudo = this.calcSaldoTipo(row, 'crudo');
+                row.cocido = this.calcSaldoTipo(row, 'cocido');
+              } else {
+                row.ingreso = totalAd;
+                row.ingresoCocido = 0;
+                row.crudo = this.calcSaldo(row);
+                row.cocido = 0;
               }
             }
             this.pulseRowTotal(ad.id);
@@ -7330,9 +8898,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.pulseRowTotal('carnero');
 
           const rCarneroPacha = this.getRow('carnero_pachamanca');
-          rCarneroPacha.ingreso = Number(this.despiece.carneroSalen || 0) * Number(this.config.factorCarneroPachamanca || 1);
-          rCarneroPacha.cocido = this.calcSaldo(rCarneroPacha);
-          rCarneroPacha.crudo = 0;
+          const totalCarneroPacha = Number(this.despiece.carneroSalen || 0) * Number(this.config.factorCarneroPachamanca || 1);
+          const paseCarnero = Math.min(totalCarneroPacha, Math.max(0, Number(this.despiece.paseCocido?.carnero_pachamanca ?? totalCarneroPacha)));
+          if (this.despiece.paseCocido) this.despiece.paseCocido.carnero_pachamanca = paseCarnero;
+          rCarneroPacha.ingreso = Math.max(0, totalCarneroPacha - paseCarnero);
+          rCarneroPacha.ingresoCocido = paseCarnero;
+          rCarneroPacha.crudo = this.calcSaldoTipo(rCarneroPacha, 'crudo');
+          rCarneroPacha.cocido = this.calcSaldoTipo(rCarneroPacha, 'cocido');
           this.pulseRowTotal('carnero_pachamanca');
 
           const rArroz = this.getRow('arroz');
@@ -7680,8 +9252,244 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             .map((x) => x.m);
         },
 
+        filaIdDePlatoTransformar(idOrClave) {
+          const raw = String(idOrClave || '');
+          if (!raw || raw === 'filete-pollo' || raw === 'filete_pollo' || raw === 'filete-junior' || raw === 'filete_junior') return '';
+          const mapa = {
+            'fuente-chi': 'chicharron_pollo',
+            fuente_chi: 'chicharron_pollo',
+            'chi-chico': 'chicharron_pollo',
+            chi_chico: 'chicharron_pollo',
+            'chicharron-pollo': 'chicharron_pollo',
+            chicharron_pollo: 'chicharron_pollo',
+            'chaufa-pollo': 'chaufa_pollo',
+            chaufa_pollo: 'chaufa_pollo',
+            'salt-pollo': 'salt_pollo',
+            salt_pollo: 'salt_pollo',
+            'chi-pollo-bbq': 'chi_pollo_bbq',
+            chi_pollo_bbq: 'chi_pollo_bbq',
+            'chi-pollo-acevichada': 'chi_pollo_acevichada',
+            chi_pollo_acevichada: 'chi_pollo_acevichada',
+            milanesa: 'milanesa',
+            'pachamanca-pollo': 'pollo_pachamanca',
+            pollo_pachamanca: 'pollo_pachamanca',
+            'pollo-lena': 'pollo_lena',
+            pollo_lena: 'pollo_lena',
+            'pierna-lena': 'pierna_lena',
+            pierna_lena: 'pierna_lena',
+            pollada: 'pollada',
+            menu: 'menu',
+            'pachamanca-chancho': 'cerdo_pachamanca',
+            cerdo_pachamanca: 'cerdo_pachamanca',
+            'pachamanca-res': 'carne_pachamanca',
+            carne_pachamanca: 'carne_pachamanca',
+            'pachamanca-cordero': 'carnero_pachamanca',
+            carnero_pachamanca: 'carnero_pachamanca'
+          };
+          return mapa[raw] || (this.filaReal(raw) ? raw : '');
+        },
+
+        claveDeProductoTransformar(idOrClave) {
+          const raw = String(idOrClave || '');
+          const mapaClave = {
+            pollo_fresco: 'pollo-origen',
+            pechuga: 'pechuga-pollo',
+            pierna: 'pierna-pollo',
+            filete: 'filete',
+            'filete-pollo': 'filete',
+            filete_pollo: 'filete',
+            'filete-junior': 'filete-junior',
+            filete_junior: 'filete-junior',
+            milanesa: 'milanesa',
+            'milanesa-junior': 'milanesa-junior',
+            milanesa_junior: 'milanesa-junior',
+            'chi-pollo-bbq': 'chi-pollo-bbq',
+            chi_pollo_bbq: 'chi-pollo-bbq',
+            'chi-pollo-acevichada': 'chi-pollo-acevichada',
+            chi_pollo_acevichada: 'chi-pollo-acevichada',
+            'fuente-chi': 'chicharron-pollo',
+            fuente_chi: 'chicharron-pollo',
+            'chi-chico': 'chicharron-pollo',
+            chi_chico: 'chicharron-pollo',
+            'chicharron-pollo': 'chicharron-pollo',
+            chicharron_pollo: 'chicharron-pollo',
+            'salt-pollo': 'salt-pollo',
+            salt_pollo: 'salt-pollo',
+            'chaufa-pollo': 'chaufa-pollo',
+            chaufa_pollo: 'chaufa-pollo',
+            pollada: 'pollada',
+            menu: 'menu',
+            'pollo-lena': 'pollo-lena',
+            pollo_lena: 'pollo-lena',
+            'pierna-lena': 'pierna-lena',
+            pierna_lena: 'pierna-lena',
+            'pachamanca-pollo': 'pachamanca-pollo',
+            pollo_pachamanca: 'pachamanca-pollo',
+            'pachamanca-chancho': 'pachamanca-chancho',
+            cerdo_pachamanca: 'pachamanca-chancho',
+            'pachamanca-res': 'pachamanca-res',
+            carne_pachamanca: 'pachamanca-res',
+            'pachamanca-cordero': 'pachamanca-cordero',
+            carnero_pachamanca: 'pachamanca-cordero'
+          };
+          return mapaClave[raw] || this.claveDeFila[raw] || raw;
+        },
+
+        tienePaseCocido(idOrClave) {
+          const raw = String(idOrClave || '');
+          if (!raw || raw === 'filete-pollo' || raw === 'filete_pollo') return false;
+          const clave = this.claveDeProductoTransformar(raw);
+          if (!clave || this.esMateriaClave(clave)) return false;
+          const rowId = this.filaIdDePlatoTransformar(raw);
+          const row = rowId ? this.filaReal(rowId) : null;
+          if (row && typeof row.tieneCocido === 'boolean') return row.tieneCocido === true;
+          return this.opcionCocidoDe(clave).tieneCocido === true;
+        },
+
+        crudoActualTransformar(idOrClave) {
+          const raw = String(idOrClave || '');
+          if (raw === 'filete-junior' || raw === 'filete_junior') {
+            const total = Number(this.despiece.platosFilete?.['filete-junior'] ?? this.despiece.platosFilete?.filete_junior ?? 0);
+            const coc = Math.min(total, Math.max(0, Number(this.despiece.paseCocido?.filete_junior || 0)));
+            return Math.max(0, total - coc);
+          }
+          const rowId = this.filaIdDePlatoTransformar(raw);
+          const row = rowId ? this.filaReal(rowId) : null;
+          if (!row) return 0;
+          return Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+        },
+
+        cocidoActualTransformar(idOrClave) {
+          const raw = String(idOrClave || '');
+          if (raw === 'filete-junior' || raw === 'filete_junior') {
+            const total = Number(this.despiece.platosFilete?.['filete-junior'] ?? this.despiece.platosFilete?.filete_junior ?? 0);
+            return Math.min(total, Math.max(0, Number(this.despiece.paseCocido?.filete_junior || 0)));
+          }
+          const rowId = this.filaIdDePlatoTransformar(raw);
+          const row = rowId ? this.filaReal(rowId) : null;
+          if (!row) return 0;
+          return Math.max(0, this.calcSaldoTipo(row, 'cocido'));
+        },
+
+        async pasarCrudoACocido(idOrClave, delta) {
+          const raw = String(idOrClave || '');
+          if (!this.tienePaseCocido(raw)) return;
+          const cambioSolicitado = Math.round(Number(delta) || 0);
+          if (!cambioSolicitado) return;
+          if (!this.despiece.paseCocido) this.despiece.paseCocido = {};
+
+          if (raw === 'filete-junior' || raw === 'filete_junior') {
+            const total = Number(this.despiece.platosFilete?.['filete-junior'] ?? this.despiece.platosFilete?.filete_junior ?? 0);
+            const actual = Math.min(total, Math.max(0, Number(this.despiece.paseCocido.filete_junior || 0)));
+            const sig = Math.max(0, Math.min(total, actual + cambioSolicitado));
+            this.despiece.paseCocido.filete_junior = sig;
+            return;
+          }
+
+          const rowId = this.filaIdDePlatoTransformar(raw);
+          const row = rowId ? this.filaReal(rowId) : null;
+          if (!row || !row.tieneCocido) return;
+
+          if (cambioSolicitado > 0) {
+            const crudoDisp = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+            const pasoReal = Math.min(cambioSolicitado, crudoDisp);
+            if (pasoReal <= 0) {
+              this.transformWarning = 'Aviso ámbar: ' + row.nombre + ' no tiene unidades crudas disponibles para pasar a cocido.';
+              return;
+            }
+            this.transformWarning = '';
+            const ingCrudo = Number(row.ingreso) || 0;
+            if (ingCrudo >= pasoReal) {
+              row.ingreso = ingCrudo - pasoReal;
+            } else {
+              const resto = pasoReal - ingCrudo;
+              row.ingreso = 0;
+              row.correccion = (Number(row.correccion) || 0) - resto;
+            }
+            row.ingresoCocido = (Number(row.ingresoCocido) || 0) + pasoReal;
+            this.despiece.paseCocido[row.id] = Math.max(0, (Number(this.despiece.paseCocido[row.id]) || 0) + pasoReal);
+            row.crudo = this.calcSaldoTipo(row, 'crudo');
+            row.cocido = this.calcSaldoTipo(row, 'cocido');
+            this.pulseRowTotal(row.id);
+            this.anotarHistorial('transforma', row.nombre + ' (Crudo → Cocido)', '−' + pasoReal + ' crudo, +' + pasoReal + ' cocido');
+            const clave = this.claveDeFila[row.id];
+            if (clave) {
+              try {
+                await this.paso(clave, 'crudo', -pasoReal, 'Pasa a cocido ' + row.nombre);
+                await this.paso(clave, 'cocido', pasoReal, 'Pasa de crudo ' + row.nombre);
+              } catch (e) {}
+            }
+          } else {
+            const cocidoDisp = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
+            const revReal = Math.min(Math.abs(cambioSolicitado), cocidoDisp);
+            if (revReal <= 0) return;
+            this.transformWarning = '';
+            const ingCocido = Number(row.ingresoCocido) || 0;
+            if (ingCocido >= revReal) {
+              row.ingresoCocido = ingCocido - revReal;
+            } else {
+              const resto = revReal - ingCocido;
+              row.ingresoCocido = 0;
+              row.correccionCocido = (Number(row.correccionCocido) || 0) - resto;
+            }
+            row.ingreso = (Number(row.ingreso) || 0) + revReal;
+            this.despiece.paseCocido[row.id] = Math.max(0, (Number(this.despiece.paseCocido[row.id]) || 0) - revReal);
+            row.crudo = this.calcSaldoTipo(row, 'crudo');
+            row.cocido = this.calcSaldoTipo(row, 'cocido');
+            this.pulseRowTotal(row.id);
+            this.anotarHistorial('transforma', row.nombre + ' (Cocido → Crudo)', '+' + revReal + ' crudo, −' + revReal + ' cocido');
+            const clave = this.claveDeFila[row.id];
+            if (clave) {
+              try {
+                await this.paso(clave, 'cocido', -revReal, 'Pasa a crudo ' + row.nombre);
+                await this.paso(clave, 'crudo', revReal, 'Pasa de cocido ' + row.nombre);
+              } catch (e) {}
+            }
+          }
+        },
+
+        async fijarPaseCrudoACocido(idOrClave, nuevoValorCocido) {
+          const objetivo = Math.max(0, parseInt(nuevoValorCocido, 10) || 0);
+          const actual = this.cocidoActualTransformar(idOrClave);
+          const delta = objetivo - actual;
+          if (delta !== 0) {
+            await this.pasarCrudoACocido(idOrClave, delta);
+          }
+        },
+
         mapasRespaldo() {
           return [
+            {
+              id: 'pollo-fresco',
+              nombre: 'Pollo fresco',
+              tipo: 'despiece',
+              origen: { clave: 'pollo-origen', nombre: 'Pollo fresco' },
+              cortes: [
+                { clave: 'pechuga-pollo', nombre: 'Pechuga de Pollo', factor: 2, factorDesde: '' },
+                { clave: 'pierna-pollo', nombre: 'Pierna de Pollo', factor: 2, factorDesde: '' },
+                { clave: 'filete', nombre: 'Filete Pollo Crudo', factor: 1, factorDesde: 'pechuga-pollo' },
+                { clave: 'filete', nombre: 'Filete Pollo Crudo', factor: 0, factorDesde: 'pierna-pollo' }
+              ],
+              platos: [
+                { id: 'filete-pollo', nombre: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['filete de pollo'] },
+                { id: 'milanesa', nombre: 'Milanesa con arroz + papas fritas + ensalada', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['milanesa de pollo'] },
+                { id: 'filete-junior', nombre: 'Filete junior', complemento: '', cuelgaDe: 'filete', cantidad: 0.5, venta: true, aliases: ['filete junior + papas fritas'] },
+                { id: 'fuente-chi', nombre: 'Fuente de Chicharron de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 2, venta: true, aliases: [] },
+                { id: 'chaufa-pollo', nombre: 'Arroz chaufa de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chaufa de pollo'] },
+                { id: 'chi-pollo-acevichada', nombre: 'Chicharron de pollo acevichada + arroz + papa frita', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chi. pollo acevichada'] },
+                { id: 'chi-pollo-bbq', nombre: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chi. pollo a la bbq'] },
+                { id: 'chi-chico', nombre: 'Chicharron de pollo chico', complemento: '', cuelgaDe: 'filete', cantidad: 0.5, venta: true, aliases: [] },
+                { id: 'salt-pollo', nombre: 'Lomo saltado de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['salt de pollo'] },
+                { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'pachamanca-pollo', nombre: 'Pollo pachamanca', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'pollo-lena', nombre: 'Pollo leña', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'pachamanca-pollo', nombre: 'Pollo pachamanca', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'pollo-lena', nombre: 'Pollo leña', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] }
+              ]
+            },
             {
               id: 'pato-fresco',
               nombre: 'Pato fresco',
@@ -7692,8 +9500,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 { clave: 'pierna-pato', nombre: 'Pierna de pato', factor: 2, factorDesde: '' }
               ],
               platos: [
-                { id: 'arroz_pato_pecho', nombre: 'Arroz con pato', complemento: 'pecho', cuelgaDe: 'pechuga-pato', cantidad: 1, venta: true },
-                { id: 'arroz_pato_pierna', nombre: 'Arroz con pato', complemento: 'pierna', cuelgaDe: 'pierna-pato', cantidad: 1, venta: true }
+                { id: 'arroz-pato-pecho', nombre: 'Arroz con pato a la chiclayana', complemento: 'pecho', cuelgaDe: 'pechuga-pato', cantidad: 1, venta: true, aliases: ['arroz con pato'] },
+                { id: 'arroz-pato-pierna', nombre: 'Arroz con pato a la chiclayana', complemento: 'pierna', cuelgaDe: 'pierna-pato', cantidad: 1, venta: true, aliases: ['arroz con pato'] }
               ]
             },
             {
@@ -7703,9 +9511,69 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               origen: { clave: 'pota', nombre: 'Pota' },
               cortes: [],
               platos: [
-                { id: 'ceviche_pota', nombre: 'Ceviche de chicharrón de pota', complemento: '', cuelgaDe: 'pota', cantidad: 1, venta: true },
-                { id: 'chicharron_pota', nombre: 'Chicharrón de pota', complemento: '', cuelgaDe: 'pota', cantidad: 1, venta: true }
+                { id: 'ceviche-pota', nombre: 'Ceviche de chicharrón de pota', complemento: '', cuelgaDe: 'pota', cantidad: 1, venta: true, aliases: [] },
+                { id: 'chicharron-pota', nombre: 'Chicharron de pota', complemento: '', cuelgaDe: 'pota', cantidad: 1, venta: true, aliases: [] }
               ]
+            },
+            {
+              id: 'panceta',
+              nombre: 'Panceta',
+              tipo: 'manual',
+              origen: { clave: 'panceta', nombre: 'Panceta entera' },
+              cortes: [
+                { clave: 'trozo-panceta', nombre: 'Trozo de panceta', factor: 0, factorDesde: '' }
+              ],
+              platos: []
+            },
+            {
+              id: 'carnero',
+              nombre: 'Carnero',
+              tipo: 'despiece',
+              origen: { clave: 'carnero', nombre: 'Carnero crudo' },
+              cortes: [
+                { clave: 'pachamanca-cordero', nombre: 'Carnero pachamanca', factor: 1, factorDesde: '' }
+              ],
+              platos: []
+            },
+            {
+              id: 'arroz',
+              nombre: 'Arroz crudo',
+              tipo: 'despiece',
+              origen: { clave: 'arroz', nombre: 'Arroz crudo' },
+              cortes: [
+                { clave: 'arroz-blanco', nombre: 'Arroz blanco', factor: 8, factorDesde: '' },
+                { clave: 'arroz-verde', nombre: 'Arroz verde', factor: 6, factorDesde: '' },
+                { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 4, factorDesde: '' },
+                { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factor: 4, factorDesde: '' },
+                { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factor: 4, factorDesde: '' },
+                { clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo', factor: 1, factorDesde: '' }
+              ],
+              platos: []
+            },
+            {
+              id: 'carnes-directo',
+              nombre: 'Carnes, Trucha y Pescado Entero',
+              tipo: 'directo',
+              origen: { clave: 'bisteck', nombre: 'Grupo Carnes' },
+              cortes: [
+                { clave: 'bisteck', nombre: 'Carne Bistec', factor: 1, factorDesde: '' },
+                { clave: 'lomo-fino', nombre: 'Lomo Fino', factor: 1, factorDesde: '' },
+                { clave: 'pachamanca-res', nombre: 'Carne Pachamanca', factor: 1, factorDesde: '' },
+                { clave: 'pachamanca-chancho', nombre: 'Cerdo pachamanca', factor: 1, factorDesde: '' },
+                { clave: 'carne-guiso', nombre: 'Carne Guiso', factor: 1, factorDesde: '' },
+                { clave: 'trucha', nombre: 'Trucha entera', factor: 1, factorDesde: '' },
+                { clave: 'filete-trucha', nombre: 'Filete de trucha', factor: 1, factorDesde: '' },
+                { clave: 'pescado-entero', nombre: 'Pescado entero', factor: 1, factorDesde: '' }
+              ],
+              platos: []
+            },
+            {
+              id: 'pescado-trans',
+              nombre: 'Transformación de Pescado',
+              tipo: 'manual',
+              origen: { clave: 'pescado-origen', nombre: 'Pescado Tollo / Perico' },
+              cortes: [],
+              platos: []
             }
           ];
         },
@@ -7761,22 +9629,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         platosDelFilete() {
-          const pollo = (this.mapas || []).find((m) => m.id === 'pollo-fresco');
+          const fuente = (this.mapas && this.mapas.length) ? this.mapas : this.mapasRespaldo();
+          const pollo = (fuente || []).find((m) => m.id === 'pollo-fresco');
           const delMapa = ((pollo && pollo.platos) || []).filter((p) => p.cuelgaDe === 'filete');
           if (delMapa.length) {
-            return delMapa.map((p) => p.id === 'filete_pollo' ? Object.assign({}, p, { nombre: 'Filete de Pollo' }) : p);
+            return delMapa;
           }
-          return [
-            { id: 'filete_pollo', nombre: 'Filete de Pollo', cantidad: 1 },
-            { id: 'milanesa', nombre: 'Milanesa de pollo', cantidad: 1 },
-            { id: 'filete_junior', nombre: 'Filete junior', cantidad: 0.5 },
-            { id: 'fuente_chi', nombre: 'Fuente de Chicharrón de pollo', cantidad: 2 },
-            { id: 'chaufa_pollo', nombre: 'Arroz chaufa de pollo', cantidad: 1 },
-            { id: 'chi_pollo_acevichada', nombre: 'Chicharrón de pollo acevichada', cantidad: 1 },
-            { id: 'chi_pollo_bbq', nombre: 'Chicharrón de pollo a la BBQ', cantidad: 1 },
-            { id: 'chi_chico', nombre: 'Chicharrón de pollo chico', cantidad: 1 },
-            { id: 'salt_pollo', nombre: 'Lomo saltado de pollo', cantidad: 1 }
-          ];
+          return (this.mapasRespaldo()[0].platos || []).filter((p) => p.cuelgaDe === 'filete');
         },
 
         textoMapa(mapa) {
@@ -7876,13 +9735,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (pierna && pierna.factor > 0) this.config.factorPiernasPorFresco = pierna.factor;
           if (filetePechuga && filetePechuga.factor > 0) this.config.factorFiletesPorPechuga = filetePechuga.factor;
           if (filetePierna) this.config.factorFiletesPorPierna = filetePierna.factor > 0 ? filetePierna.factor : '';
+          const normAdId = (id) => {
+            if (id === 'pachamanca-pollo') return 'pollo_pachamanca';
+            if (id === 'pollo-lena') return 'pollo_lena';
+            if (id === 'pierna-lena') return 'pierna_lena';
+            return id;
+          };
           const pieza = {};
           (pollo.platos || []).forEach((p) => {
             if (p.cuelgaDe !== 'pechuga-pollo' && p.cuelgaDe !== 'pierna-pollo') return;
-            if (!pieza[p.id]) pieza[p.id] = { id: p.id, nombre: p.nombre, aceptaPierna: false, aceptaPechuga: false };
-            if (p.cuelgaDe === 'pechuga-pollo') pieza[p.id].aceptaPechuga = true;
-            if (p.cuelgaDe === 'pierna-pollo') pieza[p.id].aceptaPierna = true;
+            const adId = normAdId(p.id);
+            if (!pieza[adId]) pieza[adId] = { id: adId, nombre: p.nombre, aceptaPierna: false, aceptaPechuga: false };
+            if (p.cuelgaDe === 'pechuga-pollo') pieza[adId].aceptaPechuga = true;
+            if (p.cuelgaDe === 'pierna-pollo') pieza[adId].aceptaPierna = true;
           });
+          if (!pieza.pierna_lena) {
+            pieza.pierna_lena = { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false };
+          }
           const lista = Object.keys(pieza).map((k) => pieza[k]);
           if (lista.length) this.config.aderezos = lista;
           this.platosDelFilete().forEach((p) => {
@@ -7919,8 +9788,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.aplicarFactoresDeMapas();
             this.asegurarFilasDeMapas();
           } catch (e) {
+            this.mapas = this.mapasRespaldo();
             this.mapasCargados = false;
-            this.toastMessage = e.message;
+            this.aplicarFactoresDeMapas();
           }
         },
 
