@@ -14,7 +14,7 @@ function vender(n, bases) {
 
 test('estas filas nacen con cuadro de cocido', () => {
     [
-        'chaufa-pollo', 'chicharron-pollo', 'filete-junior', 'salt-pollo', 'milanesa',
+        'chaufa-pollo', 'chicharron-pollo', 'salt-pollo',
         'menu', 'pollo-lena', 'pierna-lena', 'pollada', 'pachamanca-pollo',
         'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero'
     ].forEach((clave) => {

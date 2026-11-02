@@ -6705,16 +6705,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!rubro || rubro === 'milanesa-junior' || rubro === 'milanesa_junior' || (v && v.codigo === 'T643')) return;
             let n = Number(v && v.cantidad) || 0;
             let tipo = v && v.tipoProducto === 'crudo' ? 'crudo' : 'cocido';
-            if (rubro === 'filete-pollo' || rubro === 'filete_pollo' || (v && v.codigo === 'A31')) {
+            if (rubro === 'filete-pollo' || rubro === 'filete_pollo') {
               rubro = 'filete';
               tipo = 'crudo';
               if (v.platos != null && !(Number(v.factor) > 0)) n = Number(v.platos) * 1;
-            } else if (rubro === 'filete-junior' || rubro === 'filete_junior' || (v && v.codigo === 'U342')) {
+            } else if (rubro === 'filete-junior' || rubro === 'filete_junior') {
               rubro = 'filete';
               tipo = 'crudo';
               if (v.platos != null) {
                 n = Number(v.platos) * 0.5;
-              } else if (v.factor === 1 || v.factor === undefined) {
+              } else if (Number(v.factor) !== 0.5) {
                 n = n * 0.5;
               }
             }
@@ -7615,6 +7615,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete'].indexOf(clave) !== -1;
         },
 
+        soloCrudoClave(clave) {
+          return ['milanesa', 'milanesa_junior', 'milanesa-junior', 'filete_junior', 'filete-junior'].indexOf(String(clave || '')) !== -1;
+        },
+
         semillaCocido: {
           pollada: { tieneCocido: true, reservaClave: 'pechuga-pollo' },
           menu: { tieneCocido: true, reservaClave: '' },
@@ -7626,8 +7630,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
           'salt-pollo': { tieneCocido: true, reservaClave: 'filete' },
           'chaufa-pollo': { tieneCocido: true, reservaClave: 'filete' },
-          milanesa: { tieneCocido: true, reservaClave: 'filete' },
-          'filete-junior': { tieneCocido: true, reservaClave: 'filete' },
+          milanesa: { tieneCocido: false, reservaClave: 'filete' },
+          'filete-junior': { tieneCocido: false, reservaClave: 'filete' },
           'chicharron-pollo': { tieneCocido: true, reservaClave: 'filete' },
           'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
           'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
@@ -7649,8 +7653,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!clave) return;
             const op = map[clave];
             const materia = this.esMateriaClave(clave);
+            const soloCrudo = this.soloCrudoClave(clave) || this.soloCrudoClave(row.id);
             const base = (op && typeof op.tieneCocido === 'boolean') ? op : this.opcionCocidoDe(clave);
-            row.tieneCocido = !materia && base.tieneCocido === true;
+            row.tieneCocido = !materia && !soloCrudo && base.tieneCocido === true;
             row.reservaClave = materia ? '' : (base.reservaClave || '');
             if (op) row.stockMinimo = Number(op.stockMinimo) || 0;
           });
@@ -8596,12 +8601,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             info.origenPadreNombre = 'Pechuga de Pollo';
             info.resumenConversion = 'Reparto de Filete Pollo Crudo hacia Platos de Filete';
             this.platosDelFilete().forEach((plato) => {
-              const rPlato = this.filaReal(plato.id);
-              if (!rPlato) return;
-              const cant = Number(this.despiece.platosFilete?.[plato.id]) || 0;
+              const rowId = this.filaIdDePlatoTransformar(plato.id);
+              if (!rowId) return;
+              const cant = Number(this.despiece.platosFilete?.[plato.id] ?? this.despiece.platosFilete?.[rowId]) || 0;
+              if (!(cant > 0)) return;
               const factor = Number(plato.cantidad) || 1;
               info.destinos.push(
-                makeDest(plato.id, 'Come ' + factor + ' filete', cant * factor, cant, 'gold', false)
+                makeDest(rowId, 'Come ' + factor + ' filete', cant * factor, cant, 'gold', false)
               );
             });
           } else if (id === 'panceta') {
@@ -8674,6 +8680,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             } else {
               info.mensajeSinDestino = row.nombre + ' es un producto de ingreso directo en la hoja y no requiere transformación intermedia.';
             }
+          }
+
+          info.destinos = (info.destinos || []).filter((d) => (Number(d.usadoDelOrigen) || 0) > 0 || (Number(d.generado) || 0) > 0);
+          if (!info.destinos.length && !info.mensajeSinDestino) {
+            info.mensajeSinDestino = row.nombre + ' todavía no tiene productos transformados.';
           }
 
           return info;
@@ -9497,7 +9508,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             'pachamanca-cordero': 'carnero_pachamanca',
             carnero_pachamanca: 'carnero_pachamanca'
           };
-          return mapa[raw] || (this.filaReal(raw) ? raw : '');
+          const alt = raw.indexOf('-') !== -1 ? raw.replace(/-/g, '_') : raw.replace(/_/g, '-');
+          return mapa[raw] || mapa[alt] || (this.filaReal(raw) ? raw : (this.filaReal(alt) ? alt : ''));
         },
 
         claveDeProductoTransformar(idOrClave) {
@@ -9548,7 +9560,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         tienePaseCocido(idOrClave) {
           const raw = String(idOrClave || '');
-          if (!raw || raw === 'filete-pollo' || raw === 'filete_pollo') return false;
+          if (!raw || raw === 'filete-pollo' || raw === 'filete_pollo' || this.soloCrudoClave(raw)) return false;
           const clave = this.claveDeProductoTransformar(raw);
           if (!clave || this.esMateriaClave(clave)) return false;
           const rowId = this.filaIdDePlatoTransformar(raw);
@@ -9851,14 +9863,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return ramas;
         },
 
+        esVentaDirectaDeFilete(id) {
+          const s = String(id || '');
+          return s === 'filete-pollo' || s === 'filete_pollo' || s === 'filete-junior' || s === 'filete_junior';
+        },
+
         platosDelFilete() {
           const fuente = (this.mapas && this.mapas.length) ? this.mapas : this.mapasRespaldo();
           const pollo = (fuente || []).find((m) => m.id === 'pollo-fresco');
-          const delMapa = ((pollo && pollo.platos) || []).filter((p) => p.cuelgaDe === 'filete');
-          if (delMapa.length) {
-            return delMapa;
-          }
-          return (this.mapasRespaldo()[0].platos || []).filter((p) => p.cuelgaDe === 'filete');
+          const base = ((pollo && pollo.platos) || []).filter((p) => p.cuelgaDe === 'filete');
+          const lista = base.length ? base : (this.mapasRespaldo()[0].platos || []).filter((p) => p.cuelgaDe === 'filete');
+          return lista.filter((p) => !this.esVentaDirectaDeFilete(p.id));
         },
 
         textoMapa(mapa) {

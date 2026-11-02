@@ -161,7 +161,8 @@ function rubrosDeFila(fila, mapas, bebidas) {
             if (item.unidades != null) add(item.rubro, null, item.unidades);
             else add(item.rubro, item.factor);
         });
-    } else if (n.includes('filete de pollo')) add('filete');
+    } else if (n.includes('filete junior')) add('filete', 0.5);
+    else if (n.includes('filete de pollo')) add('filete');
     else if (n.includes('1/4 pollo') || n.includes('cuarto de pollo') || n.includes('pollo a la lena')) add('pollo-lena');
     else if (n.includes('chicharron de pollo') && n.includes('bbq')) add('chi-pollo-bbq');
     else if (n.includes('acevichada') && n.includes('pollo')) add('chi-pollo-acevichada');
@@ -198,8 +199,7 @@ function rubrosDeFila(fila, mapas, bebidas) {
 }
 
 function rubroPropioDeNombre(n) {
-    if (n.includes('fuente') || n.includes('filete de pollo')) return '';
-    if (n.includes('filete junior')) return 'filete-junior';
+    if (n.includes('fuente') || n.includes('filete de pollo') || n.includes('filete junior')) return '';
     if (n.includes('saltado') && n.includes('pollo')) return 'salt-pollo';
     if (n.includes('chaufa') && n.includes('pollo')) return 'chaufa-pollo';
     if (n.includes('milanesa junior')) return 'milanesa-junior';

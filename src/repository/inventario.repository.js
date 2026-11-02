@@ -241,9 +241,9 @@ async function opcionesCocido() {
         let tieneCocido = guardado ? doc.tieneCocido : sem.tieneCocido;
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
-        if (esMateria(d.clave)) {
+        if (esMateria(d.clave) || d.clave === 'milanesa' || d.clave === 'filete-junior' || d.clave === 'milanesa-junior') {
             tieneCocido = false;
-            reservaClave = '';
+            reservaClave = d.clave === 'milanesa' || d.clave === 'filete-junior' || d.clave === 'milanesa-junior' ? 'filete' : '';
         }
         return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
     });

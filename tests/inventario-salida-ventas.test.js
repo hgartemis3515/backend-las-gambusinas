@@ -164,8 +164,8 @@ test('cada plato de filete baja su propia fila y la fuente sigue bajando filete'
         { nombre: 'Chicharrón de pollo chico + yuca frita + zarza criolla', cantidad: 1 },
         { nombre: 'Lomo saltado de pollo', cantidad: 1 }
     ]);
-    expect(porRubro['filete-junior']).toBe(1);
-    expect(porRubro.filete).toBe(2);
+    expect(porRubro['filete-junior']).toBeUndefined();
+    expect(porRubro.filete).toBe(3);
     expect(porRubro['chaufa-pollo']).toBe(1);
     expect(porRubro['chi-pollo-acevichada']).toBe(1);
     expect(porRubro['chi-pollo-bbq']).toBe(1);
