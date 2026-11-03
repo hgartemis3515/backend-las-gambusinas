@@ -98,6 +98,7 @@ function noticiaPublica(doc) {
         mozosAlcance: doc.mozosAlcance || 'todos',
         mozoIds: doc.mozoIds || [],
         segundosEnPantalla: Number(doc.segundosEnPantalla) || 15,
+        segundosSalirMozos: salirMozosDe(doc.segundosSalirMozos, Number(doc.segundosEnPantalla) || 15),
         createdAt: doc.createdAt,
     };
 }
@@ -137,6 +138,7 @@ function destinoDe(body = {}) {
     let segundos = Number(body.segundosCocina ?? body.segundosEnPantalla ?? 15);
     if (!Number.isFinite(segundos)) segundos = 15;
     segundos = Math.min(120, Math.max(5, Math.round(segundos)));
+    const segundosSalirMozos = salirMozosDe(body.segundosSalirMozos, segundos);
     if (cocina && cocinaAlcance === 'pantallas' && crudo !== 'caja' && !pantallas.length) {
         const err = new Error('Elige al menos una pantalla');
         err.status = 400;
@@ -159,7 +161,17 @@ function destinoDe(body = {}) {
         mozosAlcance,
         mozoIds,
         segundosEnPantalla: segundos,
+        segundosSalirMozos,
     };
+}
+
+function salirMozosDe(valor, tope) {
+    let n = Number(valor);
+    if (!Number.isFinite(n)) n = 6;
+    n = Math.min(120, Math.max(0, Math.round(n)));
+    const techo = Number(tope);
+    if (Number.isFinite(techo)) n = Math.min(n, techo);
+    return n;
 }
 
 function prepararTemporal(body, autor) {

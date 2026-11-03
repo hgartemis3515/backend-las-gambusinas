@@ -307,6 +307,18 @@
 
   /* Touch buttons large targets */
   .btn-touch { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  #segundos-cocina,
+  #segundos-salir-mozos {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  #segundos-cocina::-webkit-outer-spin-button,
+  #segundos-cocina::-webkit-inner-spin-button,
+  #segundos-salir-mozos::-webkit-outer-spin-button,
+  #segundos-salir-mozos::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 </style>
 </head>
 <body class="bg-[#0a0a0f] text-white font-sans antialiased min-h-screen" x-data="noticiasApp()" x-init="init()" x-cloak>
@@ -593,14 +605,26 @@
 
           <div class="pt-3 border-t border-[rgba(212,175,55,0.18)] flex items-center justify-between flex-wrap gap-4">
             <div>
-              <label class="block text-xs uppercase tracking-wider text-white font-extrabold" for="segundos-cocina">Cronómetro</label>
-              <p class="text-xs text-white/80 mt-0.5">Segundos en pantalla. Se cierra solo. También se puede cerrar a mano.</p>
+              <p class="text-xs uppercase tracking-wider text-white font-extrabold">Cronómetros</p>
+              <p class="text-xs text-white/80 mt-0.5">El de la izquierda es cuándo el mozo puede pulsar Salir. El de la derecha es cuánto dura el mensaje. Al acabar, se cierra solo.</p>
             </div>
-            <div class="flex items-center gap-2 bg-[#1a1a28] border border-[rgba(212,175,55,0.35)] rounded-xl p-1.5">
-              <button type="button" @click="segundosCocina = Math.max(5, segundosCocina - 5)" class="w-10 h-10 rounded-lg bg-[#12121a] text-white font-black text-lg hover:text-[#d4af37] border border-white/10 active:scale-95 transition cursor-pointer">－</button>
-              <input id="segundos-cocina" type="number" min="5" max="120" step="1" x-model.number="segundosCocina" class="w-16 text-center bg-transparent text-lg font-black text-[#d4af37] focus:outline-none tabular-nums">
-              <span class="text-xs text-white/70 pr-2">seg</span>
-              <button type="button" @click="segundosCocina = Math.min(120, segundosCocina + 5)" class="w-10 h-10 rounded-lg bg-[#12121a] text-white font-black text-lg hover:text-[#d4af37] border border-white/10 active:scale-95 transition cursor-pointer">＋</button>
+            <div class="flex items-end gap-3 flex-wrap">
+              <div class="flex flex-col items-center gap-1">
+                <label class="text-[10px] uppercase tracking-wider text-white font-extrabold" for="segundos-salir-mozos">Forzado mozos</label>
+                <div class="flex items-center gap-2 bg-[#1a1a28] border border-[rgba(212,175,55,0.35)] rounded-xl p-1.5">
+                  <button type="button" @click="fijarSalir(segundosSalirMozos - 1)" class="w-10 h-10 rounded-lg bg-[#12121a] text-white font-black text-lg hover:text-[#d4af37] border border-white/10 active:scale-95 transition cursor-pointer" aria-label="Menos un segundo para Salir">－</button>
+                  <input id="segundos-salir-mozos" type="number" min="0" max="120" step="1" x-model.number="segundosSalirMozos" @change="fijarSalir(segundosSalirMozos)" class="w-16 text-center bg-transparent text-lg font-black text-[#d4af37] focus:outline-none tabular-nums" aria-label="Segundos hasta poder pulsar Salir">
+                  <button type="button" @click="fijarSalir(segundosSalirMozos + 1)" class="w-10 h-10 rounded-lg bg-[#12121a] text-white font-black text-lg hover:text-[#d4af37] border border-white/10 active:scale-95 transition cursor-pointer" aria-label="Más un segundo para Salir">＋</button>
+                </div>
+              </div>
+              <div class="flex flex-col items-center gap-1">
+                <label class="text-[10px] uppercase tracking-wider text-white font-extrabold" for="segundos-cocina">Cronómetro</label>
+                <div class="flex items-center gap-2 bg-[#1a1a28] border border-[rgba(212,175,55,0.35)] rounded-xl p-1.5">
+                  <button type="button" @click="fijarCocina(segundosCocina - 5)" class="w-10 h-10 rounded-lg bg-[#12121a] text-white font-black text-lg hover:text-[#d4af37] border border-white/10 active:scale-95 transition cursor-pointer" aria-label="Menos cinco segundos">－</button>
+                  <input id="segundos-cocina" type="number" min="5" max="120" step="1" x-model.number="segundosCocina" @change="fijarCocina(segundosCocina)" class="w-16 text-center bg-transparent text-lg font-black text-[#d4af37] focus:outline-none tabular-nums" aria-label="Segundos del mensaje">
+                  <button type="button" @click="fijarCocina(segundosCocina + 5)" class="w-10 h-10 rounded-lg bg-[#12121a] text-white font-black text-lg hover:text-[#d4af37] border border-white/10 active:scale-95 transition cursor-pointer" aria-label="Más cinco segundos">＋</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1059,6 +1083,7 @@ function noticiasApp() {
     cocinerasHub: [],
     cocinerasSeleccionadas: [],
     segundosCocina: 15,
+    segundosSalirMozos: 6,
     mozosModo: 'todos',
     listaMozos: [],
     mozosSeleccionados: [],
@@ -1146,6 +1171,7 @@ function noticiasApp() {
         this.cocinerasSeleccionadas = n.pantallas.map(String);
       }
       this.segundosCocina = Number(n?.segundosEnPantalla) || 15;
+      this.fijarSalir(n?.segundosSalirMozos);
       this.mozosModo = n?.mozosAlcance === 'algunos' ? 'seleccion' : 'todos';
       this.mozosSeleccionados = (n?.mozoIds || []).map(String);
     },
@@ -1153,6 +1179,7 @@ function noticiasApp() {
       this.destinatario = 'ambos';
       this.cocinaDestino = 'todas';
       this.segundosCocina = 15;
+      this.segundosSalirMozos = 6;
       this.mozosModo = 'todos';
       this.mozosSeleccionados = [];
       this.buscaMozo = '';
@@ -1243,8 +1270,23 @@ function noticiasApp() {
         this.marcarMozoActivo(id);
       });
     },
+    fijarCocina(valor) {
+      let segundos = Number(valor);
+      if (!Number.isFinite(segundos)) segundos = 15;
+      segundos = Math.min(120, Math.max(5, Math.round(segundos)));
+      this.segundosCocina = segundos;
+      if (this.segundosSalirMozos > segundos) this.segundosSalirMozos = segundos;
+    },
+    fijarSalir(valor) {
+      const tope = Math.min(120, Math.max(5, Number(this.segundosCocina) || 15));
+      let n = Number(valor);
+      if (!Number.isFinite(n)) n = 6;
+      this.segundosSalirMozos = Math.min(tope, Math.max(0, Math.round(n)));
+    },
     payloadDestino() {
-      const segundos = Math.min(120, Math.max(5, Number(this.segundosCocina) || 15));
+      this.fijarCocina(this.segundosCocina);
+      this.fijarSalir(this.segundosSalirMozos);
+      const segundos = this.segundosCocina;
       const elegidas = new Set(this.cocinerasSeleccionadas);
       const cocinaCocineroIds = this.cocinaDestino === 'hub'
         ? [...new Set(this.cocinerasHub.filter((c) => elegidas.has(c.id)).flatMap((c) => c.cocineroIds || []))]
@@ -1255,6 +1297,7 @@ function noticiasApp() {
         pantallas: this.cocinerasSeleccionadas.map((id) => Number(id)).filter((n) => Number.isFinite(n)),
         cocinaCocineroIds,
         segundosCocina: segundos,
+        segundosSalirMozos: this.segundosSalirMozos,
         mozosModo: this.mozosModo,
         mozoIds: this.mozosSeleccionados.slice(),
       };

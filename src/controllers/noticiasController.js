@@ -100,6 +100,7 @@ function emitirNoticia(accion = 'creada', noticia = null, body = {}) {
         titulo: noticia?.titulo || '',
         cuerpoHtml: noticia?.cuerpoHtml || '',
         segundosEnPantalla: noticia?.segundosEnPantalla || 15,
+        segundosSalirMozos: Number.isFinite(Number(noticia?.segundosSalirMozos)) ? Number(noticia.segundosSalirMozos) : 6,
         destinos: noticia?.destinos || ['cocina', 'mozos'],
         cocinaAlcance: noticia?.cocinaAlcance || 'todas',
         pantallas: (noticia?.pantallas && noticia.pantallas.length) ? noticia.pantallas : (body.pantallas || []),

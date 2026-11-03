@@ -19,6 +19,7 @@ const noticiaSchema = new mongoose.Schema({
     mozosAlcance: { type: String, default: 'todos' },
     mozoIds: { type: [String], default: [] },
     segundosEnPantalla: { type: Number, default: 15 },
+    segundosSalirMozos: { type: Number, default: 6 },
 }, { timestamps: true });
 
 noticiaSchema.index({ fechaOperativa: 1, vigente: 1, createdAt: -1 });
