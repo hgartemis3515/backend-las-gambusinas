@@ -27,7 +27,7 @@ test('la pollada de la carta descuenta pollada, papas y arroz', () => {
     ]);
     expect(porRubro.pollada).toBe(2);
     expect(porRubro.papas).toBe(2);
-    expect(porRubro['arroz-tipo-pollo']).toBe(2);
+    expect(porRubro['arroz-blanco']).toBe(2);
 });
 
 test('una gaseosa pedida como guarnición descuenta su fila', () => {
@@ -36,7 +36,7 @@ test('una gaseosa pedida como guarnición descuenta su fila', () => {
         guarniciones: [{ nombre: 'Inca Kola', cantidad: 2 }]
     });
     expect(aplicarMapa(filas)['gaseosa-inca-kola']).toBe(2);
-    expect(aplicarMapa(filas).filete).toBe(1);
+    expect(aplicarMapa(filas)['filete-pollo']).toBe(1);
 });
 
 test('un vino sin la palabra vino descuenta su fila de licor', () => {
@@ -110,9 +110,10 @@ test('un filete con papas y arroz descuenta filete, papas y arroz, y puede dejar
     const porRubro = aplicarMapa([
         { nombre: 'Filete de pollo + papas fritas + arroz + ensalada', cantidad: 3 }
     ]);
-    expect(porRubro.filete).toBe(3);
+    expect(porRubro['filete-pollo']).toBe(3);
+    expect(porRubro.filete).toBeUndefined();
     expect(porRubro.papas).toBe(3);
-    expect(porRubro['arroz-tipo-pollo']).toBe(3);
+    expect(porRubro['arroz-blanco']).toBe(3);
     const { aplicarVentasEnFilas } = require('../src/utils/inventarioKardex');
     const ajustadas = aplicarVentasEnFilas([{
         rubro: 'filete',
@@ -164,12 +165,12 @@ test('cada plato de filete baja su propia fila y la fuente sigue bajando filete'
         { nombre: 'Chicharrón de pollo chico + yuca frita + zarza criolla', cantidad: 1 },
         { nombre: 'Lomo saltado de pollo', cantidad: 1 }
     ]);
-    expect(porRubro['filete-junior']).toBeUndefined();
-    expect(porRubro.filete).toBe(3);
+    expect(porRubro['filete-junior']).toBe(1);
+    expect(porRubro.filete).toBeUndefined();
+    expect(porRubro['chicharron-pollo']).toBe(3);
     expect(porRubro['chaufa-pollo']).toBe(1);
     expect(porRubro['chi-pollo-acevichada']).toBe(1);
     expect(porRubro['chi-pollo-bbq']).toBe(1);
-    expect(porRubro['chicharron-pollo']).toBe(1);
     expect(porRubro['salt-pollo']).toBe(1);
 });
 

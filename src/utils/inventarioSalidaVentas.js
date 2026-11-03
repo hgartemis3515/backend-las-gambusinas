@@ -161,8 +161,8 @@ function rubrosDeFila(fila, mapas, bebidas) {
             if (item.unidades != null) add(item.rubro, null, item.unidades);
             else add(item.rubro, item.factor);
         });
-    }     else if (n.includes('filete junior')) add('filete', 0.5);
-    else if (n.includes('filete de pollo')) add('filete');
+    } else if (n.includes('filete junior')) add('filete-junior', 0.5);
+    else if (n.includes('filete de pollo')) add('filete-pollo');
     else if (n.includes('mix') && n.includes('lena')) { add('trozo-panceta', 3); add('pollo-lena', 1); }
     else if (n.includes('chancho') && n.includes('lena') && n.includes('bbq')) add('trozo-panceta', 6);
     else if (n.includes('chancho') && n.includes('lena')) add('trozo-panceta', 4);
@@ -199,14 +199,15 @@ function rubrosDeFila(fila, mapas, bebidas) {
     if ((n === 'delicia' || n.includes('delicias')) && !lista.some((x) => x.rubro === 'delicias')) add('delicias');
     if (/\bhelados?\b/.test(n) && !lista.some((x) => x.rubro === 'helados')) add('helados');
     if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
-    if (n.includes('arroz verde')) add('arroz-verde');
+    if (n.includes('arroz con pollo')) add('arroz-tipo-pollo');
+    else if (n.includes('arroz verde')) add('arroz-verde');
     else if (n.includes('arroz con mariscos') || n.includes('arroz de mariscos') || n.includes('arroz mariscos')) add('arroz-mariscos');
     else if ((n.includes('arroz chaufa') || n.includes('chaufa de arroz')) && !n.includes('pollo')) add('arroz-chaufa');
     else if (n.includes('arroz blanco')) add('arroz-blanco');
     else if (n.includes('arroz con pato') || n.includes('arroz de pato')) {
         if (!lista.some((x) => x.rubro === 'arroz-pato')) add('arroz-pato');
-    } else if (/\barroz\b/.test(n) && !n.includes('chaufa') && !n.includes('arroz con pollo') && !lista.some((x) => x.rubro === 'arroz-tipo-pollo')) {
-        add('arroz-tipo-pollo');
+    } else if (/\barroz\b/.test(n) && !n.includes('chaufa') && !lista.some((x) => x.rubro === 'arroz-blanco')) {
+        add('arroz-blanco');
     }
     return lista;
 }

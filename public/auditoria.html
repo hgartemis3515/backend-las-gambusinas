@@ -975,6 +975,9 @@ function auditoriaApp() {
 
     getAccionLabel(accion, metadata) {
       if (!accion) return '—';
+      if (accion === 'INVENTARIO_EGRESO' && String(metadata?.motivo || '').indexOf('Venta manual') === 0) {
+        return '📤 Venta manual';
+      }
       if (accion === 'PLATO_DEJADO_COCINA' && metadata?.tipoUnidad === 'guarnicion') {
         return '🚪 Guarnición Dejada';
       }

@@ -10,26 +10,21 @@ const SEMILLA = [
         origen: { clave: 'pollo-origen', nombre: 'Pollo fresco' },
         cortes: [
             { clave: 'pechuga-pollo', nombre: 'Pechuga de Pollo', factor: 2, factorDesde: '' },
-            { clave: 'pierna-pollo', nombre: 'Pierna de Pollo', factor: 2, factorDesde: '' },
-            { clave: 'filete', nombre: 'Filete desde pechuga', factor: 1, factorDesde: 'pechuga-pollo' },
-            { clave: 'filete', nombre: 'Filete desde pierna', factor: 0, factorDesde: 'pierna-pollo' }
+            { clave: 'pierna-pollo', nombre: 'Pierna de Pollo', factor: 2, factorDesde: '' }
         ],
         platos: [
-            { id: 'filete_pollo', nombre: 'Filete de Pollo', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['filete de pollo'] },
-            { id: 'milanesa', nombre: 'Milanesa de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['milanesa'] },
-            { id: 'filete_junior', nombre: 'Filete junior', complemento: '', cuelgaDe: 'filete', cantidad: 0.5, venta: true, aliases: ['filete junior'] },
-            { id: 'fuente_chi', nombre: 'Fuente de Chicharrón de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 2, venta: true, aliases: ['fuente chicharron pollo', 'fuente de chicharron pollo'] },
-            { id: 'chaufa_pollo', nombre: 'Arroz chaufa de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chaufa de pollo', 'chaufa pollo'] },
-            { id: 'chi_pollo_acevichada', nombre: 'Chicharrón de pollo acevichada', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chicharron acevichado', 'chicharron acevichada'] },
-            { id: 'chi_pollo_bbq', nombre: 'Chicharrón de pollo a la BBQ', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chicharron bbq', 'chicharron de pollo bbq'] },
-            { id: 'chi_chico', nombre: 'Chicharrón de pollo chico', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chicharron de pollo chico', 'chicharron pollo chico'] },
-            { id: 'salt_pollo', nombre: 'Lomo saltado de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['lomo saltado pollo', 'saltado de pollo'] },
-            { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+            { id: 'filete_pollo', nombre: 'Filete de Pollo', complemento: '', cuelgaDe: 'filete-pollo', cantidad: 1, venta: true, aliases: ['filete de pollo'] },
+            { id: 'milanesa', nombre: 'Milanesa de pollo', complemento: '', cuelgaDe: 'milanesa', cantidad: 1, venta: true, aliases: ['milanesa'] },
+            { id: 'filete_junior', nombre: 'Filete junior', complemento: '', cuelgaDe: 'filete-junior', cantidad: 0.5, venta: true, aliases: ['filete junior'] },
+            { id: 'fuente_chi', nombre: 'Fuente de Chicharrón de pollo', complemento: '', cuelgaDe: 'chicharron-pollo', cantidad: 2, venta: true, aliases: ['fuente chicharron pollo', 'fuente de chicharron pollo'] },
+            { id: 'chaufa_pollo', nombre: 'Arroz chaufa de pollo', complemento: '', cuelgaDe: 'chaufa-pollo', cantidad: 1, venta: true, aliases: ['chaufa de pollo', 'chaufa pollo'] },
+            { id: 'chi_pollo_acevichada', nombre: 'Chicharrón de pollo acevichada', complemento: '', cuelgaDe: 'chi-pollo-acevichada', cantidad: 1, venta: true, aliases: ['chicharron acevichado', 'chicharron acevichada'] },
+            { id: 'chi_pollo_bbq', nombre: 'Chicharrón de pollo a la BBQ', complemento: '', cuelgaDe: 'chi-pollo-bbq', cantidad: 1, venta: true, aliases: ['chicharron bbq', 'chicharron de pollo bbq'] },
+            { id: 'chi_chico', nombre: 'Chicharrón de pollo chico', complemento: '', cuelgaDe: 'chicharron-pollo', cantidad: 1, venta: true, aliases: ['chicharron de pollo chico', 'chicharron pollo chico'] },
+            { id: 'salt_pollo', nombre: 'Lomo saltado de pollo', complemento: '', cuelgaDe: 'salt-pollo', cantidad: 1, venta: true, aliases: ['lomo saltado pollo', 'saltado de pollo'] },
             { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
-            { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'pollo_lena', nombre: 'Pollo leña', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
-            { id: 'pollo_lena', nombre: 'Pollo leña', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] }
         ]
@@ -188,6 +183,45 @@ function sanearMapa(raw) {
     };
 }
 
+const CUELGA_EX_FILETE = {
+    filete_pollo: 'filete-pollo',
+    'filete-pollo': 'filete-pollo',
+    milanesa: 'milanesa',
+    filete_junior: 'filete-junior',
+    'filete-junior': 'filete-junior',
+    fuente_chi: 'chicharron-pollo',
+    'fuente-chi': 'chicharron-pollo',
+    chaufa_pollo: 'chaufa-pollo',
+    'chaufa-pollo': 'chaufa-pollo',
+    chi_pollo_acevichada: 'chi-pollo-acevichada',
+    'chi-pollo-acevichada': 'chi-pollo-acevichada',
+    chi_pollo_bbq: 'chi-pollo-bbq',
+    'chi-pollo-bbq': 'chi-pollo-bbq',
+    chi_chico: 'chicharron-pollo',
+    'chi-chico': 'chicharron-pollo',
+    salt_pollo: 'salt-pollo',
+    'salt-pollo': 'salt-pollo'
+};
+
+function aplicarGruposPollo(mapas) {
+    (mapas || []).forEach((m) => {
+        if (!m || m.id !== 'pollo-fresco') return;
+        m.cortes = (m.cortes || []).filter((c) => c.clave !== 'filete');
+        const vistos = new Set();
+        m.platos = (m.platos || []).filter((p) => {
+            const id = String(p.id || '');
+            if ((id === 'pollada' || id === 'pachamanca-pollo' || id === 'pollo_pachamanca') && p.cuelgaDe === 'pechuga-pollo') return false;
+            if ((id === 'pollo_lena' || id === 'pollo-lena') && p.cuelgaDe === 'pierna-pollo') return false;
+            if (p.cuelgaDe === 'filete') p.cuelgaDe = CUELGA_EX_FILETE[id] || 'pechuga-pollo';
+            const key = id + '|' + p.cuelgaDe;
+            if (vistos.has(key)) return false;
+            vistos.add(key);
+            return true;
+        });
+    });
+    return mapas;
+}
+
 function sanearLista(lista) {
     const vistos = new Set();
     const out = [];
@@ -197,7 +231,7 @@ function sanearLista(lista) {
         vistos.add(mapa.id);
         out.push(mapa);
     });
-    return out;
+    return aplicarGruposPollo(out);
 }
 
 function clavesExtra(mapas) {

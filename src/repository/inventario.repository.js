@@ -245,10 +245,11 @@ async function opcionesCocido() {
         const conCocido = ['trozo-panceta', 'pechuga-pato', 'pierna-pato'];
         if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
-            if (!esMateria(d.clave) && !reservaClave) reservaClave = 'filete';
-            if (d.clave === 'pollada') reservaClave = 'pechuga-pollo';
-            if (d.clave === 'pierna-lena') reservaClave = '';
+            if (!esMateria(d.clave) && !reservaClave) reservaClave = 'pechuga-pollo';
+            if (d.clave === 'pierna-lena') reservaClave = 'pierna-pollo';
         }
+        if (d.clave === 'pollada' || d.clave === 'pachamanca-pollo') reservaClave = 'pierna-pollo';
+        if (reservaClave === 'filete') reservaClave = 'pechuga-pollo';
         if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
         return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
     });

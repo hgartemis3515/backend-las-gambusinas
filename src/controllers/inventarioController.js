@@ -23,7 +23,11 @@ function resumenMovimiento(doc) {
         return nombre + ' · ' + tipo + ' · corrección ' + signo + cant;
     }
     if (doc.clase === 'inventario') return nombre + ' · ' + tipo + ' · inventario ' + cant;
-    if (doc.clase === 'egreso') return nombre + ' · ' + tipo + ' · salida ' + cant;
+    if (doc.clase === 'egreso') {
+        const nota = String(doc.motivo || '');
+        if (nota.indexOf('Venta manual') === 0) return nombre + ' · venta manual · ' + tipo + ' · ' + cant;
+        return nombre + ' · ' + tipo + ' · salida ' + cant;
+    }
     return nombre + ' · ' + tipo + ' · ingreso ' + cant;
 }
 
@@ -38,7 +42,8 @@ async function auditarMovimiento(req, doc) {
             clase: doc.clase,
             cantidad: doc.cantidad,
             rubro: doc.rubro || '',
-            fecha: doc.fecha
+            fecha: doc.fecha,
+            motivo: doc.motivo || ''
         };
         await AuditoriaAcciones.create({
             accion,

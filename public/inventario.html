@@ -1531,6 +1531,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           </div>
                           <div class="ingreso-total-numero">
                             <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                            <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                             <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
                               <span
                                 x-show="sumaIngresoTotalFila(row) > 0"
@@ -1549,6 +1550,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <template x-if="!row.tieneCocido">
                         <div class="ingreso-total-numero">
                           <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                            <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                           <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
                             <span
                               x-show="sumaIngresoTotalFila(row) > 0"
@@ -1825,6 +1827,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           </div>
                           <div class="ingreso-total-numero">
                             <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                            <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                             <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
                               <span
                                 x-show="sumaIngresoTotalFila(row) > 0"
@@ -1843,6 +1846,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <template x-if="!row.tieneCocido">
                         <div class="ingreso-total-numero">
                           <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                            <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                           <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
                             <span
                               x-show="sumaIngresoTotalFila(row) > 0"
@@ -2282,7 +2286,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
                   <div class="arbol-hijos" style="--rama:#38bdf8">
                     <!-- PECHUGA → FILETE DE POLLO → CUADRO DE PLATOS EN FILETE -->
-                    <div class="arbol-hijo" :class="aderezosDeCorte('pechugas').length ? 'primero' : 'solo'" style="--c:#d4af37">
+                    <div class="arbol-hijo" x-show="false" :class="aderezosDeCorte('pechugas').length ? 'primero' : 'solo'" style="--c:#d4af37">
                       <i class="arbol-punta"></i>
                       <div class="arbol">
                         <div class="w-[250px] arbol-nodo">
@@ -4281,7 +4285,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       'bg-rose-950 text-rose-300 border border-rose-500/30': mov.clase === 'venta',
                       'bg-orange-950 text-orange-300 border border-orange-500/30': mov.clase === 'transformacion'
                     }"
-                    x-text="mov.clase === 'correccion' ? 'Corrección (opcional)' : (mov.clase === 'ingreso' ? 'Ingreso' : (mov.clase === 'conteo' ? 'Conteo Cámara' : (mov.clase === 'venta' ? 'Venta Comandas' : 'Transformación')))"
+                    x-text="textoOperacionAuditoria(mov)"
                   ></span>
                 </td>
                 <td class="px-2.5 py-2.5 whitespace-nowrap">
@@ -5109,6 +5113,44 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     </div>
   </template>
 
+  <template x-if="ingresoLupa">
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ingresoLupa = null" @keydown.escape.window="ingresoLupa = null" role="dialog" aria-modal="true" aria-label="Ingreso total">
+      <div class="w-full max-w-lg bg-[#14141f] border border-cyan-700 p-5 max-h-[90vh] overflow-y-auto rounded-xl">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-lg font-semibold text-cyan-200" x-text="'Queda en ' + ingresoLupa.nombre"></h3>
+            <p class="text-xs text-[#a0a0b8] mt-1">Los platos no tienen fila. Su crudo y su cocido siguen en el saldo de este producto.</p>
+          </div>
+          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ingresoLupa = null" aria-label="Cerrar">×</button>
+        </div>
+        <p class="text-sm mb-3">Libre del principal: <strong class="font-mono text-cyan-200" x-text="formatNum(ingresoLupa.libre)"></strong></p>
+        <div class="overflow-x-auto rounded-lg border border-[#26263a]">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-[#0a0a0f] text-[#5a5a7a] uppercase text-[11px]">
+                <th class="text-left px-3 py-2">Plato</th>
+                <th class="text-right px-3 py-2">Crudo</th>
+                <th class="text-right px-3 py-2">Cocido</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(p, i) in ingresoLupa.platos" :key="'ing-' + i">
+                <tr class="border-t border-[#26263a]">
+                  <td class="px-3 py-1.5 font-semibold" x-text="p.nombre"></td>
+                  <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="formatNum(p.crudo)"></td>
+                  <td class="px-3 py-1.5 text-right font-mono text-[#d4af37]" x-text="formatNum(p.cocido)"></td>
+                </tr>
+              </template>
+              <tr x-show="ingresoLupa.platos.length === 0">
+                <td class="px-3 py-3 text-[#5a5a7a]" colspan="3">Este producto no tiene platos transformados.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <template x-if="ventaAbierta && ventaInfo">
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaAbierta = false" @keydown.escape.window="ventaAbierta = false" role="dialog" aria-modal="true" aria-label="Ventas del producto">
       <div class="w-full max-w-2xl bg-[#14141f] border border-[#d4af37] p-5 max-h-[90vh] overflow-y-auto rounded-xl">
@@ -5173,6 +5215,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <input type="number" min="1" step="1" x-model.number="ventaManualCantidad" aria-label="Unidades a restar" class="w-24 text-center num-mono text-white bg-[#0a0a0f] border border-[#ff0000] rounded-lg px-2 py-2">
           <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = (Number(ventaManualCantidad) || 0) + 1">+</button>
         </div>
+        <label class="block text-xs text-[#a0a0b8]">Motivo <span class="text-[#5a5a7a]">(opcional)</span>
+          <textarea x-model="ventaManualMotivo" maxlength="180" rows="2" placeholder="Si quieres, anota por qué se resta" aria-label="Motivo de la venta manual" class="mt-1 w-full rounded-lg border border-[#ff0000]/50 bg-[#0a0a0f] px-3 py-2 text-sm text-white focus:outline-none"></textarea>
+        </label>
         <button type="button" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando" @click="confirmarVentaManual()">Restar</button>
       </div>
     </div>
@@ -5730,23 +5775,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               nombre: 'Pechuga de Pollo',
               open: true,
               children: [
-                {
-                  id: 'filete',
-                  nombre: 'Filete Pollo Crudo',
-                  open: true,
-                  children: [
-                    { id: 'milanesa', nombre: 'Milanesa de pollo' },
-                    { id: 'chi_pollo_bbq', nombre: 'Chi. pollo a la BBQ' },
-                    { id: 'chi_pollo_acevichada', nombre: 'Chi. pollo acevichada' },
-                    { id: 'chicharron_pollo', nombre: 'Chicharrón de pollo' },
-                    { id: 'salt_pollo', nombre: 'Lomo saltado de pollo' },
-                    { id: 'chaufa_pollo', nombre: 'Chaufa de pollo' }
-                  ]
-                },
-                { id: 'pollada', nombre: 'Pollada' },
-                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca' },
-                { id: 'pollo_lena', nombre: 'Pecho a la leña' },
-                { id: 'menu', nombre: 'Menú' }
+                { id: 'milanesa', nombre: 'Milanesa de pollo', plato: true },
+                { id: 'chi_pollo_bbq', nombre: 'Chi. pollo a la BBQ', plato: true },
+                { id: 'chi_pollo_acevichada', nombre: 'Chi. pollo acevichada', plato: true },
+                { id: 'chicharron_pollo', nombre: 'Chicharrón de pollo', plato: true },
+                { id: 'salt_pollo', nombre: 'Lomo saltado de pollo', plato: true },
+                { id: 'chaufa_pollo', nombre: 'Chaufa de pollo', plato: true },
+                { id: 'pollo_lena', nombre: 'Pecho a la leña', plato: true },
+                { id: 'menu', nombre: 'Menú', plato: true }
               ]
             },
             {
@@ -5754,9 +5790,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               nombre: 'Pierna de Pollo',
               open: true,
               children: [
-                { id: 'pierna_lena', nombre: 'Pierna a la leña' },
-                { id: 'pollada', nombre: 'Pollada', alias: 'pollada-pierna' },
-                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', alias: 'pacha-pierna' }
+                { id: 'pierna_lena', nombre: 'Pierna a la leña', plato: true },
+                { id: 'pollada', nombre: 'Pollada', alias: 'pollada-pierna', plato: true },
+                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', alias: 'pacha-pierna', plato: true }
               ]
             }
           ]
@@ -5778,10 +5814,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             open: true,
             children: [
               { id: 'tira_panceta', nombre: 'Tira de panceta' },
-              { id: 'trozo_panceta', nombre: 'Trozo de panceta' },
+              { id: 'trozo_panceta', nombre: 'Trozo de panceta', children: [
+                { id: 'chancho_lena', nombre: 'Chancho a la leña', plato: true },
+                { id: 'chancho_lena_bbq', nombre: 'Chancho a la leña BBQ', plato: true }
+              ] },
               { id: 'cerdo_pachamanca', nombre: 'Cerdo pachamanca' },
-              { id: 'chancho_lena', nombre: 'Chancho a la leña' },
-              { id: 'chancho_lena_bbq', nombre: 'Chancho a la leña BBQ' }
             ]
           },
           carnero: {
@@ -5841,16 +5878,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorArrozChaufa: 4,
           factorArrozMariscos: 4,
           aderezos: [
-            { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: true },
-            { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', aceptaPierna: true, aceptaPechuga: true },
+            { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: false },
+            { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', aceptaPierna: true, aceptaPechuga: false },
             { id: 'pollo_lena', nombre: 'Pollo leña', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'milanesa', nombre: 'Milanesa de pollo', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'filete_junior', nombre: 'Filete junior', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'chi_pollo_bbq', nombre: 'Chi. pollo a la BBQ', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'chi_pollo_acevichada', nombre: 'Chi. pollo acevichada', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'chicharron_pollo', nombre: 'Chicharrón de pollo', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'salt_pollo', nombre: 'Lomo saltado de pollo', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'chaufa_pollo', nombre: 'Chaufa de pollo', aceptaPierna: false, aceptaPechuga: true },
             { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false },
             { id: 'menu', nombre: 'Menú', aceptaPierna: true, aceptaPechuga: true }
           ],
           relaciones: [
-            { id: 1, rubro: 'Filete', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'POLLO - CARNES (A31)', cantidad: 1, unidadNota: 'filete' },
-            { id: 2, rubro: 'Filete', plato: 'Filete junior + papas fritas', complemento: 'PORCIONES - ADICIONALES (U342)', cantidad: 0.5, unidadNota: 'filete' },
-            { id: 3, rubro: 'Filete', plato: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', complemento: 'POLLO - CARNES', cantidad: 1, unidadNota: 'pieza' },
+            { id: 1, rubro: 'Pechuga de Pollo', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'POLLO - CARNES (A31)', cantidad: 1, unidadNota: 'pechuga' },
+            { id: 2, rubro: 'Pechuga de Pollo', plato: 'Filete junior + papas fritas', complemento: 'PORCIONES - ADICIONALES (U342)', cantidad: 0.5, unidadNota: 'pechuga' },
+            { id: 3, rubro: 'Pechuga de Pollo', plato: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', complemento: 'POLLO - CARNES', cantidad: 1, unidadNota: 'pechuga' },
             { id: 4, rubro: 'Pollo leña', plato: '1/4 pollo + papas fritas + ensalada', complemento: 'POLLO A LA LEÑA', cantidad: 1, unidadNota: 'pieza de Pollo leña (pierna o pechuga)' },
             { id: 5, rubro: 'Pollo pachamanca', plato: 'Pachamanca 1 sabor', complemento: 'Opción Pollo (Sabores: Pollo, Chancho, Res)', cantidad: 1, unidadNota: 'pieza de Pollo pachamanca' },
             { id: 6, rubro: 'Papas', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'Guarnición: papa fritas', cantidad: 1, unidadNota: 'papa fritas' },
@@ -5884,9 +5928,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           pechugasAFilete: 6,
           platosFilete: { filete_junior: 0, milanesa: 0 },
           aderezos: {
-            pollo_pachamanca: { piernas: 4, pechugas: 4 },
+            pollo_pachamanca: { piernas: 4, pechugas: 0 },
             pollo_lena: { piernas: 3, pechugas: 0 },
-            pollada: { piernas: 2, pechugas: 2 },
+            pollada: { piernas: 2, pechugas: 0 },
             menu: { piernas: 1, pechugas: 2 }
           },
           pancetasSalen: 1,
@@ -6258,17 +6302,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const n = this.norm(p.nombre);
               const c = this.norm(p.complemento);
               const texto = (n + ' ' + c).trim();
-              if (n.includes('filete de pollo')) push(p, 'Filete', 1, 'filete');
-              else if (n.includes('filete junior')) push(p, 'Filete', 0.5, 'filete');
+              if (n.includes('filete de pollo')) push(p, 'Pechuga de Pollo', 1, 'pechuga');
+              else if (n.includes('filete junior')) push(p, 'Pechuga de Pollo', 0.5, 'pechuga');
               else if (n.includes('1/4 pollo') || n.includes('cuarto de pollo')) push(p, 'Pollo leña', 1, 'pieza de Pollo leña');
               else if (n.includes('pachamanca') && (n.includes('pollo') || c.includes('pollo'))) push(p, 'Pollo pachamanca', 1, 'pieza', 'Sabores: Pollo');
               else if (n.includes('chicharron de pollo a la bbq') || n.includes('chicharron de pollo bbq')) push(p, 'Chi. pollo a la BBQ', 1, 'pieza');
               else if (n.includes('acevichada') && n.includes('pollo')) push(p, 'Chi. pollo acevichada', 1, 'pieza');
               else if (n.includes('chicharron de pollo chico') || n.includes('chicharron pollo chico')) push(p, 'Chicharrón de pollo', 0.5, 'pieza');
               else if (n.includes('fuente') && n.includes('chicharron') && n.includes('pollo')) push(p, 'Chicharrón de pollo', 2, 'filete');
-              else if (n.includes('chaufa') && n.includes('pollo')) push(p, 'Chaufa de pollo', 1, 'filete');
-              else if (n.includes('saltado') && n.includes('pollo')) push(p, 'Salt de pollo', 1, 'filete');
-              else if (n.includes('milanesa') && !n.includes('junior')) push(p, 'Milanesa', 1, 'filete');
+              else if (n.includes('chaufa') && n.includes('pollo')) push(p, 'Chaufa de pollo', 1, 'pechuga');
+              else if (n.includes('saltado') && n.includes('pollo')) push(p, 'Salt de pollo', 1, 'pechuga');
+              else if (n.includes('milanesa') && !n.includes('junior')) push(p, 'Milanesa', 1, 'pechuga');
               else if (n.includes('pan con pollo')) push(p, 'Menú', '—', 'por completar');
               else if (n.includes('pollada')) push(p, 'Pollada', 1, 'pollada');
               else if (n.includes('arroz con pato') || n.includes('arroz de pato')) push(p, 'Arroz pato', 1, 'arroz pato');
@@ -6286,8 +6330,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (/papa frita|papas fritas/.test(texto) && !ya('Papas')) {
                 push(p, 'Papas', 1, 'papa fritas', guarnicion('Guarnición: papa fritas'));
               }
-              if (/\barroz\b/.test(texto) && !esChaufa && !n.includes('arroz con pollo') && !n.includes('arroz con pato') && !n.includes('arroz de pato') && !ya('Arroz pollo') && !ya('Arroz pato')) {
-                push(p, 'Arroz pollo', '—', 'por completar', guarnicion('Guarnición: arroz ya transformado'));
+              if (/\barroz\b/.test(texto) && !esChaufa && !n.includes('arroz con pollo') && !n.includes('arroz con pato') && !n.includes('arroz de pato') && !ya('Arroz blanco') && !ya('Arroz pato')) {
+                push(p, 'Arroz blanco', '—', 'por completar', guarnicion('Guarnición: arroz blanco'));
               }
               if (/\btamal\b/.test(texto) && !ya('Tamal')) {
                 push(p, 'Tamal', 1, 'tamal', guarnicion('Guarnición: tamal'));
@@ -6331,9 +6375,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaCargando: false,
         reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
         ventaAbierta: false,
+        ingresoLupa: null,
         ventaManualAbierta: false,
         ventaManualFila: null,
         ventaManualCantidad: 1,
+        ventaManualMotivo: '',
         ventaManualGuardando: false,
         ingresoAbierto: {},
         ventasPeriodo: [],
@@ -6887,17 +6933,37 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
+        clavesVentaDe(row) {
+          const clave = row && this.claveDeFila[row.id];
+          const extras = {
+            pechuga: ['pechuga-pollo', 'filete', 'filete-pollo', 'filete-junior', 'milanesa', 'milanesa-junior', 'chaufa-pollo', 'salt-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada', 'chi-chico', 'fuente-chi', 'pollo-lena', 'menu'],
+            pierna: ['pierna-pollo', 'pollada', 'pachamanca-pollo', 'pierna-lena', 'menu'],
+            arroz_blanco: ['arroz-blanco'],
+            arroz_pollo: ['arroz-tipo-pollo', 'arroz-pollo'],
+            arroz_verde: ['arroz-verde'],
+            arroz_pato: ['arroz-pato'],
+            arroz_chaufa: ['arroz-chaufa'],
+            arroz_mariscos: ['arroz-mariscos'],
+            trozo_panceta: ['trozo-panceta', 'chancho-lena', 'chancho-lena-bbq', 'chaufa-chancho', 'mix-lena'],
+            chicharron_chancho: ['chicharron-chancho', 'fuente-chicharron-chancho', 'medio-chicharron-chancho', 'desayuno-criollo'],
+            pieza_pescado: ['pieza-pescado', 'duo-marino', 'ceviche', 'ceviche-pescado', 'chicharron-pescado', 'jalea-pescado', 'pescado-frito'],
+            pieza_pota: ['pieza-pota', 'ceviche-pota', 'chicharron-pota'],
+            cuy: ['cuy', 'cuy-entero', 'medio-cuy'],
+            pechuga_pato: ['pechuga-pato'],
+            pierna_pato: ['pierna-pato']
+          };
+          const hijos = row ? this.platosOcultosDe(row.id).map((n) => this.claveDeFila[n.id]).filter(Boolean) : [];
+          return [clave].concat(hijos, extras[row && row.id] || []).filter(Boolean);
+        },
+
         abrirVentaFila(row) {
           const clave = this.claveDeFila[row.id];
           const total = this.valorTipo(row, 'venta', 'crudo') + this.valorTipo(row, 'venta', 'cocido');
-          const claves = row.id === 'filete'
-            ? ['filete', 'filete-pollo', 'filete-junior']
-            : (clave ? [clave] : []);
           this.abrirVenta({
             nombre: row.nombre,
             venta: total,
             clave: clave,
-            claves: claves
+            claves: this.clavesVentaDe(row)
           }, { ventas: this.ventasPeriodo || [], movimientos: this.movimientosPeriodo || [] });
         },
 
@@ -6906,8 +6972,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         claseUsoVenta(uso) {
-          if (uso === 'Cocido') return 'bg-amber-950 text-[#d4af37]';
-          if (uso === 'Crudo') return 'bg-emerald-950 text-emerald-300';
+          const u = String(uso || '');
+          if (u.indexOf('Cocido') === 0) return 'bg-amber-950 text-[#d4af37]';
+          if (u.indexOf('Crudo') === 0) return 'bg-emerald-950 text-emerald-300';
           return 'bg-[#1c1c2b] text-white';
         },
 
@@ -6962,8 +7029,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const usoDe = (v) => {
             const rubro = v && (v.rubro || v.plato);
             const origen = v && v.origen;
-            if (origen && rubro && origen !== rubro && claves.has(origen)) return v.usoNombre || 'Agrupador';
-            return v && v.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
+            const plato = (v && v.nombre) || rubro || '';
+            if (origen && rubro && origen !== rubro) {
+              if (v.usoNombre && String(v.usoNombre).indexOf('Principal') === 0) return v.usoNombre;
+              return 'Principal — ' + (v.usoNombre || rubro);
+            }
+            const tipo = v && v.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
+            return plato ? (tipo + ' — ' + plato) : tipo;
           };
           (ventas || []).forEach((v) => {
             const rubro = v && (v.rubro || v.plato);
@@ -6979,15 +7051,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!claves.has(m.rubro) || m.clase !== 'egreso') return;
             const motivo = String(m.motivo || '');
             if (motivo.indexOf('Venta') !== 0) return;
-            sumar(motivo, m.cantidad, 'Anotación', null, m.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo');
+            const tipo = m.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
+            const esPrincipal = m.rubro === (f && f.clave);
+            const uso = esPrincipal
+              ? ('Principal — ' + (f.nombre || m.nombre || m.rubro))
+              : (tipo + ' — ' + (m.nombre || m.rubro));
+            sumar(m.nombre || f.nombre || 'Venta manual', m.cantidad, 'Venta manual', { hora: m.fecha, factor: 1, platos: m.cantidad }, uso);
           });
+          const lineas = Object.keys(map).map((key) => map[key]).sort((a, b) => {
+            const c = String(a.comanda).localeCompare(String(b.comanda), 'es');
+            return c || String(a.nombre).localeCompare(String(b.nombre), 'es');
+          });
+          const totalLineas = lineas.reduce((a, l) => a + (Number(l.cantidad) || 0), 0);
           this.ventaInfo = {
             nombre: f.nombre,
-            total: f.venta,
-            lineas: Object.keys(map).map((key) => map[key]).sort((a, b) => {
-              const c = String(a.comanda).localeCompare(String(b.comanda), 'es');
-              return c || String(a.nombre).localeCompare(String(b.nombre), 'es');
-            })
+            total: totalLineas || f.venta,
+            lineas: lineas
           };
           this.ventaAbierta = true;
         },
@@ -7142,6 +7221,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!row) return;
           this.ventaManualFila = row;
           this.ventaManualCantidad = 1;
+          this.ventaManualMotivo = '';
           this.ventaManualAbierta = true;
         },
 
@@ -7157,10 +7237,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.toastMessage = 'Este producto no tiene clave de inventario.';
             return;
           }
+          const nota = String(this.ventaManualMotivo || '').trim();
+          const motivo = nota ? ('Venta manual · ' + nota) : 'Venta manual';
           this.ventaManualGuardando = true;
           try {
             for (const p of this.repartirVentaManual(clave, row, n)) {
-              await this.paso(p.rubro, p.tipo, p.cantidad, 'Venta manual', 'egreso', p.nombre);
+              await this.paso(p.rubro, p.tipo, p.cantidad, motivo, 'egreso', p.nombre);
             }
             this.ventaManualAbierta = false;
             this.toastMessage = 'Se restaron ' + n + ' de ' + row.nombre + '.';
@@ -7314,18 +7396,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           };
 
           const walk = (node, depth, ancestorsOpen, branchGroup) => {
+            if (node.plato || node.id === 'filete') return;
             if (!coincide(node)) return;
             const row = filaReal(node.id);
             if (!row) return;
             const key = node.alias || node.id;
             const currentBranch = depth === 0 ? 'root' : (depth === 1 ? key : branchGroup);
             const visible = Boolean(ancestorsOpen || q);
+            const hijosVisibles = (node.children || []).filter((ch) => !ch.plato && ch.id !== 'filete');
 
             out.push({
               key: key,
               row: row,
               depth: depth,
-              hasChildren: !!(node.children && node.children.length),
+              hasChildren: hijosVisibles.length > 0,
               node: node,
               nombre: nombreDe(node, row),
               branchGroup: currentBranch,
@@ -7359,28 +7443,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const visibles = out.filter((item) => item.visible);
           const idxPolloFresco = visibles.findIndex((x) => x.key === (troncoDesde || 'pollo_fresco'));
           const idxPierna = visibles.findIndex((x) => x.key === (troncoHasta || 'pierna'));
-          const hasTrunkPolloToPierna = idxPolloFresco !== -1 && idxPierna !== -1 && idxPierna > idxPolloFresco;
+          const hayRamaPechuga = visibles.some((x) => x.branchGroup === 'pechuga' && x.key !== 'pechuga');
+          const hasTrunkPolloToPierna = hayRamaPechuga && idxPolloFresco !== -1 && idxPierna !== -1 && idxPierna > idxPolloFresco;
 
           visibles.forEach((curr, idx) => {
             const prev = idx > 0 ? visibles[idx - 1] : null;
             const next = idx < visibles.length - 1 ? visibles[idx + 1] : null;
 
             const isPiernaStartAfterPechuga =
-              curr.key === 'pierna' && prev !== null && prev.branchGroup === 'pechuga';
+              hayRamaPechuga && curr.key === 'pierna' && prev !== null && prev.branchGroup === 'pechuga';
             const isLastPechugaBeforePierna =
-              next !== null && next.key === 'pierna' && curr.branchGroup === 'pechuga';
+              hayRamaPechuga && next !== null && next.key === 'pierna' && curr.branchGroup === 'pechuga';
 
             const raizKey = troncoDesde || 'pollo_fresco';
             let connectUp = false;
             if (prev !== null && !isPiernaStartAfterPechuga) {
-              if (curr.branchGroup === prev.branchGroup || prev.key === raizKey) {
+              if (!hayRamaPechuga || curr.branchGroup === prev.branchGroup || prev.key === raizKey) {
                 connectUp = true;
               }
             }
 
             let connectDown = false;
             if (next !== null && !isLastPechugaBeforePierna) {
-              if (curr.branchGroup === next.branchGroup || curr.key === raizKey) {
+              if (!hayRamaPechuga || curr.branchGroup === next.branchGroup || curr.key === raizKey) {
                 connectDown = true;
               }
             }
@@ -7510,22 +7595,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Pollo', [
               ['pollo_fresco', 'Pollo fresco'],
               ['pechuga', 'Pechuga de Pollo'],
-              ['pierna', 'Pierna de Pollo'],
-              ['filete', 'Filete Pollo Crudo'],
-              ['milanesa', 'Milanesa de pollo'],
-              ['chicharron_pollo', 'Chicharrón de pollo'],
-              ['salt_pollo', 'Salt de pollo'],
-              ['chaufa_pollo', 'Chaufa de pollo'],
-              ['chi_pollo_bbq', 'Chi. pollo a la BBQ'],
-              ['chi_pollo_acevichada', 'Chi. pollo acevichada'],
-              ['pollada', 'Pollada'],
-              ['pollo_pachamanca', 'Pollo pachamanca'],
-              ['pollo_lena', 'Pecho a la leña'],
-              ['pierna_lena', 'Pierna a la leña'],
-              ['menu', 'Menú']
+              ['pierna', 'Pierna de Pollo']
             ]),
             cuadro('Pescado', [['pescado_entero', 'Pescado entero']]),
-            cuadro('Panceta', [['panceta', 'Panceta'], ['trozo_panceta', 'Trozo de panceta'], ['chancho_lena', 'Chancho a la leña'], ['chancho_lena_bbq', 'Chancho a la leña BBQ']]),
+            cuadro('Panceta', [['panceta', 'Panceta'], ['trozo_panceta', 'Trozo de panceta']]),
             cuadro('Carnes', [['carne_bistec', 'Carne Bistec'], ['lomo_fino', 'Lomo Fino'], ['carne_guiso', 'Carne Guiso']]),
             cuadro('Trucha', [['trucha_entera', 'Trucha entera'], ['filete_trucha', 'Filete de trucha']]),
             cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos'], ['arroz_pollo', 'Arroz pollo']]),
@@ -7637,10 +7710,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               filete_junior: 0
             },
             aderezos: {
-              pollo_pachamanca: { piernas: 4, pechugas: 4 },
+              pollo_pachamanca: { piernas: 4, pechugas: 0 },
               pollo_lena: { piernas: 3, pechugas: 0 },
               pierna_lena: { piernas: 0, pechugas: 0 },
-              pollada: { piernas: 2, pechugas: 2 },
+              pollada: { piernas: 2, pechugas: 0 },
               menu: { piernas: 1, pechugas: 2 }
             },
             pancetasSalen: 1,
@@ -7950,12 +8023,65 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return c === null ? null : c - this.calcSaldoTipo(row, tipo);
         },
 
+        nodoInventario(id) {
+          const buscar = (nodo) => {
+            if (!nodo) return null;
+            if (nodo.id === id) return nodo;
+            const hijos = nodo.children || [];
+            for (let i = 0; i < hijos.length; i++) {
+              const hallado = buscar(hijos[i]);
+              if (hallado) return hallado;
+            }
+            return null;
+          };
+          const pollo = buscar(this.arbolPollo);
+          if (pollo) return pollo;
+          const grupos = this.arbolesGrupo || {};
+          const ids = Object.keys(grupos);
+          for (let i = 0; i < ids.length; i++) {
+            const hallado = buscar(grupos[ids[i]]);
+            if (hallado) return hallado;
+          }
+          return null;
+        },
+
+        platosOcultosDe(rowId) {
+          const nodo = this.nodoInventario(rowId);
+          const out = [];
+          const walk = (n) => {
+            (n.children || []).forEach((ch) => {
+              if (ch.plato) out.push(ch);
+              else walk(ch);
+            });
+          };
+          if (nodo) walk(nodo);
+          return out;
+        },
+
+        creditoPlatos(row) {
+          if (!row) return 0;
+          return this.platosOcultosDe(row.id).reduce((a, n) => {
+            const hijo = this.filaReal(n.id);
+            if (!hijo) return a;
+            return a + this.tiposDe(hijo).reduce((s, t) => s + this.calcIngresoTotalTipo(hijo, t), 0);
+          }, 0);
+        },
+
+        saldoPlatosOcultos(row) {
+          if (!row) return 0;
+          return this.platosOcultosDe(row.id).reduce((a, n) => {
+            const hijo = this.filaReal(n.id);
+            if (!hijo) return a;
+            return a + this.tiposDe(hijo).reduce((s, t) => s + this.calcSaldoTipo(hijo, t), 0);
+          }, 0);
+        },
+
         calcIngresoTotal(row) {
-          return this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0);
+          return this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0) + this.creditoPlatos(row);
         },
 
         calcSaldo(row) {
-          return this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0);
+          return this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0) + this.saldoPlatosOcultos(row);
         },
 
         calcSaldoReal(row) {
@@ -7977,25 +8103,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         semillaCocido: {
-          pollada: { tieneCocido: false, reservaClave: 'pechuga-pollo' },
+          pollada: { tieneCocido: false, reservaClave: 'pierna-pollo' },
           menu: { tieneCocido: true, reservaClave: '' },
-          'pollo-lena': { tieneCocido: true, reservaClave: '' },
-          'pierna-lena': { tieneCocido: false, reservaClave: '' },
-          'pachamanca-pollo': { tieneCocido: true, reservaClave: '' },
+          'pollo-lena': { tieneCocido: true, reservaClave: 'pechuga-pollo' },
+          'pierna-lena': { tieneCocido: false, reservaClave: 'pierna-pollo' },
+          'pachamanca-pollo': { tieneCocido: true, reservaClave: 'pierna-pollo' },
           'pachamanca-chancho': { tieneCocido: true, reservaClave: '' },
           'pachamanca-res': { tieneCocido: true, reservaClave: '' },
           'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
-          'salt-pollo': { tieneCocido: false, reservaClave: 'filete' },
-          'chaufa-pollo': { tieneCocido: false, reservaClave: 'filete' },
-          milanesa: { tieneCocido: false, reservaClave: 'filete' },
-          'filete-junior': { tieneCocido: false, reservaClave: 'filete' },
-          'chicharron-pollo': { tieneCocido: false, reservaClave: 'filete' },
+          'salt-pollo': { tieneCocido: false, reservaClave: 'pechuga-pollo' },
+          'chaufa-pollo': { tieneCocido: false, reservaClave: 'pechuga-pollo' },
+          milanesa: { tieneCocido: false, reservaClave: 'pechuga-pollo' },
+          'filete-pollo': { tieneCocido: false, reservaClave: 'pechuga-pollo' },
+          'filete-junior': { tieneCocido: false, reservaClave: 'pechuga-pollo' },
+          'chicharron-pollo': { tieneCocido: false, reservaClave: 'pechuga-pollo' },
           'trozo-panceta': { tieneCocido: true, reservaClave: '' },
           'pechuga-pato': { tieneCocido: true, reservaClave: '' },
           'pierna-pato': { tieneCocido: true, reservaClave: '' },
-          'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
-          'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
-          'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' }
+          'milanesa-junior': { tieneCocido: false, reservaClave: 'pechuga-pollo' },
+          'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'pechuga-pollo' },
+          'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'pechuga-pollo' }
         },
 
         opcionCocidoDe(clave) {
@@ -8017,6 +8144,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const base = (op && typeof op.tieneCocido === 'boolean') ? op : this.opcionCocidoDe(clave);
             row.tieneCocido = !materia && !soloCrudo && base.tieneCocido === true;
             row.reservaClave = materia ? '' : (base.reservaClave || '');
+            if (row.reservaClave === 'filete') row.reservaClave = 'pechuga-pollo';
+            if (clave === 'pollada' || clave === 'pachamanca-pollo') row.reservaClave = 'pierna-pollo';
             if (op) row.stockMinimo = Number(op.stockMinimo) || 0;
           });
         },
@@ -8043,6 +8172,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const cambio = next - actual;
           if (!cambio) return;
           row[campo] = next;
+          const parteFresco = id === 'pollo_fresco' && base === 'ingreso';
+          const pechuga = parteFresco ? this.filaReal('pechuga') : null;
+          const pierna = parteFresco ? this.filaReal('pierna') : null;
+          const prevPechuga = pechuga ? (Number(pechuga.ingreso) || 0) : 0;
+          const prevPierna = pierna ? (Number(pierna.ingreso) || 0) : 0;
+          const prevTrans = parteFresco ? (Number(row.transformacion) || 0) : 0;
+          if (parteFresco) {
+            const fp = Number(this.config.factorPechugasPorFresco) || 2;
+            const fl = Number(this.config.factorPiernasPorFresco) || 2;
+            if (pechuga) pechuga.ingreso = next * fp;
+            if (pierna) pierna.ingreso = next * fl;
+            row.transformacion = next;
+            this.despiece.frescos = next;
+          }
           this.pulseRowTotal(row.id);
           const clave = this.claveDeFila[row.id];
           if (!clave) return;
@@ -8051,9 +8194,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const fecha = base === 'saldoAnterior' ? this.rangoPeriodo().desde + 'T03:59:00-05:00' : undefined;
           try {
             await this.paso(clave, tipo, cambio, nombres[base] + ' ' + tipo, clase, row.nombre, fecha);
+            if (parteFresco && pechuga) {
+              const deltaP = (Number(pechuga.ingreso) || 0) - prevPechuga;
+              if (deltaP) await this.paso('pechuga-pollo', 'crudo', deltaP, 'Pollo fresco → pechuga', 'ingreso', pechuga.nombre, fecha);
+            }
+            if (parteFresco && pierna) {
+              const deltaL = (Number(pierna.ingreso) || 0) - prevPierna;
+              if (deltaL) await this.paso('pierna-pollo', 'crudo', deltaL, 'Pollo fresco → pierna', 'ingreso', pierna.nombre, fecha);
+            }
             await this.cargarKardex();
           } catch (e) {
             row[campo] = actual;
+            if (parteFresco) {
+              if (pechuga) pechuga.ingreso = prevPechuga;
+              if (pierna) pierna.ingreso = prevPierna;
+              row.transformacion = prevTrans;
+            }
             this.toastMessage = e.message || 'No se guardó';
           }
         },
@@ -8190,6 +8346,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (m.clase === 'regulacion') return 'correccion';
           if (String(m.motivo || '').indexOf('Pasa a ') === 0) return 'transformacion';
           return 'ingreso';
+        },
+
+        textoOperacionAuditoria(mov) {
+          const motivo = String(mov && mov.motivo || '');
+          if (motivo.indexOf('Venta manual') === 0) return 'Venta manual';
+          if (!mov) return '';
+          if (mov.clase === 'correccion') return 'Corrección (opcional)';
+          if (mov.clase === 'ingreso') return 'Ingreso';
+          if (mov.clase === 'conteo') return 'Conteo Cámara';
+          if (mov.clase === 'venta') return 'Venta Comandas';
+          return 'Transformación';
         },
 
         async abrirModalAuditoria(row) {
@@ -8663,7 +8830,24 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!row) return 0;
           const ing = this.tiposDe(row).reduce((a, t) => a + Math.max(0, Number(this.valorTipo(row, 'ingreso', t)) || 0), 0);
           const corPos = this.tiposDe(row).reduce((a, t) => a + Math.max(0, Number(this.valorTipo(row, 'correccion', t)) || 0), 0);
-          return ing + corPos;
+          return ing + corPos + this.creditoPlatos(row);
+        },
+
+        abrirIngresoLupa(row) {
+          if (!row) return;
+          const platos = this.platosOcultosDe(row.id).map((n) => {
+            const hijo = this.filaReal(n.id);
+            return {
+              nombre: n.nombre,
+              crudo: hijo ? this.calcSaldoTipo(hijo, 'crudo') : 0,
+              cocido: hijo && hijo.tieneCocido ? this.calcSaldoTipo(hijo, 'cocido') : 0
+            };
+          }).filter((p) => p.crudo || p.cocido);
+          this.ingresoLupa = {
+            nombre: row.nombre,
+            libre: this.calcSaldoTipo(row, 'crudo'),
+            platos: platos
+          };
         },
 
         restaIngresoTotalFila(row) {
@@ -9055,10 +9239,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             }
           } else {
             const padresMap = {
-              pollo_pachamanca: 'pechuga',
+              pollo_pachamanca: 'pierna',
               pollo_lena: 'pechuga',
               pierna_lena: 'pierna',
-              pollada: 'pechuga',
+              pollada: 'pierna',
               menu: 'pechuga',
               milanesa: 'filete',
               milanesa_junior: 'filete',
@@ -9283,18 +9467,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         aderezosSinFiletes() {
-          const idsFilete = new Set(['filete', 'filete_junior', 'milanesa']);
-          return (this.config.aderezos || []).filter((ad) => !idsFilete.has(ad.id));
+          return (this.config.aderezos || []).filter((ad) => ad.id !== 'filete');
+        },
+
+        esPlatoSoloPierna(ad) {
+          const id = String(ad && ad.id || '');
+          const n = this.norm(ad && ad.nombre || '');
+          if (id === 'pollada' || id === 'pollo_pachamanca' || id === 'pachamanca-pollo') return true;
+          if (n.includes('pollada')) return true;
+          return n.includes('pachamanca') && n.includes('pollo');
         },
 
         aderezosDeCorte(corte) {
           const campo = corte === 'piernas' ? 'aceptaPierna' : 'aceptaPechuga';
-          return this.aderezosSinFiletes().filter((ad) => ad[campo] !== false);
+          return this.aderezosSinFiletes().filter((ad) => {
+            if (this.esPlatoSoloPierna(ad)) return corte === 'piernas';
+            return ad[campo] !== false;
+          });
         },
 
         pechugasEnPlatosGrupo() {
           let sum = 0;
-          this.aderezosSinFiletes().forEach((ad) => {
+          this.aderezosDeCorte('pechugas').forEach((ad) => {
             sum += Number(this.despiece.aderezos[ad.id] && this.despiece.aderezos[ad.id].pechugas || 0);
           });
           return sum;
@@ -10287,27 +10481,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               origen: { clave: 'pollo-origen', nombre: 'Pollo fresco' },
               cortes: [
                 { clave: 'pechuga-pollo', nombre: 'Pechuga de Pollo', factor: 2, factorDesde: '' },
-                { clave: 'pierna-pollo', nombre: 'Pierna de Pollo', factor: 2, factorDesde: '' },
-                { clave: 'filete', nombre: 'Filete Pollo Crudo', factor: 1, factorDesde: 'pechuga-pollo' },
-                { clave: 'filete', nombre: 'Filete Pollo Crudo', factor: 0, factorDesde: 'pierna-pollo' }
+                { clave: 'pierna-pollo', nombre: 'Pierna de Pollo', factor: 2, factorDesde: '' }
               ],
               platos: [
-                { id: 'filete-pollo', nombre: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['filete de pollo'] },
-                { id: 'milanesa', nombre: 'Milanesa con arroz + papas fritas + ensalada', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['milanesa de pollo'] },
-                { id: 'filete-junior', nombre: 'Filete junior', complemento: '', cuelgaDe: 'filete', cantidad: 0.5, venta: true, aliases: ['filete junior + papas fritas'] },
-                { id: 'fuente-chi', nombre: 'Fuente de Chicharron de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 2, venta: true, aliases: [] },
-                { id: 'chaufa-pollo', nombre: 'Arroz chaufa de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chaufa de pollo'] },
-                { id: 'chi-pollo-acevichada', nombre: 'Chicharron de pollo acevichada + arroz + papa frita', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chi. pollo acevichada'] },
-                { id: 'chi-pollo-bbq', nombre: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['chi. pollo a la bbq'] },
-                { id: 'chi-chico', nombre: 'Chicharron de pollo chico', complemento: '', cuelgaDe: 'filete', cantidad: 0.5, venta: true, aliases: [] },
-                { id: 'salt-pollo', nombre: 'Lomo saltado de pollo', complemento: '', cuelgaDe: 'filete', cantidad: 1, venta: true, aliases: ['salt de pollo'] },
-                { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
-                { id: 'pachamanca-pollo', nombre: 'Pollo pachamanca', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'filete-pollo', nombre: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: '', cuelgaDe: 'filete-pollo', cantidad: 1, venta: true, aliases: ['filete de pollo'] },
+                { id: 'milanesa', nombre: 'Milanesa con arroz + papas fritas + ensalada', complemento: '', cuelgaDe: 'milanesa', cantidad: 1, venta: true, aliases: ['milanesa de pollo'] },
+                { id: 'filete-junior', nombre: 'Filete junior', complemento: '', cuelgaDe: 'filete-junior', cantidad: 0.5, venta: true, aliases: ['filete junior + papas fritas'] },
+                { id: 'fuente-chi', nombre: 'Fuente de Chicharron de pollo', complemento: '', cuelgaDe: 'chicharron-pollo', cantidad: 2, venta: true, aliases: [] },
+                { id: 'chaufa-pollo', nombre: 'Arroz chaufa de pollo', complemento: '', cuelgaDe: 'chaufa-pollo', cantidad: 1, venta: true, aliases: ['chaufa de pollo'] },
+                { id: 'chi-pollo-acevichada', nombre: 'Chicharron de pollo acevichada + arroz + papa frita', complemento: '', cuelgaDe: 'chi-pollo-acevichada', cantidad: 1, venta: true, aliases: ['chi. pollo acevichada'] },
+                { id: 'chi-pollo-bbq', nombre: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', complemento: '', cuelgaDe: 'chi-pollo-bbq', cantidad: 1, venta: true, aliases: ['chi. pollo a la bbq'] },
+                { id: 'chi-chico', nombre: 'Chicharron de pollo chico', complemento: '', cuelgaDe: 'chicharron-pollo', cantidad: 1, venta: true, aliases: [] },
+                { id: 'salt-pollo', nombre: 'Lomo saltado de pollo', complemento: '', cuelgaDe: 'salt-pollo', cantidad: 1, venta: true, aliases: ['salt de pollo'] },
                 { id: 'pollo-lena', nombre: 'Pollo leña', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
                 { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'pierna-lena', nombre: 'Pierna a la leña', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: ['pierna leña'] },
                 { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
                 { id: 'pachamanca-pollo', nombre: 'Pollo pachamanca', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
-                { id: 'pollo-lena', nombre: 'Pollo leña', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
                 { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] }
               ]
             },
@@ -10567,13 +10757,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (id === 'pierna-lena') return 'pierna_lena';
             return id;
           };
+          const dePechuga = new Set([
+            'filete-pollo', 'filete_pollo', 'filete-junior', 'filete_junior',
+            'milanesa', 'milanesa-junior', 'milanesa_junior',
+            'fuente-chi', 'fuente_chi', 'chaufa-pollo', 'chaufa_pollo',
+            'chi-pollo-acevichada', 'chi_pollo_acevichada',
+            'chi-pollo-bbq', 'chi_pollo_bbq',
+            'chi-chico', 'chi_chico', 'chicharron-pollo', 'chicharron_pollo',
+            'salt-pollo', 'salt_pollo'
+          ]);
+          const soloPierna = new Set(['pollada', 'pollo_pachamanca', 'pachamanca-pollo', 'pierna_lena', 'pierna-lena']);
           const pieza = {};
           (pollo.platos || []).forEach((p) => {
-            if (p.cuelgaDe !== 'pechuga-pollo' && p.cuelgaDe !== 'pierna-pollo') return;
             const adId = normAdId(p.id);
+            const esExFilete = dePechuga.has(p.id) || dePechuga.has(p.cuelgaDe) || p.cuelgaDe === 'filete';
+            const esPieza = p.cuelgaDe === 'pechuga-pollo' || p.cuelgaDe === 'pierna-pollo' || esExFilete;
+            if (!esPieza) return;
             if (!pieza[adId]) pieza[adId] = { id: adId, nombre: p.nombre, aceptaPierna: false, aceptaPechuga: false };
-            if (p.cuelgaDe === 'pechuga-pollo') pieza[adId].aceptaPechuga = true;
+            if (esExFilete || p.cuelgaDe === 'pechuga-pollo') pieza[adId].aceptaPechuga = true;
             if (p.cuelgaDe === 'pierna-pollo') pieza[adId].aceptaPierna = true;
+          });
+          Object.keys(pieza).forEach((id) => {
+            if (!soloPierna.has(id)) return;
+            pieza[id].aceptaPechuga = false;
+            pieza[id].aceptaPierna = true;
           });
           if (!pieza.pierna_lena) {
             pieza.pierna_lena = { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false };
