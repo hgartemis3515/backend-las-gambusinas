@@ -682,6 +682,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       }
     }
 
+    .formula-corte-card {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, rgba(16, 24, 40, 0.95) 0%, rgba(10, 10, 18, 0.98) 100%);
+      border: 1.5px solid rgba(212, 175, 55, 0.55);
+      font-family: ui-monospace, monospace;
+      font-variant-numeric: tabular-nums;
+    }
     .caja-transformacion-resta {
       background: linear-gradient(135deg, #4c0519 0%, #881337 100%) !important;
       border: 2px solid #ff2e4c !important;
@@ -2267,6 +2279,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </p>
                         <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pechuga')))"></strong> · − <span class="text-rose-300" x-text="despiece.pechugasAFilete"></span> a filete</p>
                       </div>
+                      <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
+                        <span class="text-xl font-extrabold text-sky-300" x-text="formatNum(formulaCorte('pechuga').total)"></span>
+                        <span class="text-base font-extrabold text-rose-400 inline-flex items-center gap-0.5"><span>↓</span><span x-text="formatNum(formulaCorte('pechuga').usado)"></span></span>
+                        <span class="text-sm font-bold text-[#a0a0b8]">=</span>
+                        <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pechuga').libre)"></span>
+                      </div>
                       <div class="space-y-1 pt-2 border-t border-[#26263a] text-xs">
                         <div class="flex justify-between text-[#a0a0b8]">
                           <span>A Filete Pollo Crudo:</span>
@@ -2442,6 +2460,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span class="text-xs font-normal text-[#a0a0b8]">piernas</span>
                         </p>
                       </div>
+                      <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
+                        <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pierna').total)"></span>
+                        <span class="text-base font-extrabold text-rose-400 inline-flex items-center gap-0.5"><span>↓</span><span x-text="formatNum(formulaCorte('pierna').usado)"></span></span>
+                        <span class="text-sm font-bold text-[#a0a0b8]">=</span>
+                        <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pierna').libre)"></span>
+                      </div>
                       <div class="space-y-1 pt-2 border-t border-[#26263a] text-xs">
                         <div class="flex justify-between text-[#a0a0b8]">
                           <span>A Platos Pierna:</span>
@@ -2605,6 +2629,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <span x-text="obtenidasCorte(mapa, rama.corte)"></span>
                                 <span class="text-xs font-normal text-[#a0a0b8]">pzas hoy</span>
                               </p>
+                            </div>
+                            <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
+                              <span class="text-xl font-extrabold" :style="'color:' + rama.color" x-text="formatNum(formulaCorte(idDeClave(rama.corte.clave), mapa, rama.corte).total)"></span>
+                              <span class="text-base font-extrabold text-rose-400 inline-flex items-center gap-0.5"><span>↓</span><span x-text="formatNum(formulaCorte(idDeClave(rama.corte.clave), mapa, rama.corte).usado)"></span></span>
+                              <span class="text-sm font-bold text-[#a0a0b8]">=</span>
+                              <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte(idDeClave(rama.corte.clave), mapa, rama.corte).libre)"></span>
                             </div>
                             <div class="space-y-1 pt-2 border-t border-[#26263a] text-xs">
                               <div class="flex justify-between text-[#a0a0b8]">
@@ -9442,6 +9472,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // Cálculos de Despiece de Pollo en Transformar
         piernasObtenidas() {
           return Number(this.despiece.frescos || 0) * Number(this.config.factorPiernasPorFresco || 2);
+        },
+
+        formulaCorte(rowOrId, mapa, corteObj) {
+          const id = typeof rowOrId === 'string' ? rowOrId : (rowOrId && rowOrId.id);
+          let total = 0;
+          let usado = 0;
+          if (id === 'pechuga') {
+            total = this.pechugasObtenidas();
+            usado = this.pechugasUsadas();
+          } else if (id === 'pierna') {
+            total = this.piernasObtenidas();
+            usado = this.piernasUsadas();
+          } else if (id === 'pechuga_pato' || id === 'pierna_pato') {
+            total = this.origenMapa('pato-fresco') * 2;
+            const row = this.getRow(id);
+            usado = row ? (Number(row.transformacion) || 0) : 0;
+          } else if (mapa && corteObj) {
+            total = this.obtenidasCorte(mapa, corteObj);
+            const row = this.getRow(this.idDeClave(corteObj.clave));
+            usado = row ? (Number(row.transformacion) || 0) : 0;
+          }
+          return { total: total, usado: usado, libre: Math.max(0, total - usado) };
         },
 
         pechugasObtenidas() {
