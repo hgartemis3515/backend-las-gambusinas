@@ -97,13 +97,15 @@ const SEMILLA = [
     },
     {
         id: 'pota',
-        nombre: 'Pota',
-        tipo: 'directo',
-        origen: { clave: 'pota', nombre: 'Pota' },
-        cortes: [],
+        nombre: 'Pota entera cruda',
+        tipo: 'manual',
+        origen: { clave: 'pota', nombre: 'Pota entera cruda' },
+        cortes: [
+            { clave: 'pieza-pota', nombre: 'Pieza de pota', factor: 0, factorDesde: '' }
+        ],
         platos: [
-            { id: 'ceviche_pota', nombre: 'Ceviche de chicharrón de pota', complemento: '', cuelgaDe: 'pota', cantidad: 1, venta: true, aliases: ['ceviche de chicharron de pota', 'ceviche chicharron pota'] },
-            { id: 'chicharron_pota', nombre: 'Chicharrón de pota', complemento: '', cuelgaDe: 'pota', cantidad: 1, venta: true, aliases: ['chicharron de pota'] }
+            { id: 'chicharron_pota', nombre: 'Chicharrón de pota', complemento: '', cuelgaDe: 'pieza-pota', cantidad: 1, venta: true, aliases: ['chicharron de pota'] },
+            { id: 'ceviche_pota', nombre: 'Ceviche con chicharrón de pota', complemento: '', cuelgaDe: 'pieza-pota', cantidad: 1, venta: true, aliases: ['ceviche de chicharron de pota', 'ceviche con chicharron de pota', 'ceviche chicharron pota'] }
         ]
     }
 ];
@@ -171,6 +173,11 @@ function sanearMapa(raw) {
             aliases: (Array.isArray(p && p.aliases) ? p.aliases : []).map((a) => String(a).trim().slice(0, 80)).filter(Boolean).slice(0, 6)
         };
     }).filter((p) => p.nombre && p.cantidad > 0 && p.cuelgaDe);
+    if (id === 'pota') {
+        platos.forEach((p) => {
+            if (!p.cuelgaDe || p.cuelgaDe === 'pota' || p.cuelgaDe === origenClave) p.cuelgaDe = 'pieza-pota';
+        });
+    }
     return {
         id,
         nombre,

@@ -241,10 +241,15 @@ async function opcionesCocido() {
         let tieneCocido = guardado ? doc.tieneCocido : sem.tieneCocido;
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
-        if (esMateria(d.clave) || d.clave === 'milanesa' || d.clave === 'filete-junior' || d.clave === 'milanesa-junior') {
+        const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'pollada', 'pierna-lena', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada'];
+        const conCocido = ['trozo-panceta', 'pechuga-pato', 'pierna-pato'];
+        if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
-            reservaClave = d.clave === 'milanesa' || d.clave === 'filete-junior' || d.clave === 'milanesa-junior' ? 'filete' : '';
+            if (!esMateria(d.clave) && !reservaClave) reservaClave = 'filete';
+            if (d.clave === 'pollada') reservaClave = 'pechuga-pollo';
+            if (d.clave === 'pierna-lena') reservaClave = '';
         }
+        if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
         return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
     });
 }

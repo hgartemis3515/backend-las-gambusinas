@@ -15,9 +15,9 @@ const logger = require('./logger');
 const MAPA_SALIDA = {
     '1/4 pollo a la lena': { rubro: 'pollo-lena', factor: 1 },
     '1/2 pollo a la lena baby': { rubro: 'pollo-lena', factor: 1 },
-    'panceta de chancho lena': { rubro: 'panceta', factor: 1 },
-    'chancho a la lena': { rubro: 'chancho-lena', factor: 1 },
-    'chancho a la lena bbq': { rubro: 'chancho-lena-bbq', factor: 1 },
+    'panceta de chancho lena': { rubro: 'trozo-panceta', factor: 3 },
+    'chancho a la lena': { rubro: 'trozo-panceta', factor: 4 },
+    'chancho a la lena bbq': { rubro: 'trozo-panceta', factor: 6 },
     'pollo de pachamanca': { rubro: 'pachamanca-pollo', factor: 1 },
     'cerdo de pachamanca': { rubro: 'pachamanca-chancho', factor: 1 },
     'cerdo pachamanca': { rubro: 'pachamanca-chancho', factor: 1 },
@@ -161,8 +161,21 @@ function rubrosDeFila(fila, mapas, bebidas) {
             if (item.unidades != null) add(item.rubro, null, item.unidades);
             else add(item.rubro, item.factor);
         });
-    } else if (n.includes('filete junior')) add('filete', 0.5);
+    }     else if (n.includes('filete junior')) add('filete', 0.5);
     else if (n.includes('filete de pollo')) add('filete');
+    else if (n.includes('mix') && n.includes('lena')) { add('trozo-panceta', 3); add('pollo-lena', 1); }
+    else if (n.includes('chancho') && n.includes('lena') && n.includes('bbq')) add('trozo-panceta', 6);
+    else if (n.includes('chancho') && n.includes('lena')) add('trozo-panceta', 4);
+    else if (n.includes('chaufa') && n.includes('chancho')) add('trozo-panceta', 1);
+    else if (n.includes('desayuno criollo')) add('chicharron-chancho', 0.5);
+    else if (n.includes('fuente') && n.includes('chicharron') && n.includes('chancho')) add('chicharron-chancho', 2);
+    else if ((n.includes('1/2') || n.includes('medio')) && n.includes('chicharron') && n.includes('chancho')) add('chicharron-chancho', 0.5);
+    else if (n.includes('chicharron') && n.includes('chancho')) add('chicharron-chancho', 1);
+    else if ((n.includes('ceviche') || n.includes('chicharron')) && n.includes('pota')) add('pieza-pota', 1);
+    else if (n.includes('duo marino')) add('pieza-pescado', 2);
+    else if (!n.includes('trucha') && (n.includes('pescado frito') || (n.includes('jalea') && n.includes('pescado')) || (n.includes('chicharron') && n.includes('pescado')) || (n.includes('ceviche') && n.includes('pescado')) || n === 'ceviche')) add('pieza-pescado', 1);
+    else if ((n.includes('1/2') || n.includes('medio')) && n.includes('cuy')) add('cuy', 0.5);
+    else if (n.includes('cuy')) add('cuy', 1);
     else if (n.includes('1/4 pollo') || n.includes('cuarto de pollo') || n.includes('pollo a la lena')) add('pollo-lena');
     else if (n.includes('chicharron de pollo') && n.includes('bbq')) add('chi-pollo-bbq');
     else if (n.includes('acevichada') && n.includes('pollo')) add('chi-pollo-acevichada');

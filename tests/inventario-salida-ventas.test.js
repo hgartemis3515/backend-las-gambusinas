@@ -197,7 +197,8 @@ test('la pota solo sale en ceviche de chicharrón de pota y en chicharrón de po
         { nombre: 'Chicharrón de pota', cantidad: 1 },
         { nombre: 'Chicha de pota', cantidad: 4 }
     ]);
-    expect(porRubro.pota).toBe(3);
+    expect(porRubro['pieza-pota']).toBe(3);
+    expect(porRubro.pota).toBeUndefined();
     expect(porRubro.ceviche).toBeUndefined();
 });
 

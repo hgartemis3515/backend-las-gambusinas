@@ -10,8 +10,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 3. Por qué Transformar y Crudo y cocido no guardan un saldo aparte:
    Tener saldos paralelos en distintas pestañas rompe la única fuente de verdad. Transformar solo calcula el pase de origen a destino y, al pulsar «Pasar a la hoja», escribe la salida en la columna Transformación del origen y la entrada en la columna Ingreso del corte/aderezo destino dentro de Inventario Tabla. Crudo y cocido lee y modifica en vivo las mismas filas de Inventario Tabla desglosando cuántas unidades del saldo están crudas en cámara y cuántas ya están cocidas listas para despacho.
 
-4. Por qué la panceta no tiene factor y por qué carne, trucha y pescado entero no tienen cuadro de transformar:
-   La panceta (chancho/cerdo) varía de tamaño y corte según la pieza del día: de 1 panceta pueden salir 10, 12 u otro número entero de trozos, por lo que el cocinero anota a mano los trozos reales obtenidos sin un multiplicador rígido. En cambio, Carne (Bistec, Lomo Fino, Carne Pachamanca, Carne Guiso), Trucha (Trucha entera, Filete de trucha) y Pescado entero ya llegan porcionados o se controlan directamente por unidad/porción desde que ingresan, sin pasar por un árbol de despiece en el local.
+4. Por qué la panceta, el pescado y la pota anotan el rendimiento a mano:
+   1 panceta pasa a 6 tiras (factor fijo). De esas tiras el cocinero anota cuántas usó y cuántos trozos salieron: el corte varía y suele dar 39, 40 o 41 trozos. Esos trozos entran en Ingreso de Trozo de panceta y las tiras usadas salen en Transformación de Tira de panceta. Pescado y pota cruda se parten igual: se anota cuántos se usaron y cuántas piezas salieron, y eso se escribe en la hoja. Carne y trucha siguen de ingreso directo, sin despiece.
 
 5. Por qué el grupo de la hoja no suma pollos + piernas + pechugas + filetes:
    En la fila padre de un grupo (ej. Grupo Pollo), sumar 0 pollos frescos + 10 piernas + 6 pechugas + 12 filetes + 18 aderezos daría un número ficticio ("46") que mezcla pollos enteros con cuartos y medios pechos fileteados. El encabezado con ▶/▼ y pastilla GRUPO sirve únicamente para plegar/desplegar la familia como en un grupo de comandas; cada fila hija muestra sus propios números en su propia unidad. Y las filas solas (Pescado entero, Arroz) conviven en la misma tabla como filas independientes sin forzarlas dentro de un grupo.
@@ -2473,7 +2473,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-emerald-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
                               <div class="flex items-center justify-between gap-2">
                                 <div class="min-w-0">
-                                  <span class="text-xs font-semibold text-white block truncate" x-text="ad.id === 'pollo_lena' ? 'Pollo leña (Pierna)' : ad.nombre"></span>
+                                  <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
                                   <span class="text-[10px] text-emerald-300/80 font-mono">1 Pierna → 1 pza</span>
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
@@ -2514,7 +2514,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </div>
 
       <!-- ================================================================= -->
-      <!-- MAPAS DEL EDITOR: PATO FRESCO, POTA Y LOS QUE SE CREEN           -->
+      <!-- MAPAS DEL EDITOR: PATO FRESCO Y LOS QUE SE CREEN                  -->
       <!-- ================================================================= -->
       <template x-for="mapa in mapasSueltos()" :key="'mapa-suelto-' + mapa.id">
         <div class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl">
@@ -2589,7 +2589,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <!-- RAMA DE CORTE: NODO DEL CORTE → CUADRO DE SUS PLATOS -->
                     <template x-if="rama.tipo === 'corte'">
                       <div class="arbol">
-                        <div class="w-[220px] arbol-nodo">
+                        <div class="w-[240px] arbol-nodo">
                           <div class="bg-[#0a0a0f] border-2 rounded-xl p-3.5 space-y-2.5 shadow-lg" :style="'border-color:' + rama.color">
                             <div class="flex items-center justify-between">
                               <span class="px-2 py-0.5 rounded border font-bold text-[10px] uppercase" :style="'color:' + rama.color + ';border-color:' + rama.color">Corte Primario</span>
@@ -2605,13 +2605,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="space-y-1 pt-2 border-t border-[#26263a] text-xs">
                               <div class="flex justify-between text-[#a0a0b8]">
                                 <span>Venta comandas:</span>
-                                <span class="font-mono font-semibold text-rose-200" x-text="formatNum(getRow(idDeClave(rama.corte.clave)).venta)"></span>
+                                <span class="font-mono font-semibold text-rose-200" x-text="formatNum(valorTipo(getRow(idDeClave(rama.corte.clave)), 'venta', 'crudo') + valorTipo(getRow(idDeClave(rama.corte.clave)), 'venta', 'cocido'))"></span>
                               </div>
                               <div class="flex justify-between font-bold pt-1 border-t border-[#26263a]/60">
                                 <span class="text-white">Queda en hoja:</span>
                                 <span class="font-mono text-emerald-300" x-text="formatNum(calcSaldoReal(getRow(idDeClave(rama.corte.clave))))"></span>
                               </div>
                             </div>
+                            <!-- Pase Crudo → Cocido para cortes con cocido (Pechuga de pato y Pierna de pato) -->
+                            <template x-if="tienePaseCocido(idDeClave(rama.corte.clave))">
+                              <div class="pt-2 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                                <div class="flex flex-col">
+                                  <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                                  <span class="text-[10px] font-mono text-[#a0a0b8]">
+                                    Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(idDeClave(rama.corte.clave)))"></strong>
+                                    · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(idDeClave(rama.corte.clave)))"></strong>
+                                  </span>
+                                </div>
+                                <div class="inline-flex items-center gap-0.5 shrink-0">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + rama.nombre" @click="pasarCrudoACocido(idDeClave(rama.corte.clave), -1)">−</button>
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + rama.nombre" :value="cocidoActualTransformar(idDeClave(rama.corte.clave))" @change="fijarPaseCrudoACocido(idDeClave(rama.corte.clave), $event.target.value)">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + rama.nombre" @click="pasarCrudoACocido(idDeClave(rama.corte.clave), 1)">+</button>
+                                </div>
+                              </div>
+                            </template>
                           </div>
                         </div>
 
@@ -2673,69 +2690,340 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </template>
 
       <!-- ================================================================= -->
-      <!-- 2. MAPAS SEMÁNTICOS HORIZONTALES GRUPALES: PANCETA, CARNERO Y ARROZ -->
+      <!-- 2. MAPA SEMÁNTICO HORIZONTAL — PANCETA (1=6 TIRAS → TROZOS → PLATOS) -->
       <!-- ================================================================= -->
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <!-- MAPA SEMÁNTICO HORIZONTAL: PANCETA (SIN FACTOR FIJO) Y CARNERO (1 A 1) -->
-        <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('panceta') || tieneMapa('carnero')">
-          <div class="pb-2 border-b border-[#26263a]">
-            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['panceta', 'carnero'])"></span>. Mapa Semántico Horizontal — Panceta y Carnero</h2>
-            <p class="text-xs text-[#a0a0b8]">Panceta reparte a trozos manuales (sin factor fijo); Carnero convierte 1 a 1 a Carnero pachamanca.</p>
+      <div class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('panceta')">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
+          <div>
+            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['panceta'])"></span>. Mapa Semántico Horizontal — Panceta (Tiras → Trozos → Platos)</h2>
+            <p class="text-xs text-[#a0a0b8]">
+              <strong class="text-white">1 panceta = 6 tiras de panceta</strong> (factor fijo). La tira no se vende: se canjea/transforma en <strong class="text-[#d4af37]">Trozo de panceta</strong> (con Crudo y Cocido), del cual descuentan los platos.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5 text-xs font-mono">
+            <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#26263a] text-white">
+              Pancetas: <strong class="text-[#d4af37]" x-text="despiece.pancetasSalen"></strong>
+            </span>
+            <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-sky-500/40 text-sky-200">
+              Tiras (+<span x-text="(Number(despiece.pancetasSalen) || 0) * 6"></span>): <strong x-text="formatNum(calcSaldoReal(getRow('tira_panceta')))"></strong> libres
+            </span>
+            <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-emerald-500/40 text-emerald-200">
+              Trozos hoy: <strong x-text="despiece.trozosPanceta"></strong> (Queda: <strong x-text="formatNum(calcSaldoReal(getRow('trozo_panceta')))"></strong>)
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          <!-- 1. ORIGEN: PANCETA ENTERA -->
+          <div class="lg:w-56 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
+              <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('panceta')))"></strong></span>
+            </div>
+            <div>
+              <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
+              <p class="text-[11px] text-[#a0a0b8]">1 panceta = 6 tiras · Nacen <strong class="text-[#d4af37] font-mono" x-text="(Number(despiece.pancetasSalen) || 0) * 6"></strong> tiras</p>
+            </div>
+            <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
+              <button type="button" aria-label="Restar panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPancetasSalen((Number(despiece.pancetasSalen) || 0) - 1)">−</button>
+              <input type="number" min="0" aria-label="Pancetas que salen a tiras" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pancetasSalen" @change="fijarPancetasSalen($event.target.value)">
+              <button type="button" aria-label="Sumar panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPancetasSalen((Number(despiece.pancetasSalen) || 0) + 1)">+</button>
+            </div>
+            <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.panceta" x-transition @click="abrirIngreso('panceta')">Ingreso</button>
+            <div class="ingreso-panel" x-show="ingresoAbierto.panceta" x-cloak>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('panceta')">Cerrar</button>
+              </div>
+              <div class="mt-2 inline-flex items-center gap-0.5">
+                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de panceta" @click="stepField('panceta', 'ingreso', -1)">−</button>
+                <input type="number" min="0" aria-label="Ingreso de panceta" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('panceta').ingreso" @change="updateIngresoDirecto('panceta', $event.target.value)">
+                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de panceta" @click="stepField('panceta', 'ingreso', 1)">+</button>
+              </div>
+            </div>
           </div>
 
-          <!-- Flujo Horizontal Panceta -->
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" x-show="tieneMapa('panceta')">
-            <div class="sm:w-52 bg-[#0a0a0f] border border-[#d4af37]/60 rounded-xl p-3 shrink-0 space-y-2">
+          <div class="hidden lg:flex w-8 shrink-0 items-center">
+            <div class="conector-h-barra-oro"></div>
+          </div>
+
+          <!-- 2. CORTE INTERMEDIO Y DESTINO VARIABLE: TIRA DE PANCETA -> TROZO DE PANCETA -->
+          <div class="lg:w-80 bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-200 font-extrabold text-[10px] uppercase">Canje Tiras → Trozos</span>
+              <span class="text-[11px] font-mono text-sky-300">Tiras en hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('tira_panceta')))"></strong></span>
+            </div>
+
+            <!-- Tiras de panceta usadas (resta en Transformación de Tira de panceta) -->
+            <div class="bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+              <div>
+                <span class="text-xs font-bold text-white block">Tira de panceta (Usadas)</span>
+                <span class="text-[10px] text-[#a0a0b8]">Resta en Transformación de la tira (No se vende)</span>
+              </div>
+              <div class="inline-flex items-center gap-0.5 shrink-0">
+                <button type="button" aria-label="Restar tiras usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarTirasUsadas((Number(despiece.tirasUsadas) || 0) - 1)">−</button>
+                <input type="number" min="0" aria-label="Tiras de panceta usadas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.tirasUsadas" @change="fijarTirasUsadas($event.target.value)">
+                <button type="button" aria-label="Sumar tiras usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarTirasUsadas((Number(despiece.tirasUsadas) || 0) + 1)">+</button>
+              </div>
+            </div>
+
+            <!-- Trozos de panceta obtenidos (suma en Ingreso de Trozo de panceta) + Pase Crudo -> Cocido -->
+            <div class="bg-[#14141f] border border-[#d4af37]/50 rounded-lg px-3 py-2 space-y-2">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('panceta')))"></strong></span>
+                <div>
+                  <span class="text-xs font-bold text-white block">Trozo de panceta (Salieron)</span>
+                  <span class="text-[10px] text-emerald-300">Suma en Ingreso. De las tiras usadas suelen salir 39, 40 o 41 trozos; anota el número real.</span>
+                </div>
+                <div class="inline-flex items-center gap-0.5 shrink-0">
+                  <button type="button" aria-label="Restar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarTrozosPanceta((Number(despiece.trozosPanceta) || 0) - 1)">−</button>
+                  <input type="number" min="0" aria-label="Trozos de panceta obtenidos" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.trozosPanceta" @change="fijarTrozosPanceta($event.target.value)">
+                  <button type="button" aria-label="Sumar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarTrozosPanceta((Number(despiece.trozosPanceta) || 0) + 1)">+</button>
+                </div>
               </div>
-              <span class="text-sm font-bold text-white block">Panceta entera</span>
-              <p class="text-[11px] text-[#a0a0b8]">Salen a trozos</p>
-              <div class="inline-flex items-center gap-0.5">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('pancetasSalen', -1)">−</button>
-                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.pancetasSalen" @change="volcarTransformacionEnTabla()">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('pancetasSalen', 1)">+</button>
+
+              <!-- Pase Crudo → Cocido de Trozo de panceta -->
+              <template x-if="tienePaseCocido('trozo_panceta')">
+                <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                  <div class="flex flex-col">
+                    <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                    <span class="text-[10px] font-mono text-[#a0a0b8]">
+                      Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar('trozo_panceta'))"></strong>
+                      · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar('trozo_panceta'))"></strong>
+                    </span>
+                  </div>
+                  <div class="inline-flex items-center gap-0.5 shrink-0">
+                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Restar pase a cocido de Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', -1)">−</button>
+                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#0a0a0f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Trozo de panceta" :value="cocidoActualTransformar('trozo_panceta')" @change="fijarPaseCrudoACocido('trozo_panceta', $event.target.value)">
+                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Pasar crudo a cocido en Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', 1)">+</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="hidden lg:flex w-8 shrink-0 items-center">
+            <div class="conector-h-barra-oro"></div>
+          </div>
+
+          <!-- 3. CUADRO GRUPAL: PLATOS QUE DESCUENTAN TROZO DE PANCETA -->
+          <div class="flex-1 cuadro-grupal-semantico space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-[#26263a]">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · TROZO DE PANCETA</span>
+                <span class="text-xs font-bold text-white">Platos que descuentan Trozos de panceta</span>
               </div>
-              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.panceta" x-transition @click="abrirIngreso('panceta')">Ingreso</button>
-              <div class="ingreso-panel" x-show="ingresoAbierto.panceta" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+              <span class="text-[11px] font-mono text-[#a0a0b8]">
+                Venta comandas: <strong class="text-rose-200" x-text="formatNum(valorTipo(getRow('trozo_panceta'), 'venta', 'crudo') + valorTipo(getRow('trozo_panceta'), 'venta', 'cocido'))"></strong> trozos
+              </span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <template x-for="pl in platosDeTrozoPanceta()" :key="'pl-panc-' + pl.id">
+                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                  <div class="min-w-0">
+                    <span class="text-xs font-bold text-white block" x-text="pl.nombre"></span>
+                    <span class="text-[10px] text-[#a0a0b8] block" x-show="pl.complemento" x-text="pl.complemento"></span>
+                  </div>
+                  <span class="px-2 py-0.5 rounded bg-[#14141f] border border-[#d4af37]/40 text-[11px] font-mono font-bold text-[#d4af37] shrink-0" x-text="'Come ' + pl.cantidad + (pl.cantidad === 1 ? ' trozo' : ' trozos')"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- 3. MAPA SEMÁNTICO HORIZONTAL: PESCADO A PIEZAS                     -->
+      <!-- ================================================================= -->
+      <div class="space-y-4">
+        <!-- MAPA SEMÁNTICO HORIZONTAL: PESCADO -> PIEZAS DE PESCADO + PLATOS -->
+        <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-3 shadow-xl" x-show="tieneMapa('pescado-trans')">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#26263a]">
+            <div>
+              <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pescado-trans'])"></span>. Mapa Semántico Horizontal — Pescado a Piezas</h2>
+              <p class="text-xs text-[#a0a0b8]">El cocinero anota cuántos pescados usó y cuántas piezas salieron (sin factor fijo). Las ventas descuentan Pieza de pescado.</p>
+            </div>
+            <span class="px-2.5 py-1 rounded bg-[#0a0a0f] border border-sky-500/40 text-xs font-mono text-sky-200">
+              Piezas en hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pieza_pescado')))"></strong>
+            </span>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <!-- Origen: Pescado -->
+            <div class="sm:w-52 bg-[#0a0a0f] border-2 border-[#d4af37]/80 rounded-xl p-3 shrink-0 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pescado_entero')))"></strong></span>
+              </div>
+              <span class="text-sm font-extrabold text-white block">Pescado</span>
+              <p class="text-[11px] text-[#a0a0b8]">Pescados usados hoy:</p>
+              <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
+                <button type="button" aria-label="Restar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(despiece.pescadosUsados) || 0) - 1)">−</button>
+                <input type="number" min="0" aria-label="Pescados usados" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pescadosUsados" @change="fijarPescadosUsados($event.target.value)">
+                <button type="button" aria-label="Sumar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(despiece.pescadosUsados) || 0) + 1)">+</button>
+              </div>
+              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pescado_entero" x-transition @click="abrirIngreso('pescado_entero')">Ingreso</button>
+              <div class="ingreso-panel" x-show="ingresoAbierto.pescado_entero" x-cloak>
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
-                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('panceta')">Cerrar</button>
+                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pescado_entero')">Cerrar</button>
                 </div>
                 <div class="mt-2 inline-flex items-center gap-0.5">
-                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de panceta" @click="stepField('panceta', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de panceta" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('panceta').ingreso" @change="updateIngresoDirecto('panceta', $event.target.value)">
-                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de panceta" @click="stepField('panceta', 'ingreso', 1)">+</button>
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de pescado" @click="stepField('pescado_entero', 'ingreso', -1)">−</button>
+                  <input type="number" min="0" aria-label="Ingreso de pescado" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('pescado_entero').ingreso" @change="updateIngresoDirecto('pescado_entero', $event.target.value)">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de pescado" @click="stepField('pescado_entero', 'ingreso', 1)">+</button>
                 </div>
               </div>
             </div>
 
-            <div class="hidden sm:flex w-10 shrink-0 items-center">
+            <!-- Conector en medio -->
+            <div class="hidden sm:flex w-8 shrink-0 items-center">
               <div class="conector-h-barra-oro"></div>
             </div>
 
-            <div class="flex-1 cuadro-grupal-semantico">
-              <div class="flex items-center justify-between gap-2 mb-1">
-                <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · PANCETA</span>
-                <span class="text-[11px] text-[#a0a0b8] font-mono">Sin factor fijo (manual)</span>
+            <!-- Destino y grupo a la derecha: Piezas de pescado + Platos -->
+            <div class="flex-1 cuadro-grupal-semantico space-y-2.5">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-[#26263a]">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">DESTINO Y GRUPO · PIEZAS DE PESCADO</span>
+                </div>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Venta comandas: <strong class="text-rose-200" x-text="formatNum(getRow('pieza_pescado').venta)"></strong></span>
               </div>
-              <div class="flex items-center justify-between gap-2 bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2">
+
+              <div class="bg-[#0a0a0f] border border-sky-500/40 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
                 <div>
-                  <span class="text-xs font-bold text-white block">Trozo de panceta</span>
-                  <span class="text-[10px] text-[#a0a0b8]">Trozos obtenidos de <span x-text="despiece.pancetasSalen"></span> panceta(s)</span>
+                  <span class="text-xs font-bold text-white block">Pieza de pescado (Salieron)</span>
+                  <span class="text-[10px] text-[#a0a0b8]">De <strong class="text-white" x-text="despiece.pescadosUsados"></strong> pescado(s) · Queda: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow('pieza_pescado')))"></strong></span>
                 </div>
-                <div class="inline-flex items-center gap-0.5">
-                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('trozosPanceta', -1)">−</button>
-                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.trozosPanceta" @change="volcarTransformacionEnTabla()">
-                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('trozosPanceta', 1)">+</button>
+                <div class="inline-flex items-center gap-0.5 shrink-0">
+                  <button type="button" aria-label="Restar piezas de pescado" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPiezasPescado((Number(despiece.piezasPescado) || 0) - 1)">−</button>
+                  <input type="number" min="0" aria-label="Piezas de pescado obtenidas" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.piezasPescado" @change="fijarPiezasPescado($event.target.value)">
+                  <button type="button" aria-label="Sumar piezas de pescado" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPiezasPescado((Number(despiece.piezasPescado) || 0) + 1)">+</button>
                 </div>
               </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                <template x-for="pl in platosDePiezaPescado()" :key="'pl-pez-' + pl.id">
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
+                    <span class="text-[11px] font-mono font-bold text-sky-300 shrink-0" x-text="'Come ' + pl.cantidad + (pl.cantidad === 1 ? ' pieza' : ' piezas')"></span>
+                  </div>
+                </template>
+              </div>
+              <p class="text-[10px] text-[#5a5a7a]">Trucha y dúo truchero no entran aquí.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- MAPA ÚNICO: POTA ENTERA CRUDA → PIEZAS VARIABLES → PLATOS -->
+        <div class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('pota')">
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
+            <div>
+              <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pota'])"></span>. Mapa Semántico Horizontal — Pota entera cruda → Piezas</h2>
+              <p class="text-xs text-[#a0a0b8]">
+                La <strong class="text-white">pota entera cruda</strong> se parte en piezas. El número de piezas es variable. Chicharrón de pota y Ceviche con chicharrón de pota usan <strong class="text-[#d4af37]">1 pieza</strong> cada uno.
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2.5 text-xs font-mono">
+              <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#26263a] text-white">
+                Potas: <strong class="text-[#d4af37]" x-text="despiece.potasUsadas"></strong>
+              </span>
+              <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-emerald-500/40 text-emerald-200">
+                Piezas hoy: <strong x-text="despiece.piezasPota"></strong> (Queda: <strong x-text="formatNum(calcSaldoReal(getRow('pieza_pota')))"></strong>)
+              </span>
             </div>
           </div>
 
+          <div class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+            <div class="lg:w-56 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+              <div class="flex items-center justify-between gap-2">
+                <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pota')))"></strong></span>
+              </div>
+              <div>
+                <h3 class="text-sm font-extrabold text-white">Pota entera cruda</h3>
+                <p class="text-[11px] text-[#a0a0b8]">Cuántas potas enteras se parten hoy</p>
+              </div>
+              <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
+                <button type="button" aria-label="Restar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(despiece.potasUsadas) || 0) - 1)">−</button>
+                <input type="number" min="0" aria-label="Potas enteras usadas" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.potasUsadas" @change="fijarPotasUsadas($event.target.value)">
+                <button type="button" aria-label="Sumar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(despiece.potasUsadas) || 0) + 1)">+</button>
+              </div>
+              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pota" x-transition @click="abrirIngreso('pota')">Ingreso</button>
+              <div class="ingreso-panel" x-show="ingresoAbierto.pota" x-cloak>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pota')">Cerrar</button>
+                </div>
+                <div class="mt-2 inline-flex items-center gap-0.5">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de pota" @click="stepField('pota', 'ingreso', -1)">−</button>
+                  <input type="number" min="0" aria-label="Ingreso de pota entera cruda" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('pota').ingreso" @change="updateIngresoDirecto('pota', $event.target.value)">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de pota" @click="stepField('pota', 'ingreso', 1)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="hidden lg:flex w-8 shrink-0 items-center">
+              <div class="conector-h-barra-oro"></div>
+            </div>
+
+            <div class="lg:w-72 bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+              <div class="flex items-center justify-between gap-2">
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-extrabold text-[10px] uppercase">Piezas variables</span>
+                <span class="text-[11px] font-mono text-emerald-300">En hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pieza_pota')))"></strong></span>
+              </div>
+              <div class="bg-[#14141f] border border-emerald-500/40 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                <div>
+                  <span class="text-xs font-bold text-white block">Pieza de pota (Salieron)</span>
+                  <span class="text-[10px] text-[#a0a0b8]">De <strong class="text-white" x-text="despiece.potasUsadas"></strong> pota(s) entera(s). Suma en Ingreso.</span>
+                </div>
+                <div class="inline-flex items-center gap-0.5 shrink-0">
+                  <button type="button" aria-label="Restar piezas de pota" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarPiezasPota((Number(despiece.piezasPota) || 0) - 1)">−</button>
+                  <input type="number" min="0" aria-label="Piezas de pota obtenidas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.piezasPota" @change="fijarPiezasPota($event.target.value)">
+                  <button type="button" aria-label="Sumar piezas de pota" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarPiezasPota((Number(despiece.piezasPota) || 0) + 1)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="hidden lg:flex w-8 shrink-0 items-center">
+              <div class="conector-h-barra-oro"></div>
+            </div>
+
+            <div class="flex-1 cuadro-grupal-semantico space-y-2">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-[#26263a]">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · PIEZA DE POTA</span>
+                  <span class="text-xs font-bold text-white">Platos que descuentan piezas</span>
+                </div>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">
+                  Venta comandas: <strong class="text-rose-200" x-text="formatNum(getRow('pieza_pota').venta)"></strong> piezas
+                </span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <template x-for="pl in platosDePiezaPota()" :key="'pl-pota-' + pl.id">
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
+                    <span class="px-2 py-0.5 rounded bg-[#14141f] border border-emerald-500/40 text-[11px] font-mono font-bold text-emerald-300 shrink-0" x-text="'Come ' + pl.cantidad + (pl.cantidad === 1 ? ' pieza' : ' piezas')"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- 4. MAPAS SEMÁNTICOS HORIZONTALES: CARNERO Y ARROZ                  -->
+      <!-- ================================================================= -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <!-- MAPA SEMÁNTICO HORIZONTAL: CARNERO (1 A 1) + CHICHARRÓN DE CHANCHO Y CUY -->
+        <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('carnero')">
+          <div class="pb-2 border-b border-[#26263a]">
+            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['carnero'])"></span>. Mapa Semántico Horizontal — Carnero, Chicharrón de Chancho y Cuy</h2>
+            <p class="text-xs text-[#a0a0b8]">Carnero convierte 1 a 1 a Carnero pachamanca; Chicharrón de chancho crudo y Cuy entran por unidad sin transformación.</p>
+          </div>
+
           <!-- Flujo Horizontal Carnero -->
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-[#26263a]/60" x-show="tieneMapa('carnero')">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div class="sm:w-52 bg-[#0a0a0f] border border-[#d4af37]/60 rounded-xl p-3 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen</span>
@@ -2749,7 +3037,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('carneroSalen', 1)">+</button>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.carnero" x-transition @click="abrirIngreso('carnero')">Ingreso</button>
-              <div class="ingreso-panel" x-show="ingresoAbierto.carnero" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+              <div class="ingreso-panel" x-show="ingresoAbierto.carnero" x-cloak>
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
                   <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('carnero')">Cerrar</button>
@@ -2762,7 +3050,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
             </div>
 
-            <div class="hidden sm:flex w-10 shrink-0 items-center">
+            <div class="hidden sm:flex w-8 shrink-0 items-center">
               <div class="conector-h-barra-oro"></div>
             </div>
 
@@ -2798,6 +3086,84 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
             </div>
           </div>
+
+          <!-- Flujo Horizontal: Chicharrón de chancho crudo (Ingreso directo por unidad, no sale de panceta) -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-3 border-t border-[#26263a]/60">
+            <div class="sm:w-52 bg-[#0a0a0f] border border-amber-500/60 rounded-xl p-3 shrink-0 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase font-bold text-amber-300">Origen Directo</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('chicharron_chancho')))"></strong></span>
+              </div>
+              <span class="text-sm font-bold text-white block">Chicharrón de chancho crudo</span>
+              <p class="text-[10px] text-[#a0a0b8]">No sale de la panceta. Ingreso directo por unidad.</p>
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
+                <div class="inline-flex items-center gap-0.5">
+                  <button type="button" aria-label="Restar ingreso de chicharrón de chancho crudo" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('chicharron_chancho', 'ingreso', -1)">−</button>
+                  <input type="number" min="0" aria-label="Ingreso de chicharrón de chancho crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('chicharron_chancho').ingreso" @change="updateIngresoDirecto('chicharron_chancho', $event.target.value)">
+                  <button type="button" aria-label="Sumar ingreso de chicharrón de chancho crudo" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('chicharron_chancho', 'ingreso', 1)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="hidden sm:flex w-8 shrink-0 items-center">
+              <div class="conector-h-barra-oro"></div>
+            </div>
+
+            <div class="flex-1 cuadro-grupal-semantico space-y-2">
+              <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
+                <span class="px-2 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CHICHARRÓN DE CHANCHO</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Venta: <strong class="text-rose-200" x-text="formatNum(getRow('chicharron_chancho').venta)"></strong></span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                <template x-for="pl in platosDeChicharronChancho()" :key="'pl-chich-' + pl.id">
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
+                    <span class="text-[11px] font-mono font-bold text-amber-300 shrink-0" x-text="'Come ' + pl.cantidad"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flujo Horizontal: Cuy (Ingreso directo por unidad, no se transforma) -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-3 border-t border-[#26263a]/60">
+            <div class="sm:w-52 bg-[#0a0a0f] border border-emerald-500/60 rounded-xl p-3 shrink-0 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase font-bold text-emerald-300">Origen Directo</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('cuy')))"></strong></span>
+              </div>
+              <span class="text-sm font-bold text-white block">Cuy</span>
+              <p class="text-[10px] text-[#a0a0b8]">No se transforma. El ingreso es por unidad.</p>
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
+                <div class="inline-flex items-center gap-0.5">
+                  <button type="button" aria-label="Restar ingreso de cuy" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('cuy', 'ingreso', -1)">−</button>
+                  <input type="number" min="0" aria-label="Ingreso de cuy" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('cuy').ingreso" @change="updateIngresoDirecto('cuy', $event.target.value)">
+                  <button type="button" aria-label="Sumar ingreso de cuy" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('cuy', 'ingreso', 1)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="hidden sm:flex w-8 shrink-0 items-center">
+              <div class="conector-h-barra-oro"></div>
+            </div>
+
+            <div class="flex-1 cuadro-grupal-semantico space-y-2">
+              <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
+                <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CUY</span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Venta: <strong class="text-rose-200" x-text="formatNum(getRow('cuy').venta)"></strong></span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                <template x-for="pl in platosDeCuy()" :key="'pl-cuy-' + pl.id">
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
+                    <span class="text-[11px] font-mono font-bold text-emerald-300 shrink-0" x-text="'Come ' + pl.cantidad"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- MAPA SEMÁNTICO HORIZONTAL: ARROZ CRUDO -> TIPOS -->
@@ -2827,7 +3193,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozCrudo(nudge(despiece.arrozCrudo, 1))">+</button>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz')">Ingreso</button>
-              <div class="ingreso-panel" x-show="ingresoAbierto.arroz" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+              <div class="ingreso-panel" x-show="ingresoAbierto.arroz" x-cloak>
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
                   <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('arroz')">Cerrar</button>
@@ -2873,65 +3239,83 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </div>
 
       <!-- ================================================================= -->
-      <!-- 3. MAPA SEMÁNTICO GRUPAL: CARNES, TRUCHA Y PESCADO                -->
+      <!-- 5. MAPAS SEMÁNTICOS HORIZONTALES: GRUPO CARNES, TRUCHA Y EVENTOS  -->
       <!-- ================================================================= -->
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <!-- CUADROS GRUPALES DE CARNES Y TRUCHA (INGRESO DIRECTO POR CORTE EN LA HOJA, SIN TRANSFORMACIÓN) -->
-        <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-3" x-show="tieneMapa('carnes-directo')">
+        <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('carnes-directo')">
           <div class="pb-2 border-b border-[#26263a]">
-            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['carnes-directo'])"></span>. Mapa Semántico Grupal — Carnes, Trucha y Pescado Entero</h2>
+            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['carnes-directo'])"></span>. Mapa Semántico Horizontal — Grupo Carnes y Trucha</h2>
             <p class="text-xs text-[#a0a0b8]">
-              Estas familias se agrupan en la hoja pero <strong class="text-white">no tienen despiece intermedio</strong>: cada corte ya viene porcionado y su ingreso se anota directo.
+              Flujo horizontal de carnes porcionadas de ingreso directo y sus platos vinculados en la carta.
             </p>
           </div>
 
-          <!-- Cuadro Grupal: Grupo Carnes -->
-          <div class="cuadro-grupal-semantico space-y-2">
-            <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
-              <div class="flex items-center gap-2">
-                <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CARNES</span>
-                <span class="text-xs font-bold text-white">Grupo Carnes (Ingreso directo por corte)</span>
-              </div>
-              <span class="text-[11px] text-[#a0a0b8] font-mono">4 cortes agrupados</span>
+          <!-- Flujo Horizontal: Grupo Carnes -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div class="sm:w-48 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3 shrink-0 space-y-1.5">
+              <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Familia Directa</span>
+              <h3 class="text-sm font-extrabold text-white">Grupo Carnes</h3>
+              <p class="text-[11px] text-[#a0a0b8]">5 cortes directos en la hoja con pase Crudo → Cocido en Pachamancas.</p>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <template x-for="corteId in ['carne_bistec', 'lomo_fino', 'carne_pachamanca', 'cerdo_pachamanca', 'carne_guiso']" :key="'sem-carne-' + corteId">
-                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
-                  <div class="flex items-center justify-between gap-2">
-                    <div>
-                      <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
-                      <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow(corteId)))"></strong></span>
+
+            <div class="hidden sm:flex w-8 shrink-0 items-center">
+              <div class="conector-h-barra-oro"></div>
+            </div>
+
+            <div class="flex-1 cuadro-grupal-semantico space-y-2">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
+                <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CARNES</span>
+                <span class="text-[11px] text-[#a0a0b8] font-mono">5 cortes agrupados</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <template x-for="corteId in ['carne_bistec', 'lomo_fino', 'carne_pachamanca', 'cerdo_pachamanca', 'carne_guiso']" :key="'sem-carne-' + corteId">
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
+                    <div class="flex items-center justify-between gap-2">
+                      <div>
+                        <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
+                        <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow(corteId)))"></strong></span>
+                      </div>
+                      <div class="inline-flex items-center gap-0.5">
+                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', -1)">−</button>
+                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow(corteId).ingreso" @change="updateIngresoDirecto(corteId, $event.target.value)">
+                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', 1)">+</button>
+                      </div>
                     </div>
-                    <div class="inline-flex items-center gap-0.5">
-                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', -1)">−</button>
-                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow(corteId).ingreso" @change="updateIngresoDirecto(corteId, $event.target.value)">
-                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', 1)">+</button>
-                    </div>
+                    <template x-if="tienePaseCocido(corteId)">
+                      <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                        <div class="flex flex-col">
+                          <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                          <span class="text-[10px] font-mono text-[#a0a0b8]">
+                            Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(corteId))"></strong>
+                            · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(corteId))"></strong>
+                          </span>
+                        </div>
+                        <div class="inline-flex items-center gap-0.5 shrink-0">
+                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, -1)">−</button>
+                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + getRow(corteId).nombre" :value="cocidoActualTransformar(corteId)" @change="fijarPaseCrudoACocido(corteId, $event.target.value)">
+                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, 1)">+</button>
+                        </div>
+                      </div>
+                    </template>
                   </div>
-                  <template x-if="tienePaseCocido(corteId)">
-                    <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                      <div class="flex flex-col">
-                        <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                        <span class="text-[10px] font-mono text-[#a0a0b8]">
-                          Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(corteId))"></strong>
-                          · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(corteId))"></strong>
-                        </span>
-                      </div>
-                      <div class="inline-flex items-center gap-0.5 shrink-0">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, -1)">−</button>
-                        <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + getRow(corteId).nombre" :value="cocidoActualTransformar(corteId)" @change="fijarPaseCrudoACocido(corteId, $event.target.value)">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, 1)">+</button>
-                      </div>
-                    </div>
-                  </template>
-                </div>
-              </template>
+                </template>
+              </div>
             </div>
           </div>
 
-          <!-- Cuadro Grupal: Grupo Trucha + Fila Sola Pescado Entero -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            <div class="sm:col-span-2 cuadro-grupal-semantico space-y-2">
+          <!-- Flujo Horizontal: Grupo Trucha -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-3 border-t border-[#26263a]/60">
+            <div class="sm:w-48 bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3 shrink-0 space-y-1.5">
+              <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">Familia Directa</span>
+              <h3 class="text-sm font-extrabold text-white">Grupo Trucha</h3>
+              <p class="text-[11px] text-[#a0a0b8]">Ingreso directo por unidad o filete.</p>
+            </div>
+
+            <div class="hidden sm:flex w-8 shrink-0 items-center">
+              <div class="conector-h-barra-oro"></div>
+            </div>
+
+            <div class="flex-1 cuadro-grupal-semantico space-y-2">
               <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
                 <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · TRUCHA</span>
                 <span class="text-[10px] text-[#a0a0b8]">Ingreso directo</span>
@@ -2952,76 +3336,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </template>
               </div>
             </div>
-
-            <div class="bg-[#0a0a0f] border border-[#26263a] rounded-xl p-3 flex flex-col justify-between">
-              <div>
-                <span class="px-2 py-0.5 rounded bg-[#1c1c2b] text-[#a0a0b8] font-bold text-[10px] uppercase">Fila Sola (Directo)</span>
-                <h4 class="text-xs font-bold text-white mt-1.5">Pescado entero</h4>
-                <p class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-white font-mono" x-text="formatNum(calcSaldoReal(getRow('pescado_entero')))"></strong></p>
-              </div>
-              <div class="flex items-center justify-between pt-2 border-t border-[#26263a] mt-2">
-                <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
-                <div class="inline-flex items-center gap-0.5 shrink-0">
-                  <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('pescado_entero', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded text-xs" :value="getRow('pescado_entero').ingreso" @change="updateIngresoDirecto('pescado_entero', $event.target.value)">
-                  <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('pescado_entero', 'ingreso', 1)">+</button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
-        <!-- MAPA SEMÁNTICO HORIZONTAL DE TRANSFORMACIÓN DE PESCADO Y APARTAR PARA EVENTO -->
+        <!-- CUADRO GRUPAL: APARTAR PARA EVENTO -->
         <div class="space-y-4">
-          <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl" x-show="tieneMapa('pescado-trans')">
-            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-[#26263a]">
-              <div>
-                <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pescado-trans'])"></span>. Transformación Horizontal de Pescado (Tollo y Perico)</h2>
-                <p class="text-xs text-[#a0a0b8]">Pescado Tollo → Chicharrón de pescado · Pescado Perico → Ceviche.</p>
-              </div>
-              <div class="text-xs font-mono text-[#a0a0b8]">
-                Ingresado: <strong class="text-white" x-text="transPescado.reduce((a, p) => a + (Number(p.ingresada) || 0), 0)"></strong>
-                <span class="mx-1">·</span>
-                Obtenido: <strong class="text-[#d4af37]" x-text="transPescado.reduce((a, p) => a + (Number(p.obtenida) || 0), 0)"></strong>
-              </div>
-            </div>
-            <div class="space-y-2.5">
-              <template x-for="(p, idx) in transPescado" :key="p.origen">
-                <div class="bg-[#0a0a0f] border border-[#26263a] p-3 rounded-lg">
-                  <div class="grid grid-cols-1 lg:grid-cols-12 gap-2 items-center">
-                    <div class="lg:col-span-5 flex items-center justify-between gap-2">
-                      <div>
-                        <span class="text-[10px] uppercase tracking-wider text-[#5a5a7a] font-bold block">Origen crudo</span>
-                        <span class="text-xs font-bold text-white" x-text="p.origen"></span>
-                      </div>
-                      <div class="inline-flex items-center gap-0.5 shrink-0">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverPescado(idx, 'ingresada', -1)">−</button>
-                        <input type="number" min="0" class="paso-num text-center num-mono bg-[#14141f] border border-[#26263a] rounded text-white" :value="p.ingresada" @change="fijarPescado(idx, 'ingresada', $event.target.value)">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverPescado(idx, 'ingresada', 1)">+</button>
-                      </div>
-                    </div>
-                    <div class="lg:col-span-2 flex flex-col items-center text-center">
-                      <span class="text-[#d4af37] font-bold">──►</span>
-                      <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" :class="Number(p.obtenida) > Number(p.ingresada) ? 'bg-amber-500/20 text-amber-200' : 'text-emerald-300'" x-text="'Rend. ' + textoRend(p.obtenida, p.ingresada)"></span>
-                    </div>
-                    <div class="lg:col-span-5 flex items-center justify-between gap-2">
-                      <div>
-                        <span class="text-[10px] uppercase tracking-wider text-[#d4af37] font-bold block">Plato Destino</span>
-                        <span class="text-xs font-bold text-white" x-text="p.destino"></span>
-                      </div>
-                      <div class="inline-flex items-center gap-0.5 shrink-0">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverPescado(idx, 'obtenida', -1)">−</button>
-                        <input type="number" min="0" class="paso-num text-center num-mono bg-[#14141f] border border-[#26263a] rounded text-white" :value="p.obtenida" @change="fijarPescado(idx, 'obtenida', $event.target.value)">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverPescado(idx, 'obtenida', 1)">+</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- CUADRO GRUPAL: APARTAR PARA EVENTO -->
           <div class="cuadro-grupal-semantico">
             <div class="pb-2 mb-3 border-b border-[#26263a] flex items-center justify-between">
               <div>
@@ -5448,6 +5767,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             nombre: 'Panceta',
             open: true,
             children: [
+              { id: 'tira_panceta', nombre: 'Tira de panceta' },
               { id: 'trozo_panceta', nombre: 'Trozo de panceta' },
               { id: 'cerdo_pachamanca', nombre: 'Cerdo pachamanca' },
               { id: 'chancho_lena', nombre: 'Chancho a la leña' },
@@ -5513,7 +5833,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           aderezos: [
             { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: true },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', aceptaPierna: true, aceptaPechuga: true },
-            { id: 'pollo_lena', nombre: 'Pollo leña', aceptaPierna: true, aceptaPechuga: true },
+            { id: 'pollo_lena', nombre: 'Pollo leña', aceptaPierna: false, aceptaPechuga: true },
             { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false },
             { id: 'menu', nombre: 'Menú', aceptaPierna: true, aceptaPechuga: true }
           ],
@@ -5560,7 +5880,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             menu: { piernas: 1, pechugas: 2 }
           },
           pancetasSalen: 1,
+          tirasUsadas: 0,
           trozosPanceta: 12,
+          pescadosUsados: 0,
+          piezasPescado: 0,
+          potasUsadas: 0,
+          piezasPota: 0,
           carneroSalen: 3,
           arrozCrudo: 0,
           arrozPollo: 0,
@@ -5711,6 +6036,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           milanesa: 'milanesa',
           panceta: 'panceta',
           trozo_panceta: 'trozo-panceta',
+          tira_panceta: 'tira-panceta',
+          pieza_pescado: 'pieza-pescado',
+          pieza_pota: 'pieza-pota',
+          chicharron_chancho: 'chicharron-chancho',
+          cuy: 'cuy',
+          chaufa_chancho: 'chaufa-chancho',
           chancho_lena: 'chancho-lena',
           chancho_lena_bbq: 'chancho-lena-bbq',
           carne_bistec: 'bisteck',
@@ -5808,7 +6139,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.despiece.pechugasAFilete = 0;
           this.despiece.platosFilete = { filete_junior: 0, milanesa: 0 };
           this.despiece.pancetasSalen = 0;
+          this.despiece.tirasUsadas = 0;
           this.despiece.trozosPanceta = 0;
+          this.despiece.pescadosUsados = 0;
+          this.despiece.piezasPescado = 0;
+          this.despiece.potasUsadas = 0;
+          this.despiece.piezasPota = 0;
           this.despiece.carneroSalen = 0;
           this.despiece.arrozCrudo = 0;
           this.camposArroz().forEach((k) => { this.despiece[k] = 0; });
@@ -7184,7 +7520,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Trucha', [['trucha_entera', 'Trucha entera'], ['filete_trucha', 'Filete de trucha']]),
             cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos'], ['arroz_pollo', 'Arroz pollo']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pechuga de pato'], ['pierna_pato', 'Pierna de pato']]),
-            cuadro('Pota', [['pota', 'Pota']]),
+            cuadro('Pota', [['pota', 'Pota entera cruda'], ['pieza_pota', 'Pieza de pota']]),
             cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal']]),
             cuadro('Carta', [['delicias', 'Delicias'], ['helados', 'Helados'], ['hotdog', 'Hotdog']])
           ].filter((c) => c.filas.length);
@@ -7298,7 +7634,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               menu: { piernas: 1, pechugas: 2 }
             },
             pancetasSalen: 1,
+            tirasUsadas: 0,
             trozosPanceta: 12,
+            pescadosUsados: 0,
+            piezasPescado: 0,
+            potasUsadas: 0,
+            piezasPota: 0,
             carneroSalen: 3,
             arrozCrudo: 20,
             arrozPollo: 8,
@@ -7331,11 +7672,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'pato_fresco', grupo: 'pato', nombre: 'Pato fresco', detalle: '1 pato = 2 pechugas y 2 piernas', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'pechuga_pato', grupo: 'pato', nombre: 'Pechuga de pato', detalle: 'Abarca el arroz con pato de pecho', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'pierna_pato', grupo: 'pato', nombre: 'Pierna de pato', detalle: 'Abarca el arroz con pato de pierna', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'pota', grupo: null, nombre: 'Pota', detalle: 'Ceviche de chicharrón de pota y chicharrón de pota', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'pota', grupo: null, nombre: 'Pota entera cruda', detalle: 'Se parte en piezas. La cantidad de piezas es variable', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '→ piezas', inventario: null, crudo: 0, cocido: 0 },
 
             // GRUPO PANCETA
-            { id: 'panceta', grupo: 'panceta', nombre: 'Panceta', detalle: '1 panceta salió a trozos, quedan 4', unidad: 'unid', saldoAnterior: 5, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 3, transformacion: 1, destinoTrans: '→ 12 trozos', inventario: null, crudo: 4, cocido: 0 },
-            { id: 'trozo_panceta', grupo: 'panceta', nombre: 'Trozo de panceta', detalle: 'Anotados a mano desde 1 panceta', unidad: 'trozos', saldoAnterior: 0, ingreso: 12, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 0, destinoTrans: '', inventario: null, crudo: 4, cocido: 8 },
+            { id: 'panceta', grupo: 'panceta', nombre: 'Panceta', detalle: '1 panceta = 6 tiras', unidad: 'unid', saldoAnterior: 5, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 3, transformacion: 1, destinoTrans: '→ tiras', inventario: null, crudo: 4, cocido: 0 },
+            { id: 'tira_panceta', grupo: 'panceta', nombre: 'Tira de panceta', detalle: 'Sale de la panceta. No se vende', unidad: 'tiras', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '→ trozos', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'trozo_panceta', grupo: 'panceta', nombre: 'Trozo de panceta', detalle: 'Sale de las tiras. Tiene crudo y cocido', unidad: 'trozos', saldoAnterior: 0, ingreso: 12, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 0, destinoTrans: '', inventario: null, crudo: 4, cocido: 8 },
+            { id: 'chaufa_chancho', grupo: 'panceta', nombre: 'Chaufa de chancho', detalle: 'Usa 1 trozo de panceta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 1, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'chicharron_chancho', grupo: null, nombre: 'Chicharrón de chancho crudo', detalle: 'Ingreso por unidad. No sale de la panceta', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'cuy', grupo: null, nombre: 'Cuy', detalle: 'Ingreso por unidad. El medio vale 0.5', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 1, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'pieza_pescado', grupo: null, nombre: 'Pieza de pescado', detalle: 'Sale del pescado. Cantidad anotada', unidad: 'pzas', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'pieza_pota', grupo: null, nombre: 'Pieza de pota', detalle: 'Sale de la pota cruda. Cantidad anotada', unidad: 'pzas', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 1, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chancho_lena', grupo: 'panceta', nombre: 'Chancho a la leña', detalle: 'Entra directo. Solo crudo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chancho_lena_bbq', grupo: 'panceta', nombre: 'Chancho a la leña BBQ', detalle: 'Entra directo. Solo crudo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
 
@@ -7616,23 +7963,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         soloCrudoClave(clave) {
-          return ['milanesa', 'milanesa_junior', 'milanesa-junior', 'filete_junior', 'filete-junior'].indexOf(String(clave || '')) !== -1;
+          return ['milanesa', 'milanesa_junior', 'milanesa-junior', 'filete_junior', 'filete-junior', 'pollada', 'pierna_lena', 'pierna-lena', 'salt_pollo', 'salt-pollo', 'chaufa_pollo', 'chaufa-pollo', 'chicharron_pollo', 'chicharron-pollo', 'chi_pollo_bbq', 'chi-pollo-bbq', 'chi_pollo_acevichada', 'chi-pollo-acevichada'].indexOf(String(clave || '')) !== -1;
         },
 
         semillaCocido: {
-          pollada: { tieneCocido: true, reservaClave: 'pechuga-pollo' },
+          pollada: { tieneCocido: false, reservaClave: 'pechuga-pollo' },
           menu: { tieneCocido: true, reservaClave: '' },
           'pollo-lena': { tieneCocido: true, reservaClave: '' },
-          'pierna-lena': { tieneCocido: true, reservaClave: '' },
+          'pierna-lena': { tieneCocido: false, reservaClave: '' },
           'pachamanca-pollo': { tieneCocido: true, reservaClave: '' },
           'pachamanca-chancho': { tieneCocido: true, reservaClave: '' },
           'pachamanca-res': { tieneCocido: true, reservaClave: '' },
           'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
-          'salt-pollo': { tieneCocido: true, reservaClave: 'filete' },
-          'chaufa-pollo': { tieneCocido: true, reservaClave: 'filete' },
+          'salt-pollo': { tieneCocido: false, reservaClave: 'filete' },
+          'chaufa-pollo': { tieneCocido: false, reservaClave: 'filete' },
           milanesa: { tieneCocido: false, reservaClave: 'filete' },
           'filete-junior': { tieneCocido: false, reservaClave: 'filete' },
-          'chicharron-pollo': { tieneCocido: true, reservaClave: 'filete' },
+          'chicharron-pollo': { tieneCocido: false, reservaClave: 'filete' },
+          'trozo-panceta': { tieneCocido: true, reservaClave: '' },
+          'pechuga-pato': { tieneCocido: true, reservaClave: '' },
+          'pierna-pato': { tieneCocido: true, reservaClave: '' },
           'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
           'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
           'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' }
@@ -8612,10 +8962,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             });
           } else if (id === 'panceta') {
             const sal = Number(this.despiece.pancetasSalen) || transformado;
-            const trozos = sal > 0 ? (Number(this.despiece.trozosPanceta) || 12) : 0;
-            info.resumenConversion = sal + ' Panceta(s) → ' + trozos + ' Trozos de panceta (corte manual)';
+            const tiras = sal * 6;
+            info.resumenConversion = sal + ' Panceta(s) → ' + tiras + ' Tiras de panceta (1 panceta = 6 tiras)';
             info.destinos = [
-              makeDest('trozo_panceta', 'Corte manual', sal, trozos, 'gold', false, 'Anotado manualmente según rendimiento de cocina')
+              makeDest('tira_panceta', '1 Panceta → 6 Tiras', sal, tiras, 'gold', true, 'De ' + tiras + ' tiras se usaron ' + (Number(this.despiece.tirasUsadas) || 0) + ' para trozos')
+            ];
+          } else if (id === 'tira_panceta') {
+            info.origenPadreId = 'panceta';
+            info.origenPadreNombre = 'Panceta';
+            const tirasU = Number(this.despiece.tirasUsadas) || transformado;
+            const trozos = tirasU > 0 ? (Number(this.despiece.trozosPanceta) || 0) : 0;
+            info.resumenConversion = tirasU + ' Tira(s) usada(s) → ' + trozos + ' Trozos de panceta (corte variable)';
+            info.destinos = [
+              makeDest('trozo_panceta', 'Corte variable', tirasU, trozos, 'gold', false, 'Anotado a mano. De las tiras suelen salir 39, 40 o 41 trozos')
+            ];
+          } else if (id === 'pescado_entero') {
+            const peces = Number(this.despiece.pescadosUsados) || transformado;
+            const piezas = peces > 0 ? (Number(this.despiece.piezasPescado) || 0) : 0;
+            info.resumenConversion = peces + ' Pescado(s) usado(s) → ' + piezas + ' Pieza(s) de pescado';
+            info.destinos = [
+              makeDest('pieza_pescado', 'Variable', peces, piezas, 'sky', false, 'Las ventas descuentan Pieza de pescado')
+            ];
+          } else if (id === 'pota') {
+            const potas = Number(this.despiece.potasUsadas) || transformado;
+            const piezas = potas > 0 ? (Number(this.despiece.piezasPota) || 0) : 0;
+            info.resumenConversion = potas + ' Pota(s) usada(s) → ' + piezas + ' Pieza(s) de pota';
+            info.destinos = [
+              makeDest('pieza_pota', 'Variable', potas, piezas, 'sky', false, 'Las ventas descuentan Pieza de pota')
             ];
           } else if (id === 'carnero') {
             const sal = Number(this.despiece.carneroSalen) || transformado;
@@ -8661,7 +9034,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               chicharron_pollo: 'filete',
               salt_pollo: 'filete',
               chaufa_pollo: 'filete',
-              trozo_panceta: 'panceta',
+              tira_panceta: 'panceta',
+              trozo_panceta: 'tira_panceta',
+              pieza_pescado: 'pescado_entero',
+              pieza_pota: 'pota',
               carnero_pachamanca: 'carnero',
               arroz_blanco: 'arroz',
               arroz_verde: 'arroz',
@@ -8712,6 +9088,117 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         moverDespiece(campo, delta) {
           this.despiece[campo] = this.nudge(this.despiece[campo], delta);
           this.volcarTransformacionEnTabla();
+        },
+
+        fijarPancetasSalen(val) {
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          const maxTiras = next * 6;
+          if (Number(this.despiece.tirasUsadas || 0) > maxTiras) this.despiece.tirasUsadas = maxTiras;
+          if (maxTiras === 0) this.despiece.trozosPanceta = 0;
+          this.transformWarning = '';
+          this.despiece.pancetasSalen = next;
+          this.volcarTransformacionEnTabla();
+        },
+
+        fijarTirasUsadas(val) {
+          const maxTiras = Number(this.despiece.pancetasSalen || 0) * 6;
+          const req = Math.max(0, parseInt(val, 10) || 0);
+          if (req > maxTiras) {
+            this.transformWarning = 'Aviso ámbar: No puedes usar más tiras de panceta de las generadas (' + maxTiras + ').';
+            this.despiece.tirasUsadas = maxTiras;
+          } else {
+            this.transformWarning = '';
+            this.despiece.tirasUsadas = req;
+          }
+          if (this.despiece.tirasUsadas === 0) this.despiece.trozosPanceta = 0;
+          this.volcarTransformacionEnTabla();
+        },
+
+        fijarTrozosPanceta(val) {
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          if (next > 0 && !(Number(this.despiece.tirasUsadas || 0) > 0)) {
+            this.transformWarning = 'Aviso ámbar: Indica primero cuántas tiras de panceta se usaron.';
+            return;
+          }
+          this.transformWarning = '';
+          this.despiece.trozosPanceta = next;
+          this.volcarTransformacionEnTabla();
+        },
+
+        fijarPescadosUsados(val) {
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          if (next === 0) this.despiece.piezasPescado = 0;
+          this.transformWarning = '';
+          this.despiece.pescadosUsados = next;
+          this.volcarTransformacionEnTabla();
+        },
+
+        fijarPiezasPescado(val) {
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          if (next > 0 && !(Number(this.despiece.pescadosUsados || 0) > 0)) this.despiece.pescadosUsados = 1;
+          this.transformWarning = '';
+          this.despiece.piezasPescado = next;
+          this.volcarTransformacionEnTabla();
+        },
+
+        fijarPotasUsadas(val) {
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          if (next === 0) this.despiece.piezasPota = 0;
+          this.transformWarning = '';
+          this.despiece.potasUsadas = next;
+          this.volcarTransformacionEnTabla();
+        },
+
+        fijarPiezasPota(val) {
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          if (next > 0 && !(Number(this.despiece.potasUsadas || 0) > 0)) this.despiece.potasUsadas = 1;
+          this.transformWarning = '';
+          this.despiece.piezasPota = next;
+          this.volcarTransformacionEnTabla();
+        },
+
+        platosDeTrozoPanceta() {
+          return [
+            { id: 'chancho-lena-frejol', nombre: 'Chancho a la leña con frejol + arroz + zarza criolla y yuca', cantidad: 4 },
+            { id: 'chancho-lena-papa', nombre: 'Chancho a la leña con papa frita o doradas + arroz + ensalada', cantidad: 4 },
+            { id: 'mix-lena', nombre: 'Mix a la leña', cantidad: 3 },
+            { id: 'chancho-bbq', nombre: 'Chancho a la BBQ', cantidad: 6 },
+            { id: 'chaufa-chancho', nombre: 'Chaufa de chancho', cantidad: 1 }
+          ];
+        },
+
+        platosDePiezaPescado() {
+          return [
+            { id: 'duo-marino', nombre: 'Duo marino', cantidad: 2 },
+            { id: 'ceviche', nombre: 'Ceviche', cantidad: 1 },
+            { id: 'ceviche-pescado', nombre: 'Ceviche de pescado', cantidad: 1 },
+            { id: 'chicharron-pescado', nombre: 'Chicharrón de pescado', cantidad: 1 },
+            { id: 'jalea-pescado', nombre: 'Jalea de pescado', cantidad: 1 },
+            { id: 'pescado-frito', nombre: 'Pescado frito', cantidad: 1 }
+          ];
+        },
+
+        platosDePiezaPota() {
+          return [
+            { id: 'chicharron-pota', nombre: 'Chicharrón de pota', cantidad: 1 },
+            { id: 'ceviche-chicharron-pota', nombre: 'Ceviche con chicharrón de pota', cantidad: 1 }
+          ];
+        },
+
+        platosDeChicharronChancho() {
+          return [
+            { id: 'chicharron-chancho', nombre: 'Chicharrón de chancho', cantidad: 1 },
+            { id: 'fuente-chicharron-chancho', nombre: 'Fuente de chicharrón de chancho', cantidad: 2 },
+            { id: 'medio-chicharron-chancho', nombre: '1/2 chicharrón de chancho', cantidad: 0.5 },
+            { id: 'desayuno-criollo-gambusinas', nombre: 'Desayuno Criollo Gambusinas', cantidad: 0.5 }
+          ];
+        },
+
+        platosDeCuy() {
+          return [
+            { id: 'cuy-entero', nombre: 'Cuy entero', cantidad: 1 },
+            { id: 'medio-cuy', nombre: '1/2 cuy', cantidad: 0.5 }
+          ];
         },
 
         stepField(rowId, field, delta) {
@@ -9008,15 +9495,66 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
 
           const rPanceta = this.getRow('panceta');
-          rPanceta.transformacion = Number(this.despiece.pancetasSalen || 0);
+          const pancetas = Number(this.despiece.pancetasSalen || 0);
+          const tiras = pancetas * 6;
+          const tirasUsadas = Math.min(tiras, Math.max(0, Number(this.despiece.tirasUsadas || 0)));
+          this.despiece.tirasUsadas = tirasUsadas;
+          rPanceta.transformacion = pancetas;
           rPanceta.crudo = Math.max(0, this.calcSaldo(rPanceta));
           this.pulseRowTotal('panceta');
 
+          const rTira = this.filaReal('tira_panceta');
+          if (rTira) {
+            rTira.ingreso = tiras;
+            rTira.transformacion = tirasUsadas;
+            rTira.crudo = Math.max(0, this.calcSaldo(rTira));
+            rTira.cocido = 0;
+            this.pulseRowTotal('tira_panceta');
+          }
+
           const rTrozo = this.getRow('trozo_panceta');
-          rTrozo.ingreso = Number(this.despiece.pancetasSalen || 0) > 0 ? Math.max(1, parseInt(this.despiece.trozosPanceta, 10) || 12) : 0;
-          rTrozo.cocido = Math.min(rTrozo.ingreso, 8);
-          rTrozo.crudo = Math.max(0, this.calcSaldo(rTrozo) - rTrozo.cocido);
+          const trozos = tirasUsadas > 0 ? Math.max(0, parseInt(this.despiece.trozosPanceta, 10) || 0) : 0;
+          const paseTrozo = Math.min(trozos, Math.max(0, Number(this.despiece.paseCocido && this.despiece.paseCocido.trozo_panceta || 0)));
+          if (this.despiece.paseCocido) this.despiece.paseCocido.trozo_panceta = paseTrozo;
+          rTrozo.tieneCocido = true;
+          rTrozo.ingreso = Math.max(0, trozos - paseTrozo);
+          rTrozo.ingresoCocido = paseTrozo;
+          rTrozo.crudo = this.calcSaldoTipo(rTrozo, 'crudo');
+          rTrozo.cocido = this.calcSaldoTipo(rTrozo, 'cocido');
           this.pulseRowTotal('trozo_panceta');
+
+          const rPiezaPez = this.filaReal('pieza_pescado');
+          const rPez = this.filaReal('pescado_entero');
+          const peces = Math.max(0, Number(this.despiece.pescadosUsados || 0));
+          const piezasPez = peces > 0 ? Math.max(0, Number(this.despiece.piezasPescado || 0)) : 0;
+          if (rPez) {
+            rPez.transformacion = peces;
+            rPez.crudo = Math.max(0, this.calcSaldo(rPez));
+            rPez.cocido = 0;
+            this.pulseRowTotal('pescado_entero');
+          }
+          if (rPiezaPez) {
+            rPiezaPez.ingreso = piezasPez;
+            rPiezaPez.crudo = Math.max(0, this.calcSaldo(rPiezaPez));
+            rPiezaPez.cocido = 0;
+            this.pulseRowTotal('pieza_pescado');
+          }
+          const rPiezaPota = this.filaReal('pieza_pota');
+          const rPota = this.filaReal('pota');
+          const potas = Math.max(0, Number(this.despiece.potasUsadas || 0));
+          const piezasPota = potas > 0 ? Math.max(0, Number(this.despiece.piezasPota || 0)) : 0;
+          if (rPota) {
+            rPota.transformacion = potas;
+            rPota.crudo = Math.max(0, this.calcSaldo(rPota));
+            rPota.cocido = 0;
+            this.pulseRowTotal('pota');
+          }
+          if (rPiezaPota) {
+            rPiezaPota.ingreso = piezasPota;
+            rPiezaPota.crudo = Math.max(0, this.calcSaldo(rPiezaPota));
+            rPiezaPota.cocido = 0;
+            this.pulseRowTotal('pieza_pota');
+          }
 
           const rCarnero = this.getRow('carnero');
           rCarnero.transformacion = Number(this.despiece.carneroSalen || 0);
@@ -9122,7 +9660,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             filetesEntran: this.totalFiletesGenerados(),
             filetesSalen: this.filetesUsadosEnPlatos(),
             pancetaSale: Number(this.despiece.pancetasSalen || 0),
-            trozos: Number(this.despiece.pancetasSalen || 0) > 0 ? Math.max(0, parseInt(this.despiece.trozosPanceta, 10) || 0) : 0,
+            tirasEntran: Number(this.despiece.pancetasSalen || 0) * 6,
+            tirasSalen: Math.min(Number(this.despiece.pancetasSalen || 0) * 6, Math.max(0, Number(this.despiece.tirasUsadas || 0))),
+            trozo: paseDe('trozo-panceta', Number(this.despiece.tirasUsadas || 0) > 0 ? Math.max(0, parseInt(this.despiece.trozosPanceta, 10) || 0) : 0),
+            pescadoSale: Math.max(0, Number(this.despiece.pescadosUsados || 0)),
+            piezasPescado: Number(this.despiece.pescadosUsados || 0) > 0 ? Math.max(0, Number(this.despiece.piezasPescado || 0)) : 0,
+            potaSale: Math.max(0, Number(this.despiece.potasUsadas || 0)),
+            piezasPota: Number(this.despiece.potasUsadas || 0) > 0 ? Math.max(0, Number(this.despiece.piezasPota || 0)) : 0,
             carneroSale: Number(this.despiece.carneroSalen || 0),
             carnero: paseDe('pachamanca-cordero', carnero),
             arrozSale: this.arrozUsado(),
@@ -9167,7 +9711,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           try {
             const antes = this.despieceAplicado || {
               frescoSale: 0, piernasEntran: 0, pechugasEntran: 0, piernasSalen: 0, pechugasSalen: 0,
-              filetesEntran: 0, filetesSalen: 0, pancetaSale: 0, trozos: 0, carneroSale: 0,
+              filetesEntran: 0, filetesSalen: 0, pancetaSale: 0, tirasEntran: 0, tirasSalen: 0,
+              trozo: { crudo: 0, cocido: 0 }, pescadoSale: 0, piezasPescado: 0, potaSale: 0, piezasPota: 0, carneroSale: 0,
               carnero: { crudo: 0, cocido: 0 }, arrozSale: 0, arroz: {}, destinos: {}
             };
             const ahora = this.fotoTransformacion();
@@ -9192,8 +9737,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               await post(delta(a.crudo, p.crudo), clave, 'crudo', 'Sale de piezas');
               await post(delta(a.cocido, p.cocido), clave, 'cocido', 'Sale de piezas');
             }
-            await post(delta(ahora.pancetaSale, antes.pancetaSale) * -1, 'panceta', 'crudo', 'Pasa a trozos');
-            await post(delta(ahora.trozos, antes.trozos), 'trozo-panceta', 'crudo', 'Sale de Panceta');
+            await post(delta(ahora.pancetaSale, antes.pancetaSale) * -1, 'panceta', 'crudo', 'Pasa a tiras');
+            await post(delta(ahora.tirasEntran, antes.tirasEntran), 'tira-panceta', 'crudo', 'Sale de Panceta');
+            await post(delta(ahora.tirasSalen, antes.tirasSalen) * -1, 'tira-panceta', 'crudo', 'Pasa a trozos');
+            await post(delta(ahora.trozo.crudo, antes.trozo && antes.trozo.crudo), 'trozo-panceta', 'crudo', 'Sale de tiras');
+            await post(delta(ahora.trozo.cocido, antes.trozo && antes.trozo.cocido), 'trozo-panceta', 'cocido', 'Sale de tiras');
+            await post(delta(ahora.pescadoSale, antes.pescadoSale) * -1, 'pescado-entero', 'crudo', 'Pasa a piezas');
+            await post(delta(ahora.piezasPescado, antes.piezasPescado), 'pieza-pescado', 'crudo', 'Sale de Pescado');
+            await post(delta(ahora.potaSale, antes.potaSale) * -1, 'pota', 'crudo', 'Pasa a piezas');
+            await post(delta(ahora.piezasPota, antes.piezasPota), 'pieza-pota', 'crudo', 'Sale de Pota');
             await post(delta(ahora.carneroSale, antes.carneroSale) * -1, 'carnero', 'crudo', 'Pasa a Carnero pachamanca');
             await post(delta(ahora.carnero.crudo, antes.carnero.crudo), 'pachamanca-cordero', 'crudo', 'Sale de Carnero');
             await post(delta(ahora.carnero.cocido, antes.carnero.cocido), 'pachamanca-cordero', 'cocido', 'Sale de Carnero');
@@ -9460,8 +10012,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         mapasSueltos() {
-          const fijos = new Set(['pollo-fresco', 'panceta', 'carnero', 'arroz', 'carnes-directo', 'pescado-trans']);
-          const primero = ['pato-fresco', 'pota'];
+          const fijos = new Set(['pollo-fresco', 'panceta', 'carnero', 'arroz', 'carnes-directo', 'pescado-trans', 'pota']);
+          const primero = ['pato-fresco'];
           const fuente = this.mapasCargados ? (this.mapas || []) : this.mapasRespaldo();
           const lista = fuente.filter((m) => m && m.origen && !fijos.has(m.id));
           const rango = (m) => {
@@ -9741,13 +10293,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             },
             {
               id: 'pota',
-              nombre: 'Pota',
-              tipo: 'directo',
-              origen: { clave: 'pota', nombre: 'Pota' },
-              cortes: [],
+              nombre: 'Pota entera cruda',
+              tipo: 'manual',
+              origen: { clave: 'pota', nombre: 'Pota entera cruda' },
+              cortes: [
+                { clave: 'pieza-pota', nombre: 'Pieza de pota', factor: 0, factorDesde: '' }
+              ],
               platos: [
-                { id: 'ceviche-pota', nombre: 'Ceviche de chicharrón de pota', complemento: '', cuelgaDe: 'pota', cantidad: 1, venta: true, aliases: [] },
-                { id: 'chicharron-pota', nombre: 'Chicharron de pota', complemento: '', cuelgaDe: 'pota', cantidad: 1, venta: true, aliases: [] }
+                { id: 'chicharron-pota', nombre: 'Chicharrón de pota', complemento: '', cuelgaDe: 'pieza-pota', cantidad: 1, venta: true, aliases: ['chicharron de pota'] },
+                { id: 'ceviche-pota', nombre: 'Ceviche con chicharrón de pota', complemento: '', cuelgaDe: 'pieza-pota', cantidad: 1, venta: true, aliases: ['ceviche de chicharron de pota', 'ceviche con chicharron de pota'] }
               ]
             },
             {
@@ -9990,6 +10544,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!pieza.pierna_lena) {
             pieza.pierna_lena = { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false };
           }
+          if (pieza.pollo_lena) {
+            pieza.pollo_lena.aceptaPierna = false;
+            pieza.pollo_lena.nombre = 'Pollo leña';
+          }
+          pieza.pierna_lena.nombre = 'Pierna a la leña';
+          pieza.pierna_lena.aceptaPierna = true;
+          pieza.pierna_lena.aceptaPechuga = false;
           const lista = Object.keys(pieza).map((k) => pieza[k]);
           if (lista.length) this.config.aderezos = lista;
           this.platosDelFilete().forEach((p) => {

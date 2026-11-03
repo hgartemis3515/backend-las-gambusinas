@@ -10,19 +10,22 @@ const NOMBRE_MATERIA = {
 };
 
 const SEMILLA = {
-    pollada: { tieneCocido: true, reservaClave: 'pechuga-pollo' },
+    pollada: { tieneCocido: false, reservaClave: 'pechuga-pollo' },
     menu: { tieneCocido: true, reservaClave: '' },
     'pollo-lena': { tieneCocido: true, reservaClave: '' },
-    'pierna-lena': { tieneCocido: true, reservaClave: '' },
+    'pierna-lena': { tieneCocido: false, reservaClave: '' },
     'pachamanca-pollo': { tieneCocido: true, reservaClave: '' },
     'pachamanca-chancho': { tieneCocido: true, reservaClave: '' },
     'pachamanca-res': { tieneCocido: true, reservaClave: '' },
     'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
-    'salt-pollo': { tieneCocido: true, reservaClave: 'filete' },
-    'chaufa-pollo': { tieneCocido: true, reservaClave: 'filete' },
+    'salt-pollo': { tieneCocido: false, reservaClave: 'filete' },
+    'chaufa-pollo': { tieneCocido: false, reservaClave: 'filete' },
     milanesa: { tieneCocido: false, reservaClave: 'filete' },
     'filete-junior': { tieneCocido: false, reservaClave: 'filete' },
-    'chicharron-pollo': { tieneCocido: true, reservaClave: 'filete' },
+    'chicharron-pollo': { tieneCocido: false, reservaClave: 'filete' },
+    'trozo-panceta': { tieneCocido: true, reservaClave: '' },
+    'pechuga-pato': { tieneCocido: true, reservaClave: '' },
+    'pierna-pato': { tieneCocido: true, reservaClave: '' },
     'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
     'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
     'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' }

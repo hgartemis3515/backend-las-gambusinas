@@ -14,8 +14,7 @@ function vender(n, bases) {
 
 test('estas filas nacen con cuadro de cocido', () => {
     [
-        'chaufa-pollo', 'chicharron-pollo', 'salt-pollo',
-        'menu', 'pollo-lena', 'pierna-lena', 'pollada', 'pachamanca-pollo',
+        'menu', 'pollo-lena', 'pachamanca-pollo',
         'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero'
     ].forEach((clave) => {
         expect(semillaCocido(clave).tieneCocido).toBe(true);
@@ -51,16 +50,14 @@ test('la materia no tiene cocido ni reserva', () => {
     expect(validarCocidoConfig('pollada', { tieneCocido: true, reservaClave: 'pollada' }).valido).toBe(false);
 });
 
-test('la pollada gasta cocido, luego crudo y al final la pechuga fresca', () => {
-    const bases = { 'pollada|cocido': 1, 'pollada|crudo': 1, 'pechuga-pollo|crudo': 5 };
+test('la pollada gasta crudo y al final la pechuga fresca', () => {
+    const bases = { 'pollada|crudo': 1, 'pechuga-pollo|crudo': 5 };
     expect(repartirVenta(3, cadenaDe('pollada', semillaCocido('pollada')), bases)).toEqual([
-        { rubro: 'pollada', tipo: 'cocido', cantidad: 1 },
         { rubro: 'pollada', tipo: 'crudo', cantidad: 1 },
-        { rubro: 'pechuga-pollo', tipo: 'crudo', cantidad: 1 }
+        { rubro: 'pechuga-pollo', tipo: 'crudo', cantidad: 2 }
     ]);
-    expect(bases['pollada|cocido']).toBe(0);
     expect(bases['pollada|crudo']).toBe(0);
-    expect(bases['pechuga-pollo|crudo']).toBe(4);
+    expect(bases['pechuga-pollo|crudo']).toBe(3);
 });
 
 test('sin cocido ni crudo la pollada resta la pechuga fresca y se sigue viendo en pollada', () => {
@@ -79,7 +76,7 @@ test('sin cocido ni crudo la pollada resta la pechuga fresca y se sigue viendo e
     ]);
     expect(vista).toEqual([expect.objectContaining({
         rubro: 'pollada',
-        tipoProducto: 'cocido',
+        tipoProducto: 'crudo',
         cantidad: 2,
         detalle
     })]);
