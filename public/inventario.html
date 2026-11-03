@@ -417,9 +417,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     }
     /* Ingreso y Corrección: el cuadro del dígito crece con 1, 2 o 3 cifras (y el signo). */
     main table.tabla-hoja input.num-claro.caja-digitos {
-      width: calc(var(--digitos, 1) * 1ch + 0.35ch) !important;
-      min-width: 1.35ch !important;
-      max-width: 4.4ch !important;
+      width: calc(var(--digitos, 1) * 1ch + 0.6ch + 0.16rem + 2px) !important;
+      min-width: 1.6ch !important;
+      max-width: calc(4.6ch + 0.16rem + 2px) !important;
       padding: 0.05rem 0.08rem !important;
       flex: 0 0 auto;
     }
@@ -1504,7 +1504,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
                             <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, -1)">−</button>
-                              <input type="number" min="0" step="1" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
+                              <input type="number" min="0" step="1" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, 1)">+</button>
                             </div>
                           </div>
@@ -1520,7 +1520,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
                             <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, -1)">−</button>
-                              <input type="number" step="1" class="num-claro caja-digitos text-center num-mono font-semibold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'correccion', tipo))" :value="valorTipo(row, 'correccion', tipo)" :aria-label="'Corrección ' + tipo + ' de ' + row.nombre" @change="fijarCampo(row.id, 'correccion', tipo, $event.target.value)">
+                              <input type="number" step="1" class="num-claro caja-digitos text-center num-mono font-semibold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'correccion', tipo))" :value="valorTipo(row, 'correccion', tipo)" :aria-label="'Corrección ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'correccion', tipo, $event.target.value)">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, 1)">+</button>
                             </div>
                             <span x-show="valorTipo(row, 'correccion', tipo) !== 0" class="text-[#d4af37] font-bold text-xs num-mono">#</span>
@@ -1800,7 +1800,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
                             <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, -1)">−</button>
-                              <input type="number" min="0" step="1" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
+                              <input type="number" min="0" step="1" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, 1)">+</button>
                             </div>
                           </div>
@@ -1816,7 +1816,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
                             <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, -1)">−</button>
-                              <input type="number" step="1" class="num-claro caja-digitos text-center num-mono font-semibold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'correccion', tipo))" :value="valorTipo(row, 'correccion', tipo)" :aria-label="'Corrección ' + tipo + ' de ' + row.nombre" @change="fijarCampo(row.id, 'correccion', tipo, $event.target.value)">
+                              <input type="number" step="1" class="num-claro caja-digitos text-center num-mono font-semibold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'correccion', tipo))" :value="valorTipo(row, 'correccion', tipo)" :aria-label="'Corrección ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'correccion', tipo, $event.target.value)">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, 1)">+</button>
                             </div>
                             <span x-show="valorTipo(row, 'correccion', tipo) !== 0" class="text-[#d4af37] font-bold text-xs num-mono">#</span>
@@ -8563,6 +8563,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         digitosDe(n) {
           const texto = String(Math.trunc(Number(n) || 0));
           return Math.min(4, Math.max(1, texto.length));
+        },
+
+        ajustarCajaDigitos(el) {
+          const texto = String(el.value || '');
+          el.style.setProperty('--digitos', Math.min(4, Math.max(1, texto.length)));
         },
 
         setFiltroCategoria(cat) {
