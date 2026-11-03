@@ -1363,7 +1363,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <th colspan="2" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-[#26263a] text-[#d4af37]">1. Apertura</th>
                 <th colspan="3" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-emerald-300">2. Entró hoy</th>
                 <th colspan="2" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-amber-300">3. Salió hoy</th>
-                <th :colspan="mostrarSaldoYConteo ? 5 : 3" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-sky-300">4. Queda (cierre y auditoría)</th>
+                <th :colspan="columnasCierre()" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-sky-300">4. Queda (cierre y auditoría)</th>
               </tr>
               <tr class="font-semibold">
                 <th class="sticky top-[32px] left-0 z-40 bg-[#1e2436] text-white text-left px-3 py-2">Producto</th>
@@ -1376,8 +1376,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <th x-show="mostrarSaldoYConteo" class="sticky top-[32px] z-30 bg-[#1a2740] text-sky-200 text-right px-2.5 py-2">Saldo</th>
                 <th x-show="mostrarSaldoYConteo" class="sticky top-[32px] z-30 bg-[#1d2b3a] text-blue-200 text-center px-2.5 py-2">Conteo</th>
                 <th class="sticky top-[32px] z-30 bg-[#2b2210] text-[#d4af37] text-right px-2.5 py-2 font-extrabold">Queda (Saldo real)</th>
-                <th class="sticky top-[32px] z-30 bg-[#2b1f33] text-pink-200 text-center px-2.5 py-2">Diferencia</th>
-                <th class="sticky top-[32px] z-30 bg-[#1a1a28] text-white text-left px-3 py-2">Estado</th>
+                <th x-show="mostrarDiferencia" class="sticky top-[32px] z-30 bg-[#2b1f33] text-pink-200 text-center px-2.5 py-2">Diferencia</th>
+                <th x-show="mostrarEstado" class="sticky top-[32px] z-30 bg-[#1a1a28] text-white text-left px-3 py-2">Estado</th>
               </tr>
             </thead>
 
@@ -1394,7 +1394,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <span class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200]">GRUPO</span>
                     </div>
                   </td>
-                  <td :colspan="mostrarSaldoYConteo ? 11 : 9" class="py-3 px-4 text-xs text-[#a0a0b8]">
+                  <td :colspan="columnasRestoGrupo()" class="py-3 px-4 text-xs text-[#a0a0b8]">
                     <span x-text="getRowsByGroup(group.id).length + (group.id === 'carnes' ? ' carnes' : ' bebidas')"></span>
                     <span class="ml-2" x-text="group.id === 'carnes' ? 'El grupo no suma. Cada carne tiene su ingreso y su venta.' : 'El grupo no suma. Cada bebida tiene su ingreso y su venta.'"></span>
                   </td>
@@ -1644,14 +1644,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <template x-for="tipo in ['crudo', 'cocido']" :key="row.id + '-cnt-' + tipo">
                             <button type="button" @click="openCountModal(row.id, tipo)" class="caja-clara px-2 py-0.5 rounded-md border text-[11px] font-bold text-[#111111] transition cursor-pointer">
                               <span class="text-[10px] font-sans font-bold mr-1" :class="tipo === 'cocido' ? 'text-amber-800' : 'text-emerald-700'" x-text="etiquetaTipo(tipo) + ':'"></span>
-                              <span x-text="conteoTipo(row, tipo) === null ? '— contar' : formatNum(conteoTipo(row, tipo)) + ' #'"></span>
+                              <span x-text="conteoTipo(row, tipo) === null ? '-' : formatNum(conteoTipo(row, tipo)) + ' #'"></span>
                             </button>
                           </template>
                         </div>
                       </template>
                       <template x-if="!row.tieneCocido">
                         <button type="button" @click="openCountModal(row.id, 'crudo')" class="caja-clara px-2.5 py-1 rounded-lg border num-mono text-xs font-bold text-[#111111] transition cursor-pointer">
-                          <span x-text="conteoTipo(row, 'crudo') === null ? '— Contar' : formatNum(conteoTipo(row, 'crudo')) + ' #'"></span>
+                          <span x-text="conteoTipo(row, 'crudo') === null ? '-' : formatNum(conteoTipo(row, 'crudo')) + ' #'"></span>
                         </button>
                       </template>
                     </td>
@@ -1696,7 +1696,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Diferencia (azul si sobra, rojo si falta, vacío si nadie contó) -->
-                    <td class="px-3 py-2.5 text-right num-mono font-bold border-r border-[#26263a]/40">
+                    <td x-show="mostrarDiferencia" class="px-3 py-2.5 text-right num-mono font-bold border-r border-[#26263a]/40">
                       <div class="flex flex-col items-end gap-1">
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-dif-' + tipo">
                           <div class="flex items-center gap-1">
@@ -1713,7 +1713,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </div>
                     </td>
 
-                    <td class="px-3 py-2 text-left whitespace-nowrap">
+                    <td x-show="mostrarEstado" class="px-3 py-2 text-left whitespace-nowrap">
                       <div class="inline-flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="clasePuntoEstado(row)"></span>
                         <span class="text-xs font-semibold" :class="claseTextoEstado(row)" x-text="estadoFila(row)"></span>
@@ -1935,14 +1935,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <template x-for="tipo in ['crudo', 'cocido']" :key="row.id + '-cnt-' + tipo">
                             <button type="button" @click="openCountModal(row.id, tipo)" class="caja-clara px-2 py-0.5 rounded-md border text-[11px] font-bold text-[#111111] transition cursor-pointer">
                               <span class="text-[10px] font-sans font-bold mr-1" :class="tipo === 'cocido' ? 'text-amber-800' : 'text-emerald-700'" x-text="etiquetaTipo(tipo) + ':'"></span>
-                              <span x-text="conteoTipo(row, tipo) === null ? '— contar' : formatNum(conteoTipo(row, tipo)) + ' #'"></span>
+                              <span x-text="conteoTipo(row, tipo) === null ? '-' : formatNum(conteoTipo(row, tipo)) + ' #'"></span>
                             </button>
                           </template>
                         </div>
                       </template>
                       <template x-if="!row.tieneCocido">
                         <button type="button" @click="openCountModal(row.id, 'crudo')" class="caja-clara px-2.5 py-1 rounded-lg border num-mono text-xs font-bold text-[#111111] transition cursor-pointer">
-                          <span x-text="conteoTipo(row, 'crudo') === null ? '— Contar' : formatNum(conteoTipo(row, 'crudo')) + ' #'"></span>
+                          <span x-text="conteoTipo(row, 'crudo') === null ? '-' : formatNum(conteoTipo(row, 'crudo')) + ' #'"></span>
                         </button>
                       </template>
                     </td>
@@ -1987,7 +1987,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Diferencia (azul si sobra, rojo si falta, vacío si nadie contó) -->
-                    <td class="px-3 py-3 text-right num-mono font-bold border-r border-[#26263a]/40">
+                    <td x-show="mostrarDiferencia" class="px-3 py-3 text-right num-mono font-bold border-r border-[#26263a]/40">
                       <div class="flex flex-col items-end gap-1">
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-dif-' + tipo">
                           <div class="flex items-center gap-1">
@@ -2004,7 +2004,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </div>
                     </td>
 
-                  <td class="px-3 py-2 text-left whitespace-nowrap">
+                  <td x-show="mostrarEstado" class="px-3 py-2 text-left whitespace-nowrap">
                     <div class="inline-flex items-center gap-2">
                       <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="clasePuntoEstado(row)"></span>
                       <span class="text-xs font-semibold" :class="claseTextoEstado(row)" x-text="estadoFila(row)"></span>
@@ -4971,10 +4971,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div x-show="tabConfig === 'tabla'" class="space-y-4">
           <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3 max-w-xl">
             <h3 class="sec-title text-sm">Columnas de la hoja</h3>
-            <p class="text-xs text-[#a0a0b8]">Oculta Saldo y Conteo. En el cierre quedan Queda (saldo real), Diferencia y Estado.</p>
+            <p class="text-xs text-[#a0a0b8]">Oculta columnas del cierre. Queda (saldo real) siempre se ve. Cada opción se guarda en este equipo.</p>
             <label class="flex items-center gap-2 text-sm text-white cursor-pointer pt-2 border-t border-[#26263a]">
               <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarSaldoYConteo" @change="setOcultarSaldoYConteo($event.target.checked)">
               <span>Ocultar columnas Saldo y Conteo</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarDiferencia" @change="setOcultarDiferencia($event.target.checked)">
+              <span>Ocultar columna Diferencia</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarEstado" @change="setOcultarEstado($event.target.checked)">
+              <span>Ocultar columna Estado</span>
             </label>
           </div>
         </div>
@@ -5647,6 +5655,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         sidebarOpen: false,
         pageTitle: 'Inventario',
         mostrarSaldoYConteo: true,
+        mostrarDiferencia: true,
+        mostrarEstado: true,
         compactView: false,
         soundEnabled: true,
         busqueda: '',
@@ -8477,6 +8487,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         cargarVistaTablaLocal() {
           try {
             if (localStorage.getItem('inventario-tabla-saldo-conteo') === '0') this.mostrarSaldoYConteo = false;
+            if (localStorage.getItem('inventario-tabla-diferencia') === '0') this.mostrarDiferencia = false;
+            if (localStorage.getItem('inventario-tabla-estado') === '0') this.mostrarEstado = false;
           } catch (e) {}
         },
 
@@ -8485,6 +8497,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           try {
             localStorage.setItem('inventario-tabla-saldo-conteo', this.mostrarSaldoYConteo ? '1' : '0');
           } catch (e) {}
+        },
+
+        setOcultarDiferencia(ocultar) {
+          this.mostrarDiferencia = !ocultar;
+          try {
+            localStorage.setItem('inventario-tabla-diferencia', this.mostrarDiferencia ? '1' : '0');
+          } catch (e) {}
+        },
+
+        setOcultarEstado(ocultar) {
+          this.mostrarEstado = !ocultar;
+          try {
+            localStorage.setItem('inventario-tabla-estado', this.mostrarEstado ? '1' : '0');
+          } catch (e) {}
+        },
+
+        columnasCierre() {
+          return (this.mostrarSaldoYConteo ? 2 : 0) + 1 + (this.mostrarDiferencia ? 1 : 0) + (this.mostrarEstado ? 1 : 0);
+        },
+
+        columnasRestoGrupo() {
+          return 6 + this.columnasCierre();
         },
 
         // Necesidad predictiva: sugiere pedido mínimo para mañana según tasa de Venta actual y Saldo
@@ -8801,7 +8835,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               icono: huboConteo ? '#' : '✓',
               titulo: '6. Verificación de Conteo Físico en Cámara',
               etiquetaAccion: huboConteo ? (difTotal === 0 ? 'CUADRA EXACTO' : (difTotal > 0 ? ('SOBRA +' + this.formatNum(difTotal)) : ('FALTA −' + this.formatNum(Math.abs(difTotal))))) : 'SIN CONTEO FÍSICO (USA SALDO)',
-              explicacion: huboConteo ? ('Se contó físicamente en cámara. El conteo físico define el Saldo Real final.') : 'Aún no se ingresó conteo físico manual (— Contar), por lo que el Saldo Real toma el Saldo Calculado.',
+              explicacion: huboConteo ? ('Se contó físicamente en cámara. El conteo físico define el Saldo Real final.') : 'Aún no se ingresó conteo físico manual, por lo que el Saldo Real toma el Saldo Calculado.',
               desgloseTipos: huboConteo && row.tieneCocido ? ('Conteo Crudo: ' + (cntCrudo === null ? '—' : cntCrudo) + ' · Conteo Cocido: ' + (cntCocido === null ? '—' : cntCocido)) : '',
               valorFormateado: huboConteo ? ((difTotal >= 0 ? '+' : '−') + this.formatNum(Math.abs(difTotal))) : '0'
             },
