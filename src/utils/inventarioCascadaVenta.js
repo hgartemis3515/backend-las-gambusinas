@@ -45,6 +45,26 @@ function semillaCocido(clave) {
     return { tieneCocido: s.tieneCocido === true, reservaClave: s.reservaClave || '' };
 }
 
+function esMixPechoLena(venta) {
+    const nombres = [];
+    if (venta && venta.nombre) nombres.push(venta.nombre);
+    (venta && venta.detalle || []).forEach((d) => { if (d && d.nombre) nombres.push(d.nombre); });
+    return nombres.some((nombre) => {
+        const n = String(nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (!((n.includes('mix') || n.includes('mixto')) && n.includes('lena'))) return false;
+        if (n.includes('pierna') || /(^| )pie$/.test(n)) return false;
+        return true;
+    });
+}
+
+function cadenaMixPechoLena() {
+    return [
+        { rubro: 'pollo-lena', tipo: 'cocido' },
+        { rubro: 'pollo-lena', tipo: 'crudo' },
+        { rubro: 'pechuga-pollo', tipo: 'crudo' }
+    ];
+}
+
 function cadenaDe(rubro, opciones) {
     const op = opciones || {};
     if (esMateria(rubro)) return [{ rubro: rubro, tipo: 'crudo' }];
@@ -160,8 +180,9 @@ function atribuirVentas(movimientos, ventas, opciones) {
         const cant = Number(v.cantidad) || 0;
         if (!rubro || cant <= 0) return;
         const op = (opciones && opciones[rubro]) || semillaCocido(rubro);
-        const cadena = cadenaDe(rubro, op);
-        if (cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
+        const mixPecho = rubro === 'pollo-lena' && esMixPechoLena(v);
+        const cadena = mixPecho ? cadenaMixPechoLena() : cadenaDe(rubro, op);
+        if (!mixPecho && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
         const partes = repartirVenta(cant, cadena, bases);
         const algunaLocal = partes.some((p) => p.rubro === rubro);
         let cubierta = 0;
@@ -204,6 +225,8 @@ module.exports = {
     esMateria,
     semillaCocido,
     cadenaDe,
+    cadenaMixPechoLena,
+    esMixPechoLena,
     repartirVenta,
     validarCocidoConfig,
     atribuirVentas,

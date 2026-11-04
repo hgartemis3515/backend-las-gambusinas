@@ -12,6 +12,27 @@ function vender(n, bases) {
     return repartirVenta(n, cadenaDe('salt-pollo', saltado), bases);
 }
 
+test('el mix de pecho gasta cocido de pecho leña, luego crudo y al final pecho de pollo', () => {
+    const movimientos = [
+        { rubro: 'pollo-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-11-03T12:00:00-05:00' },
+        { rubro: 'pollo-lena', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 1, fecha: '2026-11-03T12:00:00-05:00' },
+        { rubro: 'pechuga-pollo', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 5, fecha: '2026-11-03T12:00:00-05:00' }
+    ];
+    const venta = {
+        rubro: 'pollo-lena',
+        nombre: 'Mixto a la leña Pecho',
+        cantidad: 3,
+        fecha: '2026-11-03T18:00:00-05:00',
+        detalle: [{ nombre: 'Mixto a la leña Pecho', cantidad: 3, factor: 1, platos: 3 }]
+    };
+    const out = atribuirVentas(movimientos, [venta], { 'pollo-lena': semillaCocido('pollo-lena') }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual([
+        'pollo-lena|cocido:1',
+        'pollo-lena|crudo:1',
+        'pechuga-pollo|crudo:1'
+    ]);
+});
+
 test('el cuarto y el mix de pecho no pasan a pecho de pollo', () => {
     const venta = {
         rubro: 'pollo-lena',

@@ -650,6 +650,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       background: #0a0a0f;
       transform-origin: top center;
     }
+    .modal-platos-entra {
+      animation: modalPlatosEntra 240ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes modalPlatosEntra {
+      from { opacity: 0; transform: translateY(12px) scale(0.98); }
+      to { opacity: 1; transform: none; }
+    }
+    .fila-plato-modal {
+      transition: background-color 180ms ease;
+    }
+    .tabla-platos-reordena .fila-plato-modal {
+      animation: filaPlatoReordena 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes filaPlatoReordena {
+      from { opacity: 0.4; transform: translateY(6px); }
+      to { opacity: 1; transform: none; }
+    }
     .cuadro-grupal-pechuga {
       border-color: rgba(56, 189, 248, 0.55);
     }
@@ -2426,9 +2443,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'pechugas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0, -1))">−</button>
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="moverIngresoPlato('pechuga', ad.id, 'crudo', -1)">−</button>
                                   <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="(despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0" @change="updateAderezoCorte(ad.id, 'pechugas', $event.target.value)">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'pechugas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0, 1))">+</button>
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="moverIngresoPlato('pechuga', ad.id, 'crudo', 1)">+</button>
                                 </div>
                               </div>
                               <template x-if="tienePaseCocido(ad.id)">
@@ -2531,9 +2548,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'piernas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0, -1))">−</button>
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="moverIngresoPlato('pierna', ad.id, 'crudo', -1)">−</button>
                                   <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="(despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0" @change="updateAderezoCorte(ad.id, 'piernas', $event.target.value)">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="updateAderezoCorte(ad.id, 'piernas', nudge((despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0, 1))">+</button>
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="moverIngresoPlato('pierna', ad.id, 'crudo', 1)">+</button>
                                 </div>
                               </div>
                               <!-- Pase Crudo → Cocido en la misma fila de la hoja -->
@@ -5176,34 +5193,60 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
   <template x-if="ingresoLupa">
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ingresoLupa = null" @keydown.escape.window="ingresoLupa = null" role="dialog" aria-modal="true" aria-label="Ingreso total">
-      <div class="w-full max-w-lg bg-[#14141f] border border-cyan-700 p-5 max-h-[90vh] overflow-y-auto rounded-xl">
+      <div class="modal-platos-entra w-full max-w-lg bg-[#14141f] border border-cyan-700 p-5 max-h-[90vh] overflow-y-auto rounded-xl">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div>
-            <h3 class="text-lg font-semibold text-cyan-200" x-text="'Queda en ' + ingresoLupa.nombre"></h3>
-            <p class="text-xs text-[#a0a0b8] mt-1">Los platos no tienen fila. Su crudo y su cocido siguen en el saldo de este producto.</p>
+            <h3 class="text-lg font-semibold text-cyan-200" x-text="'Ingreso de ' + ingresoLupa.nombre"></h3>
+            <p class="text-xs text-[#a0a0b8] mt-1" x-show="ingresoLupa.id !== 'pollo_fresco'">Arriba está el saldo del producto. Sumar un plato le resta una pieza y restarlo se la devuelve. El cocido sale del crudo del mismo plato. Filete y mix solo cuentan venta y uso.</p>
+            <p class="text-xs text-[#d4af37] mt-1" x-show="ingresoLupa.id === 'pollo_fresco'" x-text="'1 pollo fresco = ' + ingresoLupa.factorPechuga + ' pechos y ' + ingresoLupa.factorPierna + ' piernas.'"></p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ingresoLupa = null" aria-label="Cerrar">×</button>
         </div>
-        <p class="text-sm mb-3">Libre del principal: <strong class="font-mono text-cyan-200" x-text="formatNum(ingresoLupa.libre)"></strong></p>
-        <div class="overflow-x-auto rounded-lg border border-[#26263a]">
-          <table class="w-full text-xs">
+        <div class="overflow-x-auto rounded-lg border border-[#26263a]" @mouseleave="soltarOrdenIngreso()">
+          <table class="w-full text-xs" :class="ingresoLupa.reordenando ? 'tabla-platos-reordena' : ''">
             <thead>
               <tr class="bg-[#0a0a0f] text-[#5a5a7a] uppercase text-[11px]">
-                <th class="text-left px-3 py-2">Plato</th>
+                <th class="text-left px-3 py-2">Pieza</th>
                 <th class="text-right px-3 py-2">Crudo</th>
                 <th class="text-right px-3 py-2">Cocido</th>
+                <th class="text-right px-3 py-2">± crudo</th>
+                <th class="text-right px-3 py-2">± cocido</th>
               </tr>
             </thead>
             <tbody>
-              <template x-for="(p, i) in ingresoLupa.platos" :key="'ing-' + i">
-                <tr class="border-t border-[#26263a]">
-                  <td class="px-3 py-1.5 font-semibold" x-text="p.nombre"></td>
+              <tr class="border-t border-[#26263a]">
+                <td class="px-3 py-1.5 font-semibold text-white" x-text="ingresoLupa.nombre + ' (suelto)'"></td>
+                <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="formatNum(ingresoLupa.crudo)"></td>
+                <td class="px-3 py-1.5 text-right font-mono text-[#d4af37]" x-text="ingresoLupa.tieneCocido ? formatNum(ingresoLupa.cocido) : '—'"></td>
+                <td class="px-3 py-1.5 text-right text-[10px] text-[#5a5a7a]" colspan="2">saldo</td>
+              </tr>
+              <template x-for="p in ingresoLupa.platos" :key="'ing-' + p.id">
+                <tr class="fila-plato-modal border-t border-[#26263a]">
+                  <td class="px-3 py-1.5 font-semibold">
+                    <span x-text="p.nombre"></span>
+                    <span x-show="p.factor" class="block text-[10px] font-normal text-[#a0a0b8]" x-text="'1 fresco → ' + p.factor"></span>
+                  </td>
                   <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="formatNum(p.crudo)"></td>
-                  <td class="px-3 py-1.5 text-right font-mono text-[#d4af37]" x-text="formatNum(p.cocido)"></td>
+                  <td class="px-3 py-1.5 text-right font-mono text-[#d4af37]" x-text="p.tieneCocido ? formatNum(p.cocido) : '—'"></td>
+                  <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                    <span x-show="!p.transforma" class="text-[10px] text-[#a0a0b8]" x-text="'Venta ' + formatNum(p.venta)"></span>
+                    <span x-show="p.transforma">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer disabled:opacity-30 disabled:cursor-default" :disabled="ingresoLupa.id === 'pollo_fresco' ? ingresoLupa.frescos <= 0 : p.crudo <= 0" :aria-label="'Restar crudo de ' + p.nombre" @click="moverIngresoPlato(ingresoLupa.id, p.id, 'crudo', -1)">−</button>
+                      <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer disabled:opacity-30 disabled:cursor-default" :disabled="!puedeSumarPlato(ingresoLupa.id, p, 'crudo')" :aria-label="'Sumar crudo de ' + p.nombre" @click="moverIngresoPlato(ingresoLupa.id, p.id, 'crudo', 1)">+</button>
+                    </span>
+                  </td>
+                  <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                    <span x-show="!p.transforma" class="text-[10px] text-[#d4af37]" x-text="'Uso ' + formatNum(p.uso)"></span>
+                    <span x-show="p.transforma && p.tieneCocido">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer disabled:opacity-30 disabled:cursor-default" :disabled="p.cocido <= 0" :aria-label="'Restar cocido de ' + p.nombre" @click="moverIngresoPlato(ingresoLupa.id, p.id, 'cocido', -1)">−</button>
+                      <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer disabled:opacity-30 disabled:cursor-default" :disabled="p.crudo <= 0" :aria-label="'Sumar cocido de ' + p.nombre" @click="moverIngresoPlato(ingresoLupa.id, p.id, 'cocido', 1)">+</button>
+                    </span>
+                    <span x-show="p.transforma && !p.tieneCocido" class="text-[#5a5a7a]">—</span>
+                  </td>
                 </tr>
               </template>
               <tr x-show="ingresoLupa.platos.length === 0">
-                <td class="px-3 py-3 text-[#5a5a7a]" colspan="3">Este producto no tiene platos transformados.</td>
+                <td class="px-3 py-3 text-[#5a5a7a]" colspan="5">Este producto no agrupa platos.</td>
               </tr>
             </tbody>
           </table>
@@ -5617,7 +5660,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   >
     <template x-if="saldoRealInfo">
       <div
-        class="bg-[#12121d] border-2 border-teal-400 rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-[0_0_40px_rgba(20,184,166,0.25)] overflow-hidden"
+        class="modal-platos-entra bg-[#12121d] border-2 border-teal-400 rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-[0_0_40px_rgba(20,184,166,0.25)] overflow-hidden"
         @click.outside="showSaldoRealModal = false"
       >
         <!-- Encabezado del Modal de Saldo Real -->
@@ -5721,6 +5764,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
               </div>
             </template>
+          </div>
+
+          <div class="modal-platos-entra bg-[#14141f] border border-teal-500/40 rounded-xl p-3 space-y-2" :class="saldoRealInfo.reordenando ? 'tabla-platos-reordena' : ''" @mouseleave="soltarOrdenSaldo()">
+            <p class="text-xs font-extrabold text-teal-200 uppercase">Saldo restante</p>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-white" x-text="saldoRealInfo.nombre + ' (suelto)'"></span>
+              <span class="font-mono text-teal-200" x-text="formatNum(saldoRealInfo.sueltas) + ' ' + saldoRealInfo.unidad"></span>
+            </div>
+            <template x-for="p in saldoRealInfo.platosConSaldo" :key="'saldo-plato-' + p.id">
+              <div class="fila-plato-modal flex items-center justify-between text-sm border-t border-[#26263a] pt-1.5">
+                <span class="text-[#a0a0b8]" x-text="p.nombre"></span>
+                <span class="font-mono text-xs">
+                  <span class="text-emerald-300" x-text="'Crudo ' + formatNum(p.crudo)"></span>
+                  <span x-show="p.tieneCocido" class="text-[#d4af37] ml-2" x-text="'Cocido ' + formatNum(p.cocido)"></span>
+                </span>
+              </div>
+            </template>
+            <p x-show="saldoRealInfo.platosConSaldo.length === 0" class="text-xs text-[#5a5a7a]">Ningún plato de este producto tiene saldo.</p>
+            <p class="text-xs text-teal-100 border-t border-teal-500/30 pt-2" x-text="'En la familia quedan ' + formatNum(saldoRealInfo.familia) + ' piezas: ' + formatNum(saldoRealInfo.sueltas) + ' sueltas y ' + formatNum(saldoRealInfo.enPlatos) + ' en platos.'"></p>
           </div>
 
         </div>
@@ -6230,6 +6292,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           await this.cargarPlatos();
           await this.refrescarTurnos(false);
           await this.cargarKardex();
+          this.marcarAportePintado();
+          this.marcarPadresPintados();
+          this.despieceAplicado = this.fotoTransformacion();
           this._turnosTimer = setInterval(() => this.refrescarTurnos(true), 45000);
           this.initSocket();
         },
@@ -8309,6 +8374,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (pierna) pierna.ingreso = prevPierna + (next - prevTrans) * fl;
             row.transformacion = next;
             this.despiece.frescos = next;
+            if (this.despiece.padresPintados) {
+              this.despiece.padresPintados.fresco = next;
+              this.despiece.padresPintados.pechugaIng = next * fp + this.ingresoDirectoDe('pechuga');
+              this.despiece.padresPintados.piernaIng = next * fl + this.ingresoDirectoDe('pierna');
+            }
           }
           this.pulseRowTotal(row.id);
           const clave = this.claveDeFila[row.id];
@@ -8962,21 +9032,205 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return ing + corPos + this.creditoPlatos(row);
         },
 
-        abrirIngresoLupa(row) {
-          if (!row) return;
-          const platos = this.platosOcultosDe(row.id).map((n) => {
+        platoConTransformacion(padreId, platoId) {
+          const id = String(platoId || '');
+          if (padreId === 'filete' || id.indexOf('mix') !== -1) return false;
+          return padreId === 'pechuga' || padreId === 'pierna' || padreId === 'pechuga_pato' || padreId === 'pierna_pato';
+        },
+
+        factorUsoPlato(padreId, platoId) {
+          if (padreId !== 'filete') return 1;
+          if (platoId === 'filete_junior' || platoId === 'filete-junior') return 0.5;
+          const lista = this.platosDelFilete();
+          const hallado = lista.find((p) => p.id === platoId || String(p.id).replace(/-/g, '_') === platoId);
+          return hallado && Number(hallado.cantidad) > 0 ? Number(hallado.cantidad) : 1;
+        },
+
+        esMixLena(id, nombre) {
+          const clave = String(id || '');
+          const n = this.norm(nombre || '');
+          if (clave.indexOf('mix') !== -1 && clave.indexOf('lena') !== -1) return true;
+          return (n.includes('mix') || n.includes('mixto')) && n.includes('lena');
+        },
+
+        cortesDeFresco() {
+          const pecho = Number(this.config.factorPechugasPorFresco) || 2;
+          const pierna = Number(this.config.factorPiernasPorFresco) || 2;
+          return [
+            { id: 'pechuga', nombre: 'Pecho de Pollo', factor: pecho },
+            { id: 'pierna', nombre: 'Pierna de Pollo', factor: pierna }
+          ].map((n) => {
             const hijo = this.filaReal(n.id);
             return {
+              id: n.id,
               nombre: n.nombre,
-              crudo: hijo ? this.calcSaldoTipo(hijo, 'crudo') : 0,
-              cocido: hijo && hijo.tieneCocido ? this.calcSaldoTipo(hijo, 'cocido') : 0
+              factor: n.factor,
+              transforma: true,
+              tieneCocido: false,
+              venta: 0,
+              uso: 0,
+              crudo: hijo ? Math.max(0, this.calcSaldoTipo(hijo, 'crudo')) : 0,
+              cocido: 0
             };
-          }).filter((p) => p.crudo || p.cocido);
+          });
+        },
+
+        platosIngresoDe(row) {
+          if (row && row.id === 'pollo_fresco') return this.cortesDeFresco();
+          return this.detallePlatosDe(row);
+        },
+
+        detallePlatosDe(row) {
+          if (!row) return [];
+          return this.platosOcultosDe(row.id).filter((n) => !this.esMixLena(n.id, n.nombre)).map((n) => {
+            const hijo = this.filaReal(n.id);
+            const venta = hijo ? this.tiposDe(hijo).reduce((a, t) => a + Math.max(0, this.valorTipo(hijo, 'venta', t)), 0) : 0;
+            const transforma = this.platoConTransformacion(row.id, n.id);
+            return {
+              id: n.id,
+              nombre: n.nombre,
+              transforma: transforma,
+              tieneCocido: !!(transforma && hijo && hijo.tieneCocido),
+              venta: venta,
+              uso: venta * this.factorUsoPlato(row.id, n.id),
+              crudo: hijo ? Math.max(0, this.calcSaldoTipo(hijo, 'crudo')) : 0,
+              cocido: hijo && hijo.tieneCocido ? Math.max(0, this.calcSaldoTipo(hijo, 'cocido')) : 0
+            };
+          }).sort((a, b) => (b.crudo + b.cocido + b.venta) - (a.crudo + a.cocido + a.venta) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
+        },
+
+        abrirIngresoLupa(row, conservarOrden) {
+          if (!row) return;
+          const platos = this.platosIngresoDe(row);
+          const orden = conservarOrden && this.ingresoLupa && this.ingresoLupa.orden;
+          const lista = this.aplicarOrdenPlatos(platos, orden);
           this.ingresoLupa = {
+            id: row.id,
             nombre: row.nombre,
-            libre: this.calcSaldoTipo(row, 'crudo'),
-            platos: platos
+            tieneCocido: !!row.tieneCocido,
+            frescos: Number(this.despiece.frescos) || 0,
+            factorPechuga: Number(this.config.factorPechugasPorFresco) || 2,
+            factorPierna: Number(this.config.factorPiernasPorFresco) || 2,
+            crudo: Math.max(0, this.calcSaldoTipo(row, 'crudo')),
+            cocido: row.tieneCocido ? Math.max(0, this.calcSaldoTipo(row, 'cocido')) : 0,
+            platos: lista,
+            orden: lista.map((p) => p.id),
+            reordenando: false
           };
+        },
+
+        aplicarOrdenPlatos(platos, orden) {
+          if (!orden || !orden.length) return platos;
+          const porId = {};
+          platos.forEach((p) => { porId[p.id] = p; });
+          const lista = orden.map((id) => porId[id]).filter(Boolean);
+          platos.forEach((p) => { if (orden.indexOf(p.id) === -1) lista.push(p); });
+          return lista;
+        },
+
+        soltarOrdenIngreso() {
+          if (!this.ingresoLupa) return;
+          const row = this.filaReal(this.ingresoLupa.id);
+          if (!row) return;
+          const platos = this.platosIngresoDe(row);
+          const antes = (this.ingresoLupa.orden || []).join('|');
+          const ahora = platos.map((p) => p.id).join('|');
+          const cambio = antes !== ahora;
+          this.ingresoLupa = Object.assign({}, this.ingresoLupa, {
+            platos: platos,
+            orden: platos.map((p) => p.id),
+            reordenando: cambio
+          });
+          if (!cambio) return;
+          setTimeout(() => {
+            if (this.ingresoLupa) this.ingresoLupa = Object.assign({}, this.ingresoLupa, { reordenando: false });
+          }, 280);
+        },
+
+        soltarOrdenSaldo() {
+          if (!this.saldoRealInfo || !this.saldoRealInfo.platosConSaldo) return;
+          const actual = this.saldoRealInfo.platosConSaldo;
+          const platos = actual.slice().sort((a, b) => (b.crudo + b.cocido) - (a.crudo + a.cocido) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
+          const cambio = platos.some((p, i) => !actual[i] || p.id !== actual[i].id);
+          if (!cambio) return;
+          this.saldoRealInfo = Object.assign({}, this.saldoRealInfo, { platosConSaldo: platos, reordenando: true });
+          setTimeout(() => {
+            if (this.saldoRealInfo) this.saldoRealInfo = Object.assign({}, this.saldoRealInfo, { reordenando: false });
+          }, 280);
+        },
+
+        puedeSumarPlato(padreId, plato, tipo) {
+          if (!plato || !plato.transforma) return false;
+          if (padreId === 'pollo_fresco') {
+            const padre = this.filaReal('pollo_fresco');
+            return !!(padre && this.calcSaldoTipo(padre, 'crudo') > 0);
+          }
+          if (tipo === 'cocido') return plato.tieneCocido && plato.crudo > 0;
+          const padre = this.filaReal(padreId);
+          return !!(padre && this.calcSaldoTipo(padre, 'crudo') > 0);
+        },
+
+        corteDeFamilia(padreId) {
+          if (padreId === 'pierna' || padreId === 'pierna_pato') return 'piernas';
+          if (padreId === 'filete') return 'filete';
+          return 'pechugas';
+        },
+
+        async moverSaldoTransformacion(padre, plato, dir) {
+          const clavePadre = this.claveDeFila[padre.id];
+          const clavePlato = this.claveDeFila[plato.id];
+          if (!clavePadre || !clavePlato) return false;
+          try {
+            if (dir > 0) {
+              await this.paso(clavePadre, 'crudo', -1, 'Pasa a ' + plato.nombre, 'ingreso', padre.nombre);
+              await this.paso(clavePlato, 'crudo', 1, 'Sale de ' + padre.nombre, 'ingreso', plato.nombre);
+            } else {
+              await this.paso(clavePlato, 'crudo', -1, 'Devuelve a ' + padre.nombre, 'ingreso', plato.nombre);
+              await this.paso(clavePadre, 'crudo', 1, 'Sale de ' + plato.nombre, 'ingreso', padre.nombre);
+            }
+            await this.cargarKardex();
+            this.marcarAportePintado();
+            this.marcarPadresPintados();
+            return true;
+          } catch (e) {
+            this.toastMessage = e.message || 'No se movió la pieza';
+            return false;
+          }
+        },
+
+        async moverIngresoPlato(padreId, platoId, tipo, delta) {
+          const pasoInicial = delta < 0 ? -1 : 1;
+          if (padreId === 'pollo_fresco') {
+            const padre = this.filaReal('pollo_fresco');
+            if (!padre || !pasoInicial) return;
+            if (pasoInicial > 0 && this.calcSaldoTipo(padre, 'crudo') <= 0) return;
+            if (!this.despiece.padresPintados) this.marcarPadresPintados();
+            this.setPollosFrescosConvertir((Number(this.despiece.frescos) || 0) + pasoInicial);
+            if (this.ingresoLupa && this.ingresoLupa.id === 'pollo_fresco') this.abrirIngresoLupa(padre, true);
+            return;
+          }
+          if (!this.platoConTransformacion(padreId, platoId)) return;
+          const row = this.filaReal(platoId);
+          const padre = this.filaReal(padreId);
+          const paso = delta < 0 ? -1 : 1;
+          if (!row || !padre || !paso) return;
+          if (tipo === 'cocido') {
+            if (!row.tieneCocido) return;
+            if (paso < 0 && this.calcSaldoTipo(row, 'cocido') <= 0) return;
+            if (paso > 0 && this.calcSaldoTipo(row, 'crudo') <= 0) return;
+            await this.pasarCrudoACocido(platoId, paso);
+          } else if (paso > 0 && this.calcSaldoTipo(padre, 'crudo') <= 0) {
+            return;
+          } else if (paso < 0 && this.calcSaldoTipo(row, 'crudo') <= 0) {
+            return;
+          } else {
+            const corte = this.corteDeFamilia(padreId);
+            if (!this.despiece.aderezos[platoId]) this.despiece.aderezos[platoId] = { piernas: 0, pechugas: 0 };
+            const bolsa = this.despiece.aderezos[platoId];
+            this.updateAderezoCorte(platoId, corte, (Number(bolsa[corte]) || 0) + paso);
+          }
+          const actual = this.filaReal(padreId);
+          if (this.ingresoLupa && this.ingresoLupa.id === padreId && actual) this.abrirIngresoLupa(actual, true);
         },
 
         restaIngresoTotalFila(row) {
@@ -9177,6 +9431,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             transformacion,
             saldoTeorico,
             quedaSaldoReal,
+            sueltas: quedaSaldoReal,
+            enPlatos: this.saldoPlatosOcultos(row),
+            familia: quedaSaldoReal + this.saldoPlatosOcultos(row),
+            platosConSaldo: this.detallePlatosDe(row).filter((p) => p.crudo > 0 || p.cocido > 0),
             estadoTexto: this.estadoFila(row),
             puntoEstado: this.clasePuntoEstado(row),
             pasos
@@ -9473,6 +9731,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const prevIngreso = Number(row.ingreso) || 0;
           this.despiece.ingresoCorte[rowId] = next;
           row.ingreso = prevIngreso + cambio;
+          if (this.despiece.padresPintados) {
+            const auto = rowId === 'pierna' ? this.piernasObtenidas() : this.pechugasObtenidas();
+            this.despiece.padresPintados[rowId === 'pierna' ? 'piernaIng' : 'pechugaIng'] = auto + next;
+          }
           row.crudo = Math.max(0, this.calcSaldo(row));
           this.pulseRowTotal(rowId);
           try {
@@ -9826,16 +10088,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const current = Number(this.despiece.aderezos[aderezoId][corte] || 0);
           const diff = next - current;
 
-          if (corte === 'piernas' && this.piernasLibres() - diff < 0) {
-            this.transformWarning = 'Aviso ámbar: Ese cambio dejaría Piernas libres < 0. No se modificó el número.';
+          const padreId = corte === 'piernas' ? 'pierna' : 'pechuga';
+          const padre = this.filaReal(padreId);
+          const plato = this.filaReal(aderezoId);
+          if (diff > 0 && padre && this.calcSaldoTipo(padre, 'crudo') < diff) {
+            this.transformWarning = 'Aviso ámbar: ' + padre.nombre + ' no tiene saldo para transformar ' + diff + '.';
             return;
           }
-          if (corte === 'pechugas' && this.pechugasLibres() - diff < 0) {
-            this.transformWarning = 'Aviso ámbar: Ese cambio dejaría Pechugas libres < 0. No se modificó el número.';
+          if (diff < 0 && plato && this.calcSaldoTipo(plato, 'crudo') < Math.abs(diff)) {
+            this.transformWarning = 'Aviso ámbar: ' + (plato.nombre || 'el plato') + ' no tiene tanto crudo para devolver al producto.';
             return;
           }
 
           this.transformWarning = '';
+          if (!this.despiece.aportePintado) this.marcarAportePintado();
           this.despiece.aderezos[aderezoId][corte] = next;
           this.volcarTransformacionEnTabla();
         },
@@ -9843,28 +10109,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // Lo anotado en Transformar cae en la fila del mismo producto.
         volcarTransformacionEnTabla() {
           const rFresco = this.getRow('pollo_fresco');
-          rFresco.transformacion = Number(this.despiece.frescos || 0);
+          this.aplicarDeltaPadre(rFresco, 'transformacion', Number(this.despiece.frescos || 0), 'fresco');
           rFresco.crudo = Math.max(0, this.calcSaldo(rFresco));
           rFresco.cocido = 0;
           this.pulseRowTotal('pollo_fresco');
 
           const rPierna = this.getRow('pierna');
-          rPierna.ingreso = this.piernasObtenidas() + this.ingresoDirectoDe('pierna');
-          rPierna.transformacion = this.piernasUsadas();
+          this.aplicarDeltaPadre(rPierna, 'ingreso', this.piernasObtenidas() + this.ingresoDirectoDe('pierna'), 'piernaIng');
+          this.aplicarDeltaPadre(rPierna, 'transformacion', this.piernasUsadas(), 'piernaTrans');
           rPierna.crudo = this.calcSaldo(rPierna);
           rPierna.cocido = 0;
           this.pulseRowTotal('pierna');
 
           const rPechuga = this.getRow('pechuga');
-          rPechuga.ingreso = this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga');
-          rPechuga.transformacion = this.pechugasUsadas();
+          this.aplicarDeltaPadre(rPechuga, 'ingreso', this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga'), 'pechugaIng');
+          this.aplicarDeltaPadre(rPechuga, 'transformacion', this.pechugasUsadas(), 'pechugaTrans');
           rPechuga.crudo = this.calcSaldo(rPechuga);
           rPechuga.cocido = 0;
           this.pulseRowTotal('pechuga');
 
           const rFilete = this.getRow('filete');
-          rFilete.ingreso = this.totalFiletesGenerados();
-          rFilete.transformacion = this.filetesUsadosEnPlatos();
+          this.aplicarDeltaPadre(rFilete, 'ingreso', this.totalFiletesGenerados(), 'fileteIng');
+          this.aplicarDeltaPadre(rFilete, 'transformacion', this.filetesUsadosEnPlatos(), 'fileteTrans');
           rFilete.crudo = this.calcSaldo(rFilete);
           rFilete.cocido = 0;
           this.pulseRowTotal('filete');
@@ -9927,21 +10193,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 isNew: true
               };
               this.rows.push(row);
+              if (!this.despiece.aportePintado) this.despiece.aportePintado = {};
+              this.despiece.aportePintado[ad.id] = {
+                crudo: row.tieneCocido ? Math.max(0, totalAd - pase) : totalAd,
+                cocido: row.tieneCocido ? pase : 0
+              };
               setTimeout(() => { row.isNew = false; }, 600);
             } else {
               row.nombre = ad.nombre;
               row.detalle = p + ' piernas + ' + pech + ' pechugas';
-              if (row.tieneCocido) {
-                row.ingreso = Math.max(0, totalAd - pase);
-                row.ingresoCocido = pase;
-                row.crudo = this.calcSaldoTipo(row, 'crudo');
-                row.cocido = this.calcSaldoTipo(row, 'cocido');
-              } else {
-                row.ingreso = totalAd;
-                row.ingresoCocido = 0;
-                row.crudo = this.calcSaldo(row);
-                row.cocido = 0;
-              }
+              const crudoMapa = row.tieneCocido ? Math.max(0, totalAd - pase) : totalAd;
+              const cocidoMapa = row.tieneCocido ? pase : 0;
+              this.aplicarLotePlato(row, crudoMapa, cocidoMapa);
             }
             this.pulseRowTotal(ad.id);
           });
@@ -10570,6 +10833,67 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return mapaClave[raw] || this.claveDeFila[raw] || raw;
         },
 
+        loteDeAderezo(id) {
+          const ad = (this.despiece.aderezos && this.despiece.aderezos[id]) || {};
+          const total = (Number(ad.piernas) || 0) + (Number(ad.pechugas) || 0);
+          const pideCocido = this.tienePaseCocido(id);
+          const pase = pideCocido ? Math.min(total, Math.max(0, Number(this.despiece.paseCocido && this.despiece.paseCocido[id] || 0))) : 0;
+          return { total: total, crudo: Math.max(0, total - pase), cocido: pase };
+        },
+
+        marcarPadresPintados() {
+          this.despiece.padresPintados = {
+            fresco: Number(this.despiece.frescos || 0),
+            piernaIng: this.piernasObtenidas() + this.ingresoDirectoDe('pierna'),
+            piernaTrans: this.piernasUsadas(),
+            pechugaIng: this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga'),
+            pechugaTrans: this.pechugasUsadas(),
+            fileteIng: this.totalFiletesGenerados(),
+            fileteTrans: this.filetesUsadosEnPlatos()
+          };
+        },
+
+        aplicarDeltaPadre(row, campo, ahora, clavePintada) {
+          if (!row || !row.id) return;
+          if (!this.despiece.padresPintados) this.despiece.padresPintados = {};
+          const antes = this.despiece.padresPintados[clavePintada];
+          const valor = Number(ahora) || 0;
+          if (antes === undefined) {
+            this.despiece.padresPintados[clavePintada] = valor;
+            return;
+          }
+          const d = valor - (Number(antes) || 0);
+          if (d) row[campo] = Math.max(0, (Number(row[campo]) || 0) + d);
+          this.despiece.padresPintados[clavePintada] = valor;
+        },
+
+        marcarAportePintado() {
+          if (!this.despiece.aportePintado) this.despiece.aportePintado = {};
+          this.aderezosSinFiletes().forEach((ad) => {
+            const lote = this.loteDeAderezo(ad.id);
+            this.despiece.aportePintado[ad.id] = { crudo: lote.crudo, cocido: lote.cocido };
+          });
+        },
+
+        aplicarLotePlato(row, crudoMapa, cocidoMapa) {
+          if (!row) return;
+          if (!this.despiece.aportePintado) this.despiece.aportePintado = {};
+          const antes = this.despiece.aportePintado[row.id];
+          if (!antes) {
+            this.despiece.aportePintado[row.id] = { crudo: crudoMapa, cocido: cocidoMapa };
+            row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+            row.cocido = row.tieneCocido ? Math.max(0, this.calcSaldoTipo(row, 'cocido')) : 0;
+            return;
+          }
+          const dC = crudoMapa - (Number(antes.crudo) || 0);
+          const dK = cocidoMapa - (Number(antes.cocido) || 0);
+          if (dC) row.ingreso = Math.max(0, (Number(row.ingreso) || 0) + dC);
+          if (dK) row.ingresoCocido = Math.max(0, (Number(row.ingresoCocido) || 0) + dK);
+          this.despiece.aportePintado[row.id] = { crudo: crudoMapa, cocido: cocidoMapa };
+          row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+          row.cocido = row.tieneCocido ? Math.max(0, this.calcSaldoTipo(row, 'cocido')) : 0;
+        },
+
         stockPlatoTransformar(idOrClave, tipo) {
           const rowId = this.filaIdDePlatoTransformar(idOrClave);
           const row = rowId ? this.filaReal(rowId) : null;
@@ -10613,6 +10937,36 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return Math.max(0, this.calcSaldoTipo(row, 'cocido'));
         },
 
+        moverTipoEnFila(row, desde, hacia, n) {
+          const cant = Math.max(0, Math.round(Number(n) || 0));
+          if (!row || !cant) return;
+          const campoDesde = this.campoTipo('ingreso', desde);
+          const corDesde = this.campoTipo('correccion', desde);
+          const campoHacia = this.campoTipo('ingreso', hacia);
+          let falta = cant;
+          const ing = Math.max(0, Number(row[campoDesde]) || 0);
+          const toma = Math.min(falta, ing);
+          row[campoDesde] = ing - toma;
+          falta -= toma;
+          if (falta) row[corDesde] = (Number(row[corDesde]) || 0) - falta;
+          row[campoHacia] = (Number(row[campoHacia]) || 0) + cant;
+        },
+
+        async guardarPaseTipo(row, desde, hacia, n) {
+          const cant = Math.max(0, Math.round(Number(n) || 0));
+          if (!row || !cant) return;
+          const clave = this.claveDeFila[row.id];
+          if (!clave) return;
+          try {
+            await this.paso(clave, desde, -cant, 'Pasa a ' + hacia + ' ' + row.nombre);
+            await this.paso(clave, hacia, cant, 'Pasa de ' + desde + ' ' + row.nombre);
+            await this.cargarKardex();
+            this.marcarAportePintado();
+          } catch (e) {
+            this.toastMessage = e.message || 'No se guardó el pase';
+          }
+        },
+
         async pasarCrudoACocido(idOrClave, delta) {
           const raw = String(idOrClave || '');
           if (!this.tienePaseCocido(raw)) return;
@@ -10632,6 +10986,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const row = rowId ? this.filaReal(rowId) : null;
           if (!row || !row.tieneCocido) return;
 
+          if (!this.despiece.aportePintado) this.marcarAportePintado();
+          const lote = this.loteDeAderezo(row.id);
           if (cambioSolicitado > 0) {
             const crudoDisp = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
             const pasoReal = Math.min(cambioSolicitado, crudoDisp);
@@ -10640,65 +10996,37 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               return;
             }
             this.transformWarning = '';
-            const ingCrudo = Number(row.ingreso) || 0;
-            if (ingCrudo >= pasoReal) {
-              row.ingreso = ingCrudo - pasoReal;
-            } else {
-              const resto = pasoReal - ingCrudo;
-              row.ingreso = 0;
-              row.correccion = (Number(row.correccion) || 0) - resto;
+            const desdeMapa = Math.min(pasoReal, lote.crudo);
+            const resto = pasoReal - desdeMapa;
+            if (desdeMapa) this.despiece.paseCocido[row.id] = lote.cocido + desdeMapa;
+            if (resto) this.moverTipoEnFila(row, 'crudo', 'cocido', resto);
+            if (desdeMapa) this.aplicarLotePlato(row, lote.crudo - desdeMapa, lote.cocido + desdeMapa);
+            else {
+              row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+              row.cocido = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
             }
-            row.ingresoCocido = (Number(row.ingresoCocido) || 0) + pasoReal;
-            this.despiece.paseCocido[row.id] = Math.max(0, (Number(this.despiece.paseCocido[row.id]) || 0) + pasoReal);
-            row.crudo = this.calcSaldoTipo(row, 'crudo');
-            row.cocido = this.calcSaldoTipo(row, 'cocido');
             this.pulseRowTotal(row.id);
             this.anotarHistorial('transforma', row.nombre + ' (Crudo → Cocido)', '−' + pasoReal + ' crudo, +' + pasoReal + ' cocido');
-            if (this.aporteDespieceDe(row.id) > 0) {
-              this.volcarTransformacionEnTabla();
-            } else {
-              const clave = this.claveDeFila[row.id];
-              if (!clave) return;
-              try {
-                await this.paso(clave, 'crudo', -pasoReal, 'Pasa a cocido ' + row.nombre);
-                await this.paso(clave, 'cocido', pasoReal, 'Pasa de crudo ' + row.nombre);
-                await this.cargarKardex();
-              } catch (e) {
-                this.toastMessage = e.message || 'No se guardó el pase a cocido';
-              }
-            }
+            if (desdeMapa) this.programarGuardadoDespiece();
+            else await this.guardarPaseTipo(row, 'crudo', 'cocido', resto);
           } else {
             const cocidoDisp = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
             const revReal = Math.min(Math.abs(cambioSolicitado), cocidoDisp);
             if (revReal <= 0) return;
             this.transformWarning = '';
-            const ingCocido = Number(row.ingresoCocido) || 0;
-            if (ingCocido >= revReal) {
-              row.ingresoCocido = ingCocido - revReal;
-            } else {
-              const resto = revReal - ingCocido;
-              row.ingresoCocido = 0;
-              row.correccionCocido = (Number(row.correccionCocido) || 0) - resto;
+            const desdeMapa = Math.min(revReal, lote.cocido);
+            const resto = revReal - desdeMapa;
+            if (desdeMapa) this.despiece.paseCocido[row.id] = Math.max(0, lote.cocido - desdeMapa);
+            if (resto) this.moverTipoEnFila(row, 'cocido', 'crudo', resto);
+            if (desdeMapa) this.aplicarLotePlato(row, lote.crudo + desdeMapa, Math.max(0, lote.cocido - desdeMapa));
+            else {
+              row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+              row.cocido = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
             }
-            row.ingreso = (Number(row.ingreso) || 0) + revReal;
-            this.despiece.paseCocido[row.id] = Math.max(0, (Number(this.despiece.paseCocido[row.id]) || 0) - revReal);
-            row.crudo = this.calcSaldoTipo(row, 'crudo');
-            row.cocido = this.calcSaldoTipo(row, 'cocido');
             this.pulseRowTotal(row.id);
             this.anotarHistorial('transforma', row.nombre + ' (Cocido → Crudo)', '+' + revReal + ' crudo, −' + revReal + ' cocido');
-            if (this.aporteDespieceDe(row.id) > 0) {
-              this.volcarTransformacionEnTabla();
-            } else {
-              const clave = this.claveDeFila[row.id];
-              if (!clave) return;
-              try {
-                await this.paso(clave, 'cocido', -revReal, 'Pasa a crudo ' + row.nombre);
-                await this.paso(clave, 'crudo', revReal, 'Pasa de cocido ' + row.nombre);
-                await this.cargarKardex();
-              } catch (e) {
-                this.toastMessage = e.message || 'No se guardó el pase a crudo';
-              }
-            }
+            if (desdeMapa) this.programarGuardadoDespiece();
+            else await this.guardarPaseTipo(row, 'cocido', 'crudo', resto);
           }
         },
 
