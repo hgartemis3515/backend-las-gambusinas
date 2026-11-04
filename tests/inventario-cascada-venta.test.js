@@ -33,6 +33,27 @@ test('el mix de pecho gasta cocido de pecho leña, luego crudo y al final pecho 
     ]);
 });
 
+test('el mix de pierna gasta cocido de pierna leña, luego crudo y al final pierna de pollo', () => {
+    const movimientos = [
+        { rubro: 'pierna-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-11-03T12:00:00-05:00' },
+        { rubro: 'pierna-lena', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 1, fecha: '2026-11-03T12:00:00-05:00' },
+        { rubro: 'pierna-pollo', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 5, fecha: '2026-11-03T12:00:00-05:00' }
+    ];
+    const venta = {
+        rubro: 'pierna-lena',
+        nombre: 'Mixto a la leña Pierna',
+        cantidad: 3,
+        fecha: '2026-11-03T18:00:00-05:00',
+        detalle: [{ nombre: 'Mixto a la leña Pierna', cantidad: 3, factor: 1, platos: 3 }]
+    };
+    const out = atribuirVentas(movimientos, [venta], { 'pierna-lena': semillaCocido('pierna-lena') }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual([
+        'pierna-lena|cocido:1',
+        'pierna-lena|crudo:1',
+        'pierna-pollo|crudo:1'
+    ]);
+});
+
 test('el cuarto y el mix de pecho no pasan a pecho de pollo', () => {
     const venta = {
         rubro: 'pollo-lena',

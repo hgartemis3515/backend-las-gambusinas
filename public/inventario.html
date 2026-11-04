@@ -8270,7 +8270,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         calcIngresoTotal(row) {
-          return this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0) + this.creditoPlatos(row);
+          return this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0);
         },
 
         calcSaldo(row) {
@@ -9063,9 +9063,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const ven = suma('venta');
           const cub = suma('cubierta');
           const tr = suma('transformacion');
-          const sal = this.saldoColumna(row);
+          const propio = sa + ing + cor - ven + cub - tr;
+          const platos = this.saldoDePlatos(row, false);
           const cubre = cub ? ` + ${cub} (lo cubrió el producto anterior)` : '';
-          return `${row.nombre}: ${sa} (anterior) + ${ing} (ingreso) + ${cor} (corrección) − ${ven} (venta)${cubre} − ${tr} (transformación) = ${sal}`;
+          const extra = platos ? ` + ${platos} (platos del grupo)` : '';
+          return `${row.nombre}: ${sa} (anterior) + ${ing} (ingreso) + ${cor} (corrección) − ${ven} (venta)${cubre} − ${tr} (transformación) = ${propio}${extra}` + (platos ? ` = ${propio + platos}` : '');
         },
 
         activarSkeletonTabla(ms = 320) {
@@ -9079,7 +9081,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!row) return 0;
           const ing = this.tiposDe(row).reduce((a, t) => a + Math.max(0, Number(this.valorTipo(row, 'ingreso', t)) || 0), 0);
           const corPos = this.tiposDe(row).reduce((a, t) => a + Math.max(0, Number(this.valorTipo(row, 'correccion', t)) || 0), 0);
-          return ing + corPos + this.creditoPlatos(row);
+          return ing + corPos;
         },
 
         platoConTransformacion(padreId, platoId) {
@@ -9375,13 +9377,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const transCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'transformacion', 'cocido')) || 0) : 0;
           const transformacion = transCrudo + transCocido;
 
-          const saldoTeorico = this.saldoColumna(row);
-          const quedaSaldoReal = this.saldoRealColumna(row);
+          const saldoPropio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0);
+          const sueltas = this.calcSaldoReal(row);
+          const enPlatos = this.saldoDePlatos(row, true);
+          const familia = sueltas + enPlatos;
+          const saldoTeorico = saldoPropio;
+          const quedaSaldoReal = familia;
 
           const cntCrudo = this.conteoTipo(row, 'crudo');
           const cntCocido = row.tieneCocido ? this.conteoTipo(row, 'cocido') : null;
           const huboConteo = (cntCrudo !== null) || (cntCocido !== null);
-          const difTotal = huboConteo ? (quedaSaldoReal - saldoTeorico) : null;
+          const difTotal = huboConteo ? (sueltas - saldoPropio) : null;
 
           const pasos = [
             {
@@ -9443,7 +9449,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               icono: '=',
               titulo: 'Subtotal 2: Saldo Calculado en Hoja',
               etiquetaAccion: 'INGRESO TOTAL − VENTAS − TRANSFORMACIÓN',
-              explicacion: 'Lo que teóricamente queda según el flujo de la fila' + (this.saldoDePlatos(row, false) ? (' más el saldo de su grupo de platos (' + this.formatNum(this.saldoDePlatos(row, false)) + ')') : '') + '.',
+              explicacion: 'Es la pieza que queda suelta en esta fila. Los platos del grupo se suman aparte, en el recuadro de abajo.',
               desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(this.calcSaldoTipo(row, 'crudo')) + ' · Cocido: ' + this.formatNum(this.calcSaldoTipo(row, 'cocido'))) : '',
               valorFormateado: this.formatNum(saldoTeorico)
             },
@@ -9461,7 +9467,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               icono: '★',
               titulo: 'Resultado Final: Queda (Saldo Real)',
               etiquetaAccion: 'SALDO REAL ACTUAL EN ' + etqPeriodo.toUpperCase(),
-              explicacion: 'Stock real definitivo con el que cuenta cocina y cámara en el período seleccionado.',
+              explicacion: 'Quedan ' + this.formatNum(sueltas) + ' sueltas en ' + row.nombre + ' y ' + this.formatNum(enPlatos) + ' en sus platos. En la familia son ' + this.formatNum(familia) + '.',
               desgloseTipos: row.tieneCocido ? ('Queda Crudo: ' + this.formatNum(this.saldoRealColumnaTipo(row, 'crudo')) + ' · Queda Cocido: ' + this.formatNum(this.saldoRealColumnaTipo(row, 'cocido'))) : '',
               valorFormateado: this.formatNum(quedaSaldoReal)
             }
@@ -9481,10 +9487,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             transformacion,
             saldoTeorico,
             quedaSaldoReal,
-            sueltas: quedaSaldoReal,
-            enPlatos: this.saldoPlatosOcultos(row),
-            familia: quedaSaldoReal + this.saldoPlatosOcultos(row),
-            platosConSaldo: this.detallePlatosDe(row).filter((p) => p.crudo > 0 || p.cocido > 0),
+            sueltas: sueltas,
+            enPlatos: enPlatos,
+            familia: familia,
+            platosConSaldo: this.platosDirectosDe(row.id).map((n) => {
+              const hijo = this.filaReal(n.id);
+              const crudo = hijo ? this.calcSaldoRealTipo(hijo, 'crudo') : 0;
+              const cocido = hijo && hijo.tieneCocido ? this.calcSaldoRealTipo(hijo, 'cocido') : 0;
+              return {
+                id: n.id,
+                nombre: (hijo && hijo.nombre) || n.nombre,
+                tieneCocido: !!(hijo && hijo.tieneCocido),
+                crudo: crudo,
+                cocido: cocido
+              };
+            }).filter((p) => p.crudo || p.cocido),
             estadoTexto: this.estadoFila(row),
             puntoEstado: this.clasePuntoEstado(row),
             pasos

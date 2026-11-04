@@ -158,7 +158,7 @@ function partirMixtoContador(fila, n) {
     const cantidad = Number(fila && fila.cantidad) || 0;
     if (cantidad <= 0) return null;
     if (n === 'mixto a la lena pecho') return [{ rubro: 'pollo-lena', unidades: cantidad }];
-    if (n === 'mixto a la lena pierna') return [{ rubro: 'pierna-pollo', unidades: cantidad }];
+    if (n === 'mixto a la lena pierna') return [{ rubro: 'pierna-lena', unidades: cantidad }];
     if (n === 'mixto a la lena') return [{ rubro: 'pollo-lena', unidades: cantidad }];
     return null;
 }
@@ -188,7 +188,7 @@ function partirLeñaPorCorte(fila) {
     if (!pecho && !pierna && !resto) return null;
     const out = [];
     if (pecho) out.push({ rubro: 'pollo-lena', unidades: pecho });
-    if (pierna) out.push({ rubro: 'pierna-pollo', unidades: pierna });
+    if (pierna) out.push({ rubro: esMix ? 'pierna-lena' : 'pierna-pollo', unidades: pierna });
     if (resto) out.push({ rubro: 'pollo-lena', unidades: resto });
     if (esMix) {
         const piezas = pecho + pierna + resto;

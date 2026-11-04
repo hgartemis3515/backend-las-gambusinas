@@ -152,17 +152,19 @@ test('el mixto vendido como pierna baja pierna de pollo y el de pecho baja pecho
     expect(contador.pollos.find((r) => r.nombre === 'Mixto a la leña Pierna').cantidad).toBe(1);
     const porRubro = aplicarMapa(filasDelContador(contador));
     expect(porRubro['pollo-lena']).toBe(2);
-    expect(porRubro['pierna-pollo']).toBe(1);
+    expect(porRubro['pierna-lena']).toBe(1);
+    expect(porRubro['pierna-pollo']).toBeUndefined();
     expect(porRubro['trozo-panceta']).toBe(6);
 });
 
-test('el pecho del cuarto y del mix van a pecho a la leña y la pierna a pierna de pollo', () => {
+test('el cuarto pierna va a pierna de pollo y el mix pierna a pierna a la leña', () => {
     const porRubro = aplicarMapa([
         { nombre: '1/4 pollo a la leña', cantidad: 3, cortes: { Pec: 2, Pie: 1 } },
         { nombre: 'Mixto leña 1/4 pollo', cantidad: 2, cortes: { Pec: 1, Pie: 1 } }
     ]);
     expect(porRubro['pollo-lena']).toBe(3);
-    expect(porRubro['pierna-pollo']).toBe(2);
+    expect(porRubro['pierna-pollo']).toBe(1);
+    expect(porRubro['pierna-lena']).toBe(1);
     expect(porRubro['trozo-panceta']).toBe(6);
 });
 
