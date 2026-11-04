@@ -1,7 +1,7 @@
 'use strict';
 
 const { matchComandasEstadisticas } = require('./estadisticasComandas');
-const { armarContadorPlatos } = require('./contadorPlatosReporte');
+const { armarContadorPlatos, fichaDePlato } = require('./contadorPlatosReporte');
 const { claveDe } = require('./inventarioRubros');
 const { semilla, consumoDeFila, leerGuardados } = require('./inventarioMapas');
 const logger = require('./logger');
@@ -266,6 +266,7 @@ function rubrosDeFila(fila, mapas, bebidas) {
         }
     }
     if ((n.includes('salchipapa') || n.includes('hotdog') || n.includes('hot dog')) && !lista.some((x) => x.rubro === 'hotdog')) add('hotdog');
+    if ((esPlatoHumita(n) || esPlatoPachamancaNombre(n)) && !lista.some((x) => x.rubro === 'humita')) add('humita');
     if ((n === 'delicia' || n.includes('delicias')) && !lista.some((x) => x.rubro === 'delicias')) add('delicias');
     if (/\bhelados?\b/.test(n) && !lista.some((x) => x.rubro === 'helados')) add('helados');
     if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
@@ -282,6 +283,52 @@ function rubrosDeFila(fila, mapas, bebidas) {
     const menu = rubroMenuDe(n);
     if (menu && !lista.some((x) => x.rubro === menu)) add(menu);
     return lista;
+}
+
+/** El plato Humita. Un sabor de pachamanca no cuenta: eso multiplicaría la humita. */
+function esPlatoHumita(n) {
+    return n === 'humita' || n.startsWith('humita ');
+}
+
+/** El plato comercial (1, 2, 3 o 4 sabores, olla, cordero). No el sabor ni la fila sintética sin sabor. */
+function esPlatoPachamancaNombre(n) {
+    if (!n.startsWith('pachamanca')) return false;
+    if (n.includes('sin sabor')) return false;
+    return true;
+}
+
+/**
+ * Una humita por cada pachamanca pedida, no por cada sabor.
+ * El contador parte la pachamanca en sabores; la cantidad sale de la línea original.
+ */
+function unidadesHumitaPachamanca(lineas, catalogo) {
+    const porId = new Map();
+    (catalogo || []).forEach((p) => {
+        if (p && p._id != null) porId.set(String(p._id), p);
+    });
+    const detalle = [];
+    let total = 0;
+    (lineas || []).forEach((linea) => {
+        if (!linea || linea.eliminado || linea.anulado) return;
+        const id = linea.platoId || (linea.plato && (linea.plato._id || linea.plato));
+        const cat = id != null ? porId.get(String(id)) : null;
+        const ficha = fichaDePlato(cat || {
+            nombre: linea.nombre,
+            categoria: linea.categoria,
+            complementos: linea.complementosCatalogo,
+            complementosUnidosAlPlato: linea.complementosUnidosAlPlato
+        });
+        if (!ficha || ficha.tipo !== 'pachamanca') return;
+        const cant = Number(linea.cantidad) > 0 ? Number(linea.cantidad) : 1;
+        total += cant;
+        detalle.push({
+            nombre: ficha.nombre || linea.nombre || 'Pachamanca',
+            cantidad: cant,
+            platos: cant,
+            factor: 1
+        });
+    });
+    return { total, detalle };
 }
 
 function rubroPropioDeNombre(n) {
@@ -352,15 +399,30 @@ async function egresosVentaHasta(hasta) {
         }
         const bebidas = indiceBebidas(catalogo);
         for (const comanda of comandas || []) {
-            if (!comanda || !comanda.createdAt || !lineasDeComanda(comanda).length) continue;
+            const lineas = lineasDeComanda(comanda);
+            if (!comanda || !comanda.createdAt || !lineas.length) continue;
             const nro = comanda.numeroComandaDia;
             const etiqueta = nro != null && nro !== '' ? ('Comanda ' + nro) : 'Sin número';
             const partido = partirSalida(
-                filasDelContador(armarContadorPlatos(lineasDeComanda(comanda), catalogo)),
+                filasDelContador(armarContadorPlatos(lineas, catalogo)),
                 etiqueta,
                 mapasVenta,
                 { comandaId: comanda._id, hora: comanda.createdAt, bebidas: bebidas }
             );
+            const humita = unidadesHumitaPachamanca(lineas, catalogo);
+            if (humita.total > 0) {
+                partido.porRubro.humita = (partido.porRubro.humita || 0) + humita.total;
+                const extra = humita.detalle.map((d) => ({
+                    nombre: d.nombre,
+                    cantidad: d.cantidad,
+                    platos: d.platos,
+                    factor: 1,
+                    comanda: etiqueta,
+                    comandaId: comanda._id ? String(comanda._id) : '',
+                    hora: comanda.createdAt
+                }));
+                partido.detalle.humita = (partido.detalle.humita || []).concat(extra);
+            }
             Object.keys(partido.porRubro).forEach((rubro) => {
                 const cantidad = partido.porRubro[rubro];
                 if (!cantidad) return;
@@ -390,5 +452,6 @@ module.exports = {
     partirSalida,
     filasDelContador,
     indiceBebidas,
+    unidadesHumitaPachamanca,
     egresosVentaHasta
 };

@@ -100,6 +100,47 @@ test('cada gaseosa y cada licor descuentan su propia fila', () => {
     expect(porRubro.gaseosas).toBeUndefined();
 });
 
+test('humita sale del plato Humita y una sola vez por cada pachamanca', () => {
+    const { unidadesHumitaPachamanca, filasDelContador } = require('../src/utils/inventarioSalidaVentas');
+    const { armarContadorPlatos } = require('../src/utils/contadorPlatosReporte');
+    const humita = aplicarMapa([{ nombre: 'Humita', cantidad: 3 }]);
+    expect(humita.humita).toBe(3);
+    const porPlato = aplicarMapa([
+        { nombre: 'Pachamanca 1 sabor', cantidad: 2 },
+        { nombre: 'Pachamanca 2 sabores', cantidad: 1 },
+        { nombre: 'Pachamanca 3 sabores', cantidad: 1 },
+        { nombre: 'Pachamanca 4 sabores', cantidad: 1 }
+    ]);
+    expect(porPlato.humita).toBe(5);
+    const sabor = aplicarMapa([{ nombre: 'Pollo de pachamanca', cantidad: 4 }]);
+    expect(sabor.humita).toBeUndefined();
+    expect(sabor['pachamanca-pollo']).toBe(4);
+
+    const plato = {
+        _id: 'p3',
+        nombre: 'Pachamanca 3 sabores',
+        complementosUnidosAlPlato: true,
+        complementos: [{ grupo: 'Sabores', opciones: [{ nombre: 'Pollo' }, { nombre: 'Cerdo' }, { nombre: 'Res' }] }]
+    };
+    const linea = {
+        platoId: 'p3',
+        nombre: plato.nombre,
+        cantidad: 2,
+        complementos: [
+            { grupo: 'Sabores', opcion: 'Pollo', cantidad: 1 },
+            { grupo: 'Sabores', opcion: 'Cerdo', cantidad: 1 },
+            { grupo: 'Sabores', opcion: 'Res', cantidad: 1 }
+        ]
+    };
+    expect(unidadesHumitaPachamanca([linea], [plato]).total).toBe(2);
+    const contador = armarContadorPlatos([linea], [plato]);
+    const deSabores = aplicarMapa(filasDelContador(contador));
+    expect(deSabores.humita).toBeUndefined();
+    expect(deSabores['pachamanca-pollo']).toBe(2);
+    expect(deSabores['pachamanca-chancho']).toBe(2);
+    expect(deSabores['pachamanca-res']).toBe(2);
+});
+
 test('el cerdo de pachamanca del reporte de platos descuenta cerdo pachamanca', () => {
     const porRubro = aplicarMapa([
         { nombre: 'Cerdo de pachamanca', cantidad: 4 },
