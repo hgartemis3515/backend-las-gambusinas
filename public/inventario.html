@@ -5771,6 +5771,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="modal-platos-entra bg-[#14141f] border border-teal-500/40 rounded-xl p-3 space-y-2" :class="saldoRealInfo.reordenando ? 'tabla-platos-reordena' : ''" @mouseleave="soltarOrdenSaldo()">
             <p class="text-xs font-extrabold text-teal-200 uppercase">Saldo restante</p>
             <div class="flex items-center justify-between text-sm">
+              <span class="text-white">Ventas por comanda</span>
+              <span class="font-mono text-rose-300" x-text="'−' + formatNum(saldoRealInfo.ventas) + ' ' + saldoRealInfo.unidad"></span>
+            </div>
+            <div class="flex items-center justify-between text-sm border-t border-[#26263a] pt-1.5">
               <span class="text-white" x-text="saldoRealInfo.nombre + ' (suelto)'"></span>
               <span class="font-mono text-teal-200" x-text="formatNum(saldoRealInfo.sueltas) + ' ' + saldoRealInfo.unidad"></span>
             </div>
@@ -9463,7 +9467,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
           const vtaCrudo = (Number(this.valorTipo(row, 'venta', 'crudo')) || 0);
           const vtaCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'venta', 'cocido')) || 0) : 0;
-          const ventas = vtaCrudo + vtaCocido;
+          const ventasPropias = vtaCrudo + vtaCocido;
+          const ventas = this.ventaColumna(row);
           const ventasPlatos = this.detalleVentasPlatos(row);
           const textoVentasPlatos = ventasPlatos.map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
 
@@ -9524,13 +9529,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               tipo: 'resta',
               icono: '↓',
               titulo: '4. Resta por Ventas (Comandas / Manual)',
-              etiquetaAccion: ventas > 0 ? '− RESTA POR VENTAS' : (textoVentasPlatos ? 'RESTA EN LOS PLATOS' : 'SIN VENTAS (0)'),
+              etiquetaAccion: ventas > 0 ? '− RESTA POR VENTAS' : 'SIN VENTAS (0)',
               explicacion: ventas > 0
-                ? ('Se descontaron −' + this.formatNum(ventas) + ' ' + (row.unidad || 'unid') + ' de esta pieza. Primero se usa el cocido del plato, si no alcanza el crudo y al final esta pieza.')
-                : (textoVentasPlatos
-                  ? ('La pieza suelta no se restó. La venta salió del cocido del plato: ' + textoVentasPlatos + '.')
-                  : 'Sin salidas por ventas registradas en el período.'),
-              desgloseTipos: textoVentasPlatos || (row.tieneCocido ? ('Crudo: −' + this.formatNum(vtaCrudo) + ' · Cocido: −' + this.formatNum(vtaCocido)) : ''),
+                ? ('Se vendieron −' + this.formatNum(ventas) + ' ' + (row.unidad || 'unid') + ' por comandas. Primero sale el cocido del plato, si no alcanza el crudo y al final la pieza suelta.')
+                : 'Sin salidas por ventas registradas en el período.',
+              desgloseTipos: textoVentasPlatos || (row.tieneCocido ? ('Crudo: −' + this.formatNum(vtaCrudo) + ' · Cocido: −' + this.formatNum(vtaCocido)) : (ventasPropias ? ('Pieza suelta: −' + this.formatNum(ventasPropias)) : '')),
               valorFormateado: '−' + this.formatNum(ventas)
             },
             {
