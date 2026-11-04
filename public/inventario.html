@@ -5576,15 +5576,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </div>
                       </div>
 
-                      <!-- Recuadro inferior destacado: LO QUE QUEDA en este producto destino -->
-                      <div class="bg-[#0a0a0f] border-2 border-[#26263a] rounded-xl p-2.5 flex items-center justify-between">
-                        <div>
-                          <span class="text-[10px] uppercase tracking-wider font-extrabold text-[#d4af37] block">Lo que queda disponible</span>
-                          <span class="text-[11px] text-[#a0a0b8]" x-text="dest.detalleQueda || ('Saldo actual en ' + dest.nombre)"></span>
+                      <!-- Recuadro inferior: lo que queda, y crudo/cocido si el plato los tiene -->
+                      <div class="bg-[#0a0a0f] border-2 border-[#26263a] rounded-xl p-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                          <div>
+                            <span class="text-[10px] uppercase tracking-wider font-extrabold text-[#d4af37] block">Lo que queda disponible</span>
+                            <span class="text-[11px] text-[#a0a0b8]" x-text="dest.detalleQueda || ('Saldo actual en ' + dest.nombre)"></span>
+                          </div>
+                          <div class="text-right">
+                            <span class="text-xl font-extrabold num-mono text-white" x-text="formatNum(dest.queda)"></span>
+                            <span class="text-xs text-[#a0a0b8] num-mono ml-0.5" x-text="dest.unidad"></span>
+                          </div>
                         </div>
-                        <div class="text-right">
-                          <span class="text-xl font-extrabold num-mono text-white" x-text="formatNum(dest.queda)"></span>
-                          <span class="text-xs text-[#a0a0b8] num-mono ml-0.5" x-text="dest.unidad"></span>
+                        <div x-show="dest.tieneCocido" class="mt-2 grid grid-cols-2 gap-2">
+                          <div class="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-2 py-1.5">
+                            <span class="text-[9px] uppercase font-extrabold text-emerald-300 block">Crudo</span>
+                            <span class="text-sm font-extrabold num-mono text-emerald-200" x-text="formatNum(dest.quedaCrudo)"></span>
+                            <span class="text-[10px] text-[#a0a0b8] block" x-text="'De ' + formatNum(dest.generado) + ', quedaron crudos'"></span>
+                          </div>
+                          <div class="rounded-lg border border-amber-500/40 bg-amber-950/30 px-2 py-1.5">
+                            <span class="text-[9px] uppercase font-extrabold text-[#d4af37] block">Cocido</span>
+                            <span class="text-sm font-extrabold num-mono text-amber-200" x-text="formatNum(dest.quedaCocido)"></span>
+                            <span class="text-[10px] text-[#a0a0b8] block" x-text="formatNum(dest.pasaronCocido) + ' pasaron a cocido'"></span>
+                          </div>
                         </div>
                       </div>
 
@@ -9674,18 +9688,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
           const makeDest = (destRowId, factorTexto, usadoDelOrigen, generado, color, tieneSub = false, detalleQueda = '') => {
             const rDest = this.getRow(destRowId);
-            const transHijo = this.totalTransformacionFila(rDest);
-            const ventasHijo = this.tiposDe(rDest).reduce((a, t) => a + this.valorTipo(rDest, 'venta', t), 0);
+            const fila = this.filaReal(destRowId) || rDest;
+            const tieneCocido = !!(fila && fila.tieneCocido);
+            const transHijo = this.totalTransformacionFila(fila);
+            const ventasHijo = this.tiposDe(fila).reduce((a, t) => a + this.valorTipo(fila, 'venta', t), 0);
+            const pasaronCocido = tieneCocido ? Math.max(0, this.valorTipo(fila, 'ingreso', 'cocido')) : 0;
             return {
               id: destRowId,
-              nombre: rDest.nombre || destRowId,
-              unidad: rDest.unidad || 'pza',
+              nombre: (fila && fila.nombre) || destRowId,
+              unidad: (fila && fila.unidad) || 'pza',
               factorTexto,
               usadoDelOrigen,
               generado,
               transformadoHijo: transHijo,
               ventasHijo,
-              queda: this.calcSaldoReal(rDest),
+              queda: this.calcSaldoReal(fila),
+              tieneCocido,
+              quedaCrudo: this.calcSaldoRealTipo(fila, 'crudo'),
+              quedaCocido: tieneCocido ? this.calcSaldoRealTipo(fila, 'cocido') : 0,
+              pasaronCocido,
               color: color || 'gold',
               tieneSubTransformacion: tieneSub,
               detalleQueda
