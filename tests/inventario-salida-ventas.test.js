@@ -100,6 +100,17 @@ test('cada gaseosa y cada licor descuentan su propia fila', () => {
     expect(porRubro.gaseosas).toBeUndefined();
 });
 
+test('el plato bistec descuenta carne bistec', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Bistec', cantidad: 2 },
+        { nombre: 'Bisteck', cantidad: 1 },
+        { nombre: 'Bisteck a la parrilla + papas fritas + arroz + ensalada', cantidad: 1 },
+        { nombre: 'Lomo saltado de bistec', cantidad: 3 },
+        { nombre: 'Chaufa de bistec', cantidad: 2 }
+    ]);
+    expect(porRubro.bisteck).toBe(4);
+});
+
 test('humita sale del plato Humita y una sola vez por cada pachamanca', () => {
     const { unidadesHumitaPachamanca, filasDelContador } = require('../src/utils/inventarioSalidaVentas');
     const { armarContadorPlatos } = require('../src/utils/contadorPlatosReporte');

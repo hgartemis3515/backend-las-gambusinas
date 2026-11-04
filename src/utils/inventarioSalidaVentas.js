@@ -267,6 +267,7 @@ function rubrosDeFila(fila, mapas, bebidas) {
     }
     if ((n.includes('salchipapa') || n.includes('hotdog') || n.includes('hot dog')) && !lista.some((x) => x.rubro === 'hotdog')) add('hotdog');
     if ((esPlatoHumita(n) || esPlatoPachamancaNombre(n)) && !lista.some((x) => x.rubro === 'humita')) add('humita');
+    if (esPlatoBistec(n) && !lista.some((x) => x.rubro === 'bisteck')) add('bisteck');
     if ((n === 'delicia' || n.includes('delicias')) && !lista.some((x) => x.rubro === 'delicias')) add('delicias');
     if (/\bhelados?\b/.test(n) && !lista.some((x) => x.rubro === 'helados')) add('helados');
     if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
@@ -283,6 +284,11 @@ function rubrosDeFila(fila, mapas, bebidas) {
     const menu = rubroMenuDe(n);
     if (menu && !lista.some((x) => x.rubro === menu)) add(menu);
     return lista;
+}
+
+/** El plato Bistec o Bisteck. El saltado y el chaufa de bistec no entran aquí. */
+function esPlatoBistec(n) {
+    return n === 'bistec' || n === 'bisteck' || n.startsWith('bistec ') || n.startsWith('bisteck ');
 }
 
 /** El plato Humita. Un sabor de pachamanca no cuenta: eso multiplicaría la humita. */

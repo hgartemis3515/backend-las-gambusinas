@@ -6053,6 +6053,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 8, rubro: 'Papas', plato: '1/4 pollo + papas fritas + ensalada', complemento: 'Guarnición: papa fritas', cantidad: 1, unidadNota: 'papa fritas' },
             { id: 9, rubro: 'Tamal', plato: 'Tamal', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'tamal' },
             { id: 14, rubro: 'Humita', plato: 'Humita', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'humita' },
+            { id: 19, rubro: 'Carne Bistec', plato: 'Bistec', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'bistec' },
             { id: 15, rubro: 'Humita', plato: 'Pachamanca 1 sabor', complemento: '1 por plato, no por sabor', cantidad: 1, unidadNota: 'humita' },
             { id: 16, rubro: 'Humita', plato: 'Pachamanca 2 sabores', complemento: '1 por plato, no por sabor', cantidad: 1, unidadNota: 'humita' },
             { id: 17, rubro: 'Humita', plato: 'Pachamanca 3 sabores', complemento: '1 por plato, no por sabor', cantidad: 1, unidadNota: 'humita' },
@@ -6517,6 +6518,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               }
               if ((n === 'humita' || n.startsWith('humita ')) && !ya('Humita')) {
                 push(p, 'Humita', 1, 'humita');
+              }
+              if ((n === 'bistec' || n === 'bisteck' || n.startsWith('bistec ') || n.startsWith('bisteck ')) && !ya('Carne Bistec')) {
+                push(p, 'Carne Bistec', 1, 'bistec');
               }
               if (n.startsWith('pachamanca') && !ya('Humita')) {
                 push(p, 'Humita', 1, 'humita', '1 por plato, con 1, 2, 3 o 4 sabores');
@@ -7978,7 +7982,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'chancho_lena_bbq', grupo: 'panceta', nombre: 'Chancho a la leña BBQ', detalle: 'Entra directo. Solo crudo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
 
             // GRUPO CARNES (Sin transformación, ingreso directo)
-            { id: 'carne_bistec', grupo: 'carnes', nombre: 'Carne Bistec', detalle: 'Ingreso directo, sin transformación', unidad: 'porc', saldoAnterior: 0, ingreso: 8, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 8, cocido: 0 },
+            { id: 'carne_bistec', grupo: 'carnes', nombre: 'Carne Bistec', detalle: 'La venta del plato Bistec resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 8, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 8, cocido: 0 },
             { id: 'lomo_fino', grupo: 'carnes', nombre: 'Lomo Fino', detalle: 'Ingreso directo, sin transformación', unidad: 'porc', saldoAnterior: 0, ingreso: 5, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 5, cocido: 0 },
             { id: 'carne_pachamanca', grupo: 'carnes', nombre: 'Carne Pachamanca', detalle: 'Ingreso directo de la familia Carnes', unidad: 'porc', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 6 },
             { id: 'cerdo_pachamanca', grupo: 'panceta', nombre: 'Cerdo pachamanca', detalle: 'Sabor de pachamanca. La venta de Cerdo de pachamanca resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -10770,6 +10774,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (lower === 'hotdog' || lower === 'hot dog') rubro = 'Hotdog';
           if (lower === 'tamal' || lower === 'tamales') rubro = 'Tamal';
           if (lower === 'humita' || lower === 'humitas') rubro = 'Humita';
+          if (lower === 'bistec' || lower === 'bisteck' || lower === 'carne bistec') rubro = 'Carne Bistec';
           this.nuevaRelacion.rubro = rubro;
 
           if (!rubro) {
