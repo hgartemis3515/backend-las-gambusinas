@@ -5,10 +5,10 @@
  * @module facturacion/services/canje
  */
 
-const mongoose = require('mongoose');
 const Comprobante = require('../models/comprobante.model');
 const TransaccionPago = require('../models/transaccionPago.model');
 const { reservarCorrelativo } = require('./serieService');
+const { ejecutarEnTransaccion } = require('./transaccionMongo');
 const { validarCliente } = require('./validacionCliente');
 const { obtenerConfiguracionFiscal } = require('./configuracionFiscal');
 const { encolarFirmarEnviar } = require('../jobs/queues');
@@ -62,7 +62,7 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
     const {
         Modelo = Comprobante,
         Pagos = TransaccionPago,
-        iniciarSesion = () => mongoose.startSession(),
+        iniciarSesion,
         reservar = reservarCorrelativo,
         encolar = encolarFirmarEnviar,
         obtenerConfig = obtenerConfiguracionFiscal,
@@ -84,13 +84,11 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
     const cajero = solicitud.cajero || 'sistema';
     const base = { fechaEmision: fecha, fechaLimite, cajero };
 
-    const session = await iniciarSesion();
     let nc;
     let factura;
-    try {
-        await session.withTransaction(async () => {
-            const corrNc = await reservar({ ruc: boleta.ruc, tipo: '07', serie: serieNc, session });
-            const corrFa = await reservar({ ruc: boleta.ruc, tipo: '01', serie: serieFactura, session });
+    await ejecutarEnTransaccion(async (session) => {
+            const corrNc = await reservar({ ruc: boleta.ruc, tipo: '07', serie: serieNc, session, sinTransaccion: !session });
+            const corrFa = await reservar({ ruc: boleta.ruc, tipo: '01', serie: serieFactura, session, sinTransaccion: !session });
             const docNc = clonar(boleta, {
                 ...base,
                 accion: 'CANJE_NC',
@@ -112,7 +110,8 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
                     canje: { boleta: boleta._id, fecha },
                 },
             });
-            [nc] = await Modelo.create([docNc], { session });
+            const opts = session ? { session } : {};
+            [nc] = await Modelo.create([docNc], opts);
             const docFa = clonar(boleta, {
                 ...base,
                 accion: 'CANJE_FACTURA',
@@ -126,17 +125,14 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
                     canje: { boleta: boleta._id, nc: nc._id, fecha },
                 },
             });
-            [factura] = await Modelo.create([docFa], { session });
+            [factura] = await Modelo.create([docFa], opts);
             await Modelo.updateOne({ _id: boleta._id }, {
                 $set: {
                     estado: ESTADO_COMPROBANTE.ANULADO_NC,
                     canje: { nc: nc._id, factura: factura._id, fecha },
                 },
-            }, { session });
-        });
-    } finally {
-        await session.endSession();
-    }
+            }, opts);
+    }, { iniciarSesion });
 
     await Pagos.updateMany({ comprobante: boleta._id }, { $set: { comprobante: factura._id } });
     const colaNc = await encolar(nc);

@@ -249,6 +249,7 @@ async function opcionesCocido() {
             if (d.clave === 'pierna-lena') reservaClave = 'pierna-pollo';
         }
         if (d.clave === 'pollada' || d.clave === 'pachamanca-pollo') reservaClave = 'pierna-pollo';
+        if (d.clave === 'pollo-lena') reservaClave = '';
         if (reservaClave === 'filete') reservaClave = 'pechuga-pollo';
         if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
         return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };

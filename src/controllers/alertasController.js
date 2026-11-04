@@ -18,12 +18,12 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
-const { adminAuth } = require('../middleware/adminAuth');
+const { adminAuthSiRuta } = require('../middleware/adminAuth');
 const rolesRepository = require('../repository/roles.repository');
 const alertaService = require('../services/alertaService');
 const Alerta = require('../database/models/alerta.model');
 
-router.use(adminAuth);
+router.use(adminAuthSiRuta('/alertas'));
 
 function userInfo(req) {
   const admin = req.admin || {};

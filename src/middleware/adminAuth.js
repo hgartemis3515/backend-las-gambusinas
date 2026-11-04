@@ -11,8 +11,21 @@ const logger = require('../utils/logger');
 const JWT_SECRET = process.env.JWT_SECRET || 'las-gambusinas-admin-secret-key-2024';
 
 /**
- * Middleware para verificar token de administrador
+ * En routers montados en `/api`, `router.use(adminAuth)` corre para cualquier
+ * ruta `/api/*` y responde 401 antes de que llegue el controlador correcto
+ * (por ejemplo GET /api/configuracion en la pantalla de login).
+ * @param {string|string[]} prefijos Rutas de este router, sin el prefijo `/api`
  */
+const adminAuthSiRuta = (prefijos) => {
+    const lista = Array.isArray(prefijos) ? prefijos : [prefijos];
+    return (req, res, next) => {
+        const path = req.path || '';
+        const propio = lista.some((p) => path === p || path.startsWith(`${p}/`));
+        if (!propio) return next('router');
+        return adminAuth(req, res, next);
+    };
+};
+
 const adminAuth = (req, res, next) => {
     try {
         // Obtener token del header Authorization
@@ -257,6 +270,7 @@ const requireAnyPermission = (permisos) => {
 
 module.exports = {
     adminAuth,
+    adminAuthSiRuta,
     verifyAdminToken,
     requireDashboardAccess,
     checkPermission,

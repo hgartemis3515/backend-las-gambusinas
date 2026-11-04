@@ -50,26 +50,32 @@ const formatearNumero = (n) => String(n).padStart(8, '0');
 
 /**
  * Reserva el siguiente correlativo de la serie dentro de la transacción recibida.
+ * Sin replica set, `sinTransaccion` permite el `$inc` atómico suelto.
  * @param {Object} params
  * @param {string} params.ruc
  * @param {string} params.tipo
  * @param {string} params.serie
- * @param {import('mongoose').ClientSession} params.session  Obligatoria y con transacción activa
+ * @param {import('mongoose').ClientSession|null} [params.session] Obligatoria y con transacción activa, salvo `sinTransaccion`
+ * @param {boolean} [params.sinTransaccion]
  * @param {Object} [deps]
  * @param {import('mongoose').Model} [deps.Modelo]
  * @returns {Promise<{serie: string, numero: string, idCompleto: string, correlativo: number}>}
  */
-async function reservarCorrelativo({ ruc, tipo, serie, session }, { Modelo = SerieComprobante } = {}) {
-    if (!session) throw new ErrorSerie('Se requiere una sesión de Mongo para reservar correlativos', 'SESION_REQUERIDA', 500);
-    if (typeof session.inTransaction === 'function' && !session.inTransaction()) {
-        throw new ErrorSerie('La reserva de correlativos debe ejecutarse dentro de una transacción', 'TRANSACCION_REQUERIDA', 500);
+async function reservarCorrelativo({ ruc, tipo, serie, session, sinTransaccion = false }, { Modelo = SerieComprobante } = {}) {
+    if (!sinTransaccion) {
+        if (!session) throw new ErrorSerie('Se requiere una sesión de Mongo para reservar correlativos', 'SESION_REQUERIDA', 500);
+        if (typeof session.inTransaction === 'function' && !session.inTransaction()) {
+            throw new ErrorSerie('La reserva de correlativos debe ejecutarse dentro de una transacción', 'TRANSACCION_REQUERIDA', 500);
+        }
     }
     validarSerie(tipo, serie);
 
+    const opciones = { new: true };
+    if (session) opciones.session = session;
     const doc = await Modelo.findOneAndUpdate(
         { ruc, tipo, serie, activa: true, ultimoNumero: { $lt: MAX_CORRELATIVO } },
         { $inc: { ultimoNumero: 1 } },
-        { new: true, session }
+        opciones
     );
     if (!doc) {
         throw new ErrorSerie(`Serie ${serie} no existe, está inactiva o agotó su correlativo`, 'SERIE_NO_DISPONIBLE', 409);

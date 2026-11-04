@@ -142,6 +142,35 @@ function repartirSoles(piezas, soles) {
   });
 }
 
+function etiquetaPieza(nombre) {
+  const n = norm(nombre);
+  if (n === 'pec' || n === 'pecho' || n.includes('pechug') || n.includes('pecho')) return 'Pecho';
+  if (n === 'pie' || n === 'pierna' || n.includes('pierna')) return 'Pierna';
+  return nombreVisible(nombre);
+}
+
+function textoCortes(cortes) {
+  const etiquetas = {};
+  for (const [k, v] of Object.entries(cortes || {})) {
+    const q = Number(v) || 0;
+    if (q <= 0) continue;
+    const et = etiquetaPieza(k);
+    etiquetas[et] = (etiquetas[et] || 0) + q;
+  }
+  const orden = ['Pierna', 'Pecho'];
+  return Object.keys(etiquetas)
+    .sort((a, b) => {
+      const ia = orden.indexOf(a);
+      const ib = orden.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b, 'es');
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    })
+    .map((k) => `${k} ${etiquetas[k]}`)
+    .join(', ');
+}
+
 function pieza(base) {
   return {
     bloque: base.bloque,
@@ -187,27 +216,33 @@ function piezasDeLinea(ficha, linea) {
   }
 
   if (tipo === 'mixto-lena') {
-    const cortes = {};
-    for (const c of opcionesParte(linea, ficha)) {
+    const porLado = { Pecho: 0, Pierna: 0 };
+    let sinPieza = 0;
+    const partes = opcionesParte(linea, ficha);
+    if (!partes.length) sinPieza = cant;
+    for (const c of partes) {
       const op = nombreVisible(c.opcion || c.nombre);
       if (!op) continue;
-      cortes[op] = (cortes[op] || 0) + cant;
+      const lado = etiquetaPieza(op);
+      if (lado === 'Pecho' || lado === 'Pierna') porLado[lado] += cant;
+      else sinPieza += cant;
     }
-    const piezas = [
-      pieza({
-        bloque: 'pollos',
-        nombre: '1/4 pollo a la leña',
-        cantidad: cant,
-        delMixto: cant,
-        cortes: Object.keys(cortes).length ? cortes : null,
-      }),
-      pieza({
-        bloque: 'carnes',
-        nombre: 'Panceta de chancho leña',
-        cantidad: cant,
-        delMixto: cant,
-      }),
-    ];
+    const piezas = [];
+    if (porLado.Pecho) {
+      piezas.push(pieza({ bloque: 'pollos', nombre: 'Mixto a la leña Pecho', cantidad: porLado.Pecho }));
+    }
+    if (porLado.Pierna) {
+      piezas.push(pieza({ bloque: 'pollos', nombre: 'Mixto a la leña Pierna', cantidad: porLado.Pierna }));
+    }
+    if (sinPieza || !piezas.length) {
+      piezas.push(pieza({ bloque: 'pollos', nombre: 'Mixto a la leña', cantidad: sinPieza || cant }));
+    }
+    piezas.push(pieza({
+      bloque: 'carnes',
+      nombre: 'Panceta de chancho leña',
+      cantidad: cant,
+      delMixto: cant,
+    }));
     repartirSoles(piezas, soles);
     return piezas;
   }
@@ -297,8 +332,8 @@ function asegurarFila(map, piezaRow) {
 
 function textoDetalle(row) {
   const bits = [];
-  const cortes = Object.entries(row.cortes || {});
-  if (cortes.length) bits.push(cortes.map(([k, v]) => `${k} ${v}`).join(', '));
+  const cortesTxt = textoCortes(row.cortes);
+  if (cortesTxt) bits.push(cortesTxt);
   if (row.delMixto > 0) bits.push(`${row.delMixto} del mixto`);
   const fuentes = Object.entries(row.fuentes || {});
   if (fuentes.length) bits.push(fuentes.map(([k, v]) => `${v} de ${k}`).join(', '));

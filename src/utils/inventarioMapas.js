@@ -9,7 +9,7 @@ const SEMILLA = [
         tipo: 'despiece',
         origen: { clave: 'pollo-origen', nombre: 'Pollo fresco' },
         cortes: [
-            { clave: 'pechuga-pollo', nombre: 'Pechuga de Pollo', factor: 2, factorDesde: '' },
+            { clave: 'pechuga-pollo', nombre: 'Pecho de Pollo', factor: 2, factorDesde: '' },
             { clave: 'pierna-pollo', nombre: 'Pierna de Pollo', factor: 2, factorDesde: '' }
         ],
         platos: [
@@ -24,7 +24,7 @@ const SEMILLA = [
             { id: 'salt_pollo', nombre: 'Lomo saltado de pollo', complemento: '', cuelgaDe: 'salt-pollo', cantidad: 1, venta: true, aliases: ['lomo saltado pollo', 'saltado de pollo'] },
             { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
-            { id: 'pollo_lena', nombre: 'Pollo leña', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+            { id: 'pollo_lena', nombre: 'Pecho a la Leña', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] }
         ]

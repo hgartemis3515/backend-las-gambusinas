@@ -143,7 +143,63 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
     return { porRubro, detalle: listas };
 }
 
+function ladoCorteLeña(nombre) {
+    const n = norm(nombre);
+    if (n === 'pec' || n === 'pecho' || n.includes('pechug') || n.includes('pecho')) return 'pecho';
+    if (n === 'pie' || n === 'pierna' || n.includes('pierna')) return 'pierna';
+    return '';
+}
+
+/**
+ * El contador lista el pollo del mixto aparte del 1/4.
+ * La panceta sale en su propia fila, así que aquí solo se mueve la presa.
+ */
+function partirMixtoContador(fila, n) {
+    const cantidad = Number(fila && fila.cantidad) || 0;
+    if (cantidad <= 0) return null;
+    if (n === 'mixto a la lena pecho') return [{ rubro: 'pollo-lena', unidades: cantidad }];
+    if (n === 'mixto a la lena pierna') return [{ rubro: 'pierna-pollo', unidades: cantidad }];
+    if (n === 'mixto a la lena') return [{ rubro: 'pollo-lena', unidades: cantidad }];
+    return null;
+}
+
+/** Parte el 1/4 y el mix según la presa. Sin presa, sigue el mapa fijo. */
+function partirLeñaPorCorte(fila) {
+    const n = norm(fila && fila.nombre);
+    const mixtoContador = partirMixtoContador(fila, n);
+    if (mixtoContador) return mixtoContador;
+    const esMix = (n.includes('mix') || n.includes('mixto')) && n.includes('lena');
+    const esCuarto = n === '1/4 pollo a la lena' || n.includes('1/4 pollo') || n.includes('cuarto de pollo') || n.includes('cuarto pollo');
+    if (!esMix && !esCuarto) return null;
+    const cortes = (fila && fila.cortes) || {};
+    const keys = Object.keys(cortes);
+    if (!keys.length) return null;
+    let pecho = 0;
+    let pierna = 0;
+    let resto = 0;
+    keys.forEach((k) => {
+        const q = Number(cortes[k]) || 0;
+        if (q <= 0) return;
+        const lado = ladoCorteLeña(k);
+        if (lado === 'pecho') pecho += q;
+        else if (lado === 'pierna') pierna += q;
+        else resto += q;
+    });
+    if (!pecho && !pierna && !resto) return null;
+    const out = [];
+    if (pecho) out.push({ rubro: 'pollo-lena', unidades: pecho });
+    if (pierna) out.push({ rubro: 'pierna-pollo', unidades: pierna });
+    if (resto) out.push({ rubro: 'pollo-lena', unidades: resto });
+    if (esMix) {
+        const piezas = pecho + pierna + resto;
+        out.push({ rubro: 'trozo-panceta', unidades: piezas * 3 });
+    }
+    return out;
+}
+
 function rubrosDeFila(fila, mapas, bebidas) {
+    const partido = partirLeñaPorCorte(fila);
+    if (partido) return partido;
     const nombre = fila && fila.nombre;
     const n = norm(nombre);
     const directo = MAPA_SALIDA[n];

@@ -3,9 +3,9 @@
  * @module facturacion/services/notaCredito
  */
 
-const mongoose = require('mongoose');
 const Comprobante = require('../models/comprobante.model');
 const { reservarCorrelativo } = require('./serieService');
+const { ejecutarEnTransaccion } = require('./transaccionMongo');
 const { firmarLocal } = require('./emisionService');
 const { encolarFirmarEnviar } = require('../jobs/queues');
 const { ESTADO_COMPROBANTE, MOTIVO_NOTA_CREDITO } = require('../constants/catalogosSunat');
@@ -46,17 +46,15 @@ async function emitirNotaCredito(solicitud, deps = {}) {
     const reservar = deps.reservar || reservarCorrelativo;
     const firmar = deps.firmar || firmarLocal;
     const encolar = deps.encolar || encolarFirmarEnviar;
-    const iniciarSesion = deps.iniciarSesion || (() => mongoose.startSession());
+    const iniciarSesion = deps.iniciarSesion;
     const origen = await Modelo.findById(solicitud.comprobanteOrigenId);
     if (!origen) throw new ErrorNota('Comprobante origen no encontrado', 'NO_ENCONTRADO', 404);
     if (origen.estado === ESTADO_COMPROBANTE.ANULADO_NC) throw new ErrorNota('El comprobante ya está anulado', 'YA_ANULADO', 409);
     const serie = serieDeNota(origen.tipo);
     const fecha = deps.ahora ? deps.ahora() : new Date();
-    const session = await iniciarSesion();
     let nc;
-    try {
-        await session.withTransaction(async () => {
-            const corr = await reservar({ ruc: origen.ruc, tipo: '07', serie, session });
+    await ejecutarEnTransaccion(async (session) => {
+            const corr = await reservar({ ruc: origen.ruc, tipo: '07', serie, session, sinTransaccion: !session });
             const borrador = {
                 ruc: origen.ruc,
                 tipo: '07',
@@ -95,17 +93,15 @@ async function emitirNotaCredito(solicitud, deps = {}) {
                 borrador.hash = firma.hash;
                 borrador.xml = firma.xml;
             }
-            const [creado] = await Modelo.create([borrador], { session });
+            const opts = session ? { session } : {};
+            const [creado] = await Modelo.create([borrador], opts);
             nc = creado;
             if (ANULAN_ORIGEN.has(motivoCodigo)) {
                 await Modelo.updateOne({ _id: origen._id }, {
                     $set: { estado: ESTADO_COMPROBANTE.ANULADO_NC },
-                }, { session });
+                }, opts);
             }
-        });
-    } finally {
-        await session.endSession();
-    }
+    }, { iniciarSesion });
     const cola = await encolar(nc);
     return { nc, cola, envio: origen.tipo === '01' ? 'sendBill' : 'resumen' };
 }

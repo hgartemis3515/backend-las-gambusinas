@@ -4,7 +4,7 @@ const MATERIAS = ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete'];
 
 const NOMBRE_MATERIA = {
     'pollo-origen': 'Pollo fresco',
-    'pechuga-pollo': 'Pechuga de Pollo',
+    'pechuga-pollo': 'Pecho de Pollo',
     'pierna-pollo': 'Pierna de Pollo',
     filete: 'Filete Pollo crudo'
 };
@@ -12,7 +12,7 @@ const NOMBRE_MATERIA = {
 const SEMILLA = {
     pollada: { tieneCocido: false, reservaClave: 'pierna-pollo' },
     menu: { tieneCocido: true, reservaClave: '' },
-    'pollo-lena': { tieneCocido: true, reservaClave: 'pechuga-pollo' },
+    'pollo-lena': { tieneCocido: true, reservaClave: '' },
     'pierna-lena': { tieneCocido: false, reservaClave: 'pierna-pollo' },
     'pachamanca-pollo': { tieneCocido: true, reservaClave: 'pierna-pollo' },
     'pachamanca-chancho': { tieneCocido: true, reservaClave: '' },

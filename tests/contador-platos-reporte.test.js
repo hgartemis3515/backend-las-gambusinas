@@ -109,7 +109,7 @@ describe('armarContadorPlatos', () => {
     expect(out.pollos).toHaveLength(0);
   });
 
-  test('cuarto Pie y Pec son un solo pollo, y el mixto no es tercer plato', () => {
+  test('el cuarto no incluye el mixto, y el mixto sale en pollos con su pieza', () => {
     const out = armarContadorPlatos([
       linea(cuarto, { soles: 33, complementos: [{ grupo: 'Variacion', opcion: 'Pie', cantidad: 1 }, { grupo: 'Guarnicion', opcion: 'Arroz', cantidad: 1 }] }),
       linea(cuarto, { soles: 33, complementos: [{ grupo: 'Variacion', opcion: 'Pec', cantidad: 1 }, { grupo: 'Guarnicion', opcion: 'Arroz', cantidad: 1 }] }),
@@ -123,10 +123,12 @@ describe('armarContadorPlatos', () => {
       }),
     ], catalogo);
     const cuartoRow = out.pollos.find((r) => r.nombre === '1/4 pollo a la leña');
-    expect(cuartoRow.cantidad).toBe(3);
-    expect(cuartoRow.detalle).toContain('Pie 1');
-    expect(cuartoRow.detalle).toContain('Pec 2');
-    expect(cuartoRow.detalle).toContain('1 del mixto');
+    expect(cuartoRow.cantidad).toBe(2);
+    expect(cuartoRow.detalle).toContain('Pierna 1');
+    expect(cuartoRow.detalle).toContain('Pecho 1');
+    expect(cuartoRow.detalle).not.toContain('mixto');
+    expect(out.pollos.find((r) => r.nombre === 'Mixto a la leña Pecho').cantidad).toBe(1);
+    expect(out.pollos.find((r) => r.nombre === 'Mixto a la leña Pierna')).toBeUndefined();
     expect(out.carnes.find((r) => r.nombre === 'Panceta de chancho leña').cantidad).toBe(1);
     expect(out.platos.find((r) => /mixto/i.test(r.nombre))).toBeUndefined();
     expect(out.guarniciones.find((g) => /pie|pec/i.test(g.nombre))).toBeUndefined();

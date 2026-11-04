@@ -12,6 +12,20 @@ function vender(n, bases) {
     return repartirVenta(n, cadenaDe('salt-pollo', saltado), bases);
 }
 
+test('el cuarto y el mix de pecho no pasan a pecho de pollo', () => {
+    const venta = {
+        rubro: 'pollo-lena',
+        cantidad: 4,
+        fecha: '2026-11-03T18:00:00-05:00',
+        detalle: [{ nombre: '1/4 pollo a la leña', cantidad: 4, factor: 1, platos: 4 }]
+    };
+    const out = atribuirVentas([], [venta], { 'pollo-lena': semillaCocido('pollo-lena') });
+    const stock = out.filter((v) => !v.sinSaldo);
+    expect(stock.map((v) => v.rubro)).toEqual(['pollo-lena']);
+    expect(stock.some((v) => v.rubro === 'pechuga-pollo')).toBe(false);
+    expect(semillaCocido('pollo-lena').reservaClave).toBe('');
+});
+
 test('estas filas nacen con cuadro de cocido', () => {
     [
         'menu', 'pollo-lena', 'pachamanca-pollo',
@@ -99,8 +113,8 @@ test('una venta usa el ingreso de cocido guardado antes en el mismo día', () =>
     ]);
     expect(stock[1].detalle).toEqual([]);
     expect(stock[1].usoNombre).toBe('Cocido');
-    expect(stock[2].usoNombre).toBe('Principal — Pechuga de Pollo');
-    expect(stock[0].usoNombre).toBe('Principal — Pechuga de Pollo');
+    expect(stock[2].usoNombre).toBe('Principal — Pecho de Pollo');
+    expect(stock[0].usoNombre).toBe('Principal — Pecho de Pollo');
     expect(out.filter((v) => v.sinSaldo).map((v) => [v.rubro, v.cantidad])).toEqual([
         ['salt-pollo', 1],
         ['salt-pollo', 1]
@@ -129,9 +143,9 @@ test('la milanesa junior resta cocido, luego crudo y al final el filete', () => 
     expect(conStock.filter((v) => !v.sinSaldo).map((v) => [v.usoNombre, v.cantidad, v.detalle[0].cantidad])).toEqual([
         ['Cocido', 1, 1],
         ['Crudo', 1, 1],
-        ['Principal — Pechuga de Pollo', 1, 1]
+        ['Principal — Pecho de Pollo', 1, 1]
     ]);
-    expect(stock.map((v) => v.usoNombre)).toEqual(['Principal — Pechuga de Pollo']);
+    expect(stock.map((v) => v.usoNombre)).toEqual(['Principal — Pecho de Pollo']);
 });
 
 test('un rubro sin cuadro cocido gasta antes el cocido que quedó', () => {

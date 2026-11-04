@@ -7,10 +7,9 @@ const express = require('express');
 const router = express.Router();
 const Notificacion = require('../database/models/notificacion.model');
 const logger = require('../utils/logger');
-const { adminAuth } = require('../middleware/adminAuth');
+const { adminAuthSiRuta } = require('../middleware/adminAuth');
 
-// Aplicar middleware de autenticación a todas las rutas
-router.use(adminAuth);
+router.use(adminAuthSiRuta('/notificaciones'));
 
 /**
  * GET /api/notificaciones

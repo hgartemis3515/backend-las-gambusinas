@@ -2,13 +2,13 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const { adminAuth } = require('../middleware/adminAuth');
+const { adminAuthSiRuta } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
 const { nombreSeguro, validarPaquete } = require('../utils/archivoCaja');
 const archivo = require('../services/archivoCaja.service');
 
 const router = express.Router();
-router.use(adminAuth);
+router.use(adminAuthSiRuta('/archivo-caja'));
 
 const upload = multer({
     dest: path.join(archivo.DIR, '_tmp'),

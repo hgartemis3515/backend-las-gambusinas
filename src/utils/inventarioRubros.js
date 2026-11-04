@@ -6,7 +6,7 @@ const { armarKardex } = require('./inventarioKardex');
 const KARDEX = [
     { clave: 'pollo-origen', nombre: 'Pollo fresco' },
     { clave: 'pierna-pollo', nombre: 'Pierna' },
-    { clave: 'pechuga-pollo', nombre: 'Pechuga' },
+    { clave: 'pechuga-pollo', nombre: 'Pecho de Pollo' },
     { clave: 'pescado-origen', nombre: 'Pescado' },
     { clave: 'filete', nombre: 'Filete Pollo Crudo' },
     { clave: 'chicharron-pollo', nombre: 'Chicharrón de pollo' },
@@ -37,7 +37,7 @@ const KARDEX = [
     { clave: 'carnero', nombre: 'Carnero' },
     { clave: 'carne-guiso', nombre: 'Carne Guiso' },
     { clave: 'pescado-entero', nombre: 'Pescado entero' },
-    { clave: 'pollo-lena', nombre: 'Pollo leña' },
+    { clave: 'pollo-lena', nombre: 'Pecho a la Leña' },
     { clave: 'pierna-lena', nombre: 'Pierna a la leña' },
     { clave: 'chancho-lena', nombre: 'Chancho a la leña' },
     { clave: 'chancho-lena-bbq', nombre: 'Chancho a la leña BBQ' },

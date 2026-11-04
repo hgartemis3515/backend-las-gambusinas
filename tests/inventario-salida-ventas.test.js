@@ -106,6 +106,55 @@ test('10 leñas del reporte son 10 de salida de pollo leña', () => {
     expect(porRubro.ceviche).toBeUndefined();
 });
 
+test('el mixto vendido como pierna baja pierna de pollo y el de pecho baja pecho a la leña', () => {
+    const { armarContadorPlatos } = require('../src/utils/contadorPlatosReporte');
+    const cuarto = {
+        _id: 'c14',
+        nombre: '1/4 Pollo a la leña + papa frita + arroz + ensalada',
+        categoria: 'LEÑA CON POLLO Y CHANCHO',
+        complementos: [
+            { grupo: 'Variacion', anexarVarianteAlNombre: true, opciones: [{ nombre: 'Pie' }, { nombre: 'Pec' }] }
+        ]
+    };
+    const mixto = {
+        _id: 'mx',
+        nombre: 'Mixto leña 1/4 pollo + 300gr panceta + P-frita + Arroz + ensalada',
+        categoria: 'LEÑA CON POLLO Y CHANCHO',
+        complementos: [
+            { grupo: 'Tipo', anexarVarianteAlNombre: true, opciones: [{ nombre: 'Pie' }, { nombre: 'Pec' }] }
+        ]
+    };
+    const linea = (plato, opcion) => ({
+        platoId: plato._id,
+        nombre: plato.nombre,
+        cantidad: 1,
+        soles: 0,
+        complementos: [{ grupo: plato.complementos[0].grupo, opcion, cantidad: 1 }]
+    });
+    const contador = armarContadorPlatos([
+        linea(cuarto, 'Pec'),
+        linea(mixto, 'Pie'),
+        linea(mixto, 'Pec')
+    ], [cuarto, mixto]);
+    expect(contador.pollos.find((r) => r.nombre === '1/4 pollo a la leña').cantidad).toBe(1);
+    expect(contador.pollos.find((r) => r.nombre === 'Mixto a la leña Pecho').cantidad).toBe(1);
+    expect(contador.pollos.find((r) => r.nombre === 'Mixto a la leña Pierna').cantidad).toBe(1);
+    const porRubro = aplicarMapa(filasDelContador(contador));
+    expect(porRubro['pollo-lena']).toBe(2);
+    expect(porRubro['pierna-pollo']).toBe(1);
+    expect(porRubro['trozo-panceta']).toBe(6);
+});
+
+test('el pecho del cuarto y del mix van a pecho a la leña y la pierna a pierna de pollo', () => {
+    const porRubro = aplicarMapa([
+        { nombre: '1/4 pollo a la leña', cantidad: 3, cortes: { Pec: 2, Pie: 1 } },
+        { nombre: 'Mixto leña 1/4 pollo', cantidad: 2, cortes: { Pec: 1, Pie: 1 } }
+    ]);
+    expect(porRubro['pollo-lena']).toBe(3);
+    expect(porRubro['pierna-pollo']).toBe(2);
+    expect(porRubro['trozo-panceta']).toBe(6);
+});
+
 test('un filete con papas y arroz descuenta filete, papas y arroz, y puede dejar el saldo en negativo', () => {
     const porRubro = aplicarMapa([
         { nombre: 'Filete de pollo + papas fritas + arroz + ensalada', cantidad: 3 }

@@ -23,15 +23,14 @@ const fs = require('fs');
 const multer = require('multer');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
-const { adminAuth, checkPermission } = require('../middleware/adminAuth');
+const { adminAuthSiRuta, checkPermission } = require('../middleware/adminAuth');
 const rolesRepository = require('../repository/roles.repository');
 const Conversacion = require('../database/models/conversacion.model');
 const Mensaje = require('../database/models/mensaje.model');
 const Mozos = require('../database/models/mozos.model');
 const mensajeriaService = require('../services/mensajeriaService');
 
-// Auth en todas las rutas
-router.use(adminAuth);
+router.use(adminAuthSiRuta(['/mensajes', '/mensajes-no-leidos']));
 
 // Configuración multer para audio de voz
 const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'mensajes');

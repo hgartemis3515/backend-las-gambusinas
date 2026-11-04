@@ -24,6 +24,7 @@ const { formatearTicket } = require('../print/escposFormatter');
 const { bloquesTicket } = require('../print/vistaComprobante');
 const { imprimir, destinoDesdeEnv } = require('../print/imprimir');
 const { autorizarSupervisor } = require('./autorizarSupervisor');
+const { ejecutarEnTransaccion } = require('./transaccionMongo');
 const { TIPO_DOCUMENTO, ESTADO_COMPROBANTE } = require('../constants/catalogosSunat');
 
 class ErrorEmision extends Error {
@@ -73,7 +74,7 @@ async function emitir(solicitud, deps = {}) {
     const {
         Modelo = Comprobante,
         SerieModelo = SerieComprobante,
-        iniciarSesion = () => mongoose.startSession(),
+        iniciarSesion,
         encolar = encolarFirmarEnviar,
         obtenerConfig = obtenerConfiguracionFiscal,
         ahora = () => new Date(),
@@ -125,21 +126,22 @@ async function emitir(solicitud, deps = {}) {
         transaccion: solicitud.pagos?.[i]?.transaccion || null,
     }));
 
-    const session = await iniciarSesion();
     let doc;
     let qr = null;
     try {
-        await session.withTransaction(async () => {
+        await ejecutarEnTransaccion(async (session) => {
             const ticketId = solicitud.origen?.ticket;
             if (ticketId && mongoose.isValidObjectId(ticketId)) {
-                const ya = await Modelo.findOne({
+                let consulta = Modelo.findOne({
                     'origen.ticket': ticketId,
                     estado: { $nin: ['RECHAZADO', 'ANULADO_NC', 'DE_BAJA'] },
-                }).select('_id').session(session).lean();
+                }).select('_id');
+                if (session) consulta = consulta.session(session);
+                const ya = await consulta.lean();
                 if (ya) throw new ErrorEmision('Este ticket ya tiene un comprobante emitido', 'TICKET_YA_FACTURADO', 409);
             }
             const correlativo = await reservarCorrelativo(
-                { ruc: cfg.emisor.ruc, tipo, serie, session },
+                { ruc: cfg.emisor.ruc, tipo, serie, session, sinTransaccion: !session },
                 { Modelo: SerieModelo }
             );
             const borrador = {
@@ -179,16 +181,14 @@ async function emitir(solicitud, deps = {}) {
                 borrador.xml = firma.xml;
                 qr = firma.qr;
             }
-            const [creado] = await Modelo.create([borrador], { session });
+            const [creado] = await Modelo.create([borrador], session ? { session } : {});
             doc = creado;
-        });
+        }, { iniciarSesion });
     } catch (err) {
         if (err?.code === 11000) {
             throw new ErrorEmision('Correlativo duplicado detectado; reintente el cobro', 'CORRELATIVO_DUPLICADO', 409);
         }
         throw err;
-    } finally {
-        await session.endSession();
     }
 
     const cola = await encolar(doc);
