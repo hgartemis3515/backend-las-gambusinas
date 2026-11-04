@@ -14,7 +14,7 @@ const logger = require('./logger');
  */
 const MAPA_SALIDA = {
     '1/4 pollo a la lena': { rubro: 'pollo-lena', factor: 1 },
-    '1/2 pollo a la lena baby': { rubro: 'pollo-lena', factor: 1 },
+    '1/2 pollo a la lena baby': { rubro: 'pollo-baby', factor: 0.5 },
     'panceta de chancho lena': { rubro: 'trozo-panceta', factor: 3 },
     'chancho a la lena': { rubro: 'trozo-panceta', factor: 4 },
     'chancho a la lena bbq': { rubro: 'trozo-panceta', factor: 6 },
@@ -213,6 +213,9 @@ function rubrosDeFila(fila, mapas, bebidas) {
     if (partido) return partido;
     const nombre = fila && fila.nombre;
     const n = norm(nombre);
+    if (n.includes('baby') && n.includes('pollo') && n.includes('lena')) {
+        return [{ rubro: 'pollo-baby', factor: 0.5 }];
+    }
     const directo = MAPA_SALIDA[n];
     if (directo) return [directo];
     const lista = [];
@@ -243,7 +246,7 @@ function rubrosDeFila(fila, mapas, bebidas) {
     else if (!n.includes('trucha') && (n.includes('pescado frito') || (n.includes('jalea') && n.includes('pescado')) || (n.includes('chicharron') && n.includes('pescado')) || (n.includes('ceviche') && n.includes('pescado')) || n === 'ceviche')) add('pieza-pescado', 1);
     else if ((n.includes('1/2') || n.includes('medio')) && n.includes('cuy')) add('cuy', 0.5);
     else if (n.includes('cuy')) add('cuy', 1);
-    else if (n.includes('1/4 pollo') || n.includes('cuarto de pollo') || n.includes('pollo a la lena')) add('pollo-lena');
+    else if (!n.includes('baby') && (n.includes('1/4 pollo') || n.includes('cuarto de pollo') || n.includes('pollo a la lena'))) add('pollo-lena');
     else if (n.includes('chicharron de pollo') && n.includes('bbq')) add('chi-pollo-bbq');
     else if (n.includes('acevichada') && n.includes('pollo')) add('chi-pollo-acevichada');
     else if (n.includes('chicharron') && n.includes('pollo')) add('chicharron-pollo');

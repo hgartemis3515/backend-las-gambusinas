@@ -273,6 +273,15 @@ test('una gaseosa vendida tiene fila aunque nadie la haya ingresado', () => {
     expect(fila.egreso).toBe(0);
 });
 
+test('el medio pollo a la leña baby solo descuenta 0.5 de pollo baby', () => {
+    const porRubro = aplicarMapa([
+        { nombre: '1/2 pollo a la leña baby', cantidad: 4 },
+        { nombre: '1/2 Pollo a la leña BABY PF + Ensalada', cantidad: 2 }
+    ]);
+    expect(porRubro['pollo-baby']).toBe(3);
+    expect(porRubro['pollo-lena']).toBeUndefined();
+});
+
 test('la venta del día entra en salida y al día siguiente abre el saldo anterior', () => {
     const movs = [
         { rubro: 'pollo-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 20, fecha: dia('2026-10-12', '12:00:00') },

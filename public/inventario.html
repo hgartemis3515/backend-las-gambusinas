@@ -1662,7 +1662,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-sal-' + tipo">
                           <div class="flex items-center gap-1">
                             <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoTipo(row, tipo))"></span>
+                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(row.tieneCocido ? saldoColumnaTipo(row, tipo) : saldoColumna(row))"></span>
                           </div>
                         </template>
                       </div>
@@ -1694,20 +1694,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="flex flex-col items-end gap-0.5 text-xs">
                             <div class="flex items-center gap-1">
                               <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                              <span class="num-mono font-bold text-teal-300" x-text="formatNum(calcSaldoRealTipo(row, 'crudo'))"></span>
+                              <span class="num-mono font-bold text-teal-300" x-text="formatNum(saldoRealColumnaTipo(row, 'crudo'))"></span>
                             </div>
                             <div class="flex items-center gap-1">
                               <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                              <span class="num-mono font-bold text-teal-200" x-text="formatNum(calcSaldoRealTipo(row, 'cocido'))"></span>
+                              <span class="num-mono font-bold text-teal-200" x-text="formatNum(saldoRealColumnaTipo(row, 'cocido'))"></span>
                             </div>
                             <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
                               <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
-                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(saldoRealColumna(row))"></span>
                             </div>
                           </div>
                         </template>
                         <template x-if="!row.tieneCocido">
-                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(saldoRealColumna(row))"></span>
                         </template>
 
                         <!-- Icono de Lupa a la derecha de Queda (Saldo real) -->
@@ -1955,7 +1955,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-sal-' + tipo">
                           <div class="flex items-center gap-1">
                             <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoTipo(row, tipo))"></span>
+                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(row.tieneCocido ? saldoColumnaTipo(row, tipo) : saldoColumna(row))"></span>
                           </div>
                         </template>
                       </div>
@@ -1987,20 +1987,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="flex flex-col items-end gap-0.5 text-xs">
                             <div class="flex items-center gap-1">
                               <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                              <span class="num-mono font-bold text-teal-300" x-text="formatNum(calcSaldoRealTipo(row, 'crudo'))"></span>
+                              <span class="num-mono font-bold text-teal-300" x-text="formatNum(saldoRealColumnaTipo(row, 'crudo'))"></span>
                             </div>
                             <div class="flex items-center gap-1">
                               <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                              <span class="num-mono font-bold text-teal-200" x-text="formatNum(calcSaldoRealTipo(row, 'cocido'))"></span>
+                              <span class="num-mono font-bold text-teal-200" x-text="formatNum(saldoRealColumnaTipo(row, 'cocido'))"></span>
                             </div>
                             <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
                               <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
-                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(saldoRealColumna(row))"></span>
                             </div>
                           </div>
                         </template>
                         <template x-if="!row.tieneCocido">
-                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcSaldoReal(row))"></span>
+                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(saldoRealColumna(row))"></span>
                         </template>
 
                         <!-- Icono de Lupa a la derecha de Queda (Saldo real) -->
@@ -3729,7 +3729,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <span
                       class="total-cell-base num-mono font-extrabold text-base text-[#d4af37]"
                       :class="updatedRows[row.id] ? 'total-gold-flash' : ''"
-                      x-text="formatNum(calcSaldoReal(row))"
+                      x-text="formatNum(saldoRealColumna(row))"
                     ></span>
                     <span class="text-xs text-[#a0a0b8] num-mono" x-text="row.unidad"></span>
                   </div>
@@ -3753,7 +3753,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <span
                     class="total-cell-base num-mono font-extrabold text-base text-[#d4af37]"
                     :class="updatedRows[row.id] ? 'total-gold-flash' : ''"
-                    x-text="formatNum(calcSaldoReal(row))"
+                    x-text="formatNum(saldoRealColumna(row))"
                   ></span>
                   <span class="text-xs text-[#a0a0b8] num-mono" x-text="row.unidad"></span>
                 </div>
@@ -5931,7 +5931,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 { id: 'cuarto_lena_pierna', nombre: '1/4 pollo a la leña', plato: true },
                 { id: 'mix_lena_pierna', nombre: 'Mix leña pierna', plato: true }
               ]
-            }
+            },
+            { id: 'pollo_baby', nombre: 'Pollo Baby', open: true }
           ]
         },
 
@@ -6225,6 +6226,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           filete_junior: 'filete',
           pollo_pachamanca: 'pachamanca-pollo',
           pollo_lena: 'pollo-lena',
+          pollo_baby: 'pollo-baby',
           mix_lena_pecho: 'pollo-lena',
           sandwich: 'sandwiches',
           pierna_lena: 'pierna-lena',
@@ -7762,7 +7764,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               crudo: crudo,
               tieneCocido: row.tieneCocido === true,
               total: cocido + crudo,
-              final: this.calcSaldoReal(row)
+              final: this.saldoRealColumna(row)
             };
           };
           const cuadro = (nombre, pares) => ({
@@ -7924,6 +7926,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'filete', grupo: 'pollo', nombre: 'Filete de pollo', detalle: 'Abarca milanesa, filete junior, chicharrón, chaufa y saltado', unidad: 'unid', saldoAnterior: 0, ingreso: 12, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 12, cocido: 0 },
             { id: 'pollo_pachamanca', grupo: 'pollo', nombre: 'Pollo pachamanca pierna', detalle: 'Sale de pierna. El sabor Pollo de la pachamanca resta aquí', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 8, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
             { id: 'pollo_lena', grupo: 'pollo', nombre: 'Pecho a la Leña', detalle: '1/4 pollo a la leña (pecho) y Mix a la leña (pecho). El mix cuenta en la venta', unidad: 'pza', saldoAnterior: 0, ingreso: 1, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 1, cocido: 2 },
+            { id: 'pollo_baby', grupo: 'pollo', nombre: 'Pollo Baby', detalle: 'Solo el 1/2 pollo a la leña baby. Cada plato consume 0.5', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'pierna_lena', grupo: 'pollo', nombre: 'Pierna a la leña', detalle: 'Pieza de pierna a la leña', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
             { id: 'pollada', grupo: 'pollo', nombre: 'Pollada', detalle: 'Si no hay cocido ni crudo, resta la pechuga fresca', unidad: 'pza', saldoAnterior: 0, ingreso: 2, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 2, cocido: 2 },
             { id: 'menu', grupo: 'pollo', nombre: 'Menú', detalle: 'Stock anterior. Sin cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
@@ -8091,6 +8094,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             vistos.add(clave);
             lista.push({ tipo, clave, nombre: p.nombre });
           });
+          const incaPersonal = { tipo: 'gaseosas', clave: 'gaseosa-inca-kola-300ml', nombre: 'Inca Kola 300ml' };
+          if (!vistos.has(incaPersonal.clave)) {
+            vistos.add(incaPersonal.clave);
+            lista.push(incaPersonal);
+          }
           lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
           this.rows = this.rows.filter((r) => (r.grupo !== 'gaseosas' && r.grupo !== 'licores' && r.grupo !== 'bebidas') || vistos.has(r.id));
           lista.forEach((b) => {
@@ -8273,6 +8281,47 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.tiposDe(row).reduce((a, t) => a + this.calcSaldoRealTipo(row, t), 0);
         },
 
+        platosDirectosDe(rowId) {
+          const nodo = this.nodoInventario(rowId);
+          return ((nodo && nodo.children) || []).filter((ch) => ch && ch.plato);
+        },
+
+        saldoDePlatos(row, real) {
+          return this.platosDirectosDe(row && row.id).reduce((a, n) => {
+            const hijo = this.filaReal(n.id);
+            if (!hijo) return a;
+            return a + this.tiposDe(hijo).reduce((s, t) => s + (real ? this.calcSaldoRealTipo(hijo, t) : this.calcSaldoTipo(hijo, t)), 0);
+          }, 0);
+        },
+
+        saldoColumnaTipo(row, tipo) {
+          const extra = this.platosDirectosDe(row && row.id).reduce((a, n) => {
+            const hijo = this.filaReal(n.id);
+            if (!hijo) return a;
+            return a + this.calcSaldoTipo(hijo, tipo);
+          }, 0);
+          return this.calcSaldoTipo(row, tipo) + extra;
+        },
+
+        saldoRealColumnaTipo(row, tipo) {
+          const extra = this.platosDirectosDe(row && row.id).reduce((a, n) => {
+            const hijo = this.filaReal(n.id);
+            if (!hijo) return a;
+            return a + this.calcSaldoRealTipo(hijo, tipo);
+          }, 0);
+          return this.calcSaldoRealTipo(row, tipo) + extra;
+        },
+
+        saldoColumna(row) {
+          const propio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0);
+          return propio + this.saldoDePlatos(row, false);
+        },
+
+        saldoRealColumna(row) {
+          const propio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoRealTipo(row, t), 0);
+          return propio + this.saldoDePlatos(row, true);
+        },
+
         calcDiferencia(row) {
           const tipos = this.tiposDe(row).filter((t) => this.conteoTipo(row, t) !== null);
           if (!tipos.length) return null;
@@ -8438,7 +8487,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         nivelEstado(row) {
-          const n = Number(this.calcSaldoReal(row)) || 0;
+          const n = Number(this.saldoRealColumna(row)) || 0;
           if (n > 10) return 'normal';
           if (n > 5) return 'bajo';
           return 'critico';
@@ -8456,7 +8505,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         tituloEstado(row) {
-          const n = this.formatNum(this.calcSaldoReal(row));
+          const n = this.formatNum(this.saldoRealColumna(row));
           const nivel = this.nivelEstado(row);
           if (nivel === 'normal') return 'Normal: más de 10. Quedan ' + n;
           if (nivel === 'bajo') return 'Bajo: 10 o menos. Conviene preparar más. Quedan ' + n;
@@ -8890,7 +8939,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         // Necesidad predictiva: sugiere pedido mínimo para mañana según tasa de Venta actual y Saldo
         calcNecesidadPredictiva(row) {
-          const saldoReal = this.calcSaldoReal(row);
+          const saldoReal = this.saldoRealColumna(row);
           const saldoDisponible = Math.max(0, saldoReal);
           const tasaVentaEfectiva = Math.max(
             0,
@@ -8959,9 +9008,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.rows.forEach(row => {
             const grupoLabel = this.getGroupName(row.grupo);
             const ingresoTotal = this.calcIngresoTotal(row);
-            const saldo = this.calcSaldo(row);
+            const saldo = this.saldoColumna(row);
             const tieneConteo = row.inventario !== null && row.inventario !== '';
-            const saldoReal = this.calcSaldoReal(row);
+            const saldoReal = this.saldoRealColumna(row);
             const dif = this.calcDiferencia(row);
             const pred = this.calcNecesidadPredictiva(row);
 
@@ -9014,7 +9063,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const ven = suma('venta');
           const cub = suma('cubierta');
           const tr = suma('transformacion');
-          const sal = this.calcSaldo(row);
+          const sal = this.saldoColumna(row);
           const cubre = cub ? ` + ${cub} (lo cubrió el producto anterior)` : '';
           return `${row.nombre}: ${sa} (anterior) + ${ing} (ingreso) + ${cor} (corrección) − ${ven} (venta)${cubre} − ${tr} (transformación) = ${sal}`;
         },
@@ -9326,8 +9375,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const transCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'transformacion', 'cocido')) || 0) : 0;
           const transformacion = transCrudo + transCocido;
 
-          const saldoTeorico = this.calcSaldo(row);
-          const quedaSaldoReal = this.calcSaldoReal(row);
+          const saldoTeorico = this.saldoColumna(row);
+          const quedaSaldoReal = this.saldoRealColumna(row);
 
           const cntCrudo = this.conteoTipo(row, 'crudo');
           const cntCocido = row.tieneCocido ? this.conteoTipo(row, 'cocido') : null;
@@ -9394,7 +9443,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               icono: '=',
               titulo: 'Subtotal 2: Saldo Calculado en Hoja',
               etiquetaAccion: 'INGRESO TOTAL − VENTAS − TRANSFORMACIÓN',
-              explicacion: 'Lo que teóricamente queda según el flujo matemático del sistema.',
+              explicacion: 'Lo que teóricamente queda según el flujo de la fila' + (this.saldoDePlatos(row, false) ? (' más el saldo de su grupo de platos (' + this.formatNum(this.saldoDePlatos(row, false)) + ')') : '') + '.',
               desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(this.calcSaldoTipo(row, 'crudo')) + ' · Cocido: ' + this.formatNum(this.calcSaldoTipo(row, 'cocido'))) : '',
               valorFormateado: this.formatNum(saldoTeorico)
             },
@@ -9413,7 +9462,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               titulo: 'Resultado Final: Queda (Saldo Real)',
               etiquetaAccion: 'SALDO REAL ACTUAL EN ' + etqPeriodo.toUpperCase(),
               explicacion: 'Stock real definitivo con el que cuenta cocina y cámara en el período seleccionado.',
-              desgloseTipos: row.tieneCocido ? ('Queda Crudo: ' + this.formatNum(this.calcSaldoRealTipo(row, 'crudo')) + ' · Queda Cocido: ' + this.formatNum(this.calcSaldoRealTipo(row, 'cocido'))) : '',
+              desgloseTipos: row.tieneCocido ? ('Queda Crudo: ' + this.formatNum(this.saldoRealColumnaTipo(row, 'crudo')) + ' · Queda Cocido: ' + this.formatNum(this.saldoRealColumnaTipo(row, 'cocido'))) : '',
               valorFormateado: this.formatNum(quedaSaldoReal)
             }
           ];
