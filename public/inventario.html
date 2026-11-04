@@ -1604,7 +1604,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <template x-for="tipo in tiposDe(row)" :key="row.id + '-ven-' + tipo">
                             <div class="flex items-center gap-1">
                               <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                              <span class="text-rose-200 font-semibold" x-text="formatNum(valorTipo(row, 'venta', tipo))"></span>
+                              <span class="text-rose-200 font-semibold" x-text="formatNum(row.tieneCocido ? ventaColumnaTipo(row, tipo) : ventaColumna(row))"></span>
                             </div>
                           </template>
                         </div>
@@ -1900,7 +1900,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <template x-for="tipo in tiposDe(row)" :key="row.id + '-ven-' + tipo">
                             <div class="flex items-center gap-1">
                               <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                              <span class="text-rose-200 font-semibold" x-text="formatNum(valorTipo(row, 'venta', tipo))"></span>
+                              <span class="text-rose-200 font-semibold" x-text="formatNum(row.tieneCocido ? ventaColumnaTipo(row, tipo) : ventaColumna(row))"></span>
                             </div>
                           </template>
                         </div>
@@ -8320,6 +8320,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         saldoRealColumna(row) {
           const propio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoRealTipo(row, t), 0);
           return propio + this.saldoDePlatos(row, true);
+        },
+
+        ventaNetaTipo(row, tipo) {
+          return (this.valorTipo(row, 'venta', tipo) || 0) - (this.valorTipo(row, 'cubierta', tipo) || 0);
+        },
+
+        ventaDePlatos(row, tipo) {
+          return this.platosDirectosDe(row && row.id).reduce((a, n) => {
+            const hijo = this.filaReal(n.id);
+            if (!hijo) return a;
+            if (tipo) return a + this.ventaNetaTipo(hijo, tipo);
+            return a + this.tiposDe(hijo).reduce((s, t) => s + this.ventaNetaTipo(hijo, t), 0);
+          }, 0);
+        },
+
+        ventaColumnaTipo(row, tipo) {
+          return this.ventaNetaTipo(row, tipo) + this.ventaDePlatos(row, tipo);
+        },
+
+        ventaColumna(row) {
+          const propio = this.tiposDe(row).reduce((a, t) => a + this.ventaNetaTipo(row, t), 0);
+          return propio + this.ventaDePlatos(row);
         },
 
         calcDiferencia(row) {
