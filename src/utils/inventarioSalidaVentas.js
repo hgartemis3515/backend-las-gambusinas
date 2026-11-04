@@ -326,8 +326,12 @@ async function egresosVentaHasta(hasta) {
     try {
         const Comanda = require('../database/models/comanda.model');
         const Plato = require('../database/models/plato.model');
+        const Corte = require('../database/models/inventarioCorte.model');
+        const corte = await Corte.findOne({ clave: 'inventario' }).lean();
+        const desde = corte && corte.desde ? new Date(corte.desde) : new Date(0);
+        if (desde > hasta) return { movs: [], ventas: [] };
         const [comandas, catalogo] = await Promise.all([
-            Comanda.find(matchComandasEstadisticas(new Date(0), hasta))
+            Comanda.find(matchComandasEstadisticas(desde, hasta))
                 .select('platos cantidades createdAt numeroComandaDia')
                 .populate('platos.plato', 'nombre nombreCocina categoria complementos complementosUnidosAlPlato precio')
                 .lean(),
