@@ -28,12 +28,15 @@ test('el cuarto y el mix de pecho no pasan a pecho de pollo', () => {
 
 test('estas filas nacen con cuadro de cocido', () => {
     [
-        'menu', 'pollo-lena', 'pachamanca-pollo',
+        'sandwiches', 'pollo-lena', 'pierna-lena', 'pachamanca-pollo',
         'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero'
     ].forEach((clave) => {
         expect(semillaCocido(clave).tieneCocido).toBe(true);
     });
     expect(semillaCocido('filete').tieneCocido).toBe(false);
+    expect(semillaCocido('menu').tieneCocido).toBe(false);
+    expect(semillaCocido('menu-pecho').tieneCocido).toBe(false);
+    expect(semillaCocido('menu-pierna').tieneCocido).toBe(false);
 });
 
 test('el pollo saltado resta primero el cocido', () => {
@@ -133,7 +136,7 @@ test('la milanesa junior resta cocido, luego crudo y al final el filete', () => 
     const conStock = atribuirVentas([
         { rubro: 'milanesa-junior', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-10-31T10:00:00-05:00' },
         { rubro: 'milanesa-junior', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 1, fecha: '2026-10-31T10:00:00-05:00' },
-        { rubro: 'pechuga-pollo', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 5, fecha: '2026-10-31T10:00:00-05:00' }
+        { rubro: 'filete', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 5, fecha: '2026-10-31T10:00:00-05:00' }
     ], [{
         rubro: 'milanesa-junior',
         cantidad: 3,
@@ -143,9 +146,9 @@ test('la milanesa junior resta cocido, luego crudo y al final el filete', () => 
     expect(conStock.filter((v) => !v.sinSaldo).map((v) => [v.usoNombre, v.cantidad, v.detalle[0].cantidad])).toEqual([
         ['Cocido', 1, 1],
         ['Crudo', 1, 1],
-        ['Principal — Pecho de Pollo', 1, 1]
+        ['Principal — Filete de pollo', 1, 1]
     ]);
-    expect(stock.map((v) => v.usoNombre)).toEqual(['Principal — Pecho de Pollo']);
+    expect(stock.map((v) => v.usoNombre)).toEqual(['Principal — Filete de pollo']);
 });
 
 test('un rubro sin cuadro cocido gasta antes el cocido que quedó', () => {
@@ -153,6 +156,6 @@ test('un rubro sin cuadro cocido gasta antes el cocido que quedó', () => {
     const out = atribuirVentas(movs, [{ rubro: 'milanesa', cantidad: 2, fecha: '2026-10-12T12:00:00-05:00' }], {});
     expect(out.filter((v) => !v.sinSaldo).map((v) => [v.rubro, v.tipoProducto, v.cantidad])).toEqual([
         ['milanesa', 'cocido', 1],
-        ['pechuga-pollo', 'crudo', 1]
+        ['filete', 'crudo', 1]
     ]);
 });

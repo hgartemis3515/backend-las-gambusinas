@@ -82,7 +82,7 @@ const SEMILLA = [
         tipo: 'despiece',
         origen: { clave: 'pato', nombre: 'Pato fresco' },
         cortes: [
-            { clave: 'pechuga-pato', nombre: 'Pechuga de pato', factor: 2, factorDesde: '' },
+            { clave: 'pechuga-pato', nombre: 'Pecho de Pato', factor: 2, factorDesde: '' },
             { clave: 'pierna-pato', nombre: 'Pierna de pato', factor: 2, factorDesde: '' }
         ],
         platos: [

@@ -5,6 +5,17 @@ function dia(ymd, hora) {
     return new Date(`${ymd}T${hora}-05:00`);
 }
 
+test('arroz con pollo, caldo y olla salen del menu pecho o pierna', () => {
+    const arroz = aplicarMapa([{ nombre: 'Arroz con pollo Pec', cantidad: 2 }]);
+    expect(arroz['arroz-tipo-pollo']).toBe(2);
+    expect(arroz['menu-pecho']).toBe(2);
+    expect(arroz['pechuga-pollo']).toBeUndefined();
+    const caldo = aplicarMapa([{ nombre: 'Caldo de pollo Pie', cantidad: 2 }]);
+    expect(caldo['menu-pierna']).toBe(2);
+    const olla = aplicarMapa([{ nombre: 'Pollo a la olla', cantidad: 4 }]);
+    expect(olla['menu-pecho']).toBe(4);
+});
+
 test('cada tipo de arroz descuenta su fila y el chaufa de pollo no', () => {
     const porRubro = aplicarMapa([
         { nombre: 'Arroz verde', cantidad: 2 },

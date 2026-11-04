@@ -241,17 +241,17 @@ async function opcionesCocido() {
         let tieneCocido = guardado ? doc.tieneCocido : sem.tieneCocido;
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
-        const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'pollada', 'pierna-lena', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada'];
-        const conCocido = ['trozo-panceta', 'pechuga-pato', 'pierna-pato'];
+        const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'pollada', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada'];
+        const conCocido = ['trozo-panceta', 'pechuga-pato', 'pierna-pato', 'pierna-lena'];
         if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
             if (!esMateria(d.clave) && !reservaClave) reservaClave = 'pechuga-pollo';
-            if (d.clave === 'pierna-lena') reservaClave = 'pierna-pollo';
         }
+        if (d.clave === 'pierna-lena') reservaClave = 'pierna-pollo';
         if (d.clave === 'pollada' || d.clave === 'pachamanca-pollo') reservaClave = 'pierna-pollo';
         if (d.clave === 'pollo-lena') reservaClave = '';
-        if (reservaClave === 'filete') reservaClave = 'pechuga-pollo';
         if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
+        if (d.clave === 'menu' || d.clave === 'menu-pecho' || d.clave === 'menu-pierna') tieneCocido = false;
         return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
     });
 }
@@ -385,6 +385,22 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
         }
     }
     return data;
+}
+
+async function saldosRubroHoy(claves) {
+    const { desde, hasta } = hoy();
+    const { filas } = await filasCartaEn(desde, hasta);
+    const quiere = new Set(claves || []);
+    const out = {};
+    quiere.forEach((c) => { out[c] = 0; });
+    (filas || []).forEach((f) => {
+        const clave = f && (f.rubro || f.plato);
+        if (!clave || !quiere.has(clave)) return;
+        if (f.tipoProducto === 'cocido') return;
+        const saldo = f.baja != null ? f.baja : f.saldoFinal;
+        out[clave] += Number(saldo) || 0;
+    });
+    return out;
 }
 
 function diaAnterior(ymd) {
@@ -546,6 +562,7 @@ async function eliminarHoy() {
 module.exports = {
     kardex,
     kardexCarta,
+    saldosRubroHoy,
     listarMovimientos,
     crearMovimiento,
     alertasActuales,

@@ -25,7 +25,8 @@ const {
   calcularResumenComplementos,
   overlayPronombresEnComandas
 } = require('../utils/precioComplementos');
-const { expandirPlatosPorVariante, snapshotNombreCocinaPedido, MAX_NOMBRE_COCINA_PEDIDO } = require('../utils/variantePlato');
+const { expandirPlatosPorVariante, MAX_NOMBRE_COCINA_PEDIDO } = require('../utils/variantePlato');
+const { marcarLineaMenu } = require('../utils/menuPiezaCocina');
 const { fusionarGuarnicionesPreseleccionadas } = require('../utils/preseleccionGuarniciones');
 const { aplicarCambioGuarnicionAPlato } = require('../utils/cambioGuarnicionPreseleccion');
 const { segundosArmado, parseArmadoInicio } = require('../utils/tiempoArmadoComanda');
@@ -1140,6 +1141,7 @@ const agregarComanda = async (data) => {
   data.cantidades = expandido.cantidades;
 
   // Validar que cada plato tenga un ID válido y exista
+  const bolsaMenu = { listo: false, pecho: 0, pierna: 0 };
   for (let index = 0; index < data.platos.length; index++) {
     const plato = data.platos[index];
     const platoRef = plato.plato ?? plato.platoId;
@@ -1243,7 +1245,7 @@ const agregarComanda = async (data) => {
     plato.kdsEstiloCompacto = platoCompleto.kdsEstiloCompacto === true;
     plato.kdsEtiquetaColorFondo = parseHexColor(platoCompleto.kdsEtiquetaColorFondo, '');
     plato.kdsEtiquetaColorLetra = parseHexColor(platoCompleto.kdsEtiquetaColorLetra, '');
-    snapshotNombreCocinaPedido(plato, platoCompleto);
+    await marcarLineaMenu(plato, platoCompleto, data.cantidades[index], bolsaMenu);
     plato.resumenComplementosImpresion = {
       mostrarCantidad: platoCompleto.resumenComplementosImpresion?.mostrarCantidad !== false,
       mostrarMontoExtra: platoCompleto.resumenComplementosImpresion?.mostrarMontoExtra !== false
@@ -2262,7 +2264,7 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
               )
             };
             aplicarCambioGuarnicionAPlato(platoAgregado, platoCompleto);
-            snapshotNombreCocinaPedido(platoAgregado, platoCompleto);
+            await marcarLineaMenu(platoAgregado, platoCompleto, nuevoPlato.cantidad || 1, { listo: false, pecho: 0, pierna: 0 });
             comanda.platos.push(platoAgregado);
             comanda.cantidades.push(nuevoPlato.cantidad || 1);
             console.log(`✅ Plato nuevo agregado: ${platoCompleto.nombre} (id numérico: ${platoCompleto.id}, cantidad: ${nuevoPlato.cantidad || 1}, tipoServicio: ${platoAgregado.tipoServicio})`);
@@ -2433,6 +2435,7 @@ const actualizarComanda = async (comandaId, newData) => {
       }
       
       // Obtener los ids numéricos de los platos
+      const bolsaMenu = { listo: false, pecho: 0, pierna: 0 };
       for (let index = 0; index < newData.platos.length; index++) {
         const plato = newData.platos[index];
         if (!plato.plato) {
@@ -2465,7 +2468,7 @@ const actualizarComanda = async (comandaId, newData) => {
         if (plato.variantePlato || prev?.variantePlato) {
           plato.variantePlato = plato.variantePlato || prev.variantePlato;
         }
-        if (platoCompleto) snapshotNombreCocinaPedido(plato, platoCompleto);
+        if (platoCompleto) await marcarLineaMenu(plato, platoCompleto, (comanda && comanda.cantidades && comanda.cantidades[index]) || 1, bolsaMenu);
         if (platoCompleto) {
           plato.complementosSeleccionados = fusionarGuarnicionesPreseleccionadas(
             platoCompleto,

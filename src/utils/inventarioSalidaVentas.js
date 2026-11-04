@@ -197,6 +197,17 @@ function partirLeñaPorCorte(fila) {
     return out;
 }
 
+function rubroMenuDe(n) {
+    const es = (n.includes('caldo') && n.includes('pollo'))
+        || n.includes('arroz con pollo')
+        || n.includes('pollo a la olla')
+        || (n.includes('pollo') && n.includes('olla'));
+    if (!es) return '';
+    if (/(^| )pec$/.test(n)) return 'menu-pecho';
+    if (/(^| )pie$/.test(n)) return 'menu-pierna';
+    return 'menu-pecho';
+}
+
 function rubrosDeFila(fila, mapas, bebidas) {
     const partido = partirLeñaPorCorte(fila);
     if (partido) return partido;
@@ -240,7 +251,7 @@ function rubrosDeFila(fila, mapas, bebidas) {
     else if (n.includes('milanesa')) add('milanesa');
     else if (n.includes('chaufa') && n.includes('pollo')) add('chaufa-pollo');
     else if (n.includes('saltado') && n.includes('pollo')) add('salt-pollo');
-    else if (n.includes('pan con pollo')) add('menu');
+    else if (n.includes('pan con pollo') || (n.includes('sandwich') && n.includes('pollo'))) add('sandwiches');
     else if (n.includes('pollada')) add('pollada');
     else if (n.includes('tamal')) add('tamal');
     else if (bebidas && bebidas[n]) add(bebidas[n]);
@@ -265,6 +276,8 @@ function rubrosDeFila(fila, mapas, bebidas) {
     } else if (/\barroz\b/.test(n) && !n.includes('chaufa') && !lista.some((x) => x.rubro === 'arroz-blanco')) {
         add('arroz-blanco');
     }
+    const menu = rubroMenuDe(n);
+    if (menu && !lista.some((x) => x.rubro === menu)) add(menu);
     return lista;
 }
 
