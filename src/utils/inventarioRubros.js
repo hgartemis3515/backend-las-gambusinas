@@ -87,7 +87,7 @@ const KARDEX = [
 ];
 
 const PIEZAS = [
-    { clave: 'pachamanca-pollo', nombre: 'Pollo pachamanca' },
+    { clave: 'pachamanca-pollo', nombre: 'Pollo pachamanca pierna' },
     { clave: 'pachamanca-chancho', nombre: 'Cerdo pachamanca' },
     { clave: 'pachamanca-res', nombre: 'Carne Pachamanca' },
     { clave: 'pachamanca-cordero', nombre: 'Carnero pachamanca' },

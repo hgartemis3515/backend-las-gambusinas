@@ -18,7 +18,7 @@ const MAPA_SALIDA = {
     'panceta de chancho lena': { rubro: 'trozo-panceta', factor: 3 },
     'chancho a la lena': { rubro: 'trozo-panceta', factor: 4 },
     'chancho a la lena bbq': { rubro: 'trozo-panceta', factor: 6 },
-    'pollo de pachamanca': { rubro: 'pachamanca-pollo', factor: 1 },
+    'pollo de pachamanca': { rubro: 'pachamanca-pollo', factor: 1 }, // sabor Pollo: siempre Pollo pachamanca pierna
     'cerdo de pachamanca': { rubro: 'pachamanca-chancho', factor: 1 },
     'cerdo pachamanca': { rubro: 'pachamanca-chancho', factor: 1 },
     'res de pachamanca': { rubro: 'pachamanca-res', factor: 1 },

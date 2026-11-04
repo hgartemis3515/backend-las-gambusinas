@@ -2139,7 +2139,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="px-2.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-xs uppercase tracking-wide">Flujo Izquierda → Derecha</span>
           </div>
           <p class="text-xs text-[#a0a0b8]">
-            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca, Pecho leña y Sandwich</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Menú</span>.
+            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña, Sandwich y Menú pecho</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca pierna, Pierna a la leña, Pollada y Menú pierna</span>.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
@@ -2420,14 +2420,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </div>
                     </div>
 
-                    <!-- PECHO → POLLO PACHAMANCA, PECHO LEÑA, MIX LEÑA PECHO, MENÚ Y SANDWICH -->
+                    <!-- PECHO → PECHO LEÑA, MENÚ PECHO Y SANDWICH. Pollo pachamanca queda solo en pierna. -->
                     <div class="arbol-hijo ultimo" style="--c:#38bdf8" x-show="aderezosDeCorte('pechugas').length">
                       <i class="arbol-punta"></i>
                       <div class="cuadro-grupal-semantico cuadro-grupal-pechuga">
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-sky-500/30">
                           <div class="flex items-center gap-2">
                             <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase tracking-wider">CUADRO GRUPAL · PECHUGA</span>
-                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pollo pachamanca, Pecho leña y Sandwich</h4>
+                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pecho leña, Sandwich y Menú pecho</h4>
                           </div>
                           <span class="text-[11px] font-mono text-sky-200">
                             Pechugas en este grupo: <strong class="text-white" x-text="pechugasEnPlatosGrupo()"></strong> pzas
@@ -2532,7 +2532,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-emerald-500/30">
                           <div class="flex items-center gap-2">
                             <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase tracking-wider">CUADRO GRUPAL · PIERNA</span>
-                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pierna a la leña, Pollada y Menú</h4>
+                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pollo pachamanca pierna, Pierna a la leña, Pollada y Menú</h4>
                           </div>
                           <span class="text-[11px] font-mono text-emerald-200">
                             Piernas en este grupo: <strong class="text-white" x-text="piernasEnPlatosGrupo()"></strong> pzas
@@ -2544,6 +2544,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <div class="flex items-center justify-between gap-2">
                                 <div class="min-w-0">
                                   <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
+                                  <span x-show="ad.id === 'pollo_pachamanca'" class="text-[10px] text-emerald-200/90 block">Sabor Pollo de la pachamanca</span>
                                   <span class="text-[10px] text-emerald-300/80 font-mono">1 Pierna → 1 pza</span>
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
                                 </div>
@@ -3844,7 +3845,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <option value="Pecho a la Leña"></option>
               <option value="Pierna de Pollo"></option>
               <option value="Pollo leña"></option>
-              <option value="Pollo pachamanca"></option>
+              <option value="Pollo pachamanca pierna"></option>
               <option value="Pollada"></option>
               <option value="Menú"></option>
               <option value="Arroz crudo"></option>
@@ -5898,7 +5899,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               nombre: 'Pecho de Pollo',
               open: true,
               children: [
-                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', plato: true },
                 { id: 'pollo_lena', nombre: 'Pecho Leña', plato: true },
                 { id: 'mix_lena_pecho', nombre: 'Mix leña pecho', plato: true },
                 { id: 'sandwich', nombre: 'Sandwich', plato: true },
@@ -5924,6 +5924,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               nombre: 'Pierna de Pollo',
               open: true,
               children: [
+                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna', plato: true },
                 { id: 'pierna_lena', nombre: 'Pierna a la leña', plato: true },
                 { id: 'pollada', nombre: 'Pollada', alias: 'pollada-pierna', plato: true },
                 { id: 'menu_pierna', nombre: 'Menú pierna', plato: true },
@@ -6015,7 +6016,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorArrozMariscos: 4,
           aderezos: [
             { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: false },
-            { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna', aceptaPierna: true, aceptaPechuga: false },
             { id: 'pollo_lena', nombre: 'Pecho Leña', aceptaPierna: false, aceptaPechuga: true },
             { id: 'mix_lena_pecho', nombre: 'Mix leña pecho', aceptaPierna: false, aceptaPechuga: true },
             { id: 'milanesa', nombre: 'Milanesa de pollo', aceptaPierna: false, aceptaPechuga: false },
@@ -6038,7 +6039,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 11, rubro: 'Pecho a la Leña', plato: 'Mix a la leña', complemento: 'Parte pecho', cantidad: 1, unidadNota: 'pecho' },
             { id: 12, rubro: 'Pierna de Pollo', plato: '1/4 pollo a la leña', complemento: 'Parte pierna', cantidad: 1, unidadNota: 'pierna' },
             { id: 13, rubro: 'Pierna de Pollo', plato: 'Mix a la leña', complemento: 'Parte pierna', cantidad: 1, unidadNota: 'pierna' },
-            { id: 5, rubro: 'Pollo pachamanca', plato: 'Pachamanca 1 sabor', complemento: 'Opción Pollo (Sabores: Pollo, Chancho, Res)', cantidad: 1, unidadNota: 'pieza de Pollo pachamanca' },
+            { id: 5, rubro: 'Pollo pachamanca pierna', plato: 'Pachamanca 1 sabor', complemento: 'Sabor: Pollo', cantidad: 1, unidadNota: 'pieza de Pollo pachamanca pierna' },
             { id: 6, rubro: 'Papas', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'Guarnición: papa fritas', cantidad: 1, unidadNota: 'papa fritas' },
             { id: 7, rubro: 'Arroz pollo', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'Guarnición: arroz ya transformado', cantidad: '—', unidadNota: 'por completar' },
             { id: 8, rubro: 'Papas', plato: '1/4 pollo + papas fritas + ensalada', complemento: 'Guarnición: papa fritas', cantidad: 1, unidadNota: 'papa fritas' },
@@ -6195,7 +6196,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         relGroupOpen: {
           'Filete': true,
           'Pollo leña': true,
-          'Pollo pachamanca': true
+          'Pollo pachamanca pierna': true
         },
 
         countForm: {
@@ -6463,7 +6464,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 push(p, 'Pecho a la Leña', 1, 'pecho', 'Parte pecho');
                 push(p, 'Pierna de Pollo', 1, 'pierna', 'Parte pierna');
               }
-              else if (n.includes('pachamanca') && (n.includes('pollo') || c.includes('pollo'))) push(p, 'Pollo pachamanca', 1, 'pieza', 'Sabores: Pollo');
+              else if (n.includes('pachamanca') && (n.includes('pollo') || c.includes('pollo'))) push(p, 'Pollo pachamanca pierna', 1, 'pieza', 'Sabor: Pollo');
               else if (n.includes('chicharron de pollo a la bbq') || n.includes('chicharron de pollo bbq')) push(p, 'Chi. pollo a la BBQ', 1, 'pieza');
               else if (n.includes('acevichada') && n.includes('pollo')) push(p, 'Chi. pollo acevichada', 1, 'pieza');
               else if (n.includes('chicharron de pollo chico') || n.includes('chicharron pollo chico')) push(p, 'Chicharrón de pollo', 0.5, 'pieza');
@@ -7769,7 +7770,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             filas: pares.map((p) => fila(p[0], p[1])).filter(Boolean)
           });
           return [
-            cuadro('Pachamanca', [['pollo_pachamanca', 'Pollo pachamanca'], ['cerdo_pachamanca', 'Cerdo pachamanca'], ['carnero_pachamanca', 'Carnero pachamanca'], ['carne_pachamanca', 'Carne Pachamanca']]),
+            cuadro('Pachamanca', [['pollo_pachamanca', 'Pollo pachamanca pierna'], ['cerdo_pachamanca', 'Cerdo pachamanca'], ['carnero_pachamanca', 'Carnero pachamanca'], ['carne_pachamanca', 'Carne Pachamanca']]),
             cuadro('Pollo', [
               ['pollo_fresco', 'Pollo fresco'],
               ['pechuga', 'Pecho de Pollo'],
@@ -7826,7 +7827,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             ['pechuga', 'Pecho de Pollo'],
             ['filete', 'Filete Pollo Crudo'],
             ['pollada', 'Pollada'],
-            ['pollo_pachamanca', 'Pollo pachamanca'],
+            ['pollo_pachamanca', 'Pollo pachamanca pierna'],
             ['pollo_lena', 'Pecho a la Leña'],
             ['pierna_lena', 'Pierna a la leña'],
             ['milanesa', 'Milanesa de pollo'],
@@ -7921,7 +7922,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'pierna', grupo: 'pollo', nombre: 'Pierna de Pollo', detalle: 'Incluye pierna a la leña, pollada, 1/4 y mix de pierna', unidad: 'pza', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 10, destinoTrans: '→ Aderezos', inventario: null, crudo: 10, cocido: 0 },
             { id: 'pechuga', grupo: 'pollo', nombre: 'Pecho de Pollo', detalle: 'Venta: 1/4 leña pecho, arroz con pollo, caldo de pollo y pollo a la olla', unidad: 'pza', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 14, destinoTrans: '→ Filete', inventario: null, crudo: 6, cocido: 0 },
             { id: 'filete', grupo: 'pollo', nombre: 'Filete de pollo', detalle: 'Abarca milanesa, filete junior, chicharrón, chaufa y saltado', unidad: 'unid', saldoAnterior: 0, ingreso: 12, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 12, cocido: 0 },
-            { id: 'pollo_pachamanca', grupo: 'pollo', nombre: 'Pollo pachamanca', detalle: '4 piernas + 4 pechugas', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 8, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
+            { id: 'pollo_pachamanca', grupo: 'pollo', nombre: 'Pollo pachamanca pierna', detalle: 'Sale de pierna. El sabor Pollo de la pachamanca resta aquí', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 8, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
             { id: 'pollo_lena', grupo: 'pollo', nombre: 'Pecho a la Leña', detalle: '1/4 pollo a la leña (pecho) y Mix a la leña (pecho). El mix cuenta en la venta', unidad: 'pza', saldoAnterior: 0, ingreso: 1, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 1, cocido: 2 },
             { id: 'pierna_lena', grupo: 'pollo', nombre: 'Pierna a la leña', detalle: 'Pieza de pierna a la leña', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
             { id: 'pollada', grupo: 'pollo', nombre: 'Pollada', detalle: 'Si no hay cocido ni crudo, resta la pechuga fresca', unidad: 'pza', saldoAnterior: 0, ingreso: 2, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 2, cocido: 2 },
@@ -9957,19 +9958,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         aderezosDeCorte(corte) {
           const defs = corte === 'piernas'
             ? [
+                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna' },
                 { id: 'pierna_lena', nombre: 'Pierna a la leña' },
                 { id: 'pollada', nombre: 'Pollada' },
                 { id: 'menu_pierna', nombre: 'Menú pierna' }
               ]
             : [
-                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca' },
                 { id: 'pollo_lena', nombre: 'Pecho Leña' },
                 { id: 'sandwich', nombre: 'Sandwich' },
                 { id: 'menu_pecho', nombre: 'Menú pecho' }
               ];
           const porId = {};
           (this.config.aderezos || []).forEach((ad) => { porId[ad.id] = ad; });
-          return defs.map((d) => porId[d.id] || { id: d.id, nombre: d.nombre, aceptaPierna: corte === 'piernas', aceptaPechuga: corte !== 'piernas' });
+          return defs.map((d) => {
+            const ad = porId[d.id] || { id: d.id, nombre: d.nombre, aceptaPierna: corte === 'piernas', aceptaPechuga: corte !== 'piernas' };
+            if (d.id !== 'pollo_pachamanca') return ad;
+            return Object.assign({}, ad, { nombre: 'Pollo pachamanca pierna', aceptaPierna: true, aceptaPechuga: false });
+          });
         },
 
         pechugasEnPlatosGrupo() {
@@ -11064,7 +11069,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
                 { id: 'pierna-lena', nombre: 'Pierna a la leña', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: ['pierna leña'] },
                 { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
-                { id: 'pachamanca-pollo', nombre: 'Pollo pachamanca', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'pachamanca-pollo', nombre: 'Pollo pachamanca pierna', complemento: 'pollo', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: ['pollo de pachamanca'] },
                 { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] }
               ]
             },
@@ -11363,6 +11368,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           pieza.pierna_lena.nombre = 'Pierna a la leña';
           pieza.pierna_lena.aceptaPierna = true;
           pieza.pierna_lena.aceptaPechuga = false;
+          if (!pieza.pollo_pachamanca) {
+            pieza.pollo_pachamanca = { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna', aceptaPierna: true, aceptaPechuga: false };
+          }
+          pieza.pollo_pachamanca.nombre = 'Pollo pachamanca pierna';
+          pieza.pollo_pachamanca.aceptaPierna = true;
+          pieza.pollo_pachamanca.aceptaPechuga = false;
           const lista = Object.keys(pieza).map((k) => pieza[k]);
           if (lista.length) this.config.aderezos = lista;
           this.platosDelFilete().forEach((p) => {
