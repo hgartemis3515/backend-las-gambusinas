@@ -2300,6 +2300,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </div>
                       </div>
                     </div>
+                    <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pechuga" x-transition @click="abrirIngreso('pechuga')">Ingreso</button>
+                    <div class="ingreso-panel" x-show="ingresoAbierto.pechuga" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                        <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pechuga')">Cerrar</button>
+                      </div>
+                      <div class="mt-2 flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
+                        <button type="button" aria-label="Restar ingreso de pecho de pollo" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="moverIngresoDirecto('pechuga', -1)">−</button>
+                        <input type="number" min="0" aria-label="Ingreso de pecho de pollo" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :value="ingresoDirectoDe('pechuga')" @change="fijarIngresoDirecto('pechuga', $event.target.value)">
+                        <button type="button" aria-label="Sumar ingreso de pecho de pollo" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="moverIngresoDirecto('pechuga', 1)">+</button>
+                      </div>
+                    </div>
                   </div>
 
                   <div class="arbol-hijos" style="--rama:#38bdf8">
@@ -2480,6 +2492,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span class="text-white">Piernas libres:</span>
                           <span class="font-mono" :class="piernasLibres() < 0 ? 'text-amber-300' : 'text-emerald-300'" x-text="piernasLibres()"></span>
                         </div>
+                      </div>
+                    </div>
+                    <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pierna" x-transition @click="abrirIngreso('pierna')">Ingreso</button>
+                    <div class="ingreso-panel" x-show="ingresoAbierto.pierna" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                        <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pierna')">Cerrar</button>
+                      </div>
+                      <div class="mt-2 flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
+                        <button type="button" aria-label="Restar ingreso de pierna de pollo" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="moverIngresoDirecto('pierna', -1)">−</button>
+                        <input type="number" min="0" aria-label="Ingreso de pierna de pollo" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :value="ingresoDirectoDe('pierna')" @change="fijarIngresoDirecto('pierna', $event.target.value)">
+                        <button type="button" aria-label="Sumar ingreso de pierna de pollo" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="moverIngresoDirecto('pierna', 1)">+</button>
                       </div>
                     </div>
                   </div>
@@ -5980,6 +6004,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // Estado del cuadro Transformar
         despiece: {
           frescos: 10,
+          ingresoCorte: { pechuga: 0, pierna: 0 },
           piernasAFilete: 0,
           pechugasAFilete: 6,
           platosFilete: { filete_junior: 0, milanesa: 0 },
@@ -6250,6 +6275,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             r.detalle = '';
           });
           this.despiece.frescos = 0;
+          if (this.despiece.ingresoCorte) {
+            this.despiece.ingresoCorte.pechuga = 0;
+            this.despiece.ingresoCorte.pierna = 0;
+          }
           this.despiece.piernasAFilete = 0;
           this.despiece.pechugasAFilete = 0;
           this.despiece.platosFilete = { filete_junior: 0, milanesa: 0 };
@@ -7270,6 +7299,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             row.crudo = Number(crudo.baja) || 0;
             row.cocido = Number(cocido.baja) || 0;
           });
+          this.syncIngresoDirecto();
           this.eventos.forEach((ev) => {
             const partes = porClave[ev.clave] || [];
             if (!partes.length) return;
@@ -8275,8 +8305,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (parteFresco) {
             const fp = Number(this.config.factorPechugasPorFresco) || 2;
             const fl = Number(this.config.factorPiernasPorFresco) || 2;
-            if (pechuga) pechuga.ingreso = next * fp;
-            if (pierna) pierna.ingreso = next * fl;
+            if (pechuga) pechuga.ingreso = prevPechuga + (next - prevTrans) * fp;
+            if (pierna) pierna.ingreso = prevPierna + (next - prevTrans) * fl;
             row.transformacion = next;
             this.despiece.frescos = next;
           }
@@ -9398,6 +9428,69 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.ingresoAbierto = next;
         },
 
+        ingresoDirectoDe(rowId) {
+          const bolsa = this.despiece && this.despiece.ingresoCorte;
+          return Math.max(0, Number(bolsa && bolsa[rowId]) || 0);
+        },
+
+        syncIngresoDirecto() {
+          if (!this.despiece.ingresoCorte) this.despiece.ingresoCorte = { pechuga: 0, pierna: 0 };
+          ['pechuga', 'pierna'].forEach((id) => {
+            const clave = this.claveDeFila[id];
+            const suma = (this.movimientosPeriodo || []).reduce((a, m) => {
+              if (!m || m.rubro !== clave || m.clase !== 'ingreso') return a;
+              if (String(m.motivo || '') !== 'Ingreso directo') return a;
+              if ((m.tipoProducto || 'crudo') !== 'crudo') return a;
+              return a + (Number(m.cantidad) || 0);
+            }, 0);
+            this.despiece.ingresoCorte[id] = Math.max(0, suma);
+          });
+        },
+
+        async fijarIngresoDirecto(rowId, valor) {
+          const next = Math.max(0, parseInt(valor, 10) || 0);
+          await this.moverIngresoDirecto(rowId, next - this.ingresoDirectoDe(rowId));
+        },
+
+        async moverIngresoDirecto(rowId, delta) {
+          if (rowId !== 'pechuga' && rowId !== 'pierna') return;
+          const cambio = Math.round(Number(delta) || 0);
+          if (!cambio) return;
+          if (!this.despiece.ingresoCorte) this.despiece.ingresoCorte = { pechuga: 0, pierna: 0 };
+          const actual = this.ingresoDirectoDe(rowId);
+          const next = actual + cambio;
+          if (next < 0) return;
+          const auto = rowId === 'pierna' ? this.piernasObtenidas() : this.pechugasObtenidas();
+          const usadas = rowId === 'pierna' ? this.piernasUsadas() : this.pechugasUsadas();
+          if (auto + next < usadas) {
+            this.transformWarning = 'Aviso ámbar: ese ingreso ya está repartido. No puede quedar por debajo de lo transformado.';
+            return;
+          }
+          const row = this.filaReal(rowId);
+          const clave = this.claveDeFila[rowId];
+          if (!row || !clave) return;
+          this.transformWarning = '';
+          const prevIngreso = Number(row.ingreso) || 0;
+          this.despiece.ingresoCorte[rowId] = next;
+          row.ingreso = prevIngreso + cambio;
+          row.crudo = Math.max(0, this.calcSaldo(row));
+          this.pulseRowTotal(rowId);
+          try {
+            await this.paso(clave, 'crudo', cambio, 'Ingreso directo', 'ingreso', row.nombre);
+          } catch (e) {
+            this.despiece.ingresoCorte[rowId] = actual;
+            row.ingreso = prevIngreso;
+            row.crudo = Math.max(0, this.calcSaldo(row));
+            this.toastMessage = e.message || 'No se guardó el ingreso';
+            return;
+          }
+          try {
+            await this.cargarKardex();
+          } catch (e) {
+            this.toastMessage = e.message || 'El ingreso se guardó, pero la hoja no recargó';
+          }
+        },
+
         nudge(valor, delta) {
           return Math.max(0, (Number(valor) || 0) + delta);
         },
@@ -9548,10 +9641,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           let total = 0;
           let usado = 0;
           if (id === 'pechuga') {
-            total = this.pechugasObtenidas();
+            total = this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga');
             usado = this.pechugasUsadas();
           } else if (id === 'pierna') {
-            total = this.piernasObtenidas();
+            total = this.piernasObtenidas() + this.ingresoDirectoDe('pierna');
             usado = this.piernasUsadas();
           } else if (id === 'pechuga_pato' || id === 'pierna_pato') {
             total = this.origenMapa('pato-fresco') * 2;
@@ -9672,11 +9765,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         piernasLibres() {
-          return this.piernasObtenidas() - this.piernasUsadas();
+          return this.piernasObtenidas() + this.ingresoDirectoDe('pierna') - this.piernasUsadas();
         },
 
         pechugasLibres() {
-          return this.pechugasObtenidas() - this.pechugasUsadas();
+          return this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga') - this.pechugasUsadas();
         },
 
         setPollosFrescosConvertir(val) {
@@ -9684,7 +9777,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const nextPiernas = nextFrescos * Number(this.config.factorPiernasPorFresco || 2);
           const nextPechugas = nextFrescos * Number(this.config.factorPechugasPorFresco || 2);
 
-          if (nextPiernas < this.piernasUsadas() || nextPechugas < this.pechugasUsadas()) {
+          if (nextPiernas + this.ingresoDirectoDe('pierna') < this.piernasUsadas() || nextPechugas + this.ingresoDirectoDe('pechuga') < this.pechugasUsadas()) {
             this.transformWarning = 'No se puede bajar Pollos frescos por debajo de las piernas o pechugas ya repartidas (dejaría libres < 0).';
             return;
           }
@@ -9701,7 +9794,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const next = Math.max(0, parseInt(val, 10) || 0);
           const diff = next - Number(this.despiece.piernasAFilete || 0);
           if (this.piernasLibres() - diff < 0) {
-            this.transformWarning = 'Aviso ámbar: No puedes repartir más piernas de las disponibles (' + this.piernasObtenidas() + '). Piernas libres no puede quedar en negativo.';
+            this.transformWarning = 'Aviso ámbar: No puedes repartir más piernas de las disponibles (' + (this.piernasObtenidas() + this.ingresoDirectoDe('pierna')) + '). Piernas libres no puede quedar en negativo.';
             return;
           }
           this.transformWarning = '';
@@ -9713,7 +9806,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const next = Math.max(0, parseInt(val, 10) || 0);
           const diff = next - Number(this.despiece.pechugasAFilete || 0);
           if (this.pechugasLibres() - diff < 0) {
-            this.transformWarning = 'Aviso ámbar: No puedes repartir más pechugas de las disponibles (' + this.pechugasObtenidas() + '). Pechugas libres no puede quedar en negativo.';
+            this.transformWarning = 'Aviso ámbar: No puedes repartir más pechugas de las disponibles (' + (this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga')) + '). Pechugas libres no puede quedar en negativo.';
             return;
           }
           this.transformWarning = '';
@@ -9756,14 +9849,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.pulseRowTotal('pollo_fresco');
 
           const rPierna = this.getRow('pierna');
-          rPierna.ingreso = this.piernasObtenidas();
+          rPierna.ingreso = this.piernasObtenidas() + this.ingresoDirectoDe('pierna');
           rPierna.transformacion = this.piernasUsadas();
           rPierna.crudo = this.calcSaldo(rPierna);
           rPierna.cocido = 0;
           this.pulseRowTotal('pierna');
 
           const rPechuga = this.getRow('pechuga');
-          rPechuga.ingreso = this.pechugasObtenidas();
+          rPechuga.ingreso = this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga');
           rPechuga.transformacion = this.pechugasUsadas();
           rPechuga.crudo = this.calcSaldo(rPechuga);
           rPechuga.cocido = 0;
