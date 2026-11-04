@@ -1604,7 +1604,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <template x-for="tipo in tiposDe(row)" :key="row.id + '-ven-' + tipo">
                             <div class="flex items-center gap-1">
                               <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                              <span class="text-rose-200 font-semibold" x-text="formatNum(row.tieneCocido ? ventaColumnaTipo(row, tipo) : ventaColumna(row))"></span>
+                              <span class="text-rose-200 font-semibold" :title="tituloVentaColumna(row)" x-text="formatNum(row.tieneCocido ? ventaColumnaTipo(row, tipo) : ventaColumna(row))"></span>
                             </div>
                           </template>
                         </div>
@@ -1900,7 +1900,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <template x-for="tipo in tiposDe(row)" :key="row.id + '-ven-' + tipo">
                             <div class="flex items-center gap-1">
                               <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                              <span class="text-rose-200 font-semibold" x-text="formatNum(row.tieneCocido ? ventaColumnaTipo(row, tipo) : ventaColumna(row))"></span>
+                              <span class="text-rose-200 font-semibold" :title="tituloVentaColumna(row)" x-text="formatNum(row.tieneCocido ? ventaColumnaTipo(row, tipo) : ventaColumna(row))"></span>
                             </div>
                           </template>
                         </div>
@@ -5607,8 +5607,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <!-- Mensaje claro cuando el producto es de ingreso directo o no tiene sub-cortes -->
             <template x-if="!transformacionInfo.destinos || transformacionInfo.destinos.length === 0">
               <div class="flex-1 w-full bg-[#14141f] border border-[#26263a] rounded-2xl p-5 text-center space-y-3 lg:ml-4">
-                <p class="text-sm font-bold text-white">Este producto no se divide en sub-cortes adicionales</p>
-                <p class="text-xs text-[#a0a0b8]" x-text="transformacionInfo.mensajeSinDestino || 'Su stock se controla directamente en su fila de Inventario Tabla.'"></p>
+                <p class="text-sm font-bold text-white" x-text="transformacionInfo.mensajeSinDestino || 'Este producto no se divide en sub-cortes adicionales'"></p>
+                <p class="text-xs text-[#a0a0b8]" x-show="!transformacionInfo.mensajeSinDestino">Su stock se controla directamente en su fila de Inventario Tabla.</p>
                 <div>
                   <button
                     type="button"
@@ -5779,7 +5779,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[#a0a0b8]" x-text="p.nombre"></span>
                 <span class="font-mono text-xs">
                   <span class="text-emerald-300" x-text="'Crudo ' + formatNum(p.crudo)"></span>
+                  <span x-show="p.ventaCrudo" class="text-rose-300 ml-1" x-text="'(venta −' + formatNum(p.ventaCrudo) + ')'"></span>
                   <span x-show="p.tieneCocido" class="text-[#d4af37] ml-2" x-text="'Cocido ' + formatNum(p.cocido)"></span>
+                  <span x-show="p.ventaCocido" class="text-rose-300 ml-1" x-text="'(venta −' + formatNum(p.ventaCocido) + ')'"></span>
                 </span>
               </div>
             </template>
@@ -6236,6 +6238,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           mix_lena_pecho: 'pollo-lena',
           sandwich: 'sandwiches',
           pierna_lena: 'pierna-lena',
+          pollada: 'pollada',
           menu: 'menu',
           menu_pecho: 'menu-pecho',
           menu_pierna: 'menu-pierna',
@@ -8358,6 +8361,31 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return propio + this.ventaDePlatos(row);
         },
 
+        detalleVentasPlatos(row) {
+          const propio = row && this.claveDeFila[row.id];
+          const claves = new Set(this.clavesVentaDe(row));
+          const map = {};
+          (this.ventasPeriodo || []).forEach((v) => {
+            const rubro = v && (v.rubro || v.plato);
+            if (!rubro || v.sinSaldo || rubro === propio || !claves.has(rubro)) return;
+            const tipo = v.tipoProducto === 'crudo' ? 'crudo' : 'cocido';
+            const key = rubro + '|' + tipo;
+            if (!map[key]) {
+              const fila = this.filaPorClave(rubro);
+              map[key] = { rubro: rubro, tipo: tipo, cantidad: 0, nombre: (fila && fila.nombre) || v.nombre || rubro };
+            }
+            map[key].cantidad += Number(v.cantidad) || 0;
+          });
+          return Object.keys(map).map((key) => map[key]).filter((p) => p.cantidad > 0);
+        },
+
+        tituloVentaColumna(row) {
+          const partes = this.detalleVentasPlatos(row);
+          if (!partes.length) return 'Viene de comandas';
+          const texto = partes.map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
+          return 'Estas ventas no restan la pieza suelta. Primero el cocido del plato, después el crudo y al final este producto. ' + texto;
+        },
+
         calcDiferencia(row) {
           const tipos = this.tiposDe(row).filter((t) => this.conteoTipo(row, t) !== null);
           if (!tipos.length) return null;
@@ -8679,17 +8707,31 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               cantidad: m.clase === 'egreso' ? -Math.abs(Number(m.cantidad) || 0) : (Number(m.cantidad) || 0),
               auditor: m.usuario || ''
             }));
-            const ventas = (k.ventas || []).filter((v) => (v.rubro || v.plato) === clave).map((v, i) => ({
-              id: 'venta-' + i + '-' + (v.fecha || ''),
-              t: new Date(v.fecha).getTime(),
-              fecha: v.fecha,
-              claseBase: 'egreso',
-              clase: 'venta',
-              tipoProducto: v.tipoProducto === 'crudo' ? 'crudo' : 'cocido',
-              motivo: v.nombre || v.motivo || 'Venta de comandas',
-              cantidad: -Math.abs(Number(v.cantidad) || 0),
-              auditor: 'Comandas'
-            }));
+            const clavesGrupo = new Set(this.clavesVentaDe(row));
+            const ventas = (k.ventas || []).filter((v) => {
+              const rubro = v && (v.rubro || v.plato);
+              if (!rubro || v.sinSaldo) return false;
+              return rubro === clave || clavesGrupo.has(rubro);
+            }).map((v, i) => {
+              const rubro = v.rubro || v.plato;
+              const delPlato = rubro !== clave;
+              const fila = delPlato ? this.filaPorClave(rubro) : null;
+              const plato = (fila && fila.nombre) || v.nombre || rubro;
+              const detalle = Array.isArray(v.detalle) && v.detalle[0] && v.detalle[0].nombre ? v.detalle[0].nombre : '';
+              return {
+                id: 'venta-' + i + '-' + (v.fecha || ''),
+                t: new Date(v.fecha).getTime(),
+                fecha: v.fecha,
+                claseBase: 'egreso',
+                clase: 'venta',
+                tipoProducto: v.tipoProducto === 'crudo' ? 'crudo' : 'cocido',
+                motivo: delPlato ? (plato + (detalle && detalle !== plato ? (' · ' + detalle) : '')) : (v.nombre || v.motivo || 'Venta de comandas'),
+                cantidad: -Math.abs(Number(v.cantidad) || 0),
+                auditor: 'Comandas',
+                rubro: rubro,
+                fueraDeSaldo: delPlato
+              };
+            });
             const saldo = {};
             (k.filas || []).forEach((f) => {
               if ((f.rubro || f.plato) === clave) saldo[f.tipoProducto] = Number(f.saldoInicial) || 0;
@@ -8697,9 +8739,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const lista = guardados.concat(ventas).sort((a, b) => a.t - b.t);
             lista.forEach((m) => {
               const tipo = m.tipoProducto;
-              const base = Number(saldo[tipo]) || 0;
-              saldo[tipo] = m.claseBase === 'inventario' ? m.cantidad : base + m.cantidad;
-              m.saldoResultante = saldo[tipo];
+              if (m.fueraDeSaldo) {
+                const fila = this.filaPorClave(m.rubro);
+                m.saldoResultante = fila ? this.calcSaldoTipo(fila, tipo) : null;
+              } else {
+                const base = Number(saldo[tipo]) || 0;
+                saldo[tipo] = m.claseBase === 'inventario' ? m.cantidad : base + m.cantidad;
+                m.saldoResultante = saldo[tipo];
+              }
               m.periodoTag = this.periodoDeMovimiento(m.fecha);
               m.fecha = this.fmtFecha(m.fecha);
             });
@@ -9141,6 +9188,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return (n.includes('mix') || n.includes('mixto')) && n.includes('lena');
         },
 
+        esPlatoRepetidoDeLena(nodo) {
+          const id = String(nodo && nodo.id || '');
+          const nombre = this.norm(nodo && nodo.nombre || '');
+          if (id === 'cuarto_lena_pierna' || id === 'mix_lena_pierna' || id === 'cuarto_lena_pecho' || id === 'mix_lena_pecho') return true;
+          if ((nombre.includes('1/4') || nombre.includes('cuarto')) && nombre.includes('lena')) return true;
+          return this.esMixLena(id, nodo && nodo.nombre);
+        },
+
         cortesDeFresco() {
           const pecho = Number(this.config.factorPechugasPorFresco) || 2;
           const pierna = Number(this.config.factorPiernasPorFresco) || 2;
@@ -9170,19 +9225,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         detallePlatosDe(row) {
           if (!row) return [];
-          return this.platosOcultosDe(row.id).filter((n) => !this.esMixLena(n.id, n.nombre)).map((n) => {
+          return this.platosOcultosDe(row.id).filter((n) => !this.esPlatoRepetidoDeLena(n)).map((n) => {
             const hijo = this.filaReal(n.id);
             const venta = hijo ? this.tiposDe(hijo).reduce((a, t) => a + Math.max(0, this.valorTipo(hijo, 'venta', t)), 0) : 0;
             const transforma = this.platoConTransformacion(row.id, n.id);
+            const tieneCocido = !!(transforma && hijo && hijo.tieneCocido);
             return {
               id: n.id,
               nombre: n.nombre,
               transforma: transforma,
-              tieneCocido: !!(transforma && hijo && hijo.tieneCocido),
+              tieneCocido: tieneCocido,
               venta: venta,
               uso: venta * this.factorUsoPlato(row.id, n.id),
-              crudo: hijo ? Math.max(0, this.calcSaldoTipo(hijo, 'crudo')) : 0,
-              cocido: hijo && hijo.tieneCocido ? Math.max(0, this.calcSaldoTipo(hijo, 'cocido')) : 0
+              crudo: this.stockPlatoTransformar(n.id, 'crudo'),
+              cocido: tieneCocido ? this.stockPlatoTransformar(n.id, 'cocido') : 0
             };
           }).sort((a, b) => (b.crudo + b.cocido + b.venta) - (a.crudo + a.cocido + a.venta) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
         },
@@ -9408,6 +9464,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const vtaCrudo = (Number(this.valorTipo(row, 'venta', 'crudo')) || 0);
           const vtaCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'venta', 'cocido')) || 0) : 0;
           const ventas = vtaCrudo + vtaCocido;
+          const ventasPlatos = this.detalleVentasPlatos(row);
+          const textoVentasPlatos = ventasPlatos.map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
 
           const transCrudo = (Number(this.valorTipo(row, 'transformacion', 'crudo')) || 0);
           const transCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'transformacion', 'cocido')) || 0) : 0;
@@ -9466,9 +9524,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               tipo: 'resta',
               icono: '↓',
               titulo: '4. Resta por Ventas (Comandas / Manual)',
-              etiquetaAccion: ventas > 0 ? '− RESTA POR VENTAS' : 'SIN VENTAS (0)',
-              explicacion: ventas > 0 ? ('Se descontaron −' + this.formatNum(ventas) + ' ' + (row.unidad || 'unid') + ' por platos vendidos en comandas o venta manual.') : 'Sin salidas por ventas registradas en el período.',
-              desgloseTipos: row.tieneCocido ? ('Crudo: −' + this.formatNum(vtaCrudo) + ' · Cocido: −' + this.formatNum(vtaCocido)) : '',
+              etiquetaAccion: ventas > 0 ? '− RESTA POR VENTAS' : (textoVentasPlatos ? 'RESTA EN LOS PLATOS' : 'SIN VENTAS (0)'),
+              explicacion: ventas > 0
+                ? ('Se descontaron −' + this.formatNum(ventas) + ' ' + (row.unidad || 'unid') + ' de esta pieza. Primero se usa el cocido del plato, si no alcanza el crudo y al final esta pieza.')
+                : (textoVentasPlatos
+                  ? ('La pieza suelta no se restó. La venta salió del cocido del plato: ' + textoVentasPlatos + '.')
+                  : 'Sin salidas por ventas registradas en el período.'),
+              desgloseTipos: textoVentasPlatos || (row.tieneCocido ? ('Crudo: −' + this.formatNum(vtaCrudo) + ' · Cocido: −' + this.formatNum(vtaCocido)) : ''),
               valorFormateado: '−' + this.formatNum(ventas)
             },
             {
@@ -9535,9 +9597,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 nombre: (hijo && hijo.nombre) || n.nombre,
                 tieneCocido: !!(hijo && hijo.tieneCocido),
                 crudo: crudo,
-                cocido: cocido
+                cocido: cocido,
+                ventaCrudo: hijo ? this.ventaNetaTipo(hijo, 'crudo') : 0,
+                ventaCocido: hijo && hijo.tieneCocido ? this.ventaNetaTipo(hijo, 'cocido') : 0
               };
-            }).filter((p) => p.crudo || p.cocido),
+            }).filter((p) => p.crudo || p.cocido || p.ventaCrudo || p.ventaCocido),
             estadoTexto: this.estadoFila(row),
             puntoEstado: this.clasePuntoEstado(row),
             pasos
@@ -9593,6 +9657,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             mensajeSinDestino: ''
           };
 
+          const cantidadGuardadaEn = (rowId) => {
+            const hijo = this.filaReal(rowId);
+            if (!hijo) return 0;
+            const ingreso = this.tiposDe(hijo).reduce((a, t) => a + Math.max(0, this.valorTipo(hijo, 'ingreso', t)), 0);
+            if (ingreso > 0) return ingreso;
+            return this.tiposDe(hijo).reduce((a, t) => a + Math.max(0, this.calcSaldoTipo(hijo, t)), 0);
+          };
+          const cantidadTransformadaEn = (rowId, delMapa) => {
+            const mapa = Number(delMapa) || 0;
+            return mapa > 0 ? mapa : cantidadGuardadaEn(rowId);
+          };
+
           const makeDest = (destRowId, factorTexto, usadoDelOrigen, generado, color, tieneSub = false, detalleQueda = '') => {
             const rDest = this.getRow(destRowId);
             const transHijo = this.totalTransformacionFila(rDest);
@@ -9632,7 +9708,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               makeDest('filete', '1 Pecho → ' + fFil + ' Filetes', pechAFi, pechAFi * fFil, 'gold', true, pechAFi + ' pechos produjeron ' + (pechAFi * fFil) + ' filetes')
             );
             this.aderezosDeCorte('pechugas').forEach((ad) => {
-              const usadas = Number(this.despiece.aderezos?.[ad.id]?.pechugas) || 0;
+              const usadas = cantidadTransformadaEn(ad.id, this.despiece.aderezos?.[ad.id]?.pechugas);
               info.destinos.push(
                 makeDest(ad.id, '1 Pechuga → 1 pza', usadas, usadas, 'sky', false, 'Recibió ' + usadas + ' pechuga(s)')
               );
@@ -9649,7 +9725,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               );
             }
             this.aderezosDeCorte('piernas').forEach((ad) => {
-              const usadas = Number(this.despiece.aderezos?.[ad.id]?.piernas) || 0;
+              const usadas = cantidadTransformadaEn(ad.id, this.despiece.aderezos?.[ad.id]?.piernas);
               info.destinos.push(
                 makeDest(ad.id, '1 Pierna → 1 pza', usadas, usadas, 'emerald', false, 'Recibió ' + usadas + ' pierna(s)')
               );
@@ -9661,7 +9737,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.platosDelFilete().forEach((plato) => {
               const rowId = this.filaIdDePlatoTransformar(plato.id);
               if (!rowId) return;
-              const cant = Number(this.despiece.platosFilete?.[plato.id] ?? this.despiece.platosFilete?.[rowId]) || 0;
+              const delMapa = Number(this.despiece.platosFilete?.[plato.id] ?? this.despiece.platosFilete?.[rowId]) || 0;
+              const cant = cantidadTransformadaEn(rowId, delMapa);
               if (!(cant > 0)) return;
               const factor = Number(plato.cantidad) || 1;
               info.destinos.push(
@@ -10271,7 +10348,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
           this.volcarMapasDinamicosEnFilas();
 
-          this.aderezosSinFiletes().forEach(ad => {
+          const vistosAd = new Set();
+          const aderezosAVolcar = [];
+          this.aderezosSinFiletes().concat(this.aderezosDeCorte('piernas'), this.aderezosDeCorte('pechugas')).forEach((ad) => {
+            if (!ad || !ad.id || vistosAd.has(ad.id)) return;
+            vistosAd.add(ad.id);
+            aderezosAVolcar.push(ad);
+          });
+          aderezosAVolcar.forEach(ad => {
             let row = this.rows.find(r => r.id === ad.id);
             const p = Number(this.despiece.aderezos[ad.id]?.piernas || 0);
             const pech = Number(this.despiece.aderezos[ad.id]?.pechugas || 0);
@@ -10457,10 +10541,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!clave || !cant) return;
             piezas[clave] = (piezas[clave] || 0) + cant;
           };
-          this.aderezosSinFiletes().forEach((ad) => {
-            const a = this.despiece.aderezos[ad.id] || {};
-            sumar(this.claveDeFila[ad.id], (Number(a.piernas) || 0) + (Number(a.pechugas) || 0));
-          });
+          const vistosPieza = new Set();
+          this.aderezosSinFiletes()
+            .concat(this.aderezosDeCorte('piernas'), this.aderezosDeCorte('pechugas'))
+            .forEach((ad) => {
+              if (!ad || !ad.id || vistosPieza.has(ad.id)) return;
+              vistosPieza.add(ad.id);
+              const a = this.despiece.aderezos[ad.id] || {};
+              sumar(this.claveDeFila[ad.id] || ad.id, (Number(a.piernas) || 0) + (Number(a.pechugas) || 0));
+            });
           this.platosDelFilete().forEach((plato) => {
             const rowId = this.filaIdDePlatoTransformar(plato.id);
             const cant = Number(this.despiece.platosFilete && this.despiece.platosFilete[plato.id] || 0);
@@ -11003,10 +11092,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         stockPlatoTransformar(idOrClave, tipo) {
-          const rowId = this.filaIdDePlatoTransformar(idOrClave);
+          const rowId = this.filaIdDePlatoTransformar(idOrClave) || String(idOrClave || '');
           const row = rowId ? this.filaReal(rowId) : null;
-          if (!row) return 0;
-          return Math.max(0, this.calcSaldoTipo(row, tipo === 'cocido' ? 'cocido' : 'crudo'));
+          const delRow = row ? Math.max(0, this.calcSaldoTipo(row, tipo === 'cocido' ? 'cocido' : 'crudo')) : 0;
+          const ad = this.despiece && this.despiece.aderezos && this.despiece.aderezos[rowId];
+          const totalMapa = ad ? (Number(ad.piernas) || 0) + (Number(ad.pechugas) || 0) : 0;
+          const pase = Math.min(totalMapa, Math.max(0, Number(this.despiece && this.despiece.paseCocido && this.despiece.paseCocido[rowId] || 0)));
+          const delMapa = tipo === 'cocido' ? pase : Math.max(0, totalMapa - pase);
+          return Math.max(delRow, delMapa);
         },
 
         tienePaseCocido(idOrClave) {
@@ -11459,6 +11552,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
           if (!pieza.pierna_lena) {
             pieza.pierna_lena = { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false };
+          }
+          if (!pieza.pollada) {
+            pieza.pollada = { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: false };
           }
           if (!pieza.pollo_lena) {
             pieza.pollo_lena = { id: 'pollo_lena', nombre: 'Pecho a la Leña', aceptaPierna: false, aceptaPechuga: true };
