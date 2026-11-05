@@ -1500,16 +1500,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-col items-end gap-1 py-0.5">
                           <div class="flex items-center gap-1.5">
                             <span class="text-[9px] font-bold text-emerald-400 font-sans tracking-wide">Crudo</span>
-                            <span class="num-mono font-medium text-purple-200" x-text="formatNum(valorTipo(row, 'saldoAnterior', 'crudo'))"></span>
+                            <span class="num-mono font-medium text-purple-200" x-text="formatNum(saldoAnteriorColumnaTipo(row, 'crudo'))"></span>
                           </div>
                           <div class="flex items-center gap-1.5">
                             <span class="text-[9px] font-bold text-[#d4af37] font-sans tracking-wide">Cocido</span>
-                            <span class="num-mono font-medium text-amber-200" x-text="formatNum(valorTipo(row, 'saldoAnterior', 'cocido'))"></span>
+                            <span class="num-mono font-medium text-amber-200" x-text="formatNum(saldoAnteriorColumnaTipo(row, 'cocido'))"></span>
                           </div>
                         </div>
                       </template>
                       <template x-if="!row.tieneCocido">
-                        <span x-text="formatNum(row.saldoAnterior)"></span>
+                        <span x-text="formatNum(saldoAnteriorColumna(row))"></span>
                       </template>
                     </td>
 
@@ -1552,14 +1552,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="ingreso-total-stack text-xs">
                           <div class="ingreso-total-linea text-[11px]">
                             <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                            <span class="num-mono font-semibold text-cyan-200" x-text="formatNum(calcIngresoTotalTipo(row, 'crudo'))"></span>
+                            <span class="num-mono font-semibold text-cyan-200" x-text="formatNum(ingresoTotalColumnaTipo(row, 'crudo'))"></span>
                           </div>
                           <div class="ingreso-total-linea text-[11px]">
                             <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                            <span class="num-mono font-semibold text-cyan-300" x-text="formatNum(calcIngresoTotalTipo(row, 'cocido'))"></span>
+                            <span class="num-mono font-semibold text-cyan-300" x-text="formatNum(ingresoTotalColumnaTipo(row, 'cocido'))"></span>
                           </div>
                           <div class="ingreso-total-numero">
-                            <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                            <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(ingresoTotalColumna(row))"></span>
                             <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                             <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
                               <span
@@ -1578,7 +1578,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </template>
                       <template x-if="!row.tieneCocido">
                         <div class="ingreso-total-numero">
-                          <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                          <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(ingresoTotalColumna(row))"></span>
                             <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                           <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
                             <span
@@ -1796,16 +1796,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-col items-end gap-1 py-0.5">
                           <div class="flex items-center gap-1.5">
                             <span class="text-[9px] font-bold text-emerald-400 font-sans tracking-wide">Crudo</span>
-                            <span class="num-mono font-medium text-purple-200" x-text="formatNum(valorTipo(row, 'saldoAnterior', 'crudo'))"></span>
+                            <span class="num-mono font-medium text-purple-200" x-text="formatNum(saldoAnteriorColumnaTipo(row, 'crudo'))"></span>
                           </div>
                           <div class="flex items-center gap-1.5">
                             <span class="text-[9px] font-bold text-[#d4af37] font-sans tracking-wide">Cocido</span>
-                            <span class="num-mono font-medium text-amber-200" x-text="formatNum(valorTipo(row, 'saldoAnterior', 'cocido'))"></span>
+                            <span class="num-mono font-medium text-amber-200" x-text="formatNum(saldoAnteriorColumnaTipo(row, 'cocido'))"></span>
                           </div>
                         </div>
                       </template>
                       <template x-if="!row.tieneCocido">
-                        <span x-text="formatNum(row.saldoAnterior)"></span>
+                        <span x-text="formatNum(saldoAnteriorColumna(row))"></span>
                       </template>
                     </td>
 
@@ -1848,14 +1848,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="ingreso-total-stack text-xs">
                           <div class="ingreso-total-linea text-[11px]">
                             <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                            <span class="num-mono font-semibold text-cyan-200" x-text="formatNum(calcIngresoTotalTipo(row, 'crudo'))"></span>
+                            <span class="num-mono font-semibold text-cyan-200" x-text="formatNum(ingresoTotalColumnaTipo(row, 'crudo'))"></span>
                           </div>
                           <div class="ingreso-total-linea text-[11px]">
                             <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                            <span class="num-mono font-semibold text-cyan-300" x-text="formatNum(calcIngresoTotalTipo(row, 'cocido'))"></span>
+                            <span class="num-mono font-semibold text-cyan-300" x-text="formatNum(ingresoTotalColumnaTipo(row, 'cocido'))"></span>
                           </div>
                           <div class="ingreso-total-numero">
-                            <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                            <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(ingresoTotalColumna(row))"></span>
                             <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                             <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
                               <span
@@ -1874,7 +1874,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </template>
                       <template x-if="!row.tieneCocido">
                         <div class="ingreso-total-numero">
-                          <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(calcIngresoTotal(row))"></span>
+                          <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(ingresoTotalColumna(row))"></span>
                             <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                           <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
                             <span
@@ -8381,6 +8381,47 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return ((nodo && nodo.children) || []).filter((ch) => ch && ch.plato);
         },
 
+        filasTransformacionDe(row) {
+          if (!row) return [];
+          const clavePadre = this.claveDeFila[row.id];
+          const vistos = new Set();
+          const out = [];
+          this.platosDirectosDe(row.id).forEach((n) => {
+            if (this.esPlatoRepetidoDeLena(n)) return;
+            const hijo = this.filaReal(n.id);
+            if (!hijo || hijo.id === row.id) return;
+            const clave = this.claveDeFila[hijo.id];
+            if (clave && clavePadre && clave === clavePadre) return;
+            const marca = clave || hijo.id;
+            if (vistos.has(marca)) return;
+            vistos.add(marca);
+            out.push(hijo);
+          });
+          return out;
+        },
+
+        sumaDeTransformaciones(row, leer) {
+          return this.filasTransformacionDe(row).reduce((a, hijo) => a + leer(hijo), 0);
+        },
+
+        saldoAnteriorColumnaTipo(row, tipo) {
+          return this.valorTipo(row, 'saldoAnterior', tipo) + this.sumaDeTransformaciones(row, (hijo) => this.valorTipo(hijo, 'saldoAnterior', tipo));
+        },
+
+        saldoAnteriorColumna(row) {
+          const propio = this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'saldoAnterior', t), 0);
+          return propio + this.sumaDeTransformaciones(row, (hijo) => this.tiposDe(hijo).reduce((s, t) => s + this.valorTipo(hijo, 'saldoAnterior', t), 0));
+        },
+
+        ingresoTotalColumnaTipo(row, tipo) {
+          return this.calcIngresoTotalTipo(row, tipo) + this.sumaDeTransformaciones(row, (hijo) => this.calcIngresoTotalTipo(hijo, tipo));
+        },
+
+        ingresoTotalColumna(row) {
+          const propio = this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0);
+          return propio + this.sumaDeTransformaciones(row, (hijo) => this.tiposDe(hijo).reduce((s, t) => s + this.calcIngresoTotalTipo(hijo, t), 0));
+        },
+
         saldoDePlatos(row, real) {
           return this.platosDirectosDe(row && row.id).reduce((a, n) => {
             const hijo = this.filaReal(n.id);
@@ -9170,7 +9211,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
           this.rows.forEach(row => {
             const grupoLabel = this.getGroupName(row.grupo);
-            const ingresoTotal = this.calcIngresoTotal(row);
+            const ingresoTotal = this.ingresoTotalColumna(row);
             const saldo = this.saldoColumna(row);
             const tieneConteo = row.inventario !== null && row.inventario !== '';
             const saldoReal = this.saldoRealColumna(row);
@@ -9181,7 +9222,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               grupoLabel,
               row.nombre,
               row.unidad,
-              row.saldoAnterior,
+              this.saldoAnteriorColumna(row),
               row.ingreso,
               row.correccion,
               ingresoTotal,
