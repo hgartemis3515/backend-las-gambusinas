@@ -3109,7 +3109,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen</span>
                 <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('carnero')))"></strong></span>
               </div>
-              <span class="text-sm font-bold text-white block">Carnero crudo</span>
+              <span class="text-sm font-bold text-white block">Carnero Crudo</span>
               <p class="text-[11px] text-[#a0a0b8]">Salen a pachamanca</p>
               <div class="inline-flex items-center gap-0.5">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('carneroSalen', -1)">−</button>
@@ -3137,7 +3137,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="flex-1 cuadro-grupal-semantico">
               <div class="flex items-center justify-between gap-2 mb-1">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CARNERO</span>
-                <span class="text-[11px] text-[#d4af37] font-mono">1 Carnero = <span x-text="config.factorCarneroPachamanca || 1"></span> Pachamanca</span>
+                <span class="text-[11px] text-[#d4af37] font-mono">1 Carnero Crudo = <span x-text="config.factorCarneroPachamanca || 1"></span> Pachamanca</span>
               </div>
               <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
                 <div class="flex items-center justify-between gap-2">
@@ -4850,7 +4850,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3">
               <h3 class="sec-title text-sm">Carnero</h3>
               <div class="flex items-center justify-between text-sm bg-[#0a0a0f] p-3 rounded-lg border border-[#26263a]">
-                <span class="text-white font-medium">1 Carnero → Carnero pachamanca:</span>
+                <span class="text-white font-medium">1 Carnero Crudo → Carnero pachamanca:</span>
                 <input
                   type="number"
                   min="1"
@@ -5982,7 +5982,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           },
           carnero: {
             id: 'carnero',
-            nombre: 'Carnero',
+            nombre: 'Carnero Crudo',
             open: true,
             children: [
               { id: 'carnero_pachamanca', nombre: 'Carnero pachamanca' }
@@ -6068,10 +6068,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 9, rubro: 'Tamal', plato: 'Tamal', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'tamal' },
             { id: 14, rubro: 'Humita', plato: 'Humita', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'humita' },
             { id: 19, rubro: 'Carne Bistec', plato: 'Bistec', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'bistec' },
-            { id: 15, rubro: 'Humita', plato: 'Pachamanca 1 sabor', complemento: '1 por plato, no por sabor', cantidad: 1, unidadNota: 'humita' },
-            { id: 16, rubro: 'Humita', plato: 'Pachamanca 2 sabores', complemento: '1 por plato, no por sabor', cantidad: 1, unidadNota: 'humita' },
-            { id: 17, rubro: 'Humita', plato: 'Pachamanca 3 sabores', complemento: '1 por plato, no por sabor', cantidad: 1, unidadNota: 'humita' },
-            { id: 18, rubro: 'Humita', plato: 'Pachamanca 4 sabores', complemento: '1 por plato, no por sabor', cantidad: 1, unidadNota: 'humita' },
+            { id: 15, rubro: 'Humita', plato: 'Pachamanca 1 sabor', complemento: '1 humita, da igual la pieza', cantidad: 1, unidadNota: 'humita' },
+            { id: 16, rubro: 'Humita', plato: 'Pachamanca 2 sabores', complemento: '2 humitas, da igual la pieza', cantidad: 2, unidadNota: 'humita' },
+            { id: 17, rubro: 'Humita', plato: 'Pachamanca 3 sabores', complemento: '3 humitas, da igual la pieza', cantidad: 3, unidadNota: 'humita' },
+            { id: 18, rubro: 'Humita', plato: 'Pachamanca 4 sabores', complemento: '4 humitas, da igual la pieza', cantidad: 4, unidadNota: 'humita' },
             { id: 10, rubro: 'Gaseosas', plato: 'Gaseosa', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'gaseosa' }
           ]
         },
@@ -6285,6 +6285,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           trucha_entera: 'trucha',
           filete_trucha: 'filete-trucha',
           carnero: 'carnero',
+          yuca: 'yuca',
+          frugos_15: 'frugos-1-5l',
+          pizza_30: 'pizza-30x30',
+          pizza_20: 'pizza-20x20',
           carnero_pachamanca: 'pachamanca-cordero',
           pescado_entero: 'pescado-entero',
           arroz: 'arroz',
@@ -6450,6 +6454,47 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           localStorage.setItem('inventario-conversiones', JSON.stringify(this.config));
         },
 
+        saboresHumita(n) {
+          const m = String(n || '').match(/pachamanca\s+(\d+)\s+sabor/);
+          const k = m ? Number(m[1]) : 0;
+          return k >= 1 ? k : 0;
+        },
+
+        consumeYuca(n) {
+          if (n.includes('duo') && n.includes('marino')) return false;
+          if (n.includes('ceviche') && n.includes('pota')) return false;
+          if (n.includes('chicharron') && n.includes('pota')) return true;
+          if (n.includes('chicharron') && n.includes('pescado')) return true;
+          if (n.includes('jalea') && n.includes('pescado')) return true;
+          if (n.includes('fuente') && n.includes('pollo') && !n.includes('chancho')) return true;
+          if (n.includes('chicharron') && n.includes('pollo')) return true;
+          if (n.includes('chicharron') && n.includes('trucha')) return true;
+          if (n.includes('duo') && n.includes('truch')) return true;
+          return false;
+        },
+
+        consumeInca300(n) {
+          if (n.includes('pollada')) return true;
+          if (n.includes('milanesa') && n.includes('junior')) return true;
+          if (n.includes('filete') && n.includes('junior')) return true;
+          if (n.includes('arroz con pollo')) return true;
+          if (n.includes('seco') && n.includes('res')) return true;
+          if (n.includes('pollo') && n.includes('olla')) return true;
+          return false;
+        },
+
+        consumeCarnero(n) {
+          return n.includes('seco') && (n.includes('carnero') || n.includes('cordero'));
+        },
+
+        nombrePizza(n) {
+          if (!n.includes('pizza')) return '';
+          if (/30\s*x\s*30/.test(n)) return 'Pizza grande 30x30';
+          if (/20\s*x\s*20/.test(n)) return 'Pizza 20x20';
+          if (n.includes('grande')) return 'Pizza grande 30x30';
+          return '';
+        },
+
         async cargarPlatos() {
           try {
             const data = await this.api('/platos');
@@ -6536,9 +6581,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if ((n === 'bistec' || n === 'bisteck' || n.startsWith('bistec ') || n.startsWith('bisteck ')) && !ya('Carne Bistec')) {
                 push(p, 'Carne Bistec', 1, 'bistec');
               }
-              if (n.startsWith('pachamanca') && !ya('Humita')) {
-                push(p, 'Humita', 1, 'humita', '1 por plato, con 1, 2, 3 o 4 sabores');
+              if (n.startsWith('pachamanca') && !n.includes('sin sabor') && !ya('Humita')) {
+                const cant = this.saboresHumita(n) || 1;
+                push(p, 'Humita', cant, 'humita', cant + (cant === 1 ? ' humita, da igual la pieza' : ' humitas, da igual la pieza'));
               }
+              if (this.consumeYuca(n) && !ya('Yuca')) push(p, 'Yuca', 1, 'yuca');
+              if (this.consumeInca300(n) && !ya('Inca Kola 300ml')) push(p, 'Inca Kola 300ml', 1, 'inca kola 300ml');
+              if (this.consumeCarnero(n) && !ya('Carnero Crudo')) push(p, 'Carnero Crudo', 1, 'carnero crudo');
+              if (n.includes('frugos') && !ya('Frugos 1.5L')) push(p, 'Frugos 1.5L', 1, 'frugos');
+              const pizza = this.nombrePizza(n);
+              if (pizza && !ya(pizza)) push(p, pizza, 1, 'pizza');
               if (/gaseosa|inca kola|coca[- ]?cola|sprite|fanta/.test(texto) && !ya('Gaseosas')) {
                 push(p, 'Gaseosas', 1, 'gaseosa', guarnicion('Guarnición: gaseosa'));
               }
@@ -7824,8 +7876,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos'], ['arroz_pollo', 'Arroz pollo']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pecho de Pato'], ['pierna_pato', 'Pierna de pato']]),
             cuadro('Pota', [['pota', 'Pota entera cruda'], ['pieza_pota', 'Pieza de pota']]),
-            cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal'], ['humita', 'Humita']]),
-            cuadro('Carta', [['delicias', 'Delicias'], ['helados', 'Helados'], ['hotdog', 'Hotdog']])
+            cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal'], ['humita', 'Humita'], ['yuca', 'Yuca']]),
+            cuadro('Carta', [['delicias', 'Delicias'], ['helados', 'Helados'], ['hotdog', 'Hotdog'], ['frugos_15', 'Frugos 1.5L'], ['pizza_30', 'Pizza grande 30x30'], ['pizza_20', 'Pizza 20x20']])
           ].filter((c) => c.filas.length);
         },
 
@@ -8007,7 +8059,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'filete_trucha', grupo: 'trucha', nombre: 'Filete de trucha', detalle: 'Ingreso directo, sin transformación', unidad: 'unid', saldoAnterior: 0, ingreso: 9, correccion: 0, venta: 0, ritmoVentaDiario: 7, transformacion: 0, destinoTrans: '', inventario: null, crudo: 9, cocido: 0 },
 
             // GRUPO CARNERO
-            { id: 'carnero', grupo: 'carnero', nombre: 'Carnero', detalle: 'Clave interna: cordero · Salieron 3 a pachamanca', unidad: 'porc', saldoAnterior: 5, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 3, destinoTrans: '→ Pachamanca', inventario: null, crudo: 2, cocido: 0 },
+            { id: 'carnero', grupo: 'carnero', nombre: 'Carnero Crudo', detalle: 'Seco de carnero come 1. Tiene crudo y cocido', unidad: 'porc', saldoAnterior: 5, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 3, destinoTrans: '→ Pachamanca', inventario: null, tieneCocido: true, crudo: 2, cocido: 0 },
             { id: 'carnero_pachamanca', grupo: 'carnero', nombre: 'Carnero pachamanca', detalle: 'Conversión 1 a 1 desde Carnero', unidad: 'porc', saldoAnterior: 0, ingreso: 3, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 3 },
 
             // FILAS SOLAS (Directas en la tabla, sin grupo de despiece)
@@ -8021,10 +8073,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'arroz_mariscos', grupo: 'arroz', nombre: 'Arroz con mariscos', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'tamal', grupo: null, nombre: 'Tamal', detalle: 'Guarnición y plato', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'humita', grupo: null, nombre: 'Humita', detalle: 'Plato Humita y cualquier Pachamanca: 1 por plato', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'humita', grupo: null, nombre: 'Humita', detalle: '1 sabor = 1, 2 sabores = 2, 3 = 3, 4 = 4. La pieza no cambia la cuenta', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'yuca', grupo: null, nombre: 'Yuca', detalle: '1 por chicharrón de pota, pescado, pollo, trucha, jalea de pescado, fuente de pollo y dúo truchero', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'delicias', grupo: null, nombre: 'Delicias', detalle: 'Venta del plato Delicia', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'helados', grupo: null, nombre: 'Helados', detalle: 'Venta del plato Helado Artesanal', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'hotdog', grupo: null, nombre: 'Hotdog', detalle: 'Sale 1 por cada Salchipapa', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'frugos_15', grupo: null, nombre: 'Frugos 1.5L', detalle: 'Venta de Frugos 1.5 L', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'pizza_30', grupo: null, nombre: 'Pizza grande 30x30', detalle: 'Pizza grande', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'pizza_20', grupo: null, nombre: 'Pizza 20x20', detalle: 'Pizza 20 x 20', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
           ];
           this.aplicarOpcionesCocido(this.cocidoOpciones);
 
@@ -8434,6 +8490,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           'pachamanca-chancho': { tieneCocido: true, reservaClave: '' },
           'pachamanca-res': { tieneCocido: true, reservaClave: '' },
           'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
+          carnero: { tieneCocido: true, reservaClave: '' },
           'salt-pollo': { tieneCocido: false, reservaClave: 'filete' },
           'chaufa-pollo': { tieneCocido: false, reservaClave: 'filete' },
           milanesa: { tieneCocido: false, reservaClave: 'filete' },
@@ -8467,6 +8524,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const base = (op && typeof op.tieneCocido === 'boolean') ? op : this.opcionCocidoDe(clave);
             row.tieneCocido = !materia && !soloCrudo && base.tieneCocido === true;
             if (clave === 'pierna-lena' || row.id === 'pierna_lena') row.tieneCocido = true;
+            if (clave === 'carnero' || row.id === 'carnero') row.tieneCocido = true;
             if (clave === 'menu' || clave === 'menu-pecho' || clave === 'menu-pierna') row.tieneCocido = false;
             row.reservaClave = materia ? '' : (base.reservaClave || '');
             if (clave === 'pollada' || clave === 'pachamanca-pollo') row.reservaClave = 'pierna-pollo';
@@ -11337,9 +11395,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             },
             {
               id: 'carnero',
-              nombre: 'Carnero',
+              nombre: 'Carnero Crudo',
               tipo: 'despiece',
-              origen: { clave: 'carnero', nombre: 'Carnero crudo' },
+              origen: { clave: 'carnero', nombre: 'Carnero Crudo' },
               cortes: [
                 { clave: 'pachamanca-cordero', nombre: 'Carnero pachamanca', factor: 1, factorDesde: '' }
               ],

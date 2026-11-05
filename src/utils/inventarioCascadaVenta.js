@@ -21,6 +21,7 @@ const SEMILLA = {
     'pachamanca-chancho': { tieneCocido: true, reservaClave: '' },
     'pachamanca-res': { tieneCocido: true, reservaClave: '' },
     'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
+    carnero: { tieneCocido: true, reservaClave: '' },
     'salt-pollo': { tieneCocido: false, reservaClave: 'filete' },
     'chaufa-pollo': { tieneCocido: false, reservaClave: 'filete' },
     milanesa: { tieneCocido: false, reservaClave: 'filete' },

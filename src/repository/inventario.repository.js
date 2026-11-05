@@ -242,7 +242,7 @@ async function opcionesCocido() {
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
         const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'pollada', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada'];
-        const conCocido = ['trozo-panceta', 'pechuga-pato', 'pierna-pato', 'pierna-lena'];
+        const conCocido = ['trozo-panceta', 'pechuga-pato', 'pierna-pato', 'pierna-lena', 'carnero'];
         if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
             if (!esMateria(d.clave) && !reservaClave) reservaClave = 'pechuga-pollo';

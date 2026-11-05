@@ -266,7 +266,14 @@ function rubrosDeFila(fila, mapas, bebidas) {
         }
     }
     if ((n.includes('salchipapa') || n.includes('hotdog') || n.includes('hot dog')) && !lista.some((x) => x.rubro === 'hotdog')) add('hotdog');
-    if ((esPlatoHumita(n) || esPlatoPachamancaNombre(n)) && !lista.some((x) => x.rubro === 'humita')) add('humita');
+    const humitas = factorHumita(n);
+    if (humitas && !lista.some((x) => x.rubro === 'humita')) add('humita', humitas);
+    if (consumeYuca(n) && !lista.some((x) => x.rubro === 'yuca')) add('yuca');
+    if (consumeInca300(n) && !lista.some((x) => x.rubro === 'gaseosa-inca-kola-300ml')) add('gaseosa-inca-kola-300ml');
+    if (consumeCarneroCrudo(n) && !lista.some((x) => x.rubro === 'carnero')) add('carnero');
+    if (n.includes('frugos') && !lista.some((x) => x.rubro === 'frugos-1-5l')) add('frugos-1-5l');
+    const pizza = rubroPizza(n);
+    if (pizza && !lista.some((x) => x.rubro === pizza)) add(pizza);
     if (esPlatoBistec(n) && !lista.some((x) => x.rubro === 'bisteck')) add('bisteck');
     if ((n === 'delicia' || n.includes('delicias')) && !lista.some((x) => x.rubro === 'delicias')) add('delicias');
     if (/\bhelados?\b/.test(n) && !lista.some((x) => x.rubro === 'helados')) add('helados');
@@ -291,7 +298,7 @@ function esPlatoBistec(n) {
     return n === 'bistec' || n === 'bisteck' || n.startsWith('bistec ') || n.startsWith('bisteck ');
 }
 
-/** El plato Humita. Un sabor de pachamanca no cuenta: eso multiplicaría la humita. */
+/** El plato Humita. Un sabor suelto (Pollo de pachamanca) no cuenta: la humita sale del plato. */
 function esPlatoHumita(n) {
     return n === 'humita' || n.startsWith('humita ');
 }
@@ -303,8 +310,57 @@ function esPlatoPachamancaNombre(n) {
     return true;
 }
 
+/** 1 sabor = 1, 2 = 2, 3 = 3, 4 = 4. Sin número en el nombre, una. */
+function saboresPachamanca(n) {
+    const m = String(n || '').match(/pachamanca\s+(\d+)\s+sabor/);
+    const k = m ? Number(m[1]) : 0;
+    return k >= 1 ? k : 0;
+}
+
+function factorHumita(n) {
+    if (esPlatoHumita(n)) return 1;
+    if (!esPlatoPachamancaNombre(n)) return 0;
+    return saboresPachamanca(n) || 1;
+}
+
+/** Una yuca por plato. El dúo marino y el ceviche de pota no entran. */
+function consumeYuca(n) {
+    if (n.includes('duo') && n.includes('marino')) return false;
+    if (n.includes('ceviche') && n.includes('pota')) return false;
+    if (n.includes('chicharron') && n.includes('pota')) return true;
+    if (n.includes('chicharron') && n.includes('pescado')) return true;
+    if (n.includes('jalea') && n.includes('pescado')) return true;
+    if (n.includes('fuente') && n.includes('pollo') && !n.includes('chancho')) return true;
+    if (n.includes('chicharron') && n.includes('pollo')) return true;
+    if (n.includes('chicharron') && n.includes('trucha')) return true;
+    if (n.includes('duo') && n.includes('truch')) return true;
+    return false;
+}
+
+function consumeInca300(n) {
+    if (n.includes('pollada')) return true;
+    if (n.includes('milanesa') && n.includes('junior')) return true;
+    if (n.includes('filete') && n.includes('junior')) return true;
+    if (n.includes('arroz con pollo')) return true;
+    if (n.includes('seco') && n.includes('res')) return true;
+    if (n.includes('pollo') && n.includes('olla')) return true;
+    return false;
+}
+
+function consumeCarneroCrudo(n) {
+    return n.includes('seco') && (n.includes('carnero') || n.includes('cordero'));
+}
+
+function rubroPizza(n) {
+    if (!n.includes('pizza')) return '';
+    if (/30\s*x\s*30/.test(n)) return 'pizza-30x30';
+    if (/20\s*x\s*20/.test(n)) return 'pizza-20x20';
+    if (n.includes('grande')) return 'pizza-30x30';
+    return '';
+}
+
 /**
- * Una humita por cada pachamanca pedida, no por cada sabor.
+ * Humitas según los sabores del plato, no según la pieza.
  * El contador parte la pachamanca en sabores; la cantidad sale de la línea original.
  */
 function unidadesHumitaPachamanca(lineas, catalogo) {
@@ -326,12 +382,14 @@ function unidadesHumitaPachamanca(lineas, catalogo) {
         });
         if (!ficha || ficha.tipo !== 'pachamanca') return;
         const cant = Number(linea.cantidad) > 0 ? Number(linea.cantidad) : 1;
-        total += cant;
+        const factor = factorHumita(norm(ficha.nombre || linea.nombre)) || 1;
+        const uso = cant * factor;
+        total += uso;
         detalle.push({
             nombre: ficha.nombre || linea.nombre || 'Pachamanca',
-            cantidad: cant,
+            cantidad: uso,
             platos: cant,
-            factor: 1
+            factor: factor
         });
     });
     return { total, detalle };

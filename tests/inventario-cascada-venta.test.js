@@ -102,7 +102,7 @@ test('el cuarto y el mix de pecho no pasan a pecho de pollo', () => {
 test('estas filas nacen con cuadro de cocido', () => {
     [
         'sandwiches', 'pollo-lena', 'pierna-lena', 'pachamanca-pollo',
-        'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero'
+        'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero', 'carnero'
     ].forEach((clave) => {
         expect(semillaCocido(clave).tieneCocido).toBe(true);
     });

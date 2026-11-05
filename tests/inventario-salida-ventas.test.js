@@ -111,7 +111,7 @@ test('el plato bistec descuenta carne bistec', () => {
     expect(porRubro.bisteck).toBe(4);
 });
 
-test('humita sale del plato Humita y una sola vez por cada pachamanca', () => {
+test('humita sale del plato Humita y de la pachamanca según sus sabores', () => {
     const { unidadesHumitaPachamanca, filasDelContador } = require('../src/utils/inventarioSalidaVentas');
     const { armarContadorPlatos } = require('../src/utils/contadorPlatosReporte');
     const humita = aplicarMapa([{ nombre: 'Humita', cantidad: 3 }]);
@@ -122,7 +122,9 @@ test('humita sale del plato Humita y una sola vez por cada pachamanca', () => {
         { nombre: 'Pachamanca 3 sabores', cantidad: 1 },
         { nombre: 'Pachamanca 4 sabores', cantidad: 1 }
     ]);
-    expect(porPlato.humita).toBe(5);
+    expect(porPlato.humita).toBe(11);
+    const unaPieza = aplicarMapa([{ nombre: 'Pachamanca 1 sabor', cantidad: 1, cortes: { Pollo: 1, Cerdo: 1 } }]);
+    expect(unaPieza.humita).toBe(1);
     const sabor = aplicarMapa([{ nombre: 'Pollo de pachamanca', cantidad: 4 }]);
     expect(sabor.humita).toBeUndefined();
     expect(sabor['pachamanca-pollo']).toBe(4);
@@ -143,7 +145,10 @@ test('humita sale del plato Humita y una sola vez por cada pachamanca', () => {
             { grupo: 'Sabores', opcion: 'Res', cantidad: 1 }
         ]
     };
-    expect(unidadesHumitaPachamanca([linea], [plato]).total).toBe(2);
+    const humitas = unidadesHumitaPachamanca([linea], [plato]);
+    expect(humitas.total).toBe(6);
+    expect(humitas.detalle[0].factor).toBe(3);
+    expect(humitas.detalle[0].platos).toBe(2);
     const contador = armarContadorPlatos([linea], [plato]);
     const deSabores = aplicarMapa(filasDelContador(contador));
     expect(deSabores.humita).toBeUndefined();
@@ -334,6 +339,44 @@ test('el medio pollo a la leña baby solo descuenta 0.5 de pollo baby', () => {
     ]);
     expect(porRubro['pollo-baby']).toBe(3);
     expect(porRubro['pollo-lena']).toBeUndefined();
+});
+
+test('yuca, inca 300, carnero, frugos y pizza descuentan su fila', () => {
+    const yuca = aplicarMapa([
+        { nombre: 'Chicharrón de Pota + yuca + zarza', cantidad: 1 },
+        { nombre: 'Chicharron de Pescado', cantidad: 1 },
+        { nombre: 'Jalea de Pescado + yuca frita c/zarza', cantidad: 1 },
+        { nombre: 'Chicharron de pollo + arroz + papas fritas', cantidad: 1 },
+        { nombre: 'Fuente de Chicharrón pollo', cantidad: 1 },
+        { nombre: 'Chicharrón de Trucha', cantidad: 1 },
+        { nombre: 'Duo Truchero Ceviche Chicharron de trucha', cantidad: 2 }
+    ]);
+    expect(yuca.yuca).toBe(8);
+    const no = aplicarMapa([
+        { nombre: 'Ceviche c/ chicharrón de pota', cantidad: 3 },
+        { nombre: 'Duo marino ceviche chicharron de pescado', cantidad: 2 },
+        { nombre: 'Fuente de Chicharrón de chancho', cantidad: 1 }
+    ]);
+    expect(no.yuca).toBeUndefined();
+    const inca = aplicarMapa([
+        { nombre: 'Pollada + papa fritas + Arroz + ensalada', cantidad: 1 },
+        { nombre: 'Milanesa junior + arroz + papa frita + ensalada', cantidad: 1 },
+        { nombre: 'Filete junior + papa frita + arroz + ensalada', cantidad: 1 },
+        { nombre: 'Arroz con pollo + papa a la huancaina', cantidad: 1 },
+        { nombre: 'Seco de res + frijoles + arroz', cantidad: 1 },
+        { nombre: 'Pollo a la olla + Arroz + Papa a la huancaína', cantidad: 1 }
+    ]);
+    expect(inca['gaseosa-inca-kola-300ml']).toBe(6);
+    const carnero = aplicarMapa([{ nombre: 'Seco de carnero chico (250 gr + arroz + frijol + zarza criolla)', cantidad: 2 }]);
+    expect(carnero.carnero).toBe(2);
+    const otros = aplicarMapa([
+        { nombre: 'Frugos 1.5Lt', cantidad: 3 },
+        { nombre: 'Pizza Americana 20 x 20 personal (Jamon- Queso)', cantidad: 2 },
+        { nombre: 'Pizza grande 30x30', cantidad: 1 }
+    ]);
+    expect(otros['frugos-1-5l']).toBe(3);
+    expect(otros['pizza-20x20']).toBe(2);
+    expect(otros['pizza-30x30']).toBe(1);
 });
 
 test('la venta del día entra en salida y al día siguiente abre el saldo anterior', () => {
