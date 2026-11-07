@@ -201,7 +201,7 @@ function rubroMenuDe(n) {
     const es = (n.includes('caldo') && n.includes('pollo'))
         || n.includes('arroz con pollo')
         || n.includes('pollo a la olla')
-        || (n.includes('pollo') && n.includes('olla'));
+        || (n.includes('pollo') && /\bolla\b/.test(n));
     if (!es) return '';
     if (/(^| )pec$/.test(n)) return 'menu-pecho';
     if (/(^| )pie$/.test(n)) return 'menu-pierna';

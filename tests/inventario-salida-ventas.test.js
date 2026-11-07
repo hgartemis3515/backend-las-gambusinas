@@ -291,6 +291,8 @@ test('cada plato de filete baja su propia fila y la fuente sigue bajando filete'
     expect(porRubro['chi-pollo-acevichada']).toBe(1);
     expect(porRubro['chi-pollo-bbq']).toBe(1);
     expect(porRubro['salt-pollo']).toBe(1);
+    expect(porRubro['menu-pecho']).toBeUndefined();
+    expect(porRubro['menu-pierna']).toBeUndefined();
 });
 
 test('el arroz con pato de pecho come pechuga y el de pierna come pierna', () => {

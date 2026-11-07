@@ -7435,7 +7435,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'sandwich', nombre: 'Sandwich', aceptaPierna: false, aceptaPechuga: true }
           ],
           relaciones: [
-            { id: 1, rubro: 'Pecho de Pollo', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'POLLO - CARNES (A31)', cantidad: 1, unidadNota: 'pechuga' },
+            { id: 1, rubro: 'Filete de pollo', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'POLLO - CARNES (A31)', cantidad: 1, unidadNota: 'filete' },
+            { id: 20, rubro: 'Menú', plato: 'Caldo de pollo', complemento: 'Sale de Menú pecho o Menú pierna, según el stock', cantidad: 1, unidadNota: 'menu' },
+            { id: 21, rubro: 'Menú', plato: 'Arroz con pollo', complemento: 'Sale de Menú pecho o Menú pierna, según el stock', cantidad: 1, unidadNota: 'menu' },
+            { id: 22, rubro: 'Menú', plato: 'Pollo a la olla', complemento: 'Sale de Menú pecho o Menú pierna, según el stock', cantidad: 1, unidadNota: 'menu' },
+            { id: 23, rubro: 'Menú pecho', plato: 'Caldo de pollo', complemento: 'Tipo: Pecho', cantidad: 1, unidadNota: 'pecho' },
+            { id: 24, rubro: 'Menú pecho', plato: 'Arroz con pollo', complemento: 'Tipo: Pecho', cantidad: 1, unidadNota: 'pecho' },
+            { id: 25, rubro: 'Menú pecho', plato: 'Pollo a la olla', complemento: 'Tipo: Pecho', cantidad: 1, unidadNota: 'pecho' },
+            { id: 26, rubro: 'Menú pierna', plato: 'Caldo de pollo', complemento: 'Tipo: Pierna', cantidad: 1, unidadNota: 'pierna' },
+            { id: 27, rubro: 'Menú pierna', plato: 'Arroz con pollo', complemento: 'Tipo: Pierna', cantidad: 1, unidadNota: 'pierna' },
+            { id: 28, rubro: 'Menú pierna', plato: 'Pollo a la olla', complemento: 'Tipo: Pierna', cantidad: 1, unidadNota: 'pierna' },
             { id: 2, rubro: 'Filete de pollo', plato: 'Filete junior + papas fritas', complemento: 'PORCIONES - ADICIONALES (U342)', cantidad: 0.5, unidadNota: 'filete' },
             { id: 3, rubro: 'Pecho de Pollo', plato: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', complemento: 'POLLO - CARNES', cantidad: 1, unidadNota: 'pechuga' },
             { id: 4, rubro: 'Pecho a la Leña', plato: '1/4 pollo a la leña', complemento: 'Parte pecho', cantidad: 1, unidadNota: 'pecho' },
@@ -7928,31 +7937,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const n = this.norm(p.nombre);
               const c = this.norm(p.complemento);
               const texto = (n + ' ' + c).trim();
-              if (n.includes('filete de pollo')) push(p, 'Pecho de Pollo', 1, 'pechuga');
+              if (n.includes('baby') && n.includes('pollo') && n.includes('lena')) push(p, 'Pollo Baby', 0.5, 'medio pollo');
+              else if (n.includes('filete de pollo')) push(p, 'Filete de pollo', 1, 'filete');
               else if (n.includes('filete junior')) push(p, 'Filete de pollo', 0.5, 'filete');
               else if (((n.includes('mix') || n.includes('mixto')) && n.includes('lena')) || (n.includes('1/4 pollo') && n.includes('lena'))) {
                 push(p, 'Pecho a la Leña', 1, 'pecho', 'Parte pecho');
+                push(p, 'Pierna a la leña', 1, 'pierna', 'Parte pierna');
                 push(p, 'Pierna de Pollo', 1, 'pierna', 'Parte pierna');
+                if ((n.includes('mix') || n.includes('mixto')) && n.includes('lena')) push(p, 'Trozo de panceta', 3, 'trozo', 'Panceta del mix');
               }
               else if (n.includes('pachamanca') && (n.includes('pollo') || c.includes('pollo'))) push(p, 'Pollo pachamanca pierna', 1, 'pieza', 'Sabor: Pollo');
               else if (n.includes('chicharron de pollo a la bbq') || n.includes('chicharron de pollo bbq')) push(p, 'Chi. pollo a la BBQ', 1, 'pieza');
               else if (n.includes('acevichada') && n.includes('pollo')) push(p, 'Chi. pollo acevichada', 1, 'pieza');
-              else if (n.includes('chicharron de pollo chico') || n.includes('chicharron pollo chico')) push(p, 'Chicharrón de pollo', 0.5, 'pieza');
+              else if (n.includes('chicharron de pollo chico') || n.includes('chicharron pollo chico')) push(p, 'Chicharrón de pollo', 1, 'pieza');
               else if (n.includes('fuente') && n.includes('chicharron') && n.includes('pollo')) push(p, 'Chicharrón de pollo', 2, 'filete');
               else if (n.includes('chaufa') && n.includes('pollo')) push(p, 'Chaufa de pollo', 1, 'pechuga');
               else if (n.includes('saltado') && n.includes('pollo')) push(p, 'Salt de pollo', 1, 'pechuga');
-              else if (n.includes('milanesa') && !n.includes('junior')) push(p, 'Milanesa', 1, 'pechuga');
+              else if (n.includes('milanesa') && n.includes('junior')) push(p, 'Milanesa', 1, 'milanesa');
+              else if (n.includes('milanesa')) push(p, 'Milanesa', 1, 'milanesa');
               else if (n.includes('pan con pollo') || (n.includes('sandwich') && n.includes('pollo'))) push(p, 'Sandwich', 1, 'pechuga');
               else if (n.includes('pollada')) push(p, 'Pollada', 1, 'pollada');
               else if (n.includes('arroz con pato') || n.includes('arroz de pato')) push(p, 'Arroz pato', 1, 'arroz pato');
-              else if (n.includes('arroz con pollo')) {
-                push(p, 'Arroz con pollo', 1, 'aderezo');
-                push(p, 'Pecho de Pollo', 0.5, 'pechuga');
-              }
-              else if ((n.includes('caldo') && n.includes('pollo')) || n.includes('pollo a la olla') || n.includes('pollo olla')) push(p, 'Pecho de Pollo', 0.5, 'pechuga');
+              else if (n.includes('arroz con pollo')) push(p, 'Arroz con pollo', 1, 'aderezo');
               else if (/\btamal\b/.test(n)) push(p, 'Tamal', 1, 'tamal');
-              else if (/gaseosa|inca kola|coca[- ]?cola|sprite|fanta/.test(n)) push(p, 'Gaseosas', 1, 'gaseosa');
-              else if (/\bagua\b/.test(n)) push(p, 'Bebidas', 1, 'agua');
               else if (n === 'delicia' || n.includes('delicias')) push(p, 'Delicias', 1, 'delicia');
               else if (/\bhelados?\b/.test(n)) push(p, 'Helados', 1, 'helado');
               else if (n.includes('salchipapa') || n.includes('hotdog') || n.includes('hot dog')) push(p, 'Hotdog', 1, 'hotdog');
@@ -7979,20 +7986,64 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 const cant = this.saboresHumita(n) || 1;
                 push(p, 'Humita', cant, 'humita', cant + (cant === 1 ? ' humita, da igual la pieza' : ' humitas, da igual la pieza'));
               }
+              const esPlatoMenu = (n.includes('caldo') && n.includes('pollo'))
+                || n.includes('arroz con pollo')
+                || n.includes('pollo a la olla')
+                || (n.includes('pollo') && /\bolla\b/.test(n));
+              if (esPlatoMenu) {
+                if (!ya('Menú')) push(p, 'Menú', 1, 'menu', 'Sale de Menú pecho o Menú pierna, según el stock');
+                if (!ya('Menú pecho')) push(p, 'Menú pecho', 1, 'pecho', 'Tipo: Pecho. Si el nombre termina en Pec, o no dice Pie');
+                if (!ya('Menú pierna')) push(p, 'Menú pierna', 1, 'pierna', 'Tipo: Pierna. Si el nombre termina en Pie');
+              }
+              if ((n.includes('arroz con pato') || n.includes('arroz de pato'))) {
+                if (!ya('Pecho de Pato')) push(p, 'Pecho de Pato', 1, 'pecho', 'Parte pecho');
+                if (!ya('Pierna de pato')) push(p, 'Pierna de pato', 1, 'pierna', 'Parte pierna');
+              }
+              if (n.startsWith('pachamanca') && !n.includes('sin sabor')) {
+                if (!ya('Pollo pachamanca pierna')) push(p, 'Pollo pachamanca pierna', 1, 'pieza', 'Sabor: Pollo');
+                if (!ya('Cerdo pachamanca')) push(p, 'Cerdo pachamanca', 1, 'pieza', 'Sabor: Chancho');
+                if (!ya('Carne Pachamanca')) push(p, 'Carne Pachamanca', 1, 'pieza', 'Sabor: Res');
+                if (!ya('Carnero pachamanca')) push(p, 'Carnero pachamanca', 1, 'pieza', 'Sabor: Carnero');
+              }
+              const tipoBebidaPlato = this.tipoBebida(p);
+              if (tipoBebidaPlato && !ya(p.nombre)) push(p, p.nombre, 1, tipoBebidaPlato);
               if (this.consumeYuca(n) && !ya('Yuca')) push(p, 'Yuca', 1, 'yuca');
               if (this.consumeInca300(n) && !ya('Inca Kola 300ml')) push(p, 'Inca Kola 300ml', 1, 'inca kola 300ml');
               if (this.consumeCarnero(n) && !ya('Carnero Crudo')) push(p, 'Carnero Crudo', 1, 'carnero crudo');
               if (n.includes('frugos') && !ya('Frugos 1.5L')) push(p, 'Frugos 1.5L', 1, 'frugos');
               const pizza = this.nombrePizza(n);
               if (pizza && !ya(pizza)) push(p, pizza, 1, 'pizza');
-              if (/gaseosa|inca kola|coca[- ]?cola|sprite|fanta/.test(texto) && !ya('Gaseosas')) {
-                push(p, 'Gaseosas', 1, 'gaseosa', guarnicion('Guarnición: gaseosa'));
+              if ((n.includes('chancho') && n.includes('lena') && n.includes('bbq')) || (n.includes('chancho') && n.includes('bbq') && n.includes('lena'))) {
+                if (!ya('Trozo de panceta')) push(p, 'Trozo de panceta', 6, 'trozo');
+              } else if (n.includes('chancho') && n.includes('lena')) {
+                if (!ya('Trozo de panceta')) push(p, 'Trozo de panceta', 4, 'trozo');
+              } else if (n.includes('chaufa') && n.includes('chancho')) {
+                if (!ya('Trozo de panceta')) push(p, 'Trozo de panceta', 1, 'trozo');
               }
-              if (/\bagua\b/.test(texto) && !ya('Bebidas')) {
-                push(p, 'Bebidas', 1, 'agua', guarnicion('Guarnición: agua'));
+              if (n.includes('desayuno criollo')) {
+                if (!ya('Chicharrón de chancho crudo')) push(p, 'Chicharrón de chancho crudo', 0.5, 'porción');
+              } else if (n.includes('fuente') && n.includes('chicharron') && n.includes('chancho')) {
+                if (!ya('Chicharrón de chancho crudo')) push(p, 'Chicharrón de chancho crudo', 2, 'porción');
+              } else if ((n.includes('1/2') || n.includes('medio')) && n.includes('chicharron') && n.includes('chancho')) {
+                if (!ya('Chicharrón de chancho crudo')) push(p, 'Chicharrón de chancho crudo', 0.5, 'porción');
+              } else if (n.includes('chicharron') && n.includes('chancho')) {
+                if (!ya('Chicharrón de chancho crudo')) push(p, 'Chicharrón de chancho crudo', 1, 'porción');
+              }
+              if (n.includes('duo') && n.includes('marino')) {
+                if (!ya('Pieza de pescado')) push(p, 'Pieza de pescado', 2, 'pieza');
+              } else if (!n.includes('trucha') && (n.includes('pescado frito') || (n.includes('jalea') && n.includes('pescado')) || (n.includes('chicharron') && n.includes('pescado')) || (n.includes('ceviche') && n.includes('pescado')) || n === 'ceviche')) {
+                if (!ya('Pieza de pescado')) push(p, 'Pieza de pescado', 1, 'pieza');
+              }
+              if ((n.includes('ceviche') || n.includes('chicharron')) && n.includes('pota')) {
+                if (!ya('Pieza de pota')) push(p, 'Pieza de pota', 1, 'pieza');
+              }
+              if ((n.includes('1/2') || n.includes('medio')) && n.includes('cuy')) {
+                if (!ya('Cuy')) push(p, 'Cuy', 0.5, 'medio cuy');
+              } else if (n.includes('cuy') && !n.includes('yuca')) {
+                if (!ya('Cuy')) push(p, 'Cuy', 1, 'cuy');
               }
             });
-            if (!relaciones.some((r) => this.norm(r.plato).includes('filete junior') && r.rubro === 'Filete')) {
+            if (!relaciones.some((r) => this.norm(r.plato).includes('filete junior') && (r.rubro === 'Filete' || r.rubro === 'Filete de pollo'))) {
               relaciones.push({ id: relaciones.length + 1, rubro: 'Filete', plato: 'Filete junior', complemento: 'U342 · Descuenta 0.5 de Filete Pollo Crudo', cantidad: 0.5, unidadNota: 'filete' });
             }
             if (relaciones.length) this.config.relaciones = relaciones;
@@ -11789,45 +11840,46 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         platosDeTrozoPanceta() {
           return [
-            { id: 'chancho-lena-frejol', nombre: 'Chancho a la leña con frejol + arroz + zarza criolla y yuca', cantidad: 4 },
-            { id: 'chancho-lena-papa', nombre: 'Chancho a la leña con papa frita o doradas + arroz + ensalada', cantidad: 4 },
-            { id: 'mix-lena', nombre: 'Mix a la leña', cantidad: 3 },
-            { id: 'chancho-bbq', nombre: 'Chancho a la BBQ', cantidad: 6 },
-            { id: 'chaufa-chancho', nombre: 'Chaufa de chancho', cantidad: 1 }
+            { id: 'chancho-lena-frejol', nombre: 'Chancho a la Leña + Frejol + Arroz', cantidad: 4 },
+            { id: 'chancho-lena-papa', nombre: 'Chancho a la Leña + PF + Arroz + Ensalada', cantidad: 4 },
+            { id: 'mix-lena', nombre: 'Mixto leña 1/4 pollo + 300gr panceta + P-frita + Arroz + ensalada', cantidad: 3 },
+            { id: 'chancho-bbq', nombre: 'Chancho a la Leña BBQ', cantidad: 6 },
+            { id: 'chaufa-chancho', nombre: 'Arroz Chaufa Chancho', cantidad: 1 }
           ];
         },
 
         platosDePiezaPescado() {
           return [
-            { id: 'duo-marino', nombre: 'Duo marino', cantidad: 2 },
+            { id: 'duo-marino', nombre: 'Duo Marino Ceviche Chicharron de pescado', cantidad: 2 },
             { id: 'ceviche', nombre: 'Ceviche', cantidad: 1 },
-            { id: 'ceviche-pescado', nombre: 'Ceviche de pescado', cantidad: 1 },
-            { id: 'chicharron-pescado', nombre: 'Chicharrón de pescado', cantidad: 1 },
-            { id: 'jalea-pescado', nombre: 'Jalea de pescado', cantidad: 1 },
-            { id: 'pescado-frito', nombre: 'Pescado frito', cantidad: 1 }
+            { id: 'ceviche-pescado', nombre: 'Ceviche de pescado + Huancaína', cantidad: 1 },
+            { id: 'chicharron-pescado', nombre: 'Chicharrón de Pescado + yuca frita + zarza', cantidad: 1 },
+            { id: 'chicharron-pescado-corto', nombre: 'Chicharron de Pescado', cantidad: 1 },
+            { id: 'jalea-pescado', nombre: 'Jalea de Pescado + yuca frita c/zarza', cantidad: 1 },
+            { id: 'pescado-frito', nombre: 'Pescado Frito + Arroz + Papa Frita', cantidad: 1 }
           ];
         },
 
         platosDePiezaPota() {
           return [
-            { id: 'chicharron-pota', nombre: 'Chicharrón de pota', cantidad: 1 },
-            { id: 'ceviche-chicharron-pota', nombre: 'Ceviche con chicharrón de pota', cantidad: 1 }
+            { id: 'chicharron-pota', nombre: 'Chicharrón de Pota + yuca + zarza', cantidad: 1 },
+            { id: 'ceviche-chicharron-pota', nombre: 'Ceviche c/ Chicharrón de Pota', cantidad: 1 }
           ];
         },
 
         platosDeChicharronChancho() {
           return [
-            { id: 'chicharron-chancho', nombre: 'Chicharrón de chancho', cantidad: 1 },
-            { id: 'fuente-chicharron-chancho', nombre: 'Fuente de chicharrón de chancho', cantidad: 2 },
-            { id: 'medio-chicharron-chancho', nombre: '1/2 chicharrón de chancho', cantidad: 0.5 },
+            { id: 'fuente-chicharron-chancho', nombre: 'Fuente de Chicharrón de chancho', cantidad: 2 },
+            { id: 'medio-chicharron-chancho', nombre: '1/2 Chicharrón de chancho + 4 panes', cantidad: 0.5 },
+            { id: 'medio-chicharron-camote', nombre: '1/2 Chicharron de chancho + camote frito + zarza criolla', cantidad: 0.5 },
             { id: 'desayuno-criollo-gambusinas', nombre: 'Desayuno Criollo Gambusinas', cantidad: 0.5 }
           ];
         },
 
         platosDeCuy() {
           return [
-            { id: 'cuy-entero', nombre: 'Cuy entero', cantidad: 1 },
-            { id: 'medio-cuy', nombre: '1/2 cuy', cantidad: 0.5 }
+            { id: 'cuy-entero', nombre: 'Cuy entero frito + arroz + papas doradas + zarza criolla', cantidad: 1 },
+            { id: 'medio-cuy', nombre: '1/2 cuy frito + arroz + papas doradas + zarza criolla', cantidad: 0.5 }
           ];
         },
 
@@ -12510,29 +12562,54 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // Relación de platos
         rubrosRelacionDeFila(rowId) {
           const mapa = {
-            pechuga: ['Pechuga de Pollo', 'Pechuga de pollo', 'Pecho de Pollo', 'Pecho de pollo', 'Pollo leña', 'Pecho a la leña'],
-            pierna: ['Pierna de Pollo', 'Pierna de pollo', 'Pierna a la leña', 'Pollada', 'Pollo pachamanca'],
+            pechuga: ['Pechuga de Pollo', 'Pechuga de pollo', 'Pecho de Pollo', 'Pecho de pollo'],
+            pierna: ['Pierna de Pollo', 'Pierna de pollo'],
+            filete: ['Filete', 'Filete de pollo', 'Filete Pollo Crudo'],
+            pollo_lena: ['Pecho a la Leña', 'Pecho a la leña', 'Pollo leña'],
+            pierna_lena: ['Pierna a la leña', 'Pierna a la Leña'],
+            pollo_baby: ['Pollo Baby'],
+            menu: ['Menú', 'Menu'],
+            menu_pecho: ['Menú pecho', 'Menu pecho'],
+            menu_pierna: ['Menú pierna', 'Menu pierna'],
+            sandwich: ['Sandwich', 'Sándwich'],
+            pollada: ['Pollada'],
+            salt_pollo: ['Salt de pollo', 'Lomo saltado de pollo'],
+            chaufa_pollo: ['Chaufa de pollo'],
+            milanesa: ['Milanesa', 'Milanesa de pollo'],
+            chi_pollo_bbq: ['Chi. pollo a la BBQ'],
+            chi_pollo_acevichada: ['Chi. pollo acevichada'],
+            chicharron_pollo: ['Chicharrón de pollo'],
+            pollo_pachamanca: ['Pollo pachamanca pierna', 'Pollo pachamanca'],
+            cerdo_pachamanca: ['Cerdo pachamanca', 'Cerdo de pachamanca'],
+            carne_pachamanca: ['Carne Pachamanca', 'Res de pachamanca'],
+            carnero_pachamanca: ['Carnero pachamanca'],
             arroz_blanco: ['Arroz blanco'],
             arroz_pollo: ['Arroz pollo', 'Arroz con pollo'],
             arroz_verde: ['Arroz verde'],
             arroz_pato: ['Arroz pato'],
             arroz_chaufa: ['Arroz chaufa'],
             arroz_mariscos: ['Arroz con mariscos'],
-            trozo_panceta: ['Trozo de panceta', 'Panceta', 'Cerdo pachamanca'],
+            trozo_panceta: ['Trozo de panceta', 'Panceta'],
             chicharron_chancho: ['Chicharrón de chancho crudo', 'Chicharrón de chancho'],
-            pechuga_pato: ['Pechuga de pato', 'Pato'],
-            pierna_pato: ['Pierna de pato', 'Pato'],
+            pechuga_pato: ['Pechuga de pato', 'Pecho de Pato', 'Pato'],
+            pierna_pato: ['Pierna de pato'],
             pieza_pescado: ['Pieza de pescado', 'Pescado'],
             pieza_pota: ['Pieza de pota', 'Pota'],
-            carne_bistec: ['Carne Bistec', 'Carne Pachamanca'],
+            carne_bistec: ['Carne Bistec', 'Bistec', 'Bisteck'],
             lomo_fino: ['Lomo Fino'],
             carne_guiso: ['Carne Guiso'],
             trucha_entera: ['Trucha entera', 'Trucha'],
             filete_trucha: ['Filete de trucha'],
-            carnero: ['Carnero', 'Carnero crudo', 'Carnero pachamanca'],
+            carnero: ['Carnero', 'Carnero crudo', 'Carnero Crudo'],
             cuy: ['Cuy'],
             papas: ['Papas'],
-            tamal: ['Tamal']
+            tamal: ['Tamal'],
+            humita: ['Humita'],
+            yuca: ['Yuca'],
+            hotdog: ['Hotdog', 'Salchipapa'],
+            delicias: ['Delicias'],
+            helados: ['Helados'],
+            frugos_15: ['Frugos 1.5L', 'Frugos 1.5Lt']
           };
           if (mapa[rowId]) return mapa[rowId];
           const row = this.filaReal(rowId);
