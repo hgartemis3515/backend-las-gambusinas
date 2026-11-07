@@ -259,7 +259,9 @@ function normalizarMenuGestionFront(raw) {
   const principal = take(sinListas ? MENU_GESTION_DEFAULT.principal : src.principal);
   const avanzada = take(sinListas ? MENU_GESTION_DEFAULT.avanzada : src.avanzada);
   for (const key of known) {
-    if (!seen.has(key)) principal.push(key);
+    if (seen.has(key)) continue;
+    if (MENU_GESTION_DEFAULT.avanzada.includes(key)) avanzada.push(key);
+    else principal.push(key);
   }
   return {
     tituloPrincipal: titulo(src.tituloPrincipal, MENU_GESTION_DEFAULT.tituloPrincipal),

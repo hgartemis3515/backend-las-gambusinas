@@ -43,4 +43,25 @@ describe('normalizarMenuGestion', () => {
     expect(n.fondos.mesas).toBeUndefined();
     expect(n.fondos.noExiste).toBeUndefined();
   });
+
+  test('una clave que falta entra en la columna del default', () => {
+    const n = normalizarMenuGestion({
+      principal: MENU_GESTION_DEFAULT.principal.filter((k) => k !== 'noticias'),
+      avanzada: MENU_GESTION_DEFAULT.avanzada.filter((k) => k !== 'inventario'),
+    });
+    expect(n.principal).toContain('noticias');
+    expect(n.principal).not.toContain('inventario');
+    expect(n.avanzada).toContain('inventario');
+    expect(n.avanzada).not.toContain('noticias');
+  });
+
+  test('deja inventario en la columna donde se movió', () => {
+    const n = normalizarMenuGestion({
+      principal: ['inventario'].concat(MENU_GESTION_DEFAULT.principal),
+      avanzada: MENU_GESTION_DEFAULT.avanzada.filter((k) => k !== 'inventario')
+    });
+    expect(n.principal[0]).toBe('inventario');
+    expect(n.principal.filter((k) => k === 'inventario')).toHaveLength(1);
+    expect(n.avanzada).not.toContain('inventario');
+  });
 });

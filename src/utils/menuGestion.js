@@ -16,6 +16,8 @@ const MENU_GESTION_KEYS = [
   'auditoria',
   'cierre',
   'reportes',
+  'noticias',
+  'inventario',
   'config',
 ];
 
@@ -25,8 +27,8 @@ const MENU_GESTION_DEFAULT = {
     colorPrincipal: '#d4af37',
     colorAvanzada: '#a0a0b8',
     fondos: {},
-    principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
-  avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config'],
+    principal: ['dashboard', 'noticias', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
+  avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'inventario', 'config'],
 };
 
 function tituloMenu(valor, fallback) {
@@ -61,7 +63,9 @@ function normalizarMenuGestion(raw) {
   const principal = take(sinListas ? MENU_GESTION_DEFAULT.principal : src.principal);
   const avanzada = take(sinListas ? MENU_GESTION_DEFAULT.avanzada : src.avanzada);
   for (const key of MENU_GESTION_KEYS) {
-    if (!seen.has(key)) principal.push(key);
+    if (seen.has(key)) continue;
+    if (MENU_GESTION_DEFAULT.avanzada.includes(key)) avanzada.push(key);
+    else principal.push(key);
   }
 
   return {

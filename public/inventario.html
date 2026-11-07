@@ -8233,8 +8233,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         diaDeEventoInventario(payload) {
-          const crudo = payload && (payload.fecha || payload.timestamp || (payload.comanda && (payload.comanda.createdAt || payload.comanda.fecha)));
+          const c = payload && payload.comanda;
+          const crudo = payload && (payload.fecha || payload.fechaPago || payload.fechaCreacion || (c && (c.createdAt || c.fecha)) || payload.timestamp);
           if (!crudo) return this.ymdOperativo();
+          const s = String(crudo);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
           const d = new Date(crudo);
           if (Number.isNaN(d.getTime())) return this.ymdOperativo();
           return this.ymdOperativo(d);
@@ -9140,9 +9143,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               this.cargarKardex();
             }, 800);
           };
-          socket.on('inventario:alerta', refrescar);
-          socket.on('nueva-comanda', refrescar);
-          socket.on('comanda-actualizada', refrescar);
+          const eventos = [
+            'inventario:alerta',
+            'nueva-comanda',
+            'comanda-actualizada',
+            'reportes:boucher-nuevo',
+            'reportes:comanda-nueva',
+            'reportes:comanda-eliminada',
+            'comanda-eliminada',
+            'comanda-anulada',
+            'plato-anulado',
+            'ticket-eliminado',
+            'ticket-actualizado',
+            'comanda-aprobada'
+          ];
+          eventos.forEach((ev) => socket.on(ev, refrescar));
+          socket.on('connect', () => {
+            if (this._socketConectado) this.cargarKardex();
+            this._socketConectado = true;
+          });
           document.addEventListener('visibilitychange', () => {
             if (document.hidden || !this._kardexPendiente) return;
             this._kardexPendiente = false;

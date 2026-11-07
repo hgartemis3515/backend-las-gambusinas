@@ -274,8 +274,8 @@ const CONFIGURACION_DEFAULT = {
         colorPrincipal: '#d4af37',
         colorAvanzada: '#a0a0b8',
         fondos: {},
-        principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
-        avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config']
+        principal: ['dashboard', 'noticias', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
+        avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'inventario', 'config']
     }
 };
 

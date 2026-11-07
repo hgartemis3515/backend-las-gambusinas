@@ -107,6 +107,25 @@ const extraerAparienciaNormalizada = (ap) => {
     return out;
 };
 
+const persistirMenuGestion = async (menu) => {
+    const normalizado = normalizarMenuGestion(menu);
+    await ConfiguracionSistema.updateOne(
+        { _id: 'configuracion_unica' },
+        {
+            $set: {
+                'menuGestion.tituloPrincipal': normalizado.tituloPrincipal,
+                'menuGestion.tituloAvanzada': normalizado.tituloAvanzada,
+                'menuGestion.colorPrincipal': normalizado.colorPrincipal,
+                'menuGestion.colorAvanzada': normalizado.colorAvanzada,
+                'menuGestion.fondos': normalizado.fondos,
+                'menuGestion.principal': normalizado.principal,
+                'menuGestion.avanzada': normalizado.avanzada
+            }
+        }
+    );
+    return normalizado;
+};
+
 const aparienciaDesdeDoc = (config) => {
     const raw = config && config.apariencia;
     if (!raw) return { ...APARIENCIA_DEFAULT };
@@ -275,8 +294,10 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             };
         }
 
+        let menuNormalizado = null;
         if (datosFiltrados.menuGestion !== undefined) {
-            datosFiltrados.menuGestion = normalizarMenuGestion(datosFiltrados.menuGestion);
+            menuNormalizado = normalizarMenuGestion(datosFiltrados.menuGestion);
+            delete datosFiltrados.menuGestion;
         }
 
         if (datosFiltrados.caja && typeof datosFiltrados.caja === 'object') {
@@ -290,21 +311,31 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             datosFiltrados.caja = caja;
         }
 
+        if (menuNormalizado) {
+            await persistirMenuGestion(menuNormalizado);
+        }
+
         // Actualizar la configuración
-        const config = await ConfiguracionSistema.findByIdAndUpdate(
-            'configuracion_unica',
-            {
-                $set: {
-                    ...datosFiltrados,
-                    ultimaModificacionPor: modificadoPor
+        let config;
+        try {
+            config = await ConfiguracionSistema.findByIdAndUpdate(
+                'configuracion_unica',
+                {
+                    $set: {
+                        ...datosFiltrados,
+                        ultimaModificacionPor: modificadoPor
+                    }
+                },
+                {
+                    new: true,
+                    runValidators: true,
+                    upsert: true
                 }
-            },
-            {
-                new: true,
-                runValidators: true,
-                upsert: true
-            }
-        );
+            );
+        } catch (error) {
+            await invalidarCache();
+            throw error;
+        }
 
         if (datosFiltrados.cocina && typeof datosFiltrados.cocina === 'object') {
             const parada = {};
@@ -322,15 +353,29 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             }
         }
 
-        // Invalidar caché
+        if (menuNormalizado) {
+            await persistirMenuGestion(menuNormalizado);
+        }
+
+        const fresco = await ConfiguracionSistema.findById('configuracion_unica');
+        const plain = fresco ? fresco.toObject() : config.toObject();
+        delete plain.pinUniversalCocina;
+        plain.menuGestion = normalizarMenuGestion(menuNormalizado || plain.menuGestion);
+
         await invalidarCache();
         invalidarCacheCalculosPrecios();
+        try {
+            await redisCache.setCustom(CACHE_KEY_PREFIX, 'sistema', plain, CACHE_TTL);
+        } catch (error) {
+            logger.warn('No se pudo refrescar la caché de configuración', { error: error.message });
+        }
         if (hayCambioMoneda(nuevosDatos)) {
             emitirConfiguracionMonedaActualizada(config);
         }
 
         logger.info('Configuración actualizada exitosamente', {
             camposModificados: Object.keys(datosFiltrados),
+            menuGestion: !!menuNormalizado,
             modificadoPor
         });
 
@@ -343,7 +388,7 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             });
         }
 
-        return config.toObject();
+        return plain;
     } catch (error) {
         logger.error('Error al actualizar configuración:', { error: error.message });
         throw error;

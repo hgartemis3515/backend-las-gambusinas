@@ -1324,6 +1324,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         });
       }
 
+      avisarInventarioPorVenta();
       logger.info('Evento comanda-eliminada emitido', {
         comandaNumber: comanda.comandaNumber,
         comandaId: comandaId,
@@ -1783,7 +1784,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   global.emitReporteBoucherNuevo = async (boucher) => {
     try {
       if (!adminNamespace || !adminNamespace.sockets) {
-        return; // No hay clientes admin conectados
+        avisarInventarioPorVenta();
+        return;
       }
 
       const timestamp = moment().tz('America/Lima').toISOString();
@@ -1812,6 +1814,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       };
 
       adminNamespace.emit('reportes:boucher-nuevo', eventData);
+      avisarInventarioPorVenta();
 
       logger.info('Evento reportes:boucher-nuevo emitido', {
         boucherNumber: boucher.boucherNumber,
@@ -1833,7 +1836,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   global.emitReporteComandaNueva = async (comanda) => {
     try {
       if (!adminNamespace || !adminNamespace.sockets) {
-        return; // No hay clientes admin conectados
+        avisarInventarioPorVenta();
+        return;
       }
 
       const timestamp = moment().tz('America/Lima').toISOString();
@@ -1858,6 +1862,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       };
 
       adminNamespace.emit('reportes:comanda-nueva', eventData);
+      avisarInventarioPorVenta();
 
       logger.info('Evento reportes:comanda-nueva emitido', {
         comandaNumber: comanda.comandaNumber,
@@ -1979,6 +1984,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         roomNameCocina,
         roomNameMesa: roomNameMesa || 'todos'
       });
+      avisarInventarioPorVenta();
     } catch (error) {
       logger.error('Error al emitir plato-anulado', {
         error: error.message,
@@ -2073,6 +2079,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         roomNameCocina,
         roomNameMesa: roomNameMesa || 'todos'
       });
+      avisarInventarioPorVenta();
     } catch (error) {
       logger.error('Error al emitir comanda-anulada', {
         error: error.message,

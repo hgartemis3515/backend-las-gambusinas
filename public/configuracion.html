@@ -2069,8 +2069,8 @@ function configApp() {
         colorPrincipal: '#d4af37',
         colorAvanzada: '#a0a0b8',
         fondos: {},
-        principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
-        avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config']
+        principal: ['dashboard', 'noticias', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
+        avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'inventario', 'config']
       },
       // SEO y Metadatos
       seoMetaTitle: 'San Benito - Sistema POS',
@@ -2831,8 +2831,8 @@ function configApp() {
         };
         dataToSave.apariencia = aparienciaPayload;
         dataToSave.menuGestion = typeof normalizarMenuGestionFront === 'function'
-          ? normalizarMenuGestionFront(this.config.menuGestion)
-          : this.config.menuGestion;
+          ? normalizarMenuGestionFront(JSON.parse(JSON.stringify(this.config.menuGestion)))
+          : JSON.parse(JSON.stringify(this.config.menuGestion));
 
         const apRes = await apiPatch('/configuracion/apariencia', aparienciaPayload);
         if (apRes && apRes.success && apRes.configuracion && apRes.configuracion.apariencia) {
@@ -2851,6 +2851,12 @@ function configApp() {
           this.previewAparienciaMuted();
           this.previewMenuGestion();
           this.showToast('✅ Configuración guardada exitosamente');
+          if (res.configuracion && res.configuracion.menuGestion) {
+            this.config.menuGestion = typeof normalizarMenuGestionFront === 'function'
+              ? normalizarMenuGestionFront(res.configuracion.menuGestion)
+              : res.configuracion.menuGestion;
+            this.previewMenuGestion();
+          }
           // Invalidar cache SEO para que se recargue
           if (typeof SEOMeta !== 'undefined') {
             SEOMeta.invalidateCache();
@@ -2907,7 +2913,7 @@ function configApp() {
     restaurarMenuGestion() {
       const def = typeof MENU_GESTION_DEFAULT !== 'undefined'
         ? MENU_GESTION_DEFAULT
-        : { tituloPrincipal: 'Principal', tituloAvanzada: 'Avanzada', colorPrincipal: '#d4af37', colorAvanzada: '#a0a0b8', principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'], avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config'] };
+        : { tituloPrincipal: 'Principal', tituloAvanzada: 'Avanzada', colorPrincipal: '#d4af37', colorAvanzada: '#a0a0b8', principal: ['dashboard', 'noticias', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'], avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'inventario', 'config'] };
       this.config.menuGestion = typeof normalizarMenuGestionFront === 'function'
         ? normalizarMenuGestionFront(def)
         : { tituloPrincipal: def.tituloPrincipal, tituloAvanzada: def.tituloAvanzada, colorPrincipal: def.colorPrincipal || '#d4af37', colorAvanzada: def.colorAvanzada || '#a0a0b8', principal: def.principal.slice(), avanzada: def.avanzada.slice() };
@@ -2915,21 +2921,28 @@ function configApp() {
     },
 
     moverMenuItem(lista, idx, dir) {
-      const arr = this.config.menuGestion && this.config.menuGestion[lista];
+      const origen = this.config.menuGestion && this.config.menuGestion[lista];
+      if (!origen) return;
+      const arr = origen.slice();
       const j = idx + dir;
-      if (!arr || j < 0 || j >= arr.length) return;
+      if (j < 0 || j >= arr.length) return;
       const tmp = arr[idx];
       arr[idx] = arr[j];
       arr[j] = tmp;
+      this.config.menuGestion[lista] = arr;
       this.previewMenuGestion();
     },
 
     pasarMenuItem(from, to, idx) {
-      const src = this.config.menuGestion && this.config.menuGestion[from];
-      const dst = this.config.menuGestion && this.config.menuGestion[to];
-      if (!src || !dst || idx < 0 || idx >= src.length) return;
+      const src0 = this.config.menuGestion && this.config.menuGestion[from];
+      const dst0 = this.config.menuGestion && this.config.menuGestion[to];
+      if (!src0 || !dst0 || idx < 0 || idx >= src0.length) return;
+      const src = src0.slice();
+      const dst = dst0.slice();
       const moved = src.splice(idx, 1)[0];
       dst.push(moved);
+      this.config.menuGestion[from] = src;
+      this.config.menuGestion[to] = dst;
       this.previewMenuGestion();
     },
 
@@ -2942,18 +2955,21 @@ function configApp() {
       if (this.menuDragIdx < 0 || !this.menuDragLista) return;
       if (this.menuDragLista === lista) {
         if (this.menuDragIdx === idx) return;
-        const arr = this.config.menuGestion[lista];
+        const arr = (this.config.menuGestion[lista] || []).slice();
         const moved = arr.splice(this.menuDragIdx, 1)[0];
         arr.splice(idx, 0, moved);
+        this.config.menuGestion[lista] = arr;
         this.menuDragIdx = idx;
         return;
       }
-      const src = this.config.menuGestion[this.menuDragLista];
-      const dst = this.config.menuGestion[lista];
-      if (!src || !dst) return;
+      const src = (this.config.menuGestion[this.menuDragLista] || []).slice();
+      const dst = (this.config.menuGestion[lista] || []).slice();
       const moved = src.splice(this.menuDragIdx, 1)[0];
+      if (!moved) return;
       const insertAt = Math.min(Math.max(idx, 0), dst.length);
       dst.splice(insertAt, 0, moved);
+      this.config.menuGestion[this.menuDragLista] = src;
+      this.config.menuGestion[lista] = dst;
       this.menuDragLista = lista;
       this.menuDragIdx = insertAt;
     },
@@ -2967,11 +2983,13 @@ function configApp() {
 
     menuDropOnLista(lista) {
       if (this.menuDragIdx < 0 || !this.menuDragLista || this.menuDragLista === lista) return;
-      const src = this.config.menuGestion[this.menuDragLista];
-      const dst = this.config.menuGestion[lista];
-      if (!src || !dst) return;
+      const src = (this.config.menuGestion[this.menuDragLista] || []).slice();
+      const dst = (this.config.menuGestion[lista] || []).slice();
       const moved = src.splice(this.menuDragIdx, 1)[0];
+      if (!moved) return;
       dst.push(moved);
+      this.config.menuGestion[this.menuDragLista] = src;
+      this.config.menuGestion[lista] = dst;
       this.menuDragLista = lista;
       this.menuDragIdx = dst.length - 1;
     },
