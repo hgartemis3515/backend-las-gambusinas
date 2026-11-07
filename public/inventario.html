@@ -7357,8 +7357,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               { id: 'trozo_panceta', nombre: 'Trozo de panceta', children: [
                 { id: 'chancho_lena', nombre: 'Chancho a la leña', plato: true },
                 { id: 'chancho_lena_bbq', nombre: 'Chancho a la leña BBQ', plato: true }
-              ] },
-              { id: 'cerdo_pachamanca', nombre: 'Cerdo pachamanca' },
+              ] }
             ]
           },
           carnero: {
@@ -9673,7 +9672,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'carne_bistec', grupo: 'carnes', nombre: 'Carne Bistec', detalle: 'La venta del plato Bistec resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 8, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 8, cocido: 0 },
             { id: 'lomo_fino', grupo: 'carnes', nombre: 'Lomo Fino', detalle: 'Ingreso directo, sin transformación', unidad: 'porc', saldoAnterior: 0, ingreso: 5, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 5, cocido: 0 },
             { id: 'carne_pachamanca', grupo: 'carnes', nombre: 'Carne Pachamanca', detalle: 'Ingreso directo de la familia Carnes', unidad: 'porc', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 6 },
-            { id: 'cerdo_pachamanca', grupo: 'panceta', nombre: 'Cerdo pachamanca', detalle: 'Sabor de pachamanca. La venta de Cerdo de pachamanca resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'carne_guiso', grupo: 'carnes', nombre: 'Carne Guiso', detalle: 'Ingreso directo, sin transformación', unidad: 'porc', saldoAnterior: 0, ingreso: 3, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, crudo: 1, cocido: 2 },
 
             // GRUPO TRUCHA (Sin transformación)
@@ -9685,6 +9683,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'carnero_pachamanca', grupo: 'carnero', nombre: 'Carnero pachamanca', detalle: 'Conversión 1 a 1 desde Carnero', unidad: 'porc', saldoAnterior: 0, ingreso: 3, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 3 },
 
             // FILAS SOLAS (Directas en la tabla, sin grupo de despiece)
+            { id: 'cerdo_pachamanca', grupo: null, nombre: 'Cerdo pachamanca', detalle: 'Sabor de pachamanca. La venta de Cerdo de pachamanca resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'pescado_entero', grupo: null, nombre: 'Pescado entero', detalle: 'Ingreso directo · No pertenece a un grupo de despiece', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 6, cocido: 0 },
             { id: 'arroz', grupo: 'arroz', nombre: 'Arroz crudo', detalle: 'Lo que ingresa', unidad: 'unid', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 18, destinoTrans: '→ tipos', inventario: null, crudo: 2, cocido: 0 },
             { id: 'arroz_pollo', grupo: 'arroz', nombre: 'Arroz pollo', detalle: 'Desde arroz crudo', unidad: 'unid', saldoAnterior: 0, ingreso: 8, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
