@@ -35,34 +35,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
-            bgMain: '#0a0a0f',
-            bgCard: '#14141f',
-            bgCardAlt: '#1a1a28',
-            bgElevated: '#1c1c2b',
-            gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
-            goldDarkText: '#1a1200',
-            txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' },
-            textSecondary: '#a0a0b8',
-            textMuted: '#5a5a7a',
-            borderSubtle: '#26263a'
-          },
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace']
-          }
-        }
-      }
-    }
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/assets/css/tw-inventario.css">
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="/assets/css/dashboard.css">
@@ -991,6 +964,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
     .titulo-impresion { display: none; }
     @page { size: A4 landscape; margin: 8mm; }
+    tr.fila-suelta > td.py-fila { padding-top: 0.75rem; padding-bottom: 0.75rem; }
     @media print {
       #topbar-container, #sidebar-container, .no-print { display: none !important; }
       body { background: #fff !important; }
@@ -1059,7 +1033,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <nav class="barra-secciones-nav" aria-label="Secciones de inventario">
         <button
           type="button"
-          @click="activeTab = 'tabla'"
+          @click="irA('tabla')"
           :class="activeTab === 'tabla' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
           class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
         >
@@ -1068,7 +1042,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <button
           type="button"
-          @click="activeTab = 'transformar'"
+          @click="irA('transformar')"
           :class="activeTab === 'transformar' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
           class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
         >
@@ -1077,7 +1051,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <button
           type="button"
-          @click="activeTab = 'stock'"
+          @click="irA('stock')"
           :class="activeTab === 'stock' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
           class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
         >
@@ -1095,7 +1069,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <button
           type="button"
-          @click="activeTab = 'platos'"
+          @click="irA('platos')"
           :class="activeTab === 'platos' ? 'border-2 border-white bg-[#1c1c2b]' : 'border-2 border-transparent bg-[#0a0a0f]/60 hover:bg-[#1c1c2b]/60'"
           class="sec-tab px-4 py-2.5 rounded-lg transition cursor-pointer"
         >
@@ -1311,7 +1285,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#d4af37] text-sm font-bold">⌕</span>
             <input
               type="search"
-              x-model="busqueda"
+              x-model="busquedaEscrita"
+              @input="programarBusqueda()"
               placeholder="Buscar producto o corte... (ej. Pechuga, Lomo, Filete)"
               autocomplete="off"
               aria-label="Buscar producto"
@@ -1319,8 +1294,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             />
             <button
               type="button"
-              x-show="busqueda"
-              @click="busqueda = ''"
+              x-show="busquedaEscrita"
+              @click="limpiarBusqueda()"
               class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#a0a0b8] hover:text-white text-xs font-bold px-1"
               title="Limpiar búsqueda"
             >✕</button>
@@ -1525,26 +1500,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <!-- ============================================================= -->
             <!-- GRUPOS DESPLEGABLES (▶/▼ + pastilla GRUPO)                    -->
             <!-- ============================================================= -->
-            <template x-for="group in tableGroups" :key="'grp-body-' + group.id">
-              <tbody x-show="groupHasMatch(group.id)" class="divide-y divide-[#26263a] text-sm border-t-2 border-[#26263a]">
-                <tr x-show="esGrupoSinDatos(group)" @click="toggleGroup(group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer" :style="colorFondoGrupo(group) ? ('background-color:' + colorFondoGrupo(group)) : ''">
-                  <td class="py-3 px-4 font-bold text-white sticky left-0" :class="colorFondoGrupo(group) ? '' : 'bg-[#1a1a28]'" :style="colorFondoGrupo(group) ? ('background-color:' + colorFondoGrupo(group)) : ''">
+            <template x-for="bloque in bloquesHoja()" :key="bloque.key">
+              <tbody x-show="bloque.suelto || groupHasMatch(bloque.group.id)" class="divide-y divide-[#26263a] text-sm border-t-2 border-[#26263a]">
+                <template x-if="!bloque.suelto">
+                <tr x-show="esGrupoSinDatos(bloque.group)" @click="toggleGroup(bloque.group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer" :style="colorFondoGrupo(bloque.group) ? ('background-color:' + colorFondoGrupo(bloque.group)) : ''">
+                  <td class="py-3 px-4 font-bold text-white sticky left-0" :class="colorFondoGrupo(bloque.group) ? '' : 'bg-[#1a1a28]'" :style="colorFondoGrupo(bloque.group) ? ('background-color:' + colorFondoGrupo(bloque.group)) : ''">
                     <div class="flex items-center gap-2.5">
-                      <span class="w-6 h-6 rounded-md bg-[#0a0a0f] border border-[#26263a] inline-flex items-center justify-center text-xs text-[#d4af37]" :class="group.open ? 'rotate-0' : '-rotate-90'">▼</span>
-                      <span class="text-[16px] text-white font-bold" x-text="group.nombre"></span>
+                      <span class="w-6 h-6 rounded-md bg-[#0a0a0f] border border-[#26263a] inline-flex items-center justify-center text-xs text-[#d4af37]" :class="bloque.group.open ? 'rotate-0' : '-rotate-90'">▼</span>
+                      <span class="text-[16px] text-white font-bold" x-text="bloque.group.nombre"></span>
                       <span class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200]">GRUPO</span>
                     </div>
                   </td>
                   <td :colspan="columnasRestoGrupo()" class="py-3 px-4 text-xs text-[#a0a0b8]">
-                    <span x-text="getRowsByGroup(group.id).length + (group.id === 'carnes' ? ' carnes' : ' bebidas')"></span>
-                    <span class="ml-2" x-text="group.id === 'carnes' ? 'El grupo no suma. Cada carne tiene su ingreso y su venta.' : 'El grupo no suma. Cada bebida tiene su ingreso y su venta.'"></span>
+                    <span x-text="getRowsByGroup(bloque.group.id).length + (bloque.group.id === 'carnes' ? ' carnes' : ' bebidas')"></span>
+                    <span class="ml-2" x-text="bloque.group.id === 'carnes' ? 'El grupo no suma. Cada carne tiene su ingreso y su venta.' : 'El grupo no suma. Cada bebida tiene su ingreso y su venta.'"></span>
                   </td>
                 </tr>
-                <!-- Filas del grupo: la raíz es el producto (como Pollo fresco) y lleva ingreso -->
-                <template x-for="(item, idx) in filasDeGrupo(group)" :key="item.key + '-' + group.staggerKey">
+                </template>
+                <template x-for="(item, idx) in bloque.filas" :key="item.key + '-' + (bloque.group ? bloque.group.staggerKey : 's')">
                   <tr
                     :id="'fila-prod-' + row.id"
-                    x-show="item.visible || busqueda.trim() !== ''"
+                    x-show="!item.enGrupo || item.visible || (busqueda || '').trim() !== ''"
                     x-data="{ get row() { return item.row } }"
                     x-transition:enter="transition ease-out duration-300 transform"
                     x-transition:enter-start="opacity-0 -translate-y-2"
@@ -1552,19 +1528,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     x-transition:leave="transition ease-in duration-150 transform"
                     x-transition:leave-start="opacity-100 translate-y-0"
                     x-transition:leave-end="opacity-0 -translate-y-1"
-                    :class="[
-                      row.isNew ? 'row-slide-in' : 'stagger-fade-in',
-                      updatedRows[row.id] ? 'row-updated-bar' : '',
-                      filaResaltadaId === row.id ? 'fila-resaltada-ir' : '',
-                      item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]'
-                    ]"
-                    :style="'animation-delay: ' + (idx * 45) + 'ms; transition-delay: ' + (idx * 45) + 'ms' + (colorFondoFila(row, group, item) ? ';background-color:' + colorFondoFila(row, group, item) : '')"
-                    class="hover:bg-[#232336] transition-colors"
+                    :class="claseFilaHoja(item)"
+                    :style="estiloFilaHoja(item, idx, bloque.group)"
                   >
+                    <template x-if="item.enGrupo">
                     <td
                       class="celda-producto-conector pr-4 pl-2 font-medium text-white sticky left-0 border-l-2 border-[#d4af37]/40"
-                      :class="colorFondoFila(row, group, item) ? '' : (item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]')"
-                      :style="colorFondoFila(row, group, item) ? ('background-color:' + colorFondoFila(row, group, item)) : ''"
+                      :class="colorFondoFila(row, bloque.group, item) ? '' : (item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]')"
+                      :style="colorFondoFila(row, bloque.group, item) ? ('background-color:' + colorFondoFila(row, bloque.group, item)) : ''"
                     >
                         <div class="circulo-conector-track" :title="item.connectorTitle || ''">
                           <span x-show="item.connectUp && item.connectDown" class="conector-linea-continua"></span>
@@ -1606,8 +1577,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           </button>
                         </div>
                     </td>
+                    </template>
+                    <template x-if="!item.enGrupo">
+                  <td class="celda-producto-conector pr-4 pl-2 font-semibold text-white sticky left-0" :class="rowBgColors[row.id] ? '' : 'bg-[#14141f]'" :style="rowBgColors[row.id] ? ('background-color:' + rowBgColors[row.id]) : ''">
+                    <div class="circulo-conector-track">
+                      <span
+                        class="circulo-saldo"
+                        :class="claseCirculoEstado(row)"
+                        :title="tituloEstado(row)"
+                      ></span>
+                    </div>
+                    <div class="nombre-producto-fila">
+                      <span class="w-6 h-6 shrink-0" aria-hidden="true"></span>
+                      <span class="text-white font-bold whitespace-nowrap" x-text="row.nombre"></span>
+                      <button
+                        type="button"
+                        @click.stop="abrirModalAuditoria(row)"
+                        class="w-6 h-6 rounded-md bg-[#1a1a2e] hover:bg-[#2b2b45] text-amber-400 border border-amber-500/50 inline-flex items-center justify-center cursor-pointer transition ml-1.5"
+                        :title="'Auditar movimientos de ' + row.nombre"
+                        :aria-label="'Auditar movimientos de ' + row.nombre"
+                      >
+                        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 12h6"></path><path d="M9 16h4"></path></svg>
+                      </button>
+                    </div>
+                  </td>
+                    </template>
                     <!-- Saldo anterior: Crudo arriba, Cocido abajo si el producto tiene cocido -->
-                    <td class="px-3 py-2.5 text-right num-mono text-purple-200 font-semibold border-r border-[#26263a]/40">
+                    <td class="px-3 py-2.5 py-fila text-right num-mono text-purple-200 font-semibold border-r border-[#26263a]/40">
                       <template x-if="row.tieneCocido">
                         <div class="flex flex-col items-end gap-1 py-0.5">
                           <div class="flex items-center gap-1.5">
@@ -1626,7 +1622,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Ingreso: Crudo arriba, Cocido abajo -->
-                    <td class="px-3 py-2.5 text-right">
+                    <td class="px-3 py-2.5 py-fila text-right">
                       <div class="flex flex-col items-end gap-1">
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-ing-' + tipo">
                           <div class="flex items-center gap-1">
@@ -1642,7 +1638,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Corrección: Crudo arriba, Cocido abajo -->
-                    <td class="px-3 py-2.5 text-right">
+                    <td class="px-3 py-2.5 py-fila text-right">
                       <div class="flex flex-col items-end gap-1">
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-cor-' + tipo">
                           <div class="flex items-center gap-1">
@@ -1659,7 +1655,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Ingreso total con flechas de Arriba (Verde = Sumando) y Abajo (Rojo = Restando), ocultas si son 0 -->
-                    <td class="ingreso-total-td px-3 py-2.5 border-r border-[#26263a]/40">
+                    <td class="ingreso-total-td px-3 py-2.5 py-fila border-r border-[#26263a]/40">
                       <template x-if="row.tieneCocido">
                         <div class="ingreso-total-stack text-xs">
                           <div class="ingreso-total-linea text-[11px]">
@@ -1709,7 +1705,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Venta (solo lectura, viene de comandas) -->
-                    <td class="px-3 py-2.5 text-right num-mono">
+                    <td class="px-3 py-2.5 py-fila text-right num-mono">
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-rose-400/80" title="Viene de comandas"></span>
                         <div class="flex flex-col items-end gap-1">
@@ -1728,7 +1724,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Transformación (en negativo y rojo resaltante con flecha si resta > 0 + icono Lupa de contorno rojo) -->
-                    <td class="px-3 py-2.5 text-right border-r border-[#26263a]/40">
+                    <td class="px-3 py-2.5 py-fila text-right border-r border-[#26263a]/40">
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <!-- Cuadro del número transformado -->
                         <button
@@ -1769,7 +1765,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Saldo -->
-                    <td x-show="mostrarSaldoYConteo" class="px-3 py-2.5 text-right bg-[#d4af37]/[0.07]" :title="formulaTooltip(row)">
+                    <td x-show="mostrarSaldoYConteo" class="px-3 py-2.5 py-fila text-right bg-[#d4af37]/[0.07]" :title="formulaTooltip(row)">
                       <div class="flex flex-col items-end gap-1">
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-sal-' + tipo">
                           <div class="flex items-center gap-1">
@@ -1781,7 +1777,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Conteo físico: Crudo arriba, Cocido abajo -->
-                    <td x-show="mostrarSaldoYConteo" class="px-3 py-2.5 text-right num-mono">
+                    <td x-show="mostrarSaldoYConteo" class="px-3 py-2.5 py-fila text-right num-mono">
                       <template x-if="row.tieneCocido">
                         <div class="flex flex-col items-end gap-1 text-xs">
                           <template x-for="tipo in ['crudo', 'cocido']" :key="row.id + '-cnt-' + tipo">
@@ -1800,7 +1796,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Queda (saldo real) + Icono de Lupa de procedimiento a la derecha -->
-                    <td class="px-3 py-2.5 text-right">
+                    <td class="px-3 py-2.5 py-fila text-right">
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <template x-if="row.tieneCocido">
                           <div class="flex flex-col items-end gap-0.5 text-xs">
@@ -1839,7 +1835,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Diferencia (azul si sobra, rojo si falta, vacío si nadie contó) -->
-                    <td x-show="mostrarDiferencia" class="px-3 py-2.5 text-right num-mono font-bold border-r border-[#26263a]/40">
+                    <td x-show="mostrarDiferencia" class="px-3 py-2.5 py-fila text-right num-mono font-bold border-r border-[#26263a]/40">
                       <div class="flex flex-col items-end gap-1">
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-dif-' + tipo">
                           <div class="flex items-center gap-1">
@@ -1867,298 +1863,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </template>
               </tbody>
             </template>
-
-            <!-- ============================================================= -->
-            <!-- FILAS SOLAS (DIRECTAS EN LA TABLA, SIN ENCABEZADO DE GRUPO)   -->
-            <!-- ============================================================= -->
-            <tbody class="divide-y divide-[#26263a] text-sm border-t-2 border-[#26263a]">
-              <template x-for="row in getFilteredLooseRows()" :key="row.id">
-                <tr
-                  :id="'fila-prod-' + row.id"
-                  :class="[updatedRows[row.id] ? 'row-updated-bar' : '', filaResaltadaId === row.id ? 'fila-resaltada-ir' : '']"
-                  :style="rowBgColors[row.id] ? ('background-color:' + rowBgColors[row.id]) : ''"
-                  class="bg-[#14141f] hover:bg-[#1a1a28] transition-colors"
-                >
-                  <!-- Producto (Fila sola de primer nivel, sin conexión con otras filas solas) -->
-                  <td class="celda-producto-conector pr-4 pl-2 font-semibold text-white sticky left-0" :class="rowBgColors[row.id] ? '' : 'bg-[#14141f]'" :style="rowBgColors[row.id] ? ('background-color:' + rowBgColors[row.id]) : ''">
-                    <div class="circulo-conector-track">
-                      <span
-                        class="circulo-saldo"
-                        :class="claseCirculoEstado(row)"
-                        :title="tituloEstado(row)"
-                      ></span>
-                    </div>
-                    <div class="nombre-producto-fila">
-                      <span class="w-6 h-6 shrink-0" aria-hidden="true"></span>
-                      <span class="text-white font-bold whitespace-nowrap" x-text="row.nombre"></span>
-                      <button
-                        type="button"
-                        @click.stop="abrirModalAuditoria(row)"
-                        class="w-6 h-6 rounded-md bg-[#1a1a2e] hover:bg-[#2b2b45] text-amber-400 border border-amber-500/50 inline-flex items-center justify-center cursor-pointer transition ml-1.5"
-                        :title="'Auditar movimientos de ' + row.nombre"
-                        :aria-label="'Auditar movimientos de ' + row.nombre"
-                      >
-                        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 12h6"></path><path d="M9 16h4"></path></svg>
-                      </button>
-                    </div>
-                  </td>
-                    <!-- Saldo anterior: Crudo arriba, Cocido abajo si el producto tiene cocido -->
-                    <td class="px-3 py-3 text-right num-mono text-purple-200 font-semibold border-r border-[#26263a]/40">
-                      <template x-if="row.tieneCocido">
-                        <div class="flex flex-col items-end gap-1 py-0.5">
-                          <div class="flex items-center gap-1.5">
-                            <span class="text-[9px] font-bold text-emerald-400 font-sans tracking-wide">Crudo</span>
-                            <span class="num-mono font-medium text-purple-200" x-text="formatNum(saldoAnteriorColumnaTipo(row, 'crudo'))"></span>
-                          </div>
-                          <div class="flex items-center gap-1.5">
-                            <span class="text-[9px] font-bold text-[#d4af37] font-sans tracking-wide">Cocido</span>
-                            <span class="num-mono font-medium text-amber-200" x-text="formatNum(saldoAnteriorColumnaTipo(row, 'cocido'))"></span>
-                          </div>
-                        </div>
-                      </template>
-                      <template x-if="!row.tieneCocido">
-                        <span x-text="formatNum(saldoAnteriorColumna(row))"></span>
-                      </template>
-                    </td>
-
-                    <!-- Ingreso: Crudo arriba, Cocido abajo -->
-                    <td class="px-3 py-3 text-right">
-                      <div class="flex flex-col items-end gap-1">
-                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-ing-' + tipo">
-                          <div class="flex items-center gap-1">
-                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                            <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
-                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, -1)">−</button>
-                              <input type="number" min="0" step="1" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
-                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, 1)">+</button>
-                            </div>
-                          </div>
-                        </template>
-                      </div>
-                    </td>
-
-                    <!-- Corrección: Crudo arriba, Cocido abajo -->
-                    <td class="px-3 py-3 text-right">
-                      <div class="flex flex-col items-end gap-1">
-                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-cor-' + tipo">
-                          <div class="flex items-center gap-1">
-                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                            <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
-                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, -1)">−</button>
-                              <input type="number" step="1" class="num-claro caja-digitos text-center num-mono font-semibold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'correccion', tipo))" :value="valorTipo(row, 'correccion', tipo)" :aria-label="'Corrección ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'correccion', tipo, $event.target.value)">
-                              <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'correccion', tipo, 1)">+</button>
-                            </div>
-                            <span x-show="valorTipo(row, 'correccion', tipo) !== 0" class="text-[#d4af37] font-bold text-xs num-mono">#</span>
-                          </div>
-                        </template>
-                      </div>
-                    </td>
-
-                    <!-- Ingreso total con flechas de Arriba (Verde = Sumando) y Abajo (Rojo = Restando), ocultas si son 0 -->
-                    <td class="ingreso-total-td px-3 py-3 border-r border-[#26263a]/40">
-                      <template x-if="row.tieneCocido">
-                        <div class="ingreso-total-stack text-xs">
-                          <div class="ingreso-total-linea text-[11px]">
-                            <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                            <span class="num-mono font-semibold text-cyan-200" x-text="formatNum(ingresoTotalColumnaTipo(row, 'crudo'))"></span>
-                          </div>
-                          <div class="ingreso-total-linea text-[11px]">
-                            <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                            <span class="num-mono font-semibold text-cyan-300" x-text="formatNum(ingresoTotalColumnaTipo(row, 'cocido'))"></span>
-                          </div>
-                          <div class="ingreso-total-numero">
-                            <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(ingresoTotalColumna(row))"></span>
-                            <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
-                            <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
-                              <span
-                                x-show="sumaIngresoTotalFila(row) > 0"
-                                class="badge-flecha-up-verde"
-                                :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'"
-                              >↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
-                              <span
-                                x-show="restaIngresoTotalFila(row) > 0"
-                                class="badge-flecha-down-roja"
-                                :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'"
-                              >↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
-                            </div>
-                          </div>
-                        </div>
-                      </template>
-                      <template x-if="!row.tieneCocido">
-                        <div class="ingreso-total-numero">
-                          <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(ingresoTotalColumna(row))"></span>
-                            <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
-                          <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
-                            <span
-                              x-show="sumaIngresoTotalFila(row) > 0"
-                              class="badge-flecha-up-verde"
-                              :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'"
-                            >↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
-                            <span
-                              x-show="restaIngresoTotalFila(row) > 0"
-                              class="badge-flecha-down-roja"
-                              :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'"
-                            >↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
-                          </div>
-                        </div>
-                      </template>
-                    </td>
-
-                    <!-- Venta (solo lectura, viene de comandas) -->
-                    <td class="px-3 py-3 text-right num-mono">
-                      <div class="inline-flex items-center justify-end gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400/80" title="Viene de comandas"></span>
-                        <div class="flex flex-col items-end gap-1">
-                          <template x-for="tipo in tiposDe(row)" :key="row.id + '-ven-' + tipo">
-                            <div class="flex items-center gap-1">
-                              <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                              <span class="text-rose-200 font-semibold" :title="tituloVentaColumna(row)" x-text="formatNum(row.tieneCocido ? ventaColumnaTipo(row, tipo) : ventaColumna(row))"></span>
-                            </div>
-                          </template>
-                        </div>
-                        <button type="button" class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="abrirVentaFila(row)">
-                          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-                        </button>
-                        <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: resta cocido, luego crudo y luego la reserva" @click="abrirVentaManual(row)">−</button>
-                      </div>
-                    </td>
-
-                    <!-- Transformación (en negativo y rojo resaltante con flecha si resta > 0 + icono Lupa de contorno rojo) -->
-                    <td class="px-3 py-3 text-right border-r border-[#26263a]/40">
-                      <div class="inline-flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          @click="abrirModalTransformacion(row)"
-                          :class="totalTransformacionFila(row) > 0 ? 'caja-transformacion-resta px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer' : 'caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer hover:border-[#d4af37]'"
-                          :title="totalTransformacionFila(row) > 0 ? ('Se transformaron ' + formatNum(totalTransformacionFila(row)) + ' ' + (row.unidad || 'unid') + ' (se resta del Ingreso Total). Clic para ver gráfico simétrico vertical.') : 'Sin salida por transformación hoy. Clic para ver detalle.'"
-                        >
-                          <span x-show="totalTransformacionFila(row) > 0" class="flecha-resta-anim" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                              <path d="M12 4v16"></path>
-                              <path d="m18 14-6 6-6-6"></path>
-                            </svg>
-                          </span>
-                          <span
-                            class="num-mono font-extrabold text-sm"
-                            :class="totalTransformacionFila(row) > 0 ? 'text-white' : 'text-[#111111]'"
-                            x-text="totalTransformacionFila(row) > 0 ? ('−' + formatNum(totalTransformacionFila(row))) : '0'"
-                          ></span>
-                        </button>
-
-                        <button
-                          type="button"
-                          @click.stop="abrirModalTransformacion(row)"
-                          :class="totalTransformacionFila(row) > 0 ? 'btn-lupa-roja' : 'btn-lupa-roja-suave'"
-                          class="w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
-                          :aria-label="'Ver gráfico de transformación de ' + row.nombre"
-                          :title="'Ver qué se transformó de ' + row.nombre + ', en qué cortes/platos se convirtió y cuánto queda'"
-                        >
-                          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="M20 20l-3.5-3.5"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-
-                    <!-- Saldo -->
-                    <td x-show="mostrarSaldoYConteo" class="px-3 py-3 text-right bg-[#d4af37]/[0.07]" :title="formulaTooltip(row)">
-                      <div class="flex flex-col items-end gap-1">
-                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-sal-' + tipo">
-                          <div class="flex items-center gap-1">
-                            <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(row.tieneCocido ? saldoColumnaTipo(row, tipo) : saldoColumna(row))"></span>
-                          </div>
-                        </template>
-                      </div>
-                    </td>
-
-                    <!-- Conteo físico: Crudo arriba, Cocido abajo -->
-                    <td x-show="mostrarSaldoYConteo" class="px-3 py-3 text-right num-mono">
-                      <template x-if="row.tieneCocido">
-                        <div class="flex flex-col items-end gap-1 text-xs">
-                          <template x-for="tipo in ['crudo', 'cocido']" :key="row.id + '-cnt-' + tipo">
-                            <button type="button" @click="openCountModal(row.id, tipo)" class="caja-clara px-2 py-0.5 rounded-md border text-[11px] font-bold text-[#111111] transition cursor-pointer">
-                              <span class="text-[10px] font-sans font-bold mr-1" :class="tipo === 'cocido' ? 'text-amber-800' : 'text-emerald-700'" x-text="etiquetaTipo(tipo) + ':'"></span>
-                              <span x-text="conteoTipo(row, tipo) === null ? '-' : formatNum(conteoTipo(row, tipo)) + ' #'"></span>
-                            </button>
-                          </template>
-                        </div>
-                      </template>
-                      <template x-if="!row.tieneCocido">
-                        <button type="button" @click="openCountModal(row.id, 'crudo')" class="caja-clara px-2.5 py-1 rounded-lg border num-mono text-xs font-bold text-[#111111] transition cursor-pointer">
-                          <span x-text="conteoTipo(row, 'crudo') === null ? '-' : formatNum(conteoTipo(row, 'crudo')) + ' #'"></span>
-                        </button>
-                      </template>
-                    </td>
-
-                    <!-- Queda (saldo real) + Icono de Lupa de procedimiento a la derecha -->
-                    <td class="px-3 py-3 text-right">
-                      <div class="inline-flex items-center justify-end gap-1.5">
-                        <template x-if="row.tieneCocido">
-                          <div class="flex flex-col items-end gap-0.5 text-xs">
-                            <div class="flex items-center gap-1">
-                              <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                              <span class="num-mono font-bold text-teal-300" x-text="formatNum(saldoRealColumnaTipo(row, 'crudo'))"></span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                              <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                              <span class="num-mono font-bold text-teal-200" x-text="formatNum(saldoRealColumnaTipo(row, 'cocido'))"></span>
-                            </div>
-                            <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
-                              <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
-                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(saldoRealColumna(row))"></span>
-                            </div>
-                          </div>
-                        </template>
-                        <template x-if="!row.tieneCocido">
-                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(saldoRealColumna(row))"></span>
-                        </template>
-
-                        <!-- Icono de Lupa a la derecha de Queda (Saldo real) -->
-                        <button
-                          type="button"
-                          @click.stop="abrirModalProcedimientoSaldoReal(row)"
-                          class="btn-lupa-saldo-real w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
-                          :aria-label="'Ver procedimiento de Saldo Real de ' + row.nombre"
-                          :title="'Ver todo el procedimiento de sumas y restas para llegar al Saldo Real de ' + row.nombre + ' en el período seleccionado'"
-                        >
-                          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <path d="M20 20l-3.5-3.5"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-
-                    <!-- Diferencia (azul si sobra, rojo si falta, vacío si nadie contó) -->
-                    <td x-show="mostrarDiferencia" class="px-3 py-3 text-right num-mono font-bold border-r border-[#26263a]/40">
-                      <div class="flex flex-col items-end gap-1">
-                        <template x-for="tipo in tiposDe(row)" :key="row.id + '-dif-' + tipo">
-                          <div class="flex items-center gap-1">
-                            <span x-show="row.tieneCocido" class="text-[9px] font-bold font-sans" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
-                            <span x-show="calcDiferenciaTipo(row, tipo) === null" class="text-[#5a5a7a]">—</span>
-                            <span
-                              x-show="calcDiferenciaTipo(row, tipo) !== null"
-                              class="px-2 py-0.5 rounded-md text-xs font-extrabold"
-                              :class="calcDiferenciaTipo(row, tipo) < 0 ? 'bg-rose-600 text-white' : (calcDiferenciaTipo(row, tipo) > 0 ? 'bg-blue-600 text-white' : 'bg-emerald-900/60 text-emerald-300')"
-                              x-text="(calcDiferenciaTipo(row, tipo) > 0 ? '+' : '') + formatNum(calcDiferenciaTipo(row, tipo))"
-                            ></span>
-                          </div>
-                        </template>
-                      </div>
-                    </td>
-
-                  <td x-show="mostrarEstado" class="px-3 py-2 text-left whitespace-nowrap">
-                    <div class="inline-flex items-center gap-2">
-                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="clasePuntoEstado(row)"></span>
-                      <span class="text-xs font-semibold" :class="claseTextoEstado(row)" x-text="estadoFila(row)"></span>
-                    </div>
-                  </td>
-
-                </tr>
-              </template>
-            </tbody>
           </table>
         </div>
       </div>
@@ -2166,7 +1870,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <!-- =================================================================== -->
     <!-- PESTAÑA 2: CRUDO Y COCIDO                                           -->
     <!-- =================================================================== -->
-    <section x-show="false" x-cloak class="space-y-4">
+    <template x-if="false">
+    <section x-cloak class="space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <p class="text-xs text-[#a0a0b8]">Cada cuadro es el del commit anterior: saldo anterior, cocido, crudo, total y final. Cocido y crudo se anotan en la misma fila de Inventario Tabla. El día corre de 04:00 a 04:00.</p>
         <button type="button" @click="abrirReporteDia(fechaReporteDia(), 'hoja')" class="px-4 py-2.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-bold text-sm cursor-pointer">Reporte del día</button>
@@ -2238,10 +1943,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </table>
       </div>
     </section>
+    </template>
 
     <!-- =================================================================== -->
     <!-- PESTAÑA 3: TRANSFORMAR (MAPA SEMÁNTICO HORIZONTAL Y GRUPAL)         -->
     <!-- =================================================================== -->
+    <template x-if="tabMontada.transformar">
     <section x-show="activeTab === 'transformar'" x-cloak class="space-y-6">
       <!-- Encabezado y resumen de reglas semánticas -->
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
@@ -3671,12 +3378,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
       </div>
     </section>
+    </template>
 
 
 
     <!-- =================================================================== -->
     <!-- PESTAÑA: GRÁFICO ESTADÍSTICO                                        -->
     <!-- =================================================================== -->
+    <template x-if="tabMontada.grafico">
     <section x-show="activeTab === 'grafico'" x-cloak class="space-y-4">
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
         <div class="space-y-2">
@@ -3812,10 +3521,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
       </div>
     </section>
+    </template>
 
     <!-- =================================================================== -->
     <!-- PESTAÑA 4: STOCK                                                    -->
     <!-- =================================================================== -->
+    <template x-if="tabMontada.stock">
     <section x-show="activeTab === 'stock'" x-cloak class="space-y-5">
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -3875,10 +3586,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
       </div>
     </section>
+    </template>
 
     <!-- =================================================================== -->
     <!-- PESTAÑA 5: RELACIÓN DE PLATOS (GRID UNIDO SIN ESPACIOS + INLINE)    -->
     <!-- =================================================================== -->
+    <template x-if="tabMontada.platos">
     <section x-show="activeTab === 'platos'" x-cloak data-testid="tab-relacion-platos">
       <!-- ÚNICO CUADRO SEPARADO: DOCK ULTRA-RÁPIDO DE FAMILIA DE INVENTARIO (SIN LAG) -->
       <div
@@ -4704,6 +4417,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div class="sm:col-span-5 flex items-center gap-1">
                   <select
                     x-model="categoriaCartaFiltroRelacion"
+                    @change="cartaRelacionVisibles = 30"
                     aria-label="Filtrar categoría de la carta"
                     class="w-full bg-[#14141f] border border-[#26263a] focus:border-[#d4af37] rounded-lg px-2 py-1 text-xs text-white font-bold truncate"
                   >
@@ -4717,6 +4431,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <input
                     type="text"
                     x-model="busquedaCartaRelacion"
+                    @input="cartaRelacionVisibles = 30"
                     placeholder="Buscar plato en la carta (ej. Milanesa, Chaufa...)"
                     class="w-full bg-[#14141f] border border-[#26263a] focus:border-[#d4af37] rounded-lg px-2.5 py-1 text-xs text-white placeholder-[#5a5a7a] outline-none"
                   />
@@ -4731,7 +4446,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
               <!-- Lista unida de platos de la carta (flex-1 min-h-0 con scroll propio) -->
               <div class="divide-y divide-[#26263a] overflow-y-auto flex-1 min-h-0 bg-[#0a0a0f]">
-                <template x-for="p in platosCartaFiltradosRelacion()" :key="'fast-carta-' + p.clave">
+                <template x-for="p in platosCartaPaginaRelacion()" :key="'fast-carta-' + p.clave">
                   <div class="px-3 py-2 flex items-center justify-between gap-2 rel-card-hover">
                     <div class="min-w-0 flex-1">
                       <div class="flex items-center gap-1.5">
@@ -4770,6 +4485,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </template>
                   </div>
                 </template>
+                <div x-show="platosCartaFiltradosRelacion().length > cartaRelacionVisibles" class="p-2 text-center border-t border-[#26263a]">
+                  <button type="button" @click="cartaRelacionVisibles = cartaRelacionVisibles + 30" class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] border border-[#d4af37]/40 text-[#d4af37] text-xs font-bold cursor-pointer">
+                    Ver más (<span x-text="platosCartaFiltradosRelacion().length - cartaRelacionVisibles"></span>)
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -4993,6 +4713,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </template>
       </div>
     </section>
+    </template>
 
     <!-- =================================================================== -->
     <!-- MODAL NUEVO: PRODUCTOS Y PLATOS (DESDE INVENTARIO TABLA)            -->
@@ -5031,7 +4752,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="flex items-center gap-2">
             <button
               type="button"
-              @click="productosYPlatosModalAbierto = false; activeTab = 'platos'"
+              @click="productosYPlatosModalAbierto = false; irA('platos')"
               class="px-3 py-1.5 rounded-xl bg-[#1c1c2b] hover:bg-[#26263a] border border-[#d4af37]/50 text-[#d4af37] text-xs font-extrabold cursor-pointer transition"
             >
               ⚙️ Ir al Configurador Maestro
@@ -6980,7 +6701,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="flex items-center gap-2">
             <button
               type="button"
-              @click="showTransformacionModal = false; activeTab = 'transformar'"
+              @click="showTransformacionModal = false; irA('transformar')"
               class="px-3.5 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-xs hover:brightness-110 transition cursor-pointer shadow"
             >
               Editar en Transformar →
@@ -7439,6 +7160,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     function inventarioApp() {
       return {
         activeTab: 'tabla',
+        tabMontada: { transformar: false, grafico: false, stock: false, platos: false },
+        cartaRelacionVisibles: 30,
         vistaConfiguradorPlatos: 'estudio',
         familiaFiltroRelacion: 'todas',
         categoriaCartaFiltroRelacion: 'todas',
@@ -7495,6 +7218,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         compactView: false,
         soundEnabled: true,
         busqueda: '',
+        busquedaEscrita: '',
         ordenHoja: 'cantidad',
         configMenuOpen: false,
         showConversionesModal: false,
@@ -8370,9 +8094,61 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (recargar && this.periodo !== prev) await this.cargarKardex();
         },
 
+        irA(tab) {
+          if (tab && tab !== 'tabla') this.tabMontada[tab] = true;
+          this.activeTab = tab;
+          if (tab === 'grafico') this.asegurarChart();
+        },
+
+        asegurarChart() {
+          if (typeof Chart !== 'undefined') return Promise.resolve();
+          if (this._chartScript) return this._chartScript;
+          this._chartScript = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('chart'));
+            document.head.appendChild(s);
+          });
+          return this._chartScript;
+        },
+
         abrirGrafico() {
-          this.activeTab = 'grafico';
-          this.cargarSerieGrafico();
+          this.irA('grafico');
+          this.asegurarChart().then(() => this.cargarSerieGrafico()).catch(() => {
+            this.toastMessage = 'No se pudo cargar el gráfico.';
+          });
+        },
+
+        programarBusqueda() {
+          clearTimeout(this._buscaTimer);
+          this._buscaTimer = setTimeout(() => { this.busqueda = this.busquedaEscrita; }, 150);
+        },
+
+        limpiarBusqueda() {
+          clearTimeout(this._buscaTimer);
+          this.busquedaEscrita = '';
+          this.busqueda = '';
+        },
+
+        diaDeEventoInventario(payload) {
+          const crudo = payload && (payload.fecha || payload.timestamp || (payload.comanda && (payload.comanda.createdAt || payload.comanda.fecha)));
+          if (!crudo) return this.ymdOperativo();
+          const d = new Date(crudo);
+          if (Number.isNaN(d.getTime())) return this.ymdOperativo();
+          return this.ymdOperativo(d);
+        },
+
+        periodoIncluyeDia(ymd) {
+          const r = this.rangoPeriodo();
+          if (String(r.desde).indexOf('T') !== -1 || String(r.hasta).indexOf('T') !== -1) {
+            const ahora = Date.now();
+            const desde = new Date(r.desde).getTime();
+            const hasta = new Date(r.hasta).getTime();
+            if (!Number.isFinite(desde) || !Number.isFinite(hasta)) return ymd === this.ymdOperativo();
+            return ymd === this.ymdOperativo() && ahora >= desde && ahora <= hasta;
+          }
+          return String(r.desde) <= ymd && ymd <= String(r.hasta);
         },
 
         ventanaGrafico() {
@@ -8545,22 +8321,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return ['#d4af37', '#e07a3d', '#3d8b7a', '#6c5ce7', '#e84393', '#00b894', '#fdcb6e', '#74b9ff', '#ff7675', '#a3cb38'];
         },
 
+        ponerGrafico(ref, canvasId, config, totalAnillo) {
+          const canvas = document.getElementById(canvasId);
+          if (!canvas || typeof Chart === 'undefined') return;
+          const prev = this[ref];
+          if (prev && prev.canvas === canvas) {
+            prev.data.labels = config.data.labels;
+            prev.data.datasets = config.data.datasets;
+            if (totalAnillo != null) prev.$totalAnillo = totalAnillo;
+            prev.update();
+            return;
+          }
+          if (prev) { try { prev.destroy(); } catch (e) {} }
+          const chart = new Chart(canvas, config);
+          if (totalAnillo != null) {
+            chart.$totalAnillo = totalAnillo;
+            chart.update();
+          }
+          this[ref] = chart;
+        },
+
         pintarGrafico() {
           if (this.activeTab !== 'grafico' || typeof Chart === 'undefined') return;
-          this.soltarGrafico('_chartApiladas', 'chartInventarioApiladas');
-          this.soltarGrafico('_chartArea', 'chartInventarioArea');
-          this.soltarGrafico('_chartAnillo', 'chartInventarioAnillo');
-          this.soltarGrafico('_chartEmbudo', 'chartInventarioEmbudo');
-          this.soltarGrafico('_chartIngresoDia', 'chartInventarioIngresoDia');
-          this.soltarGrafico('_chartVentasDia', 'chartInventarioVentasDia');
-          this.soltarGrafico('_chartRealizado', 'chartInventarioRealizado');
           const serie = this.graficoSerie || [];
           const colores = this.coloresGrafico();
           const labelsDia = serie.length ? serie.map((p) => this.etiquetaDia(p.dia)) : ['Sin datos'];
           const tick = { color: '#a0a0b8', font: { size: 11 } };
-          const elApiladas = document.getElementById('chartInventarioApiladas');
-          if (elApiladas) {
-            this._chartApiladas = new Chart(elApiladas, {
+          this.ponerGrafico('_chartApiladas', 'chartInventarioApiladas', {
               type: 'bar',
               data: {
                 labels: labelsDia,
@@ -8575,12 +8362,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   y: { stacked: true, beginAtZero: true, ticks: tick, grid: { color: 'rgba(255,255,255,0.06)' } }
                 }
               })
-            });
-          }
+          });
           const haySaldo = serie.some((p) => p.saldo !== null && p.saldo !== undefined);
-          const elArea = document.getElementById('chartInventarioArea');
-          if (elArea) {
-            this._chartArea = new Chart(elArea, {
+          this.ponerGrafico('_chartArea', 'chartInventarioArea', {
               type: 'line',
               data: {
                 labels: labelsDia,
@@ -8597,8 +8381,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 }]
               },
               options: this.opcionesGrafico({ plugins: { legend: { display: false } } })
-            });
-          }
+          });
           const filas = this.filasGrafico().filter((f) => f.ventas > 0);
           const topAnillo = filas.slice(0, 8);
           const resto = filas.slice(8).reduce((s, f) => s + f.ventas, 0);
@@ -8608,10 +8391,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             etiquetasPie.push('Otros');
             valoresPie.push(resto);
           }
-          const elAnillo = document.getElementById('chartInventarioAnillo');
-          if (elAnillo) {
-            const totalAnillo = valoresPie.reduce((s, n) => s + n, 0);
-            this._chartAnillo = new Chart(elAnillo, {
+          const totalAnillo = valoresPie.reduce((s, n) => s + n, 0);
+          this.ponerGrafico('_chartAnillo', 'chartInventarioAnillo', {
               type: 'doughnut',
               data: {
                 labels: etiquetasPie.length ? etiquetasPie : ['Sin ventas'],
@@ -8636,17 +8417,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   ctx.font = '700 22px Inter, sans-serif';
                   ctx.textAlign = 'center';
                   ctx.textBaseline = 'middle';
-                  ctx.fillText(String(totalAnillo), (area.left + area.right) / 2, (area.top + area.bottom) / 2);
+                  ctx.fillText(String(chart.$totalAnillo || 0), (area.left + area.right) / 2, (area.top + area.bottom) / 2);
                   ctx.restore();
                 }
               }]
-            });
-          }
+          }, totalAnillo);
           const top10 = filas.slice(0, 10);
           const ranking = top10.length ? top10 : [{ nombre: 'Sin ventas', ventas: 0 }];
-          const elEmbudo = document.getElementById('chartInventarioEmbudo');
-          if (elEmbudo) {
-            this._chartEmbudo = new Chart(elEmbudo, {
+          this.ponerGrafico('_chartEmbudo', 'chartInventarioEmbudo', {
               type: 'bar',
               data: {
                 labels: ranking.map((f) => String(f.nombre).substring(0, 22)),
@@ -8665,39 +8443,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   y: { ticks: tick, grid: { display: false } }
                 }
               })
-            });
-          }
-          const elIngreso = document.getElementById('chartInventarioIngresoDia');
-          if (elIngreso) {
-            this._chartIngresoDia = new Chart(elIngreso, {
+          });
+          this.ponerGrafico('_chartIngresoDia', 'chartInventarioIngresoDia', {
               type: 'bar',
               data: {
                 labels: labelsDia,
                 datasets: [{ label: 'Ingreso', data: serie.map((p) => p.ingreso), backgroundColor: '#d4af37', borderRadius: 4 }]
               },
               options: this.opcionesGrafico({ plugins: { legend: { display: false } } })
-            });
-          }
-          const elVentas = document.getElementById('chartInventarioVentasDia');
-          if (elVentas) {
-            this._chartVentasDia = new Chart(elVentas, {
+          });
+          this.ponerGrafico('_chartVentasDia', 'chartInventarioVentasDia', {
               type: 'bar',
               data: {
                 labels: labelsDia,
                 datasets: [{ label: 'Ventas', data: serie.map((p) => p.ventas), backgroundColor: '#e07a3d', borderRadius: 4 }]
               },
               options: this.opcionesGrafico({ plugins: { legend: { display: false } } })
-            });
-          }
+          });
           const hechos = this.filasGrafico()
             .filter((f) => f.ingreso || f.ventas)
             .slice()
             .sort((a, b) => (b.ingreso + b.ventas) - (a.ingreso + a.ventas))
             .slice(0, 10);
           const listaHechos = hechos.length ? hechos : [{ nombre: 'Sin movimiento', ingreso: 0, ventas: 0 }];
-          const elRealizado = document.getElementById('chartInventarioRealizado');
-          if (elRealizado) {
-            this._chartRealizado = new Chart(elRealizado, {
+          this.ponerGrafico('_chartRealizado', 'chartInventarioRealizado', {
               type: 'bar',
               data: {
                 labels: listaHechos.map((f) => String(f.nombre).substring(0, 22)),
@@ -8713,12 +8482,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   y: { ticks: tick, grid: { display: false } }
                 }
               })
-            });
-          }
+          });
         },
 
         imprimirHoja() {
-          this.activeTab = 'tabla';
+          this.irA('tabla');
           this.$nextTick(() => window.print());
         },
 
@@ -9085,12 +8853,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!porClave[clave]) porClave[clave] = [];
             porClave[clave].push(f);
           });
+          const pases = new Map();
+          (movimientos || []).forEach((m) => {
+            if (!m || m.clase !== 'ingreso' || !(Number(m.cantidad) < 0)) return;
+            const motivo = String(m.motivo || '');
+            if (motivo.indexOf('Pasa a ') !== 0 || this.esPaseEntreTipos(motivo)) return;
+            const key = m.rubro + '|' + (m.tipoProducto || 'crudo');
+            pases.set(key, (pases.get(key) || 0) + Math.abs(Number(m.cantidad) || 0));
+          });
           this.rows.forEach((row) => {
             const clave = this.claveDeFila[row.id];
             const partes = porClave[clave] || [];
-            const sale = (tipo) => (movimientos || [])
-              .filter((m) => m.rubro === clave && (m.tipoProducto || 'crudo') === tipo && m.clase === 'ingreso' && String(m.motivo || '').indexOf('Pasa a ') === 0 && !this.esPaseEntreTipos(m.motivo) && Number(m.cantidad) < 0)
-              .reduce((a, m) => a + Math.abs(Number(m.cantidad) || 0), 0);
+            const sale = (tipo) => pases.get(clave + '|' + tipo) || 0;
             const crudo = partes.find((p) => p.tipoProducto === 'crudo') || {};
             const cocido = partes.find((p) => p.tipoProducto === 'cocido') || {};
             const carga = (p, tipo) => {
@@ -9249,14 +9023,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         initSocket() {
           if (typeof io === 'undefined') return;
           const socket = io('/admin', { auth: { token: this.token() }, transports: ['websocket', 'polling'] });
+          this._socket = socket;
           let espera = null;
-          const refrescar = () => {
+          let entra = false;
+          const refrescar = (payload) => {
+            if (this.periodoIncluyeDia(this.diaDeEventoInventario(payload))) entra = true;
             clearTimeout(espera);
-            espera = setTimeout(() => this.cargarKardex(), 800);
+            espera = setTimeout(() => {
+              if (!entra) return;
+              entra = false;
+              if (document.hidden) {
+                this._kardexPendiente = true;
+                return;
+              }
+              this.cargarKardex();
+            }, 800);
           };
           socket.on('inventario:alerta', refrescar);
           socket.on('nueva-comanda', refrescar);
           socket.on('comanda-actualizada', refrescar);
+          document.addEventListener('visibilitychange', () => {
+            if (document.hidden || !this._kardexPendiente) return;
+            this._kardexPendiente = false;
+            if (this.periodoIncluyeDia(this.ymdOperativo())) this.cargarKardex();
+          });
         },
 
         initSoundClip() {},
@@ -9310,14 +9100,46 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         toggleNodo(node) {
           if (!node) return;
           node.open = !node.open;
+          this.tocarHoja();
+        },
+
+        indiceFilas() {
+          const rows = this.rows || [];
+          if (this._indiceFilas && this._indiceRev === (this._revHoja || 0) && this._indiceLen === rows.length) return this._indiceFilas;
+          const map = new Map();
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (row && row.id) map.set(row.id, row);
+          }
+          this._indiceFilas = map;
+          this._indiceRev = this._revHoja || 0;
+          this._indiceLen = rows.length;
+          return map;
+        },
+
+        tocarHoja() {
+          this._revHoja = (this._revHoja || 0) + 1;
+        },
+
+        claveVistaHoja() {
+          const rows = this.rows || [];
+          let venta = 0;
+          if (this.ordenHoja === 'cantidad') {
+            for (let i = 0; i < rows.length; i++) {
+              venta += Number(rows[i] && rows[i].venta) || 0;
+              venta += Number(rows[i] && rows[i].ventaCocido) || 0;
+            }
+          }
+          return [this.busqueda || '', this.ordenHoja || '', this.filtroCategoria || '', this._revHoja || 0, rows.length, venta].join('\u0001');
         },
 
         filasPollo(raiz, troncoDesde, troncoHasta) {
           const q = (this.busqueda || '').trim().toLowerCase();
           const vistaPacha = this.vistaPachamanca();
           const out = [];
+          const porId = this.indiceFilas();
           const nombreDe = (node, row) => node.nombre || (row && row.nombre) || '';
-          const filaReal = (id) => this.rows.find((r) => r.id === id);
+          const filaReal = (id) => porId.get(id) || null;
           const coincide = (node) => {
             const row = filaReal(node.id);
             if (vistaPacha) {
@@ -9427,6 +9249,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         filasDeGrupo(group) {
+          const firma = this.claveVistaHoja() + '|' + group.id + '|' + (group.open ? 1 : 0);
+          if (!this._filasGrupo) this._filasGrupo = new Map();
+          const hit = this._filasGrupo.get(group.id);
+          if (hit && hit.firma === firma) return hit.list;
+          const list = this.armarFilasDeGrupo(group);
+          for (let i = 0; i < list.length; i++) list[i].enGrupo = true;
+          this._filasGrupo.set(group.id, { firma, list });
+          return list;
+        },
+
+        armarFilasDeGrupo(group) {
           if (group.id === 'pollo') return this.filasPollo();
           const raiz = this.arbolesGrupo[group.id];
           if (raiz) {
@@ -9478,6 +9311,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           walk(this.arbolPollo);
           Object.keys(this.arbolesGrupo).forEach((id) => walk(this.arbolesGrupo[id]));
           Object.keys(this.bosquesGrupo).forEach((id) => this.bosquesGrupo[id].forEach(walk));
+          this.tocarHoja();
         },
 
         textoRend(obtenido, ingresado) {
@@ -9751,6 +9585,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'pizza_20', grupo: null, nombre: 'Pizza 20x20', detalle: 'Pizza 20 x 20', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
           ];
           this.aplicarOpcionesCocido(this.cocidoOpciones);
+          this.tocarHoja();
 
           if (!silent) {
             this.playUiSound();
@@ -9921,6 +9756,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             });
           });
           this.aplicarOpcionesCocido(this.cocidoOpciones);
+          this.tocarHoja();
         },
 
         groupHasMatch(groupId) {
@@ -9939,7 +9775,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!busca) return true;
             return this.getFilteredRowsByGroup(groupId).length > 0;
           }
-          if (groupId === 'pollo') return this.filasPollo().length > 0;
+          if (groupId === 'pollo') {
+            const grupoPollo = this.tableGroups.find((g) => g.id === 'pollo');
+            return grupoPollo ? this.filasDeGrupo(grupoPollo).length > 0 : false;
+          }
           return this.getFilteredRowsByGroup(groupId).length > 0;
         },
 
@@ -9957,6 +9796,69 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         getFilteredLooseRows() {
           return this.ordenarFilas(this.rows.filter(r => r.grupo === null && this.matchesSearch(r)));
+        },
+
+        filasSueltas() {
+          const firma = this.claveVistaHoja();
+          if (this._sueltas && this._sueltas.firma === firma) return this._sueltas.list;
+          const list = this.getFilteredLooseRows().map((row) => ({
+            key: row.id,
+            row: row,
+            enGrupo: false,
+            depth: 0,
+            hasChildren: false,
+            node: null,
+            nombre: row.nombre,
+            visible: true,
+            connectUp: false,
+            connectDown: false,
+            trunkStartPolloFresco: false,
+            trunkPassThrough: false,
+            trunkEndPierna: false,
+            connectorTitle: ''
+          }));
+          this._sueltas = { firma, list };
+          return list;
+        },
+
+        bloquesHoja() {
+          const groups = this.tableGroups || [];
+          let opens = '';
+          for (let i = 0; i < groups.length; i++) {
+            const g = groups[i];
+            opens += g.id + (g.open ? '1' : '0') + (g.staggerKey || 0) + ',';
+          }
+          const firma = this.claveVistaHoja() + '|' + opens;
+          if (this._bloques && this._bloques.firma === firma) return this._bloques.list;
+          const list = [];
+          for (let i = 0; i < groups.length; i++) {
+            const group = groups[i];
+            list.push({ key: 'g-' + group.id, suelto: false, group: group, filas: this.filasDeGrupo(group) });
+          }
+          list.push({ key: 'sueltos', suelto: true, group: null, filas: this.filasSueltas() });
+          this._bloques = { firma, list };
+          return list;
+        },
+
+        claseFilaHoja(item) {
+          const row = item.row || {};
+          const marca = this.updatedRows[row.id] ? 'row-updated-bar' : '';
+          const ir = this.filaResaltadaId === row.id ? 'fila-resaltada-ir' : '';
+          if (!item.enGrupo) return [marca, ir, 'bg-[#14141f] hover:bg-[#1a1a28] transition-colors fila-suelta'];
+          return [
+            row.isNew ? 'row-slide-in' : 'stagger-fade-in',
+            marca,
+            ir,
+            item.depth === 0 ? 'bg-[#1a1a28]' : 'bg-[#14141f]',
+            'hover:bg-[#232336] transition-colors'
+          ];
+        },
+
+        estiloFilaHoja(item, idx, group) {
+          const row = item.row || {};
+          if (!item.enGrupo) return this.rowBgColors[row.id] ? ('background-color:' + this.rowBgColors[row.id]) : '';
+          const fondo = this.colorFondoFila(row, group, item);
+          return 'animation-delay: ' + (idx * 45) + 'ms; transition-delay: ' + (idx * 45) + 'ms' + (fondo ? ';background-color:' + fondo : '');
         },
 
         getRow(id) {
@@ -10688,9 +10590,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         setFiltroCategoria(cat) {
           this.filtroCategoria = cat;
-          if (cat === 'todos') {
-            this.busqueda = '';
-          }
+          if (cat === 'todos') this.limpiarBusqueda();
         },
 
         aplicarColorAGrupo(groupId, color) {
@@ -11208,8 +11108,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!prodId) return;
           this.showTransformacionModal = false;
           this.showSaldoRealModal = false;
-          this.activeTab = 'tabla';
-          this.busqueda = '';
+          this.irA('tabla');
+          this.limpiarBusqueda();
           this.filtroCategoria = 'todos';
           this.expandAllGroups(true);
           this.filaResaltadaId = prodId;
@@ -12326,7 +12226,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           clearTimeout(this._guardarDespieceTimer);
           this.playUiSound();
           this.toastMessage = 'Pasando a Inventario Tabla…';
-          this.activeTab = 'tabla';
+          this.irA('tabla');
           this.guardarDespieceEnServidor();
         },
 
@@ -12826,7 +12726,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         irAConfigurarProductoDesdeModal(rowId) {
           this.productosYPlatosModalAbierto = false;
-          this.activeTab = 'platos';
+          this.irA('platos');
           this.vistaConfiguradorPlatos = 'estudio';
           this.seleccionarProductoRelacion(rowId);
         },
@@ -12949,6 +12849,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               this.norm(p.complemento).includes(q)
             );
           });
+        },
+
+        platosCartaPaginaRelacion() {
+          const n = this.cartaRelacionVisibles || 30;
+          return this.platosCartaFiltradosRelacion().slice(0, n);
         },
 
         fichaComplementosDePlato(p) {
@@ -13568,7 +13473,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         verEnTransformarDesdeRelacion() {
-          this.activeTab = 'transformar';
+          this.irA('transformar');
           this.toastMessage = 'Vista abierta en Transformar (sin ejecutar Pasar a la hoja).';
         },
 
@@ -13805,7 +13710,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         aplicarEstadoRelacion(n) {
-          this.activeTab = 'platos';
+          this.irA('platos');
           this.estadoVisualRelacion = n;
           this.relacionError = '';
           if (n === 1) {
@@ -14589,7 +14494,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         filaReal(id) {
-          return this.rows.find((r) => r.id === id) || null;
+          return this.indiceFilas().get(id) || null;
         },
 
         asegurarFila(clave, nombre, grupo) {
