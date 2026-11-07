@@ -304,6 +304,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     main [data-testid="tab-relacion-platos"] select.w-full {
       width: 100% !important;
     }
+    [data-testid="panel-productos-inventario"] .rel-card-hover,
+    [data-testid="tab-relacion-platos"] .divide-y > .rel-card-hover {
+      content-visibility: auto;
+      contain-intrinsic-size: auto 72px;
+    }
     main input[type="number"] {
       text-align: center;
       font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -3675,6 +3680,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
       </div>
 
+      <template x-if="relCuerpoListo">
       <!-- =================================================================== -->
       <!-- BLOQUE MAESTRO UNIDO (TODOS LOS CUADROS PEGADOS SIN ESPACIO: GAP-0) -->
       <!-- =================================================================== -->
@@ -3761,9 +3767,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
 
         <!-- PANEL DESPLEGABLE EN LÍNEA (PEGADO SIN ESPACIO): CREAR NUEVO PRODUCTO DE INVENTARIO -->
+        <template x-if="panelCrearProductoInline">
         <div
-          x-show="panelCrearProductoInline"
-          x-cloak
           data-testid="panel-crear-producto-inline"
           class="bg-[#10101a] border-b-2 border-[#d4af37] grid grid-cols-1 xl:grid-cols-12 gap-0 divide-y xl:divide-y-0 xl:divide-x divide-[#26263a]"
         >
@@ -3929,6 +3934,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
           </div>
         </div>
+        </template>
 
         <!-- ================================================================= -->
         <!-- MODO 1: ESTUDIO UNIDO (3 COLUMNAS CON ALTURA SINCRONIZADA Y GAP-0)-->
@@ -3959,14 +3965,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="relative">
                 <input
                   type="text"
-                  x-model="busquedaProductoRelacion"
+                  x-model="busquedaProductoEscrita"
+                  @input="programarCampoRelacion('busquedaProductoEscrita', 'busquedaProductoRelacion')"
                   placeholder="Buscar insumo, corte o plato..."
                   class="w-full bg-[#0a0a0f] border border-[#26263a] focus:border-[#d4af37] rounded-lg px-3 py-1.5 text-xs text-white placeholder-[#5a5a7a] outline-none"
                 />
                 <button
                   type="button"
-                  x-show="busquedaProductoRelacion"
-                  @click="busquedaProductoRelacion = ''"
+                  x-show="busquedaProductoEscrita"
+                  @click="limpiarBusquedaProductoRelacion()"
                   class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#a0a0b8] hover:text-white cursor-pointer"
                 >✕</button>
               </div>
@@ -4430,15 +4437,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div class="sm:col-span-7 relative">
                   <input
                     type="text"
-                    x-model="busquedaCartaRelacion"
-                    @input="cartaRelacionVisibles = 30"
+                    x-model="busquedaCartaEscrita"
+                    @input="cartaRelacionVisibles = 30; programarCampoRelacion('busquedaCartaEscrita', 'busquedaCartaRelacion')"
                     placeholder="Buscar plato en la carta (ej. Milanesa, Chaufa...)"
                     class="w-full bg-[#14141f] border border-[#26263a] focus:border-[#d4af37] rounded-lg px-2.5 py-1 text-xs text-white placeholder-[#5a5a7a] outline-none"
                   />
                   <button
                     type="button"
-                    x-show="busquedaCartaRelacion"
-                    @click="busquedaCartaRelacion = ''"
+                    x-show="busquedaCartaEscrita"
+                    @click="limpiarBusquedaCartaRelacion()"
                     class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#a0a0b8] hover:text-white cursor-pointer"
                   >✕</button>
                 </div>
@@ -4657,7 +4664,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="flex items-center gap-2">
                 <input
                   type="text"
-                  x-model="busquedaProductoRelacion"
+                  x-model="busquedaProductoEscrita"
+                  @input="programarCampoRelacion('busquedaProductoEscrita', 'busquedaProductoRelacion')"
                   placeholder="Filtrar producto o plato en la matriz..."
                   class="w-64 bg-[#0a0a0f] border border-[#26263a] focus:border-[#d4af37] rounded-lg px-3 py-1.5 text-xs text-white"
                 />
@@ -4712,6 +4720,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </div>
         </template>
       </div>
+      </template>
     </section>
     </template>
 
@@ -7161,6 +7170,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       return {
         activeTab: 'tabla',
         tabMontada: { transformar: false, grafico: false, stock: false, platos: false },
+        relCuerpoListo: false,
         cartaRelacionVisibles: 30,
         vistaConfiguradorPlatos: 'estudio',
         familiaFiltroRelacion: 'todas',
@@ -7172,7 +7182,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         estadoVisualRelacion: 1,
         productoRelacionId: 'pechuga',
         busquedaProductoRelacion: '',
+        busquedaProductoEscrita: '',
         busquedaCartaRelacion: '',
+        busquedaCartaEscrita: '',
         mapaSemanticoSeleccionadoId: 'pollo-fresco',
         forzarSinMapaRelacion: false,
         panelCrearProductoInline: false,
@@ -8098,6 +8110,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (tab && tab !== 'tabla') this.tabMontada[tab] = true;
           this.activeTab = tab;
           if (tab === 'grafico') this.asegurarChart();
+          if (tab === 'platos' && !this.relCuerpoListo) {
+            this.$nextTick(() => { this.relCuerpoListo = true; });
+          }
         },
 
         asegurarChart() {
@@ -8129,6 +8144,41 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           clearTimeout(this._buscaTimer);
           this.busquedaEscrita = '';
           this.busqueda = '';
+        },
+
+        programarCampoRelacion(escrito, filtro) {
+          const timer = '_tRel' + filtro;
+          clearTimeout(this[timer]);
+          this[timer] = setTimeout(() => { this[filtro] = this[escrito]; }, 150);
+        },
+
+        limpiarBusquedaProductoRelacion() {
+          clearTimeout(this._tRelbusquedaProductoRelacion);
+          this.busquedaProductoEscrita = '';
+          this.busquedaProductoRelacion = '';
+        },
+
+        limpiarBusquedaCartaRelacion() {
+          clearTimeout(this._tRelbusquedaCartaRelacion);
+          this.busquedaCartaEscrita = '';
+          this.busquedaCartaRelacion = '';
+          this.cartaRelacionVisibles = 30;
+        },
+
+        invalidarCachesRelacion() {
+          this._revRelacion = (this._revRelacion || 0) + 1;
+          this._cacheProdTabla = null;
+          this._cacheProdActual = null;
+          this._cacheRelFila = null;
+          this._indiceRelRubro = null;
+          this._cacheFamilias = null;
+          this._cacheCatsCarta = null;
+          this._cacheMapasCat = null;
+          this._cacheMapaVista = null;
+          this._nombresVinculados = null;
+          this._cacheCartaFiltrada = null;
+          this._vistaRelCache = null;
+          this._cacheVistaPlato = null;
         },
 
         diaDeEventoInventario(payload) {
@@ -10652,6 +10702,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               unidadNota: 'porción'
             });
             this.guardarConfigLocal();
+            this.invalidarCachesRelacion();
           }
           
           this.showNuevoPlatoModal = false;
@@ -10679,6 +10730,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             rel.unidadNota = form.unidadNota;
             rel.complemento = form.complemento;
             this.guardarConfigLocal();
+            this.invalidarCachesRelacion();
             this.toastMessage = 'Relación de ' + rel.plato + ' actualizada.';
           }
           this.showEditarRelacionModal = false;
@@ -10686,6 +10738,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         eliminarRelacion(relId) {
           this.config.relaciones = this.config.relaciones.filter(r => r.id !== relId);
+          this.invalidarCachesRelacion();
           this.guardarConfigLocal();
           this.toastMessage = 'Relación eliminada.';
         },
@@ -12544,6 +12597,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         familiasInventarioConfig() {
+          const firma = (this._revRelacion || 0) + '|' + ((this.rows || []).length);
+          if (this._cacheFamilias && this._cacheFamilias.firma === firma) return this._cacheFamilias.list;
           const orden = [
             { id: 'pollo', nombre: 'Pollo y Aves', icono: '🐔' },
             { id: 'pato', nombre: 'Pato', icono: '🦆' },
@@ -12559,9 +12614,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const fam = this.familiaDeProducto(r);
             conteo[fam.id] = (conteo[fam.id] || 0) + 1;
           });
-          return orden
+          const list = orden
             .map((f) => ({ ...f, cantidad: conteo[f.id] || 0 }))
             .filter((f) => f.cantidad > 0);
+          this._cacheFamilias = { firma, list };
+          return list;
         },
 
         esPlatoDeTabla(rowId) {
@@ -12644,24 +12701,51 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               });
             });
           });
-          this._vistaRelCache = null;
+          this.invalidarCachesRelacion();
+        },
+
+        indiceRelaciones() {
+          const rel = (this.config && this.config.relaciones) || [];
+          const rev = (this._revRelacion || 0) + '|' + rel.length;
+          if (this._indiceRelRubro && this._indiceRelRev === rev) return this._indiceRelRubro;
+          const map = new Map();
+          for (let i = 0; i < rel.length; i++) {
+            const r = rel[i];
+            if (!r || !r.rubro) continue;
+            const k = this.norm(r.rubro);
+            const arr = map.get(k);
+            if (arr) arr.push(r);
+            else map.set(k, [r]);
+          }
+          this._indiceRelRubro = map;
+          this._indiceRelRev = rev;
+          return map;
         },
 
         relacionesDeFila(rowOrProd) {
           if (!rowOrProd) return [];
           const id = rowOrProd.id;
+          const rev = (this._revRelacion || 0) + '|' + (((this.config && this.config.relaciones) || []).length);
+          if (!this._cacheRelFila) this._cacheRelFila = new Map();
+          const hit = this._cacheRelFila.get(id);
+          if (hit && hit.rev === rev) return hit.list;
           const clave = this.claveDeFila[id] || rowOrProd.clave || id;
           const nombreVista = this.nombreVistaProductoRelacion(rowOrProd);
-          const rubrosAceptados = new Set(
-            this.rubrosRelacionDeFila(id)
-              .concat([rowOrProd.nombre, nombreVista, clave])
-              .filter(Boolean)
-              .map((x) => this.norm(x))
-          );
-          return (this.config.relaciones || []).filter((r) => {
-            if (!r || !r.rubro) return false;
-            return rubrosAceptados.has(this.norm(r.rubro));
-          });
+          const rubros = this.rubrosRelacionDeFila(id).concat([rowOrProd.nombre, nombreVista, clave]).filter(Boolean);
+          const indice = this.indiceRelaciones();
+          const vistos = new Set();
+          const list = [];
+          for (let i = 0; i < rubros.length; i++) {
+            const arr = indice.get(this.norm(rubros[i]));
+            if (!arr) continue;
+            for (let j = 0; j < arr.length; j++) {
+              if (vistos.has(arr[j])) continue;
+              vistos.add(arr[j]);
+              list.push(arr[j]);
+            }
+          }
+          this._cacheRelFila.set(id, { rev, list });
+          return list;
         },
 
         abrirModalProductosYPlatos() {
@@ -12732,9 +12816,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         productosTablaRelacion() {
+          const firma = [
+            this.busquedaProductoRelacion || '',
+            this.familiaFiltroRelacion || '',
+            this._revRelacion || 0,
+            (this.rows || []).length,
+            ((this.config && this.config.relaciones) || []).length,
+            (this.mapas || []).length
+          ].join('\u0001');
+          if (this._cacheProdTabla && this._cacheProdTabla.firma === firma) return this._cacheProdTabla.list;
           const q = this.norm(this.busquedaProductoRelacion || '');
           const famFiltro = this.familiaFiltroRelacion || 'todas';
-          return (this.rows || []).map((r) => {
+          const list = (this.rows || []).map((r) => {
             const clave = this.claveDeFila[r.id] || r.id;
             const infoMapa = this.mapaDeProductoRelacion(r);
             const fam = this.familiaDeProducto(r);
@@ -12750,6 +12843,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               familiaId: fam.id,
               familiaLabel: fam.icono + ' ' + fam.nombre,
               platosCount: platosVinculados.length,
+              _rels: platosVinculados,
               esMateria,
               tieneCocido: !esMateria && Boolean(r.tieneCocido),
               mapaId: infoMapa.id,
@@ -12765,19 +12859,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               this.norm(item.clave).includes(q) ||
               this.norm(item.mapaNombre).includes(q);
             if (coincideProd) return true;
-            return this.relacionesDeFila(item).some((rel) => this.norm(rel.plato).includes(q));
+            return (item._rels || []).some((rel) => this.norm(rel.plato).includes(q));
           });
+          this._cacheProdTabla = { firma, list };
+          return list;
         },
 
         productoRelacionActual() {
-          const todos = this.productosTablaRelacion();
+          const firma = (this._revRelacion || 0) + '|' + (this.productoRelacionId || '') + '|' + ((this.rows || []).length) + '|' + ((this.mapas || []).length);
+          if (this._cacheProdActual && this._cacheProdActual.firma === firma) return this._cacheProdActual.obj;
           const encontrado = (this.rows || []).find((r) => r.id === this.productoRelacionId);
+          let obj;
           if (encontrado) {
             const clave = this.claveDeFila[encontrado.id] || encontrado.id;
             const infoMapa = this.mapaDeProductoRelacion(encontrado);
             const fam = this.familiaDeProducto(encontrado);
             const esMateria = (encontrado.id === 'pollo_fresco' || encontrado.id === 'pato_fresco' || encontrado.id === 'panceta' || encontrado.id === 'tira_panceta' || encontrado.id === 'arroz' || encontrado.id === 'pescado_entero' || encontrado.id === 'pota' || encontrado._materiaPrima === true);
-            return {
+            obj = {
               id: encontrado.id,
               nombre: encontrado.nombre,
               nombreVista: this.nombreVistaProductoRelacion(encontrado),
@@ -12791,21 +12889,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               mapaNombre: infoMapa.nombre,
               mapaTipo: infoMapa.tipo
             };
+          } else {
+            const todos = this.productosTablaRelacion();
+            obj = todos[0] || {
+              id: 'pechuga',
+              nombre: 'Pechuga de Pollo',
+              nombreVista: 'Pecho de Pollo',
+              clave: 'pechuga-pollo',
+              unidad: 'unid',
+              familiaId: 'pollo',
+              familiaLabel: '🐔 Pollo y Aves',
+              esMateria: false,
+              tieneCocido: false,
+              mapaId: 'pollo-fresco',
+              mapaNombre: 'Pollo fresco',
+              mapaTipo: 'despiece'
+            };
           }
-          return todos[0] || {
-            id: 'pechuga',
-            nombre: 'Pechuga de Pollo',
-            nombreVista: 'Pecho de Pollo',
-            clave: 'pechuga-pollo',
-            unidad: 'unid',
-            familiaId: 'pollo',
-            familiaLabel: '🐔 Pollo y Aves',
-            esMateria: false,
-            tieneCocido: false,
-            mapaId: 'pollo-fresco',
-            mapaNombre: 'Pollo fresco',
-            mapaTipo: 'despiece'
-          };
+          this._cacheProdActual = { firma, obj };
+          return obj;
         },
 
         seleccionarProductoRelacion(rowId) {
@@ -12829,18 +12931,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         categoriasCartaRelacion() {
+          const firma = (this._revRelacion || 0) + '|' + ((this.platosCarta || []).length);
+          if (this._cacheCatsCarta && this._cacheCatsCarta.firma === firma) return this._cacheCatsCarta.list;
           const set = new Set();
           (this.platosCarta || []).forEach((p) => {
             if (p && p.categoria) set.add(p.categoria);
           });
-          return Array.from(set);
+          const list = Array.from(set);
+          this._cacheCatsCarta = { firma, list };
+          return list;
         },
 
         platosCartaFiltradosRelacion() {
+          const firma = [
+            this.busquedaCartaRelacion || '',
+            this.categoriaCartaFiltroRelacion || '',
+            (this.platosCarta || []).length,
+            this._revRelacion || 0
+          ].join('\u0001');
+          if (this._cacheCartaFiltrada && this._cacheCartaFiltrada.firma === firma) return this._cacheCartaFiltrada.list;
           const q = this.norm(this.busquedaCartaRelacion || '');
           const cat = this.categoriaCartaFiltroRelacion || 'todas';
           const lista = this.platosCarta || [];
-          return lista.filter((p) => {
+          const list = lista.filter((p) => {
             if (cat !== 'todas' && p.categoria !== cat) return false;
             if (!q) return true;
             return (
@@ -12849,6 +12962,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               this.norm(p.complemento).includes(q)
             );
           });
+          this._cacheCartaFiltrada = { firma, list };
+          return list;
         },
 
         platosCartaPaginaRelacion() {
@@ -12969,18 +13084,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         vistaDePlatoCarta(p) {
+          const clave = (p && (p.clave || p.nombre)) || '';
+          const firma = clave + '|' + ((this.platosCarta || []).length);
+          if (!this._cacheVistaPlato) this._cacheVistaPlato = new Map();
+          const hit = this._cacheVistaPlato.get(firma);
+          if (hit) return hit;
           const ficha = (p && Array.isArray(p.guarniciones)) ? p : Object.assign({}, p, this.fichaComplementosDePlato(p));
-          return {
+          const vista = {
             variaciones: (ficha.variaciones || []).join(' · '),
             guarniciones: this.guarnicionesDePlato(ficha),
             esMenu: this.esPlatoDeMenu(p, null)
           };
+          this._cacheVistaPlato.set(firma, vista);
+          return vista;
         },
 
         platoEstaVinculadoAProductoActual(nombrePlato) {
           const n = this.norm(nombrePlato || '');
           if (!n) return false;
-          return this.relacionesDeProductoActual().some((r) => this.norm(r.plato) === n);
+          const prod = this.productoRelacionActual();
+          const firma = (this._revRelacion || 0) + '|' + (prod && prod.id) + '|' + (((this.config && this.config.relaciones) || []).length);
+          if (!this._nombresVinculados || this._nombresVinculados.firma !== firma) {
+            const set = new Set();
+            this.relacionesDeFila(prod).forEach((r) => set.add(this.norm(r.plato)));
+            this._nombresVinculados = { firma, set };
+          }
+          return this._nombresVinculados.set.has(n);
         },
 
         vincularPlatoRapidoDesdeCatalogo(platoObj) {
@@ -13062,6 +13191,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           } else if (campo === 'unidad') {
             row.unidad = String(valor || 'unid').trim();
           }
+          this.invalidarCachesRelacion();
           this.animarModificacionRelacion(null, prod.id);
           this.playUiSound();
           this.toastMessage = 'Producto actualizado en línea: ' + row.nombre;
@@ -13073,6 +13203,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const num = parseFloat(nuevaCantidad);
           if (Number.isNaN(num) || num <= 0) return;
           rel.cantidad = num;
+          this.invalidarCachesRelacion();
           this.animarModificacionRelacion(rel.id);
           this.playUiSound();
           this.toastMessage = 'Consumo actualizado: ' + rel.plato + ' ahora descuenta ' + this.formatDecimalComa(rel.cantidad) + '.';
@@ -13083,6 +13214,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const row = this.getRow(prod.id);
           if (!row || prod.esMateria) return;
           row.tieneCocido = !row.tieneCocido;
+          this.invalidarCachesRelacion();
           const op = (this.cocidoOpciones || []).find((o) => o.clave === prod.clave);
           if (op) op.tieneCocido = row.tieneCocido;
           this.playUiSound();
@@ -13120,14 +13252,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         catalogoMapasSemanticos() {
+          const firma = (this._revRelacion || 0) + '|' + ((this.mapas || []).length);
+          if (this._cacheMapasCat && this._cacheMapasCat.firma === firma) return this._cacheMapasCat.list;
           const fuente = (this.mapas && this.mapas.length) ? this.mapas : this.mapasRespaldo();
           const tipoLabelDe = (t) => t === 'despiece' ? 'Despiece' : (t === 'manual' ? 'Manual' : 'Directo');
-          return fuente.map((m) => ({
+          const list = fuente.map((m) => ({
             id: m.id,
             nombre: m.nombre,
             tipo: m.tipo,
             tipoLabel: tipoLabelDe(m.tipo)
           }));
+          this._cacheMapasCat = { firma, list };
+          return list;
         },
 
         seleccionarMapaSemantico(mapaId) {
@@ -13141,6 +13277,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         obtenerMapaSemanticoVista(mapaIdOverride = null) {
+          if (mapaIdOverride) return this.armarMapaSemanticoVista(mapaIdOverride);
+          const firma = [
+            this.mapaSemanticoSeleccionadoId || '',
+            this.forzarSinMapaRelacion ? 1 : 0,
+            this.productoRelacionId || '',
+            this._revRelacion || 0,
+            (this.mapas || []).length
+          ].join('|');
+          if (this._cacheMapaVista && this._cacheMapaVista.firma === firma) return this._cacheMapaVista.obj;
+          const obj = this.armarMapaSemanticoVista(null);
+          this._cacheMapaVista = { firma, obj };
+          return obj;
+        },
+
+        armarMapaSemanticoVista(mapaIdOverride = null) {
           const prod = this.productoRelacionActual();
           if (!mapaIdOverride && (this.forzarSinMapaRelacion || !this.mapaSemanticoSeleccionadoId)) {
             return { tieneMapa: false, id: '', tipoLabel: 'Sin transformación', ramas: [] };
@@ -13814,6 +13965,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             unidadNota: 'unidad'
           });
           this.relGroupOpen[rubro] = true;
+          this.invalidarCachesRelacion();
           this.animarModificacionRelacion(nuevoId);
           this.playUiSound();
           this.toastMessage = 'Relación agregada en ' + rubro + '.';
