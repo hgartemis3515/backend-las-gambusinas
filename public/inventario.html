@@ -8756,12 +8756,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         abrirVentaFila(row) {
           const clave = this.claveDeFila[row.id];
-          const total = this.valorTipo(row, 'venta', 'crudo') + this.valorTipo(row, 'venta', 'cocido');
+          const propia = this.filaPachamancaIndependiente(row);
+          const total = propia
+            ? this.ventaColumna(row)
+            : (this.valorTipo(row, 'venta', 'crudo') + this.valorTipo(row, 'venta', 'cocido'));
           this.abrirVenta({
             nombre: row.nombre,
             venta: total,
             clave: clave,
-            claves: this.clavesVentaDe(row)
+            claves: propia ? [clave] : this.clavesVentaDe(row),
+            incluirCubierta: propia
           }, { ventas: this.ventasPeriodo || [], movimientos: this.movimientosPeriodo || [] });
         },
 
@@ -8837,7 +8841,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           };
           (ventas || []).forEach((v) => {
             const rubro = v && (v.rubro || v.plato);
-            if (!rubro || v.sinSaldo) return;
+            if (!rubro) return;
+            if (f && f.incluirCubierta && rubro !== f.clave) return;
+            if (v.sinSaldo && !(f && f.incluirCubierta && rubro === f.clave)) return;
             if (!claves.has(rubro) && !claves.has(v.origen)) return;
             const uso = usoDe(v);
             const partes = Array.isArray(v.detalle) && v.detalle.length
@@ -9736,7 +9742,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         idsPachamanca() {
-          return ['pierna', 'cerdo_pachamanca', 'carne_pachamanca', 'carnero_pachamanca', 'humita'];
+          return ['pollo_pachamanca', 'carne_pachamanca', 'carnero_pachamanca', 'cerdo_pachamanca', 'humita'];
         },
 
         busquedaEsPachamanca() {
@@ -9749,6 +9755,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         filaPachamanca(row) {
           return !!(row && this.idsPachamanca().indexOf(row.id) !== -1);
+        },
+
+        filaPachamancaIndependiente(row) {
+          return this.vistaPachamanca() && !!(row && row.id === 'pollo_pachamanca');
         },
 
         matchesSearch(row) {
@@ -9917,10 +9927,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.ordenarFilas(this.rows.filter(r => r.grupo === null && this.matchesSearch(r)));
         },
 
-        filasSueltas() {
-          const firma = this.claveVistaHoja();
-          if (this._sueltas && this._sueltas.firma === firma) return this._sueltas.list;
-          const list = this.getFilteredLooseRows().map((row) => ({
+        filaSuelta(row) {
+          return {
             key: row.id,
             row: row,
             enGrupo: false,
@@ -9935,9 +9943,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             trunkPassThrough: false,
             trunkEndPierna: false,
             connectorTitle: ''
-          }));
+          };
+        },
+
+        filasSueltas() {
+          const firma = this.claveVistaHoja();
+          if (this._sueltas && this._sueltas.firma === firma) return this._sueltas.list;
+          const list = this.getFilteredLooseRows().map((row) => this.filaSuelta(row));
           this._sueltas = { firma, list };
           return list;
+        },
+
+        filasVistaPachamanca() {
+          const porId = this.indiceFilas();
+          const rows = [];
+          const ids = this.idsPachamanca();
+          for (let i = 0; i < ids.length; i++) {
+            const row = porId.get(ids[i]);
+            if (row && this.matchesSearch(row)) rows.push(row);
+          }
+          const lista = this.ordenHoja === 'hoja' ? rows : this.ordenarFilas(rows);
+          return lista.map((row) => this.filaSuelta(row));
         },
 
         bloquesHoja() {
@@ -9949,6 +9975,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           const firma = this.claveVistaHoja() + '|' + opens;
           if (this._bloques && this._bloques.firma === firma) return this._bloques.list;
+          if (this.vistaPachamanca()) {
+            const solo = [{ key: 'pachamanca', suelto: true, group: null, filas: this.filasVistaPachamanca() }];
+            this._bloques = { firma, list: solo };
+            return solo;
+          }
           const list = [];
           for (let i = 0; i < groups.length; i++) {
             const group = groups[i];
@@ -10150,6 +10181,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         saldoColumnaTipo(row, tipo) {
+          if (this.filaPachamancaIndependiente(row)) return this.calcSaldoTipo(row, tipo);
           const extra = this.platosDirectosDe(row && row.id).reduce((a, n) => {
             const hijo = this.filaReal(n.id);
             if (!hijo) return a;
@@ -10159,6 +10191,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         saldoRealColumnaTipo(row, tipo) {
+          if (this.filaPachamancaIndependiente(row)) return this.calcSaldoRealTipo(row, tipo);
           const extra = this.platosDirectosDe(row && row.id).reduce((a, n) => {
             const hijo = this.filaReal(n.id);
             if (!hijo) return a;
@@ -10169,11 +10202,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         saldoColumna(row) {
           const propio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0);
+          if (this.filaPachamancaIndependiente(row)) return propio;
           return propio + this.saldoDePlatos(row, false);
         },
 
         saldoRealColumna(row) {
           const propio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoRealTipo(row, t), 0);
+          if (this.filaPachamancaIndependiente(row)) return propio;
           return propio + this.saldoDePlatos(row, true);
         },
 
@@ -10191,10 +10226,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         ventaColumnaTipo(row, tipo) {
+          if (this.filaPachamancaIndependiente(row)) return this.valorTipo(row, 'venta', tipo);
           return this.ventaNetaTipo(row, tipo) + this.ventaDePlatos(row, tipo);
         },
 
         ventaColumna(row) {
+          if (this.filaPachamancaIndependiente(row)) {
+            return this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'venta', t), 0);
+          }
           const propio = this.tiposDe(row).reduce((a, t) => a + this.ventaNetaTipo(row, t), 0);
           return propio + this.ventaDePlatos(row);
         },
@@ -10218,6 +10257,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         tituloVentaColumna(row) {
+          if (this.filaPachamancaIndependiente(row)) return 'Ventas de Pollo pachamanca. No incluye el desglose de Pierna de Pollo.';
           const partes = this.detalleVentasPlatos(row);
           if (!partes.length) return 'Viene de comandas';
           const texto = partes.map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
