@@ -36,6 +36,13 @@ function esRucValido(ruc) {
 /** @param {string} dni @returns {boolean} */
 const esDniValido = (dni) => /^\d{8}$/.test(dni || '');
 
+/** @param {string} nombre @param {number} max */
+function validarNombre(nombre, max) {
+    if (nombre.length < 3 || nombre.length > max) {
+        throw new ErrorCliente(`El nombre debe tener entre 3 y ${max} caracteres`, 'NOMBRE_LONGITUD');
+    }
+}
+
 /**
  * @typedef {Object} ClienteEntrada
  * @property {string} [tipoDoc]   Catálogo 06
@@ -70,6 +77,7 @@ function validarCliente(tipoComprobante, cliente, importeTotal, config = {}) {
         if (c.tipoDoc && c.tipoDoc !== TIPO_DOC_IDENTIDAD.RUC) throw new ErrorCliente('La factura requiere RUC', 'FACTURA_REQUIERE_RUC');
         if (!esRucValido(numDoc)) throw new ErrorCliente('RUC inválido (11 dígitos y dígito verificador)', 'RUC_INVALIDO');
         if (!nombre) throw new ErrorCliente('La factura requiere razón social', 'RAZON_SOCIAL_REQUERIDA');
+        validarNombre(nombre, 1500);
         if (!extra.direccion) throw new ErrorCliente('La factura requiere dirección fiscal', 'DIRECCION_REQUERIDA');
         return { tipoDoc: TIPO_DOC_IDENTIDAD.RUC, numDoc, nombre, ...extra, validacionPadron: c.validacionPadron || 'pendiente' };
     }
@@ -96,6 +104,7 @@ function validarCliente(tipoComprobante, cliente, importeTotal, config = {}) {
     }
     if (!Object.values(TIPO_DOC_IDENTIDAD).includes(tipoDoc)) throw new ErrorCliente(`Tipo de documento no soportado: ${tipoDoc}`, 'DOCUMENTO_INVALIDO');
     if (!nombre) throw new ErrorCliente('Nombre del cliente requerido cuando se identifica', 'NOMBRE_REQUERIDO');
+    validarNombre(nombre, 1500);
     const padron = c.validacionPadron === 'ok' || c.validacionPadron === 'pendiente' ? c.validacionPadron : 'no_aplica';
     return { tipoDoc, numDoc: numDoc.toUpperCase(), nombre, ...extra, validacionPadron: padron };
 }

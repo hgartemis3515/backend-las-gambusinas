@@ -88,7 +88,7 @@ describe('canje boleta por factura', () => {
                     creados.push(...copias);
                     return copias;
                 },
-                updateOne: async (_f, op) => { updates += 1; expect(op.$set.estado).toBe('ANULADO_NC'); },
+                updateOne: async (_f, op) => { updates += 1; expect(op.$set.anulacion.estado).toBe('PENDIENTE'); expect(op.$set.estado).toBeUndefined(); },
             },
             Pagos: { updateMany: async (filtro, op) => pagos.push({ filtro, op }) },
             iniciarSesion: async () => sesion(),
@@ -101,6 +101,8 @@ describe('canje boleta por factura', () => {
 
         expect(creados.map((d) => d.tipo)).toEqual(['07', '01']);
         expect(creados[0].referencia.motivoCodigo).toBe('01');
+        expect(String(creados[0].envio.dependeDe)).toBe('b1');
+        expect(String(creados[1].envio.dependeDe)).toBe('n0');
         expect(creados[0].totales).toBe(BOLETA.totales);
         expect(creados[1].receptor.numDoc).toBe('20131312955');
         expect(creados[1].observacion).toContain('B001-00000010');

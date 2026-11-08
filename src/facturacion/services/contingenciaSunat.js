@@ -1,50 +1,68 @@
 /**
- * Resumen SUNAT de boletas de talonario. No toca las series electrónicas.
+ * Resumen SUNAT del talonario. Agrupa por fecha de emisión y usa el correlativo RC.
  * @module facturacion/services/contingenciaSunat
  */
 
 const Contingencia = require('../models/contingencia.model');
 const { firmarXml } = require('./firmaService');
+const { reservarEnvio } = require('./correlativoEnvio');
+const { xmlResumen, fechaLima } = require('./resumenDiario');
 const SunatDirecto = require('../providers/sunatDirecto');
 
-function xmlResumen(comprobantes, ruc, fecha) {
-    const id = `RC-${fecha.replace(/-/g, '')}-9`;
-    const lineas = comprobantes.map((c, i) => `<sac:SummaryDocumentsLine>
-      <cbc:LineID>${i + 1}</cbc:LineID>
-      <cbc:DocumentTypeCode>03</cbc:DocumentTypeCode>
-      <cbc:ID>${c.serieTalonario}-${Number(c.numero)}</cbc:ID>
-      <cac:AccountingCustomerParty><cac:Party><cac:PartyIdentification><cbc:ID schemeID="${c.cliente?.tipoDoc || '0'}">${c.cliente?.numDoc || '-'}</cbc:ID></cac:PartyIdentification></cac:Party></cac:AccountingCustomerParty>
-      <cac:Status><cbc:ConditionCode>1</cbc:ConditionCode></cac:Status>
-      <sac:TotalAmount currencyID="PEN">${Number(c.total).toFixed(2)}</sac:TotalAmount>
-    </sac:SummaryDocumentsLine>`).join('');
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<SummaryDocuments xmlns="urn:sunat:names:specification:ubl:peru:schema:xsd:SummaryDocuments-1" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sac="urn:sunat:names:specification:ubl:peru:schema:xsd:SunatAggregateComponents-1">
-  <ext:UBLExtensions><ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension></ext:UBLExtensions>
-  <cbc:UBLVersionID>2.0</cbc:UBLVersionID>
-  <cbc:CustomizationID>1.1</cbc:CustomizationID>
-  <cbc:ID>${id}</cbc:ID>
-  <cbc:ReferenceDate>${fecha}</cbc:ReferenceDate>
-  <cbc:IssueDate>${fecha}</cbc:IssueDate>
-  ${lineas}
-</SummaryDocuments>`;
-    return { id, nombre: `${ruc}-${id}`, xml };
+/** @param {Object} doc @param {number} tasa */
+function lineaTalonario(doc, tasa) {
+    const total = Number(doc.total) || 0;
+    const base = Math.round((total / (1 + tasa / 100)) * 100) / 100;
+    const igv = Math.round((total - base) * 100) / 100;
+    return {
+        tipo: '03',
+        serie: doc.serieTalonario,
+        numero: doc.numero,
+        importeTotal: total,
+        gravadas: base,
+        exoneradas: 0,
+        inafectas: 0,
+        igv,
+        porcentajeIgv: tasa,
+        receptor: doc.cliente,
+    };
 }
 
 /**
- * @param {{ ruc: string }} solicitud
- * @param {{ Modelo?: import('mongoose').Model, enviar?: Function, firmar?: Function }} [deps]
+ * @param {{ ruc: string, emisor: Object, tasaIgv?: number }} solicitud
+ * @param {Object} [deps]
  */
 async function declararContingencia(solicitud, deps = {}) {
     const Modelo = deps.Modelo || Contingencia;
     const pendientes = await Modelo.find({ ruc: solicitud.ruc, estado: 'REGISTRADO' });
-    if (!pendientes.length) return { enviados: 0, ticket: null };
-    const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const resumen = xmlResumen(pendientes, solicitud.ruc, fecha);
-    const firmado = (deps.firmar || firmarXml)(resumen.xml);
-    const enviar = deps.enviar || (async (nombre, xml) => new SunatDirecto().enviarResumenFirmado(nombre, xml));
-    const { ticket } = await enviar(resumen.nombre, firmado.xml);
-    await Modelo.updateMany({ _id: { $in: pendientes.map((d) => d._id) } }, { $set: { estado: 'ENVIADO', ticketSunat: ticket } });
-    return { enviados: pendientes.length, ticket, id: resumen.id };
+    if (!pendientes.length) return { enviados: 0, lotes: [] };
+    const grupos = new Map();
+    for (const doc of pendientes) {
+        const fecha = fechaLima(doc.fechaEmision);
+        if (!grupos.has(fecha)) grupos.set(fecha, []);
+        grupos.get(fecha).push(doc);
+    }
+    const reservar = deps.reservar || reservarEnvio;
+    const firmar = deps.firmar || firmarXml;
+    const enviar = deps.enviar || (async (nombre, xml) => new SunatDirecto({ persistirLote: false }).enviarResumenFirmado(nombre, xml));
+    const hoy = fechaLima(new Date());
+    const tasa = solicitud.tasaIgv || 10.5;
+    const lotes = [];
+    for (const [fecha, docs] of grupos) {
+        const { id } = await reservar({ ruc: solicitud.ruc, tipo: 'RC', fecha });
+        const xml = xmlResumen({
+            id,
+            fechaReferencia: fecha,
+            fechaGeneracion: hoy < fecha ? fecha : hoy,
+            emisor: solicitud.emisor,
+            lineas: docs.map((doc) => lineaTalonario(doc, tasa)),
+        });
+        const firmado = firmar(xml);
+        const { ticket } = await enviar(`${solicitud.ruc}-${id}`, firmado.xml || firmado);
+        await Modelo.updateMany({ _id: { $in: docs.map((d) => d._id) } }, { $set: { estado: 'ENVIADO', ticketSunat: ticket } });
+        lotes.push({ id, fecha, ticket, enviados: docs.length, estado: 'ENVIADO' });
+    }
+    return { enviados: pendientes.length, lotes, ticket: lotes[0]?.ticket || null, id: lotes[0]?.id || null };
 }
 
-module.exports = { declararContingencia, xmlResumen };
+module.exports = { declararContingencia, lineaTalonario };

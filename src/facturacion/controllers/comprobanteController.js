@@ -223,7 +223,11 @@ router.post('/facturacion/contingencia/resumen', adminAuth, async (req, res) => 
     try {
         const { declararContingencia } = require('../services/contingenciaSunat');
         const cfg = await obtenerConfiguracionFiscal();
-        const resultado = await declararContingencia({ ruc: req.body.ruc || cfg.emisor.ruc });
+        const resultado = await declararContingencia({
+            ruc: req.body.ruc || cfg.emisor.ruc,
+            emisor: cfg.emisor,
+            tasaIgv: cfg.tasaIgv,
+        });
         res.status(202).json(resultado);
     } catch (err) {
         responderError(res, err);
@@ -260,7 +264,7 @@ router.get('/facturacion/mesas/:id/consumo', adminAuth, async (req, res) => {
             mesas: req.params.id,
             IsActive: true,
             status: { $nin: ['pagado', 'completado', 'cancelado'] },
-        }).populate('platos.plato', 'nombre precio').lean();
+        }).populate('platos.plato', 'nombre precio tipoAfectacionIgv').lean();
         const items = [];
         for (const comanda of comandas) {
             (comanda.platos || []).forEach((linea, i) => {
@@ -272,7 +276,7 @@ router.get('/facturacion/mesas/:id/consumo', adminAuth, async (req, res) => {
                     cantidad,
                     precioUnitario: precio,
                     nota: linea.notaEspecial || linea.nota || '',
-                    tipoAfectacionIgv: '10',
+                    tipoAfectacionIgv: linea.plato?.tipoAfectacionIgv || '10',
                 });
             });
         }

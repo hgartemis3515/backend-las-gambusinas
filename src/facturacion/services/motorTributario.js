@@ -104,6 +104,10 @@ function mapearMedioPago(medio) {
  */
 function calcularLinea(item, indice, ctx) {
     if (!item || !item.descripcion) throw new ErrorTributario(`Ítem ${indice + 1}: descripción requerida`);
+    const unidad = item.unidad || 'NIU';
+    if (!['NIU', 'ZZ', 'KGM', 'LTR'].includes(unidad)) {
+        throw new ErrorTributario(`Ítem ${indice + 1}: unidad ${unidad} no está en el catálogo 03`, 'UNIDAD');
+    }
     const cantMil = aEscalado(item.cantidad, 3);
     if (cantMil <= 0) throw new ErrorTributario(`Ítem ${indice + 1}: cantidad debe ser > 0`);
     const precioUnitCent = aCentimos(item.precioUnitario);
@@ -156,7 +160,7 @@ function calcularLinea(item, indice, ctx) {
         indice,
         codigo: item.codigo || null,
         descripcion: item.descripcion,
-        unidad: item.unidad || 'NIU',
+        unidad,
         cantMil,
         tipoAfectacionIgv: afectacion,
         gratuita,
@@ -224,8 +228,13 @@ function calcular(entrada) {
     const { tipoComprobante, items, descuentoGlobal, cargos = [], formaPago, pagos, config = {} } = entrada || {};
     if (!Array.isArray(items) || items.length === 0) throw new ErrorTributario('El comprobante requiere ítems');
 
+    const tasa = Number(config.tasaIgv ?? 18);
+    const permitidas = tipoComprobante === TIPO_DOCUMENTO.BOLETA ? [10.5, 18] : [10, 10.5, 18];
+    if (!permitidas.some((t) => Math.abs(t - tasa) < 0.001)) {
+        throw new ErrorTributario(`Tasa IGV ${tasa} no vigente para el tipo ${tipoComprobante}`, 'TASA_IGV');
+    }
     const ctx = {
-        bp: aEscalado(config.tasaIgv ?? 18, 2),
+        bp: aEscalado(tasa, 2),
         incluyeIgv: config.preciosIncluyenIGV !== false,
         afectacionCortesia: config.afectacionCortesia || AFECTACION_IGV.GRAVADO_BONIFICACIONES,
     };

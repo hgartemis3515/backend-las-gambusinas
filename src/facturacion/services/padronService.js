@@ -45,12 +45,19 @@ async function consultarPadron(tipo, numero, deps = {}) {
             direccion: String(data.direccion || '').trim(),
             estado: data.estado || null,
             condicion: data.condicion || null,
-            validacionPadron: nombre ? 'ok' : 'pendiente',
+            validacionPadron: nombre && fiscalOk(data) ? 'ok' : 'pendiente',
             encontrado: Boolean(nombre),
         };
     } catch {
         return vacio;
     }
+}
+
+/** Un padrón caído o un RUC no habido no rechaza el cobro: queda pendiente. */
+function fiscalOk(data) {
+    const estado = String(data.estado || 'ACTIVO').toUpperCase();
+    const condicion = String(data.condicion || 'HABIDO').toUpperCase();
+    return estado === 'ACTIVO' && condicion === 'HABIDO';
 }
 
 module.exports = { consultarPadron };

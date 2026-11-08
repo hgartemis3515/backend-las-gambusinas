@@ -6,6 +6,8 @@
 
 const fs = require('fs');
 const forge = require('node-forge');
+const xpath = require('xpath');
+const { DOMParser } = require('@xmldom/xmldom');
 const { SignedXml } = require('xml-crypto');
 const { partesLima, correlativo } = require('./ublBuilder');
 
@@ -64,10 +66,27 @@ function firmarXml(xml, cert = cargarCertificado()) {
         prefix: 'ds',
         location: { reference: "//*[local-name(.)='ExtensionContent']", action: 'append' },
     });
-    const firmado = sig.getSignedXml();
+    let firmado = sig.getSignedXml();
+    if (!/<(?:\w+:)?Signature\b[^>]*\bId=/.test(firmado)) {
+        firmado = firmado.replace(/<(?:\w+:)?Signature\b/, '<ds:Signature Id="SIGN"');
+    }
     const hash = (firmado.match(/<(?:\w+:)?DigestValue>([^<]+)<\/(?:\w+:)?DigestValue>/) || [])[1];
     if (!hash) throw new Error('La firma no produjo DigestValue');
     return { xml: firmado, hash };
+}
+
+/**
+ * @param {string} xml
+ * @param {string} certPem
+ * @returns {boolean}
+ */
+function verificarFirma(xml, certPem) {
+    const sig = new SignedXml({ publicCert: certPem });
+    const doc = new DOMParser().parseFromString(xml, 'text/xml');
+    const node = xpath.select1("//*[local-name(.)='Signature']", doc);
+    if (!node) return false;
+    sig.loadSignature(node);
+    return sig.checkSignature(xml) === true;
 }
 
 /**
@@ -94,4 +113,4 @@ function codigoQr(comprobante, hash) {
     ].join('|');
 }
 
-module.exports = { cargarCertificado, firmarXml, codigoQr };
+module.exports = { cargarCertificado, firmarXml, verificarFirma, codigoQr };

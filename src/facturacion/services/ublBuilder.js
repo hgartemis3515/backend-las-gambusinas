@@ -14,6 +14,23 @@ const EXT = 'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionCompone
 const DS = 'http://www.w3.org/2000/09/xmldsig#';
 
 const n2 = (n) => (Number(n) || 0).toFixed(2);
+/** Valor unitario: más de 2 decimales, sin recortar a céntimos. */
+function nUnit(n) {
+    const s = (Number(n) || 0).toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
+    if (!s.includes('.')) return `${s}.00`;
+    const dec = s.split('.')[1];
+    return dec.length < 2 ? `${s}${'0'.repeat(2 - dec.length)}` : s;
+}
+
+function tributoDe(item) {
+    const afectacion = String(item.tipoAfectacionIgv || '10');
+    if (item.gratuita || ['11', '12', '13', '14', '15', '16', '21', '31'].includes(afectacion)) {
+        return { schemeId: '9996', schemeName: 'GRA', schemeType: 'FRE' };
+    }
+    if (afectacion === '20') return { schemeId: '9997', schemeName: 'EXO', schemeType: 'VAT' };
+    if (afectacion === '30') return { schemeId: '9998', schemeName: 'INA', schemeType: 'FRE' };
+    return { schemeId: '1000', schemeName: 'IGV', schemeType: 'VAT' };
+}
 /** Número tal como va en el XML y en el nombre del ZIP: 8 dígitos. */
 const correlativo = (numero) => String(Number(numero)).padStart(8, '0');
 
@@ -147,6 +164,16 @@ function pagos(parent, comprobante) {
     const terms = parent.ele('cac:PaymentTerms');
     terms.ele('cbc:ID').txt('FormaPago');
     terms.ele('cbc:PaymentMeansID').txt(forma);
+    if (forma !== 'Credito') return;
+    terms.ele('cbc:Amount', { currencyID: 'PEN' }).txt(n2(comprobante.formaPago.montoPendiente));
+    for (const cuota of comprobante.formaPago.cuotas || []) {
+        const nodo = parent.ele('cac:PaymentTerms');
+        nodo.ele('cbc:ID').txt('FormaPago');
+        nodo.ele('cbc:PaymentMeansID').txt(cuota.id);
+        nodo.ele('cbc:Amount', { currencyID: 'PEN' }).txt(n2(cuota.monto));
+        const fecha = cuota.fechaVencimiento instanceof Date ? cuota.fechaVencimiento : new Date(cuota.fechaVencimiento);
+        nodo.ele('cbc:PaymentDueDate').txt(partesLima(fecha).fecha);
+    }
 }
 
 /** @param {import('xmlbuilder2').XMLBuilder} parent @param {Object} item @param {string} etiqueta */
@@ -158,8 +185,17 @@ function linea(parent, item, etiqueta) {
     row.ele('cbc:LineExtensionAmount', { currencyID: 'PEN' }).txt(n2(item.valorVenta));
     const ref = row.ele('cac:PricingReference').ele('cac:AlternativeConditionPrice');
     const precioRef = item.gratuita ? item.valorReferencialUnitario : item.precioUnitario;
-    ref.ele('cbc:PriceAmount', { currencyID: 'PEN' }).txt(n2(precioRef));
+    ref.ele('cbc:PriceAmount', { currencyID: 'PEN' }).txt(item.gratuita ? nUnit(precioRef) : n2(precioRef));
     ref.ele('cbc:PriceTypeCode').txt(item.gratuita ? '02' : '01');
+    if (item.descuento && Number(item.descuento.monto) > 0) {
+        const desc = row.ele('cac:AllowanceCharge');
+        desc.ele('cbc:ChargeIndicator').txt('false');
+        desc.ele('cbc:AllowanceChargeReasonCode').txt(item.descuento.codigo || '00');
+        desc.ele('cbc:MultiplierFactorNumeric').txt(String(item.descuento.factor));
+        desc.ele('cbc:Amount', { currencyID: 'PEN' }).txt(n2(item.descuento.monto));
+        desc.ele('cbc:BaseAmount', { currencyID: 'PEN' }).txt(n2(item.descuento.montoBase));
+    }
+    const tributo = tributoDe(item);
     const tax = row.ele('cac:TaxTotal');
     tax.ele('cbc:TaxAmount', { currencyID: 'PEN' }).txt(n2(item.igv));
     subtotalIgv(tax, {
@@ -167,14 +203,12 @@ function linea(parent, item, etiqueta) {
         igv: item.igv,
         percent: item.porcentajeIgv,
         afectacion: item.tipoAfectacionIgv,
-        schemeId: '1000',
-        schemeName: 'IGV',
-        schemeType: 'VAT',
+        ...tributo,
     });
     const prod = row.ele('cac:Item');
     prod.ele('cbc:Description').txt(item.descripcion);
     prod.ele('cac:SellersItemIdentification').ele('cbc:ID').txt(item.codigo || 'PLATO');
-    row.ele('cac:Price').ele('cbc:PriceAmount', { currencyID: 'PEN' }).txt(n2(item.valorUnitario));
+    row.ele('cac:Price').ele('cbc:PriceAmount', { currencyID: 'PEN' }).txt(nUnit(item.valorUnitario));
 }
 
 /** @param {Object} comprobante */
@@ -221,7 +255,15 @@ function construir(comprobante) {
     firmaDeclarada(root, comprobante);
     emisor(root, comprobante.emisor);
     receptor(root, comprobante.receptor, 'cac:AccountingCustomerParty');
-    pagos(root, comprobante);
+    if (comprobante.tipo !== '07') pagos(root, comprobante);
+    if (Number(comprobante.descuentoGlobal?.monto) > 0) {
+        const desc = root.ele('cac:AllowanceCharge');
+        desc.ele('cbc:ChargeIndicator').txt('false');
+        desc.ele('cbc:AllowanceChargeReasonCode').txt(comprobante.descuentoGlobal.codigo || '02');
+        desc.ele('cbc:MultiplierFactorNumeric').txt(String(comprobante.descuentoGlobal.factor));
+        desc.ele('cbc:Amount', { currencyID: 'PEN' }).txt(n2(comprobante.descuentoGlobal.monto));
+        desc.ele('cbc:BaseAmount', { currencyID: 'PEN' }).txt(n2(comprobante.descuentoGlobal.montoBase));
+    }
     impuestosCabecera(root, comprobante);
     const t = comprobante.totales;
     const legal = root.ele('cac:LegalMonetaryTotal');

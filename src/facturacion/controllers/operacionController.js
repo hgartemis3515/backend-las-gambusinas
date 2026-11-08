@@ -195,6 +195,8 @@ router.post('/facturacion/notas-credito', adminAuth, async (req, res) => {
             comprobanteOrigenId: req.body.comprobanteOrigenId,
             motivoCodigo: req.body.motivoCodigo,
             sustento: req.body.sustento,
+            lineas: req.body.lineas,
+            monto: req.body.monto,
             cajero: req.admin?.name || null,
         });
         res.status(201).json(resultado);

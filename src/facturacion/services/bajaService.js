@@ -1,9 +1,18 @@
 /**
- * Comunicación de baja (RA) solo para facturas dentro del plazo.
+ * Comunicación de baja (RA) solo para facturas aceptadas y dentro del plazo.
  * @module facturacion/services/baja
  */
 
+const { create } = require('xmlbuilder2');
 const { firmarXml } = require('./firmaService');
+const { reservarEnvio } = require('./correlativoEnvio');
+const { fechaLima, validarEmisor } = require('./resumenDiario');
+
+const CAC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2';
+const CBC = 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2';
+const EXT = 'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2';
+const SAC = 'urn:sunat:names:specification:ubl:peru:schema:xsd:SunatAggregateComponents-1';
+const VOIDED = 'urn:sunat:names:specification:ubl:peru:schema:xsd:VoidedDocuments-1';
 
 class ErrorBaja extends Error {
     constructor(mensaje, codigo, statusCode = 422) {
@@ -14,36 +23,63 @@ class ErrorBaja extends Error {
     }
 }
 
+/** @param {string} motivo */
+function validarMotivoBaja(motivo) {
+    const texto = String(motivo ?? '').trim();
+    if (!texto) throw new ErrorBaja('El motivo de baja está vacío', '2315');
+    if (texto.length < 3 || texto.length > 100) throw new ErrorBaja('El motivo de baja debe tener de 3 a 100 caracteres', '4203');
+    return texto;
+}
+
 /** @param {Object} comprobante @param {Date} ahora @param {number} plazoDias */
 function puedeDarDeBaja(comprobante, ahora = new Date(), plazoDias = 3) {
     if (comprobante.tipo !== '01') throw new ErrorBaja('La comunicación de baja es solo para facturas', 'NO_ES_FACTURA');
+    if (!['ACEPTADO', 'ACEPTADO_OBS'].includes(comprobante.estado)) {
+        throw new ErrorBaja('Solo se da de baja un comprobante aceptado', 'NO_ACEPTADO');
+    }
     const limite = new Date(new Date(comprobante.fechaEmision).getTime() + plazoDias * 86400000);
     if (ahora > limite) throw new ErrorBaja('La factura está fuera del plazo de baja', 'FUERA_DE_PLAZO');
     return true;
 }
 
-/** @param {Object} comprobante @param {string} motivo @param {Date} [ahora] */
-function xmlBaja(comprobante, motivo, ahora = new Date()) {
-    const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ahora);
-    const ref = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(comprobante.fechaEmision));
-    const id = `RA-${fecha.replace(/-/g, '')}-1`;
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<VoidedDocuments xmlns="urn:sunat:names:specification:ubl:peru:schema:xsd:VoidedDocuments-1" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sac="urn:sunat:names:specification:ubl:peru:schema:xsd:SunatAggregateComponents-1">
-  <ext:UBLExtensions><ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension></ext:UBLExtensions>
-  <cbc:UBLVersionID>2.0</cbc:UBLVersionID>
-  <cbc:CustomizationID>1.0</cbc:CustomizationID>
-  <cbc:ID>${id}</cbc:ID>
-  <cbc:ReferenceDate>${ref}</cbc:ReferenceDate>
-  <cbc:IssueDate>${fecha}</cbc:IssueDate>
-  <sac:VoidedDocumentsLine>
-    <cbc:LineID>1</cbc:LineID>
-    <cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>
-    <sac:DocumentSerialID>${comprobante.serie}</sac:DocumentSerialID>
-    <sac:DocumentNumberID>${Number(comprobante.numero)}</sac:DocumentNumberID>
-    <sac:VoidReasonDescription>${motivo}</sac:VoidReasonDescription>
-  </sac:VoidedDocumentsLine>
-</VoidedDocuments>`;
-    return { id, xml };
+/**
+ * @param {Object} comprobante
+ * @param {string} motivo
+ * @param {{ id: string, fechaReferencia: string, fechaGeneracion: string }} lote
+ */
+function xmlBaja(comprobante, motivo, lote) {
+    const texto = validarMotivoBaja(motivo);
+    const nombre = validarEmisor(comprobante.emisor);
+    const root = create({ version: '1.0', encoding: 'UTF-8' }).ele('VoidedDocuments', {
+        xmlns: VOIDED,
+        'xmlns:cac': CAC,
+        'xmlns:cbc': CBC,
+        'xmlns:ext': EXT,
+        'xmlns:sac': SAC,
+    });
+    root.ele('ext:UBLExtensions').ele('ext:UBLExtension').ele('ext:ExtensionContent');
+    root.ele('cbc:UBLVersionID').txt('2.0');
+    root.ele('cbc:CustomizationID').txt('1.0');
+    root.ele('cbc:ID').txt(lote.id);
+    root.ele('cbc:ReferenceDate').txt(lote.fechaReferencia);
+    root.ele('cbc:IssueDate').txt(lote.fechaGeneracion);
+    const firma = root.ele('cac:Signature');
+    firma.ele('cbc:ID').txt('SIGN');
+    const party = firma.ele('cac:SignatoryParty');
+    party.ele('cac:PartyIdentification').ele('cbc:ID').txt(comprobante.emisor.ruc);
+    party.ele('cac:PartyName').ele('cbc:Name').txt(nombre);
+    firma.ele('cac:DigitalSignatureAttachment').ele('cac:ExternalReference').ele('cbc:URI').txt('#SIGN');
+    const sup = root.ele('cac:AccountingSupplierParty');
+    sup.ele('cbc:CustomerAssignedAccountID').txt(comprobante.emisor.ruc);
+    sup.ele('cbc:AdditionalAccountID').txt('6');
+    sup.ele('cac:Party').ele('cac:PartyLegalEntity').ele('cbc:RegistrationName').txt(nombre);
+    const linea = root.ele('sac:VoidedDocumentsLine');
+    linea.ele('cbc:LineID').txt('1');
+    linea.ele('cbc:DocumentTypeCode').txt('01');
+    linea.ele('sac:DocumentSerialID').txt(comprobante.serie);
+    linea.ele('sac:DocumentNumberID').txt(String(Number(comprobante.numero)));
+    linea.ele('sac:VoidReasonDescription').txt(texto);
+    return { id: lote.id, xml: root.end({ headless: false, prettyPrint: false }) };
 }
 
 /**
@@ -51,17 +87,25 @@ function xmlBaja(comprobante, motivo, ahora = new Date()) {
  * @param {Object} [deps]
  */
 async function comunicarBaja(solicitud, deps = {}) {
-    if (!solicitud.motivo) throw new ErrorBaja('El motivo es obligatorio', 'MOTIVO_REQUERIDO');
+    const motivo = validarMotivoBaja(solicitud.motivo);
     const Modelo = deps.Modelo;
     const doc = await Modelo.findById(solicitud.comprobanteId);
     if (!doc) throw new ErrorBaja('Factura no encontrada', 'NO_ENCONTRADA', 404);
-    puedeDarDeBaja(doc, deps.ahora ? deps.ahora() : new Date(), deps.plazoDias || 3);
-    const built = xmlBaja(doc, solicitud.motivo, deps.ahora ? deps.ahora() : new Date());
+    const ahora = deps.ahora ? deps.ahora() : new Date();
+    puedeDarDeBaja(doc, ahora, deps.plazoDias || 3);
+    const reservar = deps.reservar || reservarEnvio;
+    const referencia = fechaLima(doc.fechaEmision);
+    const generacion = fechaLima(ahora);
+    const { id } = await reservar({ ruc: doc.ruc, tipo: 'RA', fecha: generacion });
+    const built = xmlBaja(doc, motivo, { id, fechaReferencia: referencia, fechaGeneracion: generacion < referencia ? referencia : generacion });
     const firmado = deps.firmar ? deps.firmar(built.xml) : firmarSiHay(built.xml);
     const enviar = deps.enviar || enviarPorDefecto;
-    const enviado = await enviar({ nombre: `${doc.ruc}-${built.id}`, xml: firmado.xml });
+    const enviado = await enviar({ nombre: `${doc.ruc}-${built.id}`, xml: firmado.xml || firmado });
+    const anterior = doc.estado;
     doc.estado = 'BAJA_PENDIENTE';
+    doc.envio = doc.envio || {};
     doc.envio.ticket = enviado.ticket;
+    doc.envio.baja = { estadoAnterior: anterior };
     if (typeof doc.save === 'function') await doc.save();
     return { id: built.id, ticket: enviado.ticket, estado: doc.estado };
 }
@@ -74,15 +118,8 @@ function firmarSiHay(xml) {
 async function enviarPorDefecto({ nombre, xml }) {
     if ((process.env.FACTURACION_PROVEEDOR || 'mock') !== 'sunat') return { ticket: `LOCAL-${nombre}` };
     const SunatDirecto = require('../providers/sunatDirecto');
-    const { comprimir } = require('../providers/zipSunat');
     const proveedor = new SunatDirecto();
-    const zip = comprimir(`${nombre}.xml`, xml).toString('base64');
-    const { envelope } = SunatDirecto;
-    const soap = envelope('sendSummary', `<fileName>${nombre}.zip</fileName><contentFile>${zip}</contentFile>`);
-    const respuesta = await proveedor.post(soap, 'sendSummary');
-    const ticket = (respuesta.match(/<(?:\w+:)?ticket[^>]*>([^<]+)/i) || [])[1];
-    if (!ticket) throw new ErrorBaja('SUNAT no devolvió ticket de baja', 'SIN_TICKET', 502);
-    return { ticket };
+    return proveedor.comunicarBaja({ nombre, xml });
 }
 
-module.exports = { puedeDarDeBaja, xmlBaja, comunicarBaja, ErrorBaja };
+module.exports = { puedeDarDeBaja, xmlBaja, comunicarBaja, validarMotivoBaja, ErrorBaja };
