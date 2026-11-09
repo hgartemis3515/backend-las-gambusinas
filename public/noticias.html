@@ -1811,10 +1811,16 @@ function noticiasApp() {
         let parcial = '';
         for (let i = e.resultIndex; i < e.results.length; i += 1) {
           const r = e.results[i];
-          if (r.isFinal) this.agregarDictado(destino, r[0].transcript);
-          else parcial += r[0].transcript;
+          if (r.isFinal) {
+            if (i < (rec._hechos || 0)) continue; // este resultado ya se insertó
+            rec._hechos = i + 1;
+            const nuevo = this.soloTextoNuevo(rec, r[0].transcript);
+            if (nuevo) this.agregarDictado(destino, nuevo);
+          } else {
+            parcial += r[0].transcript;
+          }
         }
-        this.dictadoParcial = parcial;
+        this.dictadoParcial = this.soloTextoNuevo(rec, parcial, true);
       };
       rec.onerror = (e) => {
         const msgs = {
@@ -1832,7 +1838,16 @@ function noticiasApp() {
         if (this._rec !== rec) return;
         // El navegador corta el reconocimiento tras silencios: si el usuario no lo apagó, lo reanudamos
         if (!rec._fatal && this.dictando === destino) {
-          try { rec.start(); return; } catch (_) {}
+          // Evitar bucles: si se reinicia más de 6 veces en 10 s, algo va mal y paramos
+          const ahora = Date.now();
+          rec._reinicios = (rec._reinicios || []).filter((t) => ahora - t < 10000);
+          rec._reinicios.push(ahora);
+          if (rec._reinicios.length <= 6) {
+            rec._hechos = 0; // cada sesión nueva numera sus resultados desde 0
+            try { rec.start(); return; } catch (_) {}
+          } else {
+            this.mostrarToast('El dictado se detuvo. Vuelve a pulsar el micrófono.', 'error');
+          }
         }
         this._rec = null;
         this.dictando = null;
@@ -1866,24 +1881,97 @@ function noticiasApp() {
       if (rec) { try { rec.stop(); } catch (_) {} }
     },
     puntuarDictado(txt) {
-      return String(txt || '')
-        .replace(/\s*\bpunto y coma\b/gi, ';')
-        .replace(/\s*\bdos puntos\b/gi, ':')
-        .replace(/\s*\bsigno de interrogaci[oó]n\b/gi, '?')
-        .replace(/\s*\bsigno de exclamaci[oó]n\b/gi, '!')
-        .replace(/\s*\bcoma\b/gi, ',')
-        .replace(/\s*\bpunto\b/gi, '.')
-        .replace(/\s+/g, ' ')
-        .trim();
+      // Límite de palabra que entiende tildes y ñ (\b de JS no las reconoce)
+      const L = '(?<![\\p{L}\\p{N}])';
+      const R = '(?![\\p{L}\\p{N}])';
+      const cmd = (frase) => new RegExp('\\s*' + L + frase + R + '\\s*', 'giu');
+      let s = String(txt || '');
+      // Saltos de línea (van primero para no chocar con "punto")
+      s = s.replace(cmd('(?:punto y aparte|nuevo p[aá]rrafo|punto aparte)'), '.\n')
+           .replace(cmd('(?:nueva l[ií]nea|salto de l[ií]nea)'), '\n')
+           .replace(cmd('punto y seguido'), '. ')
+           .replace(cmd('punto y coma'), '; ')
+           .replace(cmd('puntos suspensivos'), '… ')
+           .replace(cmd('dos puntos'), ': ')
+           .replace(cmd('(?:abrir|abre) (?:signo de )?interrogaci[oó]n'), ' ¿')
+           .replace(cmd('(?:cerrar|cierra) (?:signo de )?interrogaci[oó]n|signo de interrogaci[oó]n'), '? ')
+           .replace(cmd('(?:abrir|abre) (?:signo de )?exclamaci[oó]n'), ' ¡')
+           .replace(cmd('(?:cerrar|cierra) (?:signo de )?exclamaci[oó]n|signo de exclamaci[oó]n'), '! ')
+           .replace(cmd('(?:abrir|abre) comillas'), ' "')
+           .replace(cmd('(?:cerrar|cierra) comillas'), '" ')
+           .replace(cmd('coma'), ', ')
+           .replace(cmd('punto'), '. ');
+      return s
+        .replace(/[ \t]+/g, ' ')
+        .replace(/ *\n */g, '\n')
+        .replace(/ +([,.;:?!…])/g, '$1')        // sin espacio antes de signos
+        .replace(/([¿¡"]) +/g, (m, c) => (c === '"' ? m : c)) // sin espacio tras ¿ ¡
+        .replace(/([,.;:])\1+/g, '$1')          // signos duplicados
+        // Mayúscula tras fin de frase dentro del mismo dictado
+        .replace(/([.!?…]\s+|\n|[¿¡])(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase())
+        .replace(/^ +| +$/g, '');
+    },
+    // ¿Lo que va antes del cursor termina una frase? (para poner mayúscula)
+    esInicioDeFrase(antes) {
+      const t = String(antes || '').replace(/[ \t]+$/, '');
+      return !t || /[.!?…\n¿¡]$/.test(t);
+    },
+    // Ajusta mayúscula y espacios del texto dictado según lo que hay alrededor del cursor
+    encajarDictado(txt, antes, despues) {
+      if (this.esInicioDeFrase(antes)) {
+        txt = txt.replace(/^([¿¡"]?)(\p{Ll})/u, (m, a, b) => a + b.toUpperCase());
+      }
+      const ultimo = antes.slice(-1);
+      if (ultimo && !/\s/.test(ultimo) && !/^[,.;:?!…\n]/.test(txt) && !/[¿¡"(]$/.test(antes)) txt = ' ' + txt;
+      const siguiente = despues.charAt(0);
+      if (siguiente && /[\p{L}\p{N}¿¡"]/u.test(siguiente) && !/[\s\n]$/.test(txt)) txt += ' ';
+      return txt;
+    },
+    // Algunos navegadores (Chrome Android) devuelven la frase acumulada completa en cada resultado.
+    // Quitamos lo que ya se dictó en esta sesión para no volver a insertar texto que el usuario borró.
+    soloTextoNuevo(rec, bruto, soloVer) {
+      const txt = String(bruto || '').trim();
+      if (!txt) return '';
+      const norm = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+      const previo = rec._emitido || '';
+      const n = norm(txt);
+      let nuevo = txt;
+      if (previo) {
+        if (n === previo) return '';
+        if (n.startsWith(previo)) {
+          // Recortar del texto original la misma cantidad de palabras ya dictadas
+          const palabras = previo.split(' ').length;
+          nuevo = txt.split(/\s+/).slice(palabras).join(' ');
+        }
+      }
+      if (!soloVer && nuevo) rec._emitido = (previo ? previo + ' ' : '') + norm(nuevo);
+      return nuevo;
     },
     agregarDictado(destino, bruto) {
       let txt = this.puntuarDictado(bruto);
       if (!txt) return;
       if (destino === 'titulo') {
-        const base = this.titulo.replace(/\s+$/, '');
-        if (!base) txt = txt.charAt(0).toUpperCase() + txt.slice(1);
-        this.titulo = (base ? base + ' ' + txt : txt).slice(0, 120);
+        txt = txt.replace(/\n+/g, ' ').trim(); // el título es de una sola línea
+        if (!txt) return;
+        const input = document.getElementById('titulo');
+        const actual = this.titulo || '';
+        // Respetar el cursor/selección del input; si no tiene foco, agregar al final
+        let ini = actual.length;
+        let fin = actual.length;
+        if (input && document.activeElement === input && Number.isFinite(input.selectionStart)) {
+          ini = input.selectionStart;
+          fin = input.selectionEnd;
+        }
+        const antes = actual.slice(0, ini);
+        const despues = actual.slice(fin);
+        txt = this.encajarDictado(txt, antes, despues);
+        const espacio = Math.max(0, 120 - antes.length - despues.length);
+        if (txt.length > espacio) txt = txt.slice(0, espacio);
+        this.titulo = antes + txt + despues;
         this.actualizarPreview();
+        if (input && document.activeElement === input) {
+          this.$nextTick(() => { try { input.setSelectionRange(ini + txt.length, ini + txt.length); } catch (_) {} });
+        }
         if (this.titulo.length >= 120) {
           this.mostrarToast('El título llegó a 120 caracteres', 'error');
           this.detenerDictado();
@@ -1894,11 +1982,16 @@ function noticiasApp() {
       if (!q) return;
       const fin = Math.max(0, q.getLength() - 1);
       let index = fin;
-      if (this._rango && Number.isFinite(this._rango.index)) index = Math.min(fin, Math.max(0, this._rango.index));
-      const previo = index > 0 ? q.getText(index - 1, 1) : '';
-      const inicioFrase = !previo || /[\n.!?]/.test(previo) || (index > 1 && /[.!?]/.test(q.getText(index - 2, 1)));
-      if (inicioFrase) txt = txt.charAt(0).toUpperCase() + txt.slice(1);
-      if (previo && !/\s/.test(previo) && !/^[,.;:?!]/.test(txt)) txt = ' ' + txt;
+      let largo = 0;
+      if (this._rango && Number.isFinite(this._rango.index)) {
+        index = Math.min(fin, Math.max(0, this._rango.index));
+        largo = Math.max(0, Math.min(fin - index, this._rango.length || 0));
+      }
+      // Si hay texto seleccionado, el dictado lo reemplaza
+      if (largo) q.deleteText(index, largo, 'user');
+      const antes = q.getText(Math.max(0, index - 3), Math.min(index, 3));
+      const despues = q.getText(index, 1);
+      txt = this.encajarDictado(txt, antes, despues === '\n' && index >= q.getLength() - 1 ? '' : despues);
       q.insertText(index, txt, 'user');
       this._rango = { index: index + txt.length, length: 0 };
       try { q.setSelection(this._rango.index, 0, 'silent'); } catch (_) {}
