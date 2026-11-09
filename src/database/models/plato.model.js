@@ -79,6 +79,11 @@ const platoSchema = new mongoose.Schema({
         maxlength: MAX_LENGTH_NOMBRE_COCINA
     },
     precio: { type: Number, required: true, min: 0 },
+    tipoAfectacionIgv: {
+        type: String,
+        enum: ['10', '11', '12', '13', '14', '15', '16', '20', '21', '30', '31'],
+        default: '10',
+    },
     stock: { type: Number, required: true, min: 0 },
     // Mínimo de inventario por existencia. 0 = no avisa.
     alertaCritica: {

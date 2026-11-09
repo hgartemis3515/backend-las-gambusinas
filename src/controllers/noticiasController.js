@@ -3,6 +3,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const router = express.Router();
@@ -51,6 +52,19 @@ function puedePublicar(req, res, next) {
     const rol = req.admin?.rol;
     if (rol === 'admin' || rol === 'supervisor' || rol === 'cajero') return next();
     return checkPermission('publicar-noticias')(req, res, next);
+}
+
+// Código de un solo uso para abrir noticias en HTTPS sin pedir la clave otra vez.
+const puentesSesion = new Map();
+
+function guardarPuente(token) {
+    const ahora = Date.now();
+    for (const [k, v] of puentesSesion) {
+        if (v.exp <= ahora) puentesSesion.delete(k);
+    }
+    const code = crypto.randomBytes(24).toString('hex');
+    puentesSesion.set(code, { token, exp: ahora + 60_000 });
+    return code;
 }
 
 function emitirDirigido(evento, payload, destino = {}) {
@@ -114,6 +128,23 @@ function emitirNoticia(accion = 'creada', noticia = null, body = {}) {
 function autorDe(req) {
     return { id: req.admin?.id, nombre: req.admin?.name, rol: req.admin?.rol };
 }
+
+router.post('/noticias/puente-sesion', adminAuth, (req, res) => {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+    if (!token) return res.status(401).json({ error: 'Token no proporcionado' });
+    res.json({ code: guardarPuente(token) });
+});
+
+router.post('/noticias/puente-sesion/canje', (req, res) => {
+    const code = String(req.body?.code || '');
+    const item = code ? puentesSesion.get(code) : null;
+    if (code) puentesSesion.delete(code);
+    if (!item || item.exp <= Date.now() || !item.token) {
+        return res.status(401).json({ error: 'Enlace vencido' });
+    }
+    res.json({ token: item.token });
+});
 
 router.get('/noticias/top-semana', requireJwt, async (req, res) => {
     try {

@@ -8,8 +8,10 @@ const fs = require('fs');
 const https = require('https');
 const ProveedorFiscal = require('./ProveedorFiscal');
 const { comprimir, descomprimir } = require('./zipSunat');
-const { nombreArchivo, construir } = require('../services/ublBuilder');
+const { nombreArchivo } = require('../services/ublBuilder');
 const { firmarXml } = require('../services/firmaService');
+const { reservarEnvio } = require('../services/correlativoEnvio');
+const { xmlResumen, lineaDesdeComprobante, fechaLima } = require('../services/resumenDiario');
 
 const BETA = 'https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService';
 const PRODUCCION = 'https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService';
@@ -108,19 +110,28 @@ class SunatDirecto extends ProveedorFiscal {
         super(opciones);
         this.url = opciones.url || urlPorAmbiente();
         this.post = opciones.post || ((xml, action) => postSoap(this.url, xml, action));
+        this.firmar = opciones.firmar || firmarXml;
+        this.reservarEnvio = opciones.reservarEnvio || reservarEnvio;
+        this.persistirLote = opciones.persistirLote !== false;
     }
 
     get nombre() {
         return 'sunat';
     }
 
-    /** @param {Object} comprobante XML ya firmado en comprobante.xml.ruta, o se reconstruye */
+    /** @param {Object} comprobante XML ya firmado en comprobante.xml.ruta */
     async emitir(comprobante) {
-        if (comprobante.tipo === '03') return this.enviarBoleta(comprobante);
-        const xml = comprobante.xml?.ruta && fs.existsSync(comprobante.xml.ruta)
-            ? fs.readFileSync(comprobante.xml.ruta, 'utf8')
-            : firmarXml(construir(comprobante)).xml;
-        return this.sendBill(nombreArchivo(comprobante), xml);
+        const porResumen = comprobante.tipo === '03' || (comprobante.tipo === '07' && comprobante.referencia?.tipo === '03');
+        if (porResumen) {
+            if (comprobante.envio?.ticket) return this.consultarTicket(comprobante.envio.ticket);
+            return this.enviarBoleta(comprobante);
+        }
+        if (!(comprobante.xml?.ruta && fs.existsSync(comprobante.xml.ruta))) {
+            const error = new Error('XML firmado no disponible. No se reconstruye el comprobante.');
+            error.codigo = 'XML_NO_DISPONIBLE';
+            throw error;
+        }
+        return this.sendBill(nombreArchivo(comprobante), fs.readFileSync(comprobante.xml.ruta, 'utf8'));
     }
 
     /** @param {string} nombreSinExtension @param {string} xml */
@@ -136,36 +147,42 @@ class SunatDirecto extends ProveedorFiscal {
         return leido;
     }
 
-    /** Boleta: resumen de un documento y consulta del ticket. */
+    /** Boleta o NC de boleta: un resumen, guarda el ticket y no lo consulta en el mismo paso. */
     async enviarBoleta(comprobante) {
-        const fecha = comprobante.fechaEmision ? new Date(comprobante.fechaEmision) : new Date();
-        const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(fecha);
-        const id = `RC-${partes.replace(/-/g, '')}-1`;
-        const linea = `<sac:SummaryDocumentsLine xmlns:sac="urn:sunat:names:specification:ubl:peru:schema:xsd:SunatAggregateComponents-1" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2">
-          <cbc:LineID>1</cbc:LineID>
-          <cbc:DocumentTypeCode>03</cbc:DocumentTypeCode>
-          <cbc:ID>${comprobante.serie}-${Number(comprobante.numero)}</cbc:ID>
-          <cac:Status><cbc:ConditionCode>1</cbc:ConditionCode></cac:Status>
-          <sac:TotalAmount currencyID="PEN">${Number(comprobante.totales.importeTotal).toFixed(2)}</sac:TotalAmount>
-        </sac:SummaryDocumentsLine>`;
-        const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<SummaryDocuments xmlns="urn:sunat:names:specification:ubl:peru:schema:xsd:SummaryDocuments-1" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sac="urn:sunat:names:specification:ubl:peru:schema:xsd:SunatAggregateComponents-1">
-  <ext:UBLExtensions><ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension></ext:UBLExtensions>
-  <cbc:UBLVersionID>2.0</cbc:UBLVersionID>
-  <cbc:CustomizationID>1.1</cbc:CustomizationID>
-  <cbc:ID>${id}</cbc:ID>
-  <cbc:ReferenceDate>${partes}</cbc:ReferenceDate>
-  <cbc:IssueDate>${partes}</cbc:IssueDate>
-  ${linea}
-</SummaryDocuments>`;
-        const firmado = firmarXml(xml);
-        const nombre = `${comprobante.ruc}-${id}`;
-        const zip = comprimir(`${nombre}.xml`, firmado.xml).toString('base64');
-        const soap = envelope('sendSummary', `<fileName>${nombre}.zip</fileName><contentFile>${zip}</contentFile>`);
-        const respuesta = await this.post(soap, 'sendSummary');
-        const ticket = (respuesta.match(/<(?:\w+:)?ticket[^>]*>([^<]+)/i) || [])[1];
-        if (!ticket) throw new Error('SUNAT no devolvió ticket de resumen');
-        return this.consultarTicket(ticket);
+        const referencia = fechaLima(comprobante.fechaEmision || new Date());
+        const hoy = fechaLima(new Date());
+        const generacion = hoy < referencia ? referencia : hoy;
+        const ruc = comprobante.ruc || comprobante.emisor?.ruc;
+        const { id } = await this.reservarEnvio({ ruc, tipo: 'RC', fecha: referencia });
+        const xml = xmlResumen({
+            id,
+            fechaReferencia: referencia,
+            fechaGeneracion: generacion,
+            emisor: comprobante.emisor,
+            lineas: [lineaDesdeComprobante(comprobante)],
+        });
+        const firmado = this.firmar(xml);
+        const nombre = `${ruc}-${id}`;
+        const enviado = await this.enviarResumenFirmado(nombre, firmado.xml);
+        if (this.persistirLote) await this.guardarLote({ ruc, tipo: 'RC', codigo: id, fechaReferencia: referencia, comprobantes: [comprobante.idCompleto], ticket: enviado.ticket });
+        return {
+            aceptado: false,
+            codigo: '98',
+            descripcion: 'Ticket en proceso',
+            observaciones: [],
+            hash: firmado.hash,
+            xmlNombre: nombre,
+            xmlBase64: null,
+            cdrBase64: null,
+            ticket: enviado.ticket,
+            loteId: id,
+        };
+    }
+
+    /** @param {Object} datos */
+    async guardarLote(datos) {
+        const Lote = require('../models/loteSunat.model');
+        await Lote.findOneAndUpdate({ ruc: datos.ruc, codigo: datos.codigo }, { $set: { ...datos, estado: 'EN_PROCESO', intentos: 1 } }, { upsert: true });
     }
 
     /** Envía un resumen ya firmado y devuelve el ticket, sin esperar el CDR. */
@@ -182,13 +199,17 @@ class SunatDirecto extends ProveedorFiscal {
         return { ticket: resumen.ticket || '' };
     }
 
-    async comunicarBaja() {
-        throw new Error('La comunicación de baja se envía en la fase de caja formal');
+    /** @param {{ nombre: string, xml: string }} lote */
+    async comunicarBaja(lote) {
+        return this.enviarResumenFirmado(lote.nombre, lote.xml);
     }
 
     async consultarTicket(ticket) {
         const soap = envelope('getStatus', `<ticket>${ticket}</ticket>`);
         const respuesta = await this.post(soap, 'getStatus');
+        if (/0127/.test(respuesta) && !/applicationResponse/.test(respuesta)) {
+            return { aceptado: false, codigo: '0127', descripcion: 'Ticket inexistente', observaciones: [], hash: null, xmlNombre: null, xmlBase64: null, cdrBase64: null, ticket };
+        }
         if (/En proceso|98/.test(respuesta) && !/applicationResponse/.test(respuesta)) {
             return { aceptado: false, codigo: '98', descripcion: 'Ticket en proceso', observaciones: [], hash: null, xmlNombre: null, xmlBase64: null, cdrBase64: null, ticket };
         }

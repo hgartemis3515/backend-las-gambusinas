@@ -48,7 +48,7 @@ function clonar(boleta, extra) {
         fechaEmision: extra.fechaEmision,
         cajero: extra.cajero,
         estado: ESTADO_COMPROBANTE.EMITIDO_LOCAL,
-        envio: { fechaLimite: extra.fechaLimite },
+        envio: { fechaLimite: extra.fechaLimite, dependeDe: extra.dependeDe || null },
         auditoria: [{ accion: extra.accion, usuario: extra.cajero || 'sistema', fecha: extra.fechaEmision, detalle: { boleta: boleta.idCompleto } }],
         ...extra.identidad,
     };
@@ -73,7 +73,9 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
     if (!boleta) throw new ErrorCanje('Boleta no encontrada', 'NO_ENCONTRADA', 404);
     if (boleta.tipo !== '03') throw new ErrorCanje('Solo se canjea una boleta', 'NO_ES_BOLETA');
     if (boleta.canje?.factura) throw new ErrorCanje('Esta boleta ya fue canjeada', 'YA_CANJEADA', 409);
-    if (boleta.estado === ESTADO_COMPROBANTE.RECHAZADO) throw new ErrorCanje('Una boleta rechazada no se canjea', 'RECHAZADA');
+    if ([ESTADO_COMPROBANTE.RECHAZADO, ESTADO_COMPROBANTE.ANULADO_NC, ESTADO_COMPROBANTE.DE_BAJA].includes(boleta.estado)) {
+        throw new ErrorCanje('Esta boleta no se puede canjear', 'ORIGEN_NO_ADMISIBLE');
+    }
 
     const cfg = await obtenerConfig();
     const receptorFactura = validarCliente('01', solicitud.cliente, boleta.totales.importeTotal);
@@ -84,6 +86,7 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
     const cajero = solicitud.cajero || 'sistema';
     const base = { fechaEmision: fecha, fechaLimite, cajero };
 
+    const aceptada = boleta.estado === ESTADO_COMPROBANTE.ACEPTADO || boleta.estado === ESTADO_COMPROBANTE.ACEPTADO_OBS;
     let nc;
     let factura;
     await ejecutarEnTransaccion(async (session) => {
@@ -91,6 +94,7 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
             const corrFa = await reservar({ ruc: boleta.ruc, tipo: '01', serie: serieFactura, session, sinTransaccion: !session });
             const docNc = clonar(boleta, {
                 ...base,
+                dependeDe: boleta._id,
                 accion: 'CANJE_NC',
                 identidad: {
                     tipo: '07',
@@ -114,6 +118,7 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
             [nc] = await Modelo.create([docNc], opts);
             const docFa = clonar(boleta, {
                 ...base,
+                dependeDe: nc._id,
                 accion: 'CANJE_FACTURA',
                 identidad: {
                     tipo: '01',
@@ -127,14 +132,14 @@ async function canjearBoletaPorFactura(solicitud, deps = {}) {
             });
             [factura] = await Modelo.create([docFa], opts);
             await Modelo.updateOne({ _id: boleta._id }, {
-                $set: {
-                    estado: ESTADO_COMPROBANTE.ANULADO_NC,
-                    canje: { nc: nc._id, factura: factura._id, fecha },
-                },
+                $set: aceptada
+                    ? { estado: ESTADO_COMPROBANTE.ANULADO_NC, anulacion: { nc: nc._id, estado: 'APLICADA' }, canje: { nc: nc._id, factura: factura._id, fecha } }
+                    : { anulacion: { nc: nc._id, estado: 'PENDIENTE' }, canje: { nc: nc._id, factura: factura._id, fecha } },
             }, opts);
     }, { iniciarSesion });
 
     await Pagos.updateMany({ comprobante: boleta._id }, { $set: { comprobante: factura._id } });
+    if (!aceptada) await encolar(boleta);
     const colaNc = await encolar(nc);
     const colaFactura = await encolar(factura);
     return { boleta: boleta.idCompleto, nc, factura, colaNc, colaFactura };

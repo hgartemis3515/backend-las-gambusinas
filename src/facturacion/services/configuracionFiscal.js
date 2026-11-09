@@ -74,6 +74,7 @@ function armarConfiguracionFiscal(cfg = {}, env = process.env) {
         topeDescuentoPct: Number(cfg.facturacion?.topeDescuentoPct ?? env.FACTURACION_TOPE_DESCUENTO_PCT ?? 10),
         plazoEnvioDias: Number(cfg.facturacion?.plazoEnvioDias ?? env.FACTURACION_PLAZO_ENVIO_DIAS ?? 3),
         afectacionCortesia: env.FACTURACION_AFECTACION_CORTESIA || '15',
+        padronTasaEspecial: env.FACTURACION_PADRON_TASA_ESPECIAL === '01',
         listoParaEmitir: esRucValido(emisor.ruc) && Boolean(emisor.razonSocial),
     };
 }

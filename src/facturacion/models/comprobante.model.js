@@ -220,6 +220,18 @@ const comprobanteSchema = new Schema({
         fechaLimite: { type: Date, required: true },
         ticket: { type: String, default: null },
         jobId: { type: String, default: null },
+        dependeDe: { type: Schema.Types.ObjectId, ref: 'Comprobante', default: null },
+        baja: {
+            estado: { type: String, enum: ['RECHAZADA', null], default: null },
+            codigo: { type: String, default: null },
+            descripcion: { type: String, default: null },
+            estadoAnterior: { type: String, default: null },
+            cdrRuta: { type: String, default: null },
+        },
+    },
+    anulacion: {
+        nc: { type: Schema.Types.ObjectId, ref: 'Comprobante', default: null },
+        estado: { type: String, enum: ['PENDIENTE', 'APLICADA', null], default: null },
     },
     /** Nota libre. En un canje, la factura nueva cita la boleta anulada. */
     observacion: { type: String, default: null, maxlength: 500 },

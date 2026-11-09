@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const forge = require('node-forge');
 const { construir, nombreArchivo } = require('../../src/facturacion/services/ublBuilder');
-const { firmarXml, codigoQr } = require('../../src/facturacion/services/firmaService');
+const { firmarXml, verificarFirma, codigoQr } = require('../../src/facturacion/services/firmaService');
 const { comprimir, descomprimir } = require('../../src/facturacion/providers/zipSunat');
 const { envelope, leerCdr } = require('../../src/facturacion/providers/sunatDirecto');
 
@@ -61,6 +61,12 @@ describe('ubl y firma local', () => {
         const firmado = firmarXml(construir(doc), require('../../src/facturacion/services/firmaService').cargarCertificado(ruta, ''));
         expect(firmado.hash).toMatch(/^[A-Za-z0-9+/=]+$/);
         expect(firmado.xml).toContain('SignatureValue');
+        expect(firmado.xml).toContain('Id="SIGN"');
+        expect(firmado.xml).toContain('URI=""');
+        expect(firmado.xml).toContain('>#SIGN<');
+        const cert = require('../../src/facturacion/services/firmaService').cargarCertificado(ruta, '').certPem;
+        expect(verificarFirma(firmado.xml, cert)).toBe(true);
+        expect(verificarFirma(firmado.xml.replace('Ceviche', 'Ceviche '), cert)).toBe(false);
         const qr = codigoQr(doc, firmado.hash);
         expect(qr.startsWith('20000000001|03|B001|00000001|9.50|100.00|')).toBe(true);
         expect(qr.endsWith(`${firmado.hash}|`)).toBe(true);

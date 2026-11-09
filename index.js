@@ -769,6 +769,28 @@ server.on('error', (err) => {
   }
   process.exit(1);
 });
+// HTTPS adicional (puerto 3443 por defecto) para que el navegador permita el
+// micrófono (dictado en noticias.html). El HTTP de siempre sigue igual.
+if (process.env.HTTPS_ENABLED !== 'false') {
+  try {
+    const https = require('https');
+    const { obtenerCredenciales, ipsLocales } = require('./src/utils/httpsLocal');
+    const httpsPort = Number(process.env.HTTPS_PORT || 3443);
+    const httpsServer = https.createServer(obtenerCredenciales(), app);
+    io.attach(httpsServer);
+    httpsServer.on('error', (err) => {
+      logger.warn('HTTPS no disponible', { error: err.message, port: httpsPort });
+    });
+    httpsServer.listen(httpsPort, '0.0.0.0', () => {
+      const urls = ipsLocales().map((ip) => `https://${ip}:${httpsPort}`);
+      logger.info('Servidor HTTPS iniciado (micrófono habilitado)', { urls });
+      console.log('🔒 HTTPS (para micrófono): ' + urls.join('  '));
+    });
+  } catch (err) {
+    logger.warn('No se pudo iniciar HTTPS', { error: err.message });
+  }
+}
+
 server.listen(port, '0.0.0.0', async ()=> {
   // ========== RESERVAS: Rehidratar timeouts al iniciar ==========
   try {
