@@ -1434,3 +1434,21 @@ function topbarProfile() {
   };
 }
 window.topbarProfile = topbarProfile;
+
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a[href="/noticias.html"]');
+  if (!a || window.isSecureContext) return;
+  const h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return;
+  const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') || '';
+  if (!token) return;
+  e.preventDefault();
+  fetch('/api/noticias/puente-sesion', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token }
+  }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+    if (!d || !d.code) { location.href = '/noticias.html'; return; }
+    const host = h.indexOf(':') >= 0 ? '[' + h + ']' : h;
+    location.href = 'https://' + host + ':3443/noticias.html?puente=' + encodeURIComponent(d.code);
+  }).catch(() => { location.href = '/noticias.html'; });
+});
