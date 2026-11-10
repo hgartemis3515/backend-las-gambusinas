@@ -737,6 +737,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       transition: transform 0.2s ease, background 0.2s ease;
     }
     .ingreso-chip:hover { transform: translateY(-1px); background: #26263a; }
+    .btn-lapiz-stock {
+      width: 1.55rem;
+      height: 1.55rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.4rem;
+      border: 1px solid rgba(212, 175, 55, 0.55);
+      color: #d4af37;
+      background: #14141f;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .btn-lapiz-stock:hover { background: #1c1c2b; }
     .ingreso-panel {
       margin-top: 8px;
       padding: 8px;
@@ -2072,7 +2086,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-4 space-y-3 shadow-lg relative">
                 <div class="flex items-center justify-between">
                   <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-                  <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pollo_fresco'))"></strong></span>
+                  <span class="inline-flex items-center gap-1">
+                    <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pollo_fresco'))"></strong></span>
+                    <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pollo fresco" title="Editar stock" @click="abrirEditarStock('pollo_fresco')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  </span>
                 </div>
                 <div>
                   <h3 class="text-base font-extrabold text-white">Pollo Fresco</h3>
@@ -2137,7 +2154,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3.5 space-y-2.5 shadow-lg">
                       <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-200 font-bold text-[10px] uppercase">Corte Primario</span>
-                        <span class="text-[11px] font-mono text-sky-300" x-text="despiece.frescos + ' × ' + config.factorPechugasPorFresco"></span>
+                        <span class="inline-flex items-center gap-1">
+                          <span class="text-[11px] font-mono text-sky-300" x-text="despiece.frescos + ' × ' + config.factorPechugasPorFresco"></span>
+                          <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pecho de pollo" title="Editar stock" @click="abrirEditarStock('pechuga')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        </span>
                       </div>
                       <div>
                         <h3 class="text-sm font-extrabold text-white">Pecho de Pollo</h3>
@@ -2195,7 +2215,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="bg-[#0a0a0f] border-2 border-[#d4af37]/80 rounded-xl p-3 space-y-2 shadow-md">
                             <div class="flex items-center justify-between gap-1.5">
                               <span class="px-1.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase whitespace-nowrap">1 Pechuga = <span x-text="config.factorFiletesPorPechuga"></span> Filetes</span>
-                              <span class="font-mono text-xs font-bold text-[#d4af37] whitespace-nowrap" x-text="'= ' + totalFiletesGenerados() + ' filetes'"></span>
+                              <span class="inline-flex items-center gap-1">
+                                <span class="font-mono text-xs font-bold text-[#d4af37] whitespace-nowrap" x-text="'= ' + totalFiletesGenerados() + ' filetes'"></span>
+                                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Filete de pollo" title="Editar stock" @click="abrirEditarStock('filete')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                              </span>
                             </div>
                             <div class="flex items-center justify-between gap-2">
                               <div>
@@ -2239,7 +2262,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
                                     <div class="flex items-center justify-between gap-2">
                                       <div class="min-w-0">
-                                        <span class="text-xs font-bold text-white block" x-text="plato.nombre"></span>
+                                        <span class="flex items-center justify-between gap-1">
+                                          <span class="text-xs font-bold text-white block truncate" x-text="plato.nombre"></span>
+                                          <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                        </span>
                                         <span class="text-[10px] text-[#a0a0b8] block" x-text="'Come ' + plato.cantidad + ' filete'"></span>
                                         <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'cocido'))"></strong></span>
                                       </div>
@@ -2293,7 +2319,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-sky-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
                               <div class="flex items-center justify-between gap-2">
                                 <div class="min-w-0">
-                                  <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
+                                  <span class="flex items-center justify-between gap-1">
+                                    <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
+                                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                  </span>
                                   <span class="text-[10px] text-sky-300/80 font-mono">1 Pechuga → 1 pza</span>
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
                                 </div>
@@ -2336,7 +2365,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3.5 space-y-2.5 shadow-lg">
                       <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-bold text-[10px] uppercase">Corte Primario</span>
-                        <span class="text-[11px] font-mono text-emerald-300" x-text="despiece.frescos + ' × ' + config.factorPiernasPorFresco"></span>
+                        <span class="inline-flex items-center gap-1">
+                          <span class="text-[11px] font-mono text-emerald-300" x-text="despiece.frescos + ' × ' + config.factorPiernasPorFresco"></span>
+                          <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pierna de pollo" title="Editar stock" @click="abrirEditarStock('pierna')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        </span>
                       </div>
                       <div>
                         <h3 class="text-sm font-extrabold text-white">Pierna de Pollo</h3>
@@ -2403,7 +2435,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-emerald-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
                               <div class="flex items-center justify-between gap-2">
                                 <div class="min-w-0">
-                                  <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
+                                  <span class="flex items-center justify-between gap-1">
+                                    <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
+                                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                  </span>
                                   <span x-show="ad.id === 'pollo_pachamanca'" class="text-[10px] text-emerald-200/90 block">Sabor Pollo de la pachamanca</span>
                                   <span class="text-[10px] text-emerald-300/80 font-mono">1 Pierna → 1 pza</span>
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
@@ -2448,7 +2483,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="bg-[#0a0a0f] border-2 border-amber-400/80 rounded-xl p-3 space-y-2 shadow-md">
                       <div class="flex items-center justify-between gap-1.5">
                         <span class="px-1.5 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase">2 octavos = 1 pieza</span>
-                        <span class="font-mono text-xs font-bold text-amber-200" x-text="totalOctavos() + ' octavos'"></span>
+                        <span class="inline-flex items-center gap-1">
+                          <span class="font-mono text-xs font-bold text-amber-200" x-text="totalOctavos() + ' octavos'"></span>
+                          <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Octavo de pollo" title="Editar stock" @click="abrirEditarStock('octavo_pollo')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        </span>
                       </div>
                       <div>
                         <h4 class="text-sm font-bold text-white">Octavo de pollo</h4>
@@ -2493,7 +2531,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-amber-400/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
                               <div class="flex items-center justify-between gap-2">
                                 <div class="min-w-0">
-                                  <span class="text-xs font-semibold text-white block truncate" x-text="plato.nombre"></span>
+                                  <span class="flex items-center justify-between gap-1">
+                                    <span class="text-xs font-semibold text-white block truncate" x-text="plato.nombre"></span>
+                                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                  </span>
                                   <span class="text-[10px] text-amber-200/90 font-mono">1 octavo → 1 pza</span>
                                   <span x-show="!plato.cocido" class="text-[10px] text-[#a0a0b8] block">Solo crudo</span>
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'crudo'))"></strong><span x-show="plato.cocido"> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'cocido'))"></strong></span></span>
@@ -2567,6 +2608,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div class="bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-4 space-y-3 shadow-lg">
                   <div class="flex items-center justify-between">
                     <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase" x-text="mapa.tipo === 'directo' ? 'Origen directo' : 'Origen crudo'"></span>
+                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + mapa.origen.nombre" title="Editar stock" @click="abrirEditarStock(idDeClave(mapa.origen.clave))"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                     <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe(idDeClave(mapa.origen.clave)))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe(idDeClave(mapa.origen.clave)))"></strong></span>
                   </div>
                   <div>
@@ -2614,7 +2656,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="bg-[#0a0a0f] border-2 rounded-xl p-3.5 space-y-2.5 shadow-lg" :style="'border-color:' + rama.color">
                             <div class="flex items-center justify-between">
                               <span class="px-2 py-0.5 rounded border font-bold text-[10px] uppercase" :style="'color:' + rama.color + ';border-color:' + rama.color">Corte Primario</span>
-                              <span class="text-[11px] font-mono" :style="'color:' + rama.color" x-text="origenMapa(mapa.id) + ' × ' + rama.corte.factor"></span>
+                              <span class="inline-flex items-center gap-1">
+                                <span class="text-[11px] font-mono" :style="'color:' + rama.color" x-text="origenMapa(mapa.id) + ' × ' + rama.corte.factor"></span>
+                                <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + rama.nombre" title="Editar stock" @click="abrirEditarStock(idDeClave(rama.corte.clave))"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                              </span>
                             </div>
                             <div>
                               <h3 class="text-sm font-extrabold text-white" x-text="rama.nombre"></h3>
@@ -2748,7 +2793,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="lg:w-56 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
             <div class="flex items-center justify-between gap-2">
               <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-              <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('panceta'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('panceta'))"></strong></span>
+              <span class="inline-flex items-center gap-1">
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('panceta'))"></strong></span>
+                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Panceta" title="Editar stock" @click="abrirEditarStock('panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              </span>
             </div>
             <div>
               <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
@@ -2882,7 +2930,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-52 bg-[#0a0a0f] border-2 border-[#d4af37]/80 rounded-xl p-3 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pescado_entero'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('pescado_entero'))"></strong></span>
+                <span class="inline-flex items-center gap-1">
+                  <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pescado_entero'))"></strong></span>
+                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pescado" title="Editar stock" @click="abrirEditarStock('pescado_entero')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                </span>
               </div>
               <span class="text-sm font-extrabold text-white block">Pescado</span>
               <p class="text-[11px] text-[#a0a0b8]">Pescados usados hoy:</p>
@@ -2967,7 +3018,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="lg:w-56 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
               <div class="flex items-center justify-between gap-2">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pota'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('pota'))"></strong></span>
+                <span class="inline-flex items-center gap-1">
+                  <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pota'))"></strong></span>
+                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pota" title="Editar stock" @click="abrirEditarStock('pota')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                </span>
               </div>
               <div>
                 <h3 class="text-sm font-extrabold text-white">Pota entera cruda</h3>
@@ -3057,7 +3111,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-52 bg-[#0a0a0f] border border-[#d4af37]/60 rounded-xl p-3 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('carnero'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('carnero'))"></strong></span>
+                <span class="inline-flex items-center gap-1">
+                  <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('carnero'))"></strong></span>
+                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Carnero" title="Editar stock" @click="abrirEditarStock('carnero')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                </span>
               </div>
               <span class="text-sm font-bold text-white block">Carnero Crudo</span>
               <p class="text-[11px] text-[#a0a0b8]">Salen a pachamanca</p>
@@ -3213,7 +3270,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-52 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3.5 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen crudo</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('arroz'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('arroz'))"></strong></span>
+                <span class="inline-flex items-center gap-1">
+                  <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('arroz'))"></strong></span>
+                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Arroz" title="Editar stock" @click="abrirEditarStock('arroz')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                </span>
               </div>
               <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
               <p class="text-[11px] text-[#a0a0b8]">A repartir</p>
@@ -5919,6 +5979,41 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     </div>
   </div>
 
+  <div
+    x-show="editarStock.abierto"
+    x-cloak
+    class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70"
+    @keydown.escape.window="editarStock.abierto = false"
+  >
+    <div class="w-full max-w-md bg-[#14141f] border border-[#d4af37]/50 rounded-xl p-5 space-y-4 shadow-2xl" @click.outside="editarStock.abierto = false">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-base font-extrabold text-white">Editar stock</h2>
+          <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="editarStock.nombre"></p>
+        </div>
+        <button type="button" class="text-[#a0a0b8] hover:text-white cursor-pointer" aria-label="Cerrar" @click="editarStock.abierto = false">✕</button>
+      </div>
+      <div class="space-y-3">
+        <label class="block text-xs text-[#a0a0b8]">
+          <span class="font-bold text-emerald-300" x-text="editarStock.tieneCocido ? 'Stock crudo' : 'Stock'"></span>
+          <input type="number" min="0" step="1" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.crudo" aria-label="Nuevo stock crudo">
+        </label>
+        <label class="block text-xs text-[#a0a0b8]" x-show="editarStock.tieneCocido">
+          <span class="font-bold text-amber-300">Stock cocido</span>
+          <input type="number" min="0" step="1" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.cocido" aria-label="Nuevo stock cocido">
+        </label>
+        <label class="block text-xs text-[#a0a0b8]">
+          <span class="font-bold text-white">Motivo <span class="font-normal text-[#71718a]">(opcional)</span></span>
+          <input type="text" maxlength="200" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#d4af37]" x-model="editarStock.motivo" placeholder="Ej. Merma, conteo de cámara, ajuste de corte" aria-label="Motivo del ajuste">
+        </label>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="px-3 py-2 rounded-lg bg-[#1c1c2b] text-[#a0a0b8] hover:text-white cursor-pointer" @click="editarStock.abierto = false">Cancelar</button>
+        <button type="button" class="px-3 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold cursor-pointer" @click="guardarEditarStock()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================================================================== -->
   <!-- MODAL 1: «CONTAR CÁMARA» (CONTEO FÍSICO EN COLUMNA INVENTARIO)        -->
   <!-- ===================================================================== -->
@@ -7763,6 +7858,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         auditoriaFechaDesde: '',
         auditoriaFechaHasta: '',
         nuevoAjusteForm: { abierto: false, tipo: 'crudo', cantidad: -1, motivo: '' },
+        editarStock: { abierto: false, id: '', nombre: '', tieneCocido: false, crudo: 0, cocido: 0, motivo: '' },
 
         claveDeFila: {
           pollo_fresco: 'pollo-origen',
@@ -10816,6 +10912,48 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (this.auditoriaFiltroClase !== 'todos' && m.clase !== this.auditoriaFiltroClase) return false;
             return true;
           });
+        },
+
+        abrirEditarStock(id) {
+          const rowId = this.filaReal(id) ? id : (this.filaIdDePlatoTransformar(id) || id);
+          const row = this.filaReal(rowId);
+          if (!row) {
+            this.toastMessage = 'Ese producto no está en la hoja';
+            return;
+          }
+          const tiene = !!row.tieneCocido;
+          this.editarStock = {
+            abierto: true,
+            id: row.id,
+            nombre: row.nombre,
+            tieneCocido: tiene,
+            crudo: Math.max(0, Math.round(this.calcSaldoTipo(row, 'crudo'))),
+            cocido: tiene ? Math.max(0, Math.round(this.calcSaldoTipo(row, 'cocido'))) : 0,
+            motivo: ''
+          };
+        },
+
+        async guardarEditarStock() {
+          const f = this.editarStock;
+          const row = this.filaReal(f.id);
+          const clave = row && this.claveDeFila[row.id];
+          if (!row || !clave) return;
+          const motivo = (f.motivo || '').trim() || 'Ajuste de stock';
+          const tipos = f.tieneCocido ? ['crudo', 'cocido'] : ['crudo'];
+          try {
+            for (let i = 0; i < tipos.length; i++) {
+              const tipo = tipos[i];
+              const nuevo = Math.max(0, Math.round(Number(f[tipo]) || 0));
+              const actual = Math.round(this.calcSaldoTipo(row, tipo));
+              const delta = nuevo - actual;
+              if (delta) await this.paso(clave, tipo, delta, motivo, 'regulacion', row.nombre);
+            }
+            await this.cargarKardex();
+            this.editarStock.abierto = false;
+            this.toastMessage = 'Stock de ' + row.nombre + ' actualizado. Quedó en Auditoría.';
+          } catch (e) {
+            this.toastMessage = e.message || 'No se guardó el stock';
+          }
         },
 
         async guardarNuevoAjusteModal() {
