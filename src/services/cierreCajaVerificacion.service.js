@@ -8,6 +8,8 @@
  *   - Período = ciclo 04:00–04:00 Lima (como reportes «Hoy»), o desde el último cierre de este ciclo.
  *   - Solo tickets/comandas con incluidoEnCierre vacío (no repetir un cierre).
  *   - El cierre de caja se bloquea hasta que todos los tickets del período estén confirmados.
+ *   - También se bloquea si el filtro Pendientes de tickets y pagos adelantados
+ *     tiene al menos un ticket sin cobrar (estado pendiente_aprobacion) del día operativo.
  */
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
@@ -28,6 +30,7 @@ const {
 } = require('../utils/estadisticasComandas');
 const { obtenerUltimoCierreVigente } = require('../utils/cierreCajaReversion');
 const { resolverPeriodoPendienteCierre } = require('../utils/cierreCajaTurnosDia');
+const { boundsDiaOperativo, ymdOperativo } = require('../utils/diaOperativoRestaurante');
 
 const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos mozoNombre procesadoPor procesandoPor eliminada fechaEliminacion`;
 
@@ -102,6 +105,7 @@ async function listarTicketsParaVerificacion() {
 
   const total = tickets.length;
   const confirmados = tickets.filter((t) => t.verificado).length;
+  const ticketsSinCobrar = await contarTicketsPendientesDeCobro();
 
   return {
     periodoInicio,
@@ -111,9 +115,29 @@ async function listarTicketsParaVerificacion() {
       total,
       confirmados,
       pendientes: total - confirmados,
-      puedeCerrar: confirmados === total,
+      ticketsSinCobrar,
+      puedeCerrar: confirmados === total && ticketsSinCobrar === 0,
     },
   };
+}
+
+/**
+ * Tickets que la tabla de tickets y pagos adelantados muestra en Pendientes
+ * para el día operativo (04:00–04:00 Lima): estado pendiente_aprobacion.
+ * Uno basta para no dejar continuar al cierre.
+ */
+async function contarTicketsPendientesDeCobro(now = new Date()) {
+  const { inicio, fin } = boundsDiaOperativo(ymdOperativo(now));
+  const filtro = {
+    estado: 'pendiente_aprobacion',
+    isActive: true,
+    createdAt: { $gte: inicio, $lte: fin },
+  };
+  const [comandas, adelantados] = await Promise.all([
+    ticketAprobacionModel.countDocuments(filtro),
+    ticketPagoAdelantadoModel.countDocuments(filtro),
+  ]);
+  return (comandas || 0) + (adelantados || 0);
 }
 
 
@@ -273,6 +297,7 @@ async function obtenerResumenVerificacion() {
     total: resumen.total,
     confirmados: resumen.confirmados,
     pendientes: resumen.pendientes,
+    ticketsSinCobrar: resumen.ticketsSinCobrar,
     puedeCerrar: resumen.puedeCerrar,
   };
 }
@@ -565,12 +590,20 @@ async function desmarcarTicketsDeCierre(cierreId) {
  */
 async function validarListoParaCerrar() {
   const resumen = await obtenerResumenVerificacion();
+  if (Number(resumen.ticketsSinCobrar) > 0) {
+    const err = new Error('Te falta cobrar tickets en pendientes');
+    err.statusCode = 400;
+    err.code = 'TICKETS_SIN_COBRAR';
+    err.resumen = resumen;
+    throw err;
+  }
   if (!resumen.puedeCerrar) {
     const err = new Error(
       `Faltan confirmar ${resumen.pendientes} ticket(s) antes de ejecutar el cierre de caja`
     );
     err.statusCode = 400;
     err.code = 'VERIFICACION_INCOMPLETA';
+    err.resumen = resumen;
     throw err;
   }
   return resumen;

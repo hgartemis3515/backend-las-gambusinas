@@ -64,9 +64,9 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     try {
       resumenVerificacion = await verificacionService.validarListoParaCerrar();
     } catch (verifErr) {
-      if (verifErr.code === 'VERIFICACION_INCOMPLETA') {
+      if (verifErr.code === 'VERIFICACION_INCOMPLETA' || verifErr.code === 'TICKETS_SIN_COBRAR') {
         return res.status(400).json({
-          error: 'VERIFICACION_INCOMPLETA',
+          error: verifErr.code,
           message: verifErr.message,
           verificacion: verifErr.resumen || null,
         });
@@ -547,13 +547,14 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       : Math.floor((periodoFin - periodoInicio) / (1000 * 60 * 60 * 24));
 
     // Contadores de verificación de tickets del período
-    let verificacion = { total: 0, confirmados: 0, pendientes: 0, puedeCerrar: true };
+    let verificacion = { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: true };
     try {
       const resumenVerif = await verificacionService.obtenerResumenVerificacion();
       verificacion = {
         total: resumenVerif.total,
         confirmados: resumenVerif.confirmados,
         pendientes: resumenVerif.pendientes,
+        ticketsSinCobrar: resumenVerif.ticketsSinCobrar || 0,
         puedeCerrar: resumenVerif.puedeCerrar,
       };
     } catch (verifErr) {
