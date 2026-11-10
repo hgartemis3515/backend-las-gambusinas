@@ -751,6 +751,47 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       flex-shrink: 0;
     }
     .btn-lapiz-stock:hover { background: #1c1c2b; }
+    .caja-stock { margin-top: 6px; }
+    .caja-stock-etiq { font-size: 11px; color: #c8c8d8; margin: 0 0 4px; }
+    .caja-stock-corte { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; margin: 8px 0 0; }
+    .caja-stock-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      background: #14141f;
+      border: 1px solid #26263a;
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .caja-stock-step button {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 8px;
+      background: #1c1c2b;
+      color: #d4af37;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .caja-stock-step input {
+      width: 64px;
+      min-width: 0;
+      text-align: center;
+      background: transparent;
+      color: #fff;
+      font-weight: 800;
+      font-size: 20px;
+      border: 0;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    .caja-stock-step input::-webkit-outer-spin-button,
+    .caja-stock-step input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .caja-stock-mas, .caja-stock-menos { font-weight: 800; font-size: 13px; margin: 4px 0 0; font-variant-numeric: tabular-nums; }
+    .caja-stock-mas { color: #34d399; }
+    .caja-stock-menos { color: #fb7185; }
+    .caja-stock-cocido .caja-stock-etiq { color: #f6d98a; }
     .ingreso-panel {
       margin-top: 8px;
       padding: 8px;
@@ -2066,16 +2107,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </div>
           <div class="flex flex-wrap items-center gap-3 text-xs font-mono">
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#26263a] text-white">
-              Frescos: <strong class="text-[#d4af37]" x-text="frescosHoy()"></strong>
+              Frescos: <strong class="text-[#d4af37]" x-text="formatNum(stockCuadro('pollo_fresco', 'crudo'))"></strong>
             </span>
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-sky-500/40 text-sky-200">
-              Pecho: <strong x-text="pechugasObtenidas()"></strong> (Libres: <strong :class="pechugasLibres() < 0 ? 'text-amber-300' : 'text-emerald-300'" x-text="pechugasLibres()"></strong>)
+              Pecho: <strong x-text="formatNum(stockCuadro('pechuga', 'crudo'))"></strong>
             </span>
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-emerald-500/40 text-emerald-200">
-              Piernas: <strong x-text="piernasObtenidas()"></strong> (Libres: <strong :class="piernasLibres() < 0 ? 'text-amber-300' : 'text-emerald-300'" x-text="piernasLibres()"></strong>)
+              Piernas: <strong x-text="formatNum(stockCuadro('pierna', 'crudo'))"></strong>
             </span>
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#d4af37]/50 text-[#d4af37]">
-              Filetes: <strong x-text="totalFiletesGenerados()"></strong> (En pieza: <strong x-text="filetesLibresEnPieza()"></strong>)
+              Filetes: <strong x-text="formatNum(stockCuadro('filete', 'crudo'))"></strong>
             </span>
           </div>
         </div>
@@ -2085,63 +2126,35 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="min-w-[1160px] arbol py-2">
 
             <!-- ORIGEN: POLLO FRESCO -->
-            <div class="w-[230px] arbol-nodo">
+            <div class="w-[250px] arbol-nodo">
               <div class="bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-4 space-y-3 shadow-lg relative">
                 <div class="flex items-center justify-between">
                   <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-                  <span class="inline-flex items-center gap-1">
-                    <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pollo_fresco'))"></strong></span>
-                    <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pollo fresco" title="Editar stock" @click="abrirEditarStock('pollo_fresco')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                  </span>
+                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pollo fresco" title="Editar stock" @click="abrirEditarStock('pollo_fresco')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                 </div>
-                <div>
-                  <h3 class="text-base font-extrabold text-white">Pollo Fresco</h3>
-                  <p class="text-2xl font-mono font-extrabold text-[#d4af37] mt-0.5"><span x-text="formatNum(quedanDe('pollo_fresco'))"></span> <span class="text-xs font-normal text-[#a0a0b8]">quedan</span></p>
-                  <p class="text-[11px] text-[#a0a0b8] mt-0.5">Cantidad que entra hoy al despiece:</p>
-                </div>
-                <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
-                  <button
-                    type="button"
-                    aria-label="Restar pollo fresco"
-                    class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition"
-                    @click="setPollosFrescosConvertir((Number(frescosHoy()) || 0) - 1)"
-                  >−</button>
-                  <input
-                    type="number"
-                    min="0"
-                    aria-label="Pollos frescos a convertir"
-                    class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none"
-                    :value="frescosHoy()"
-                    @change="setPollosFrescosConvertir($event.target.value)"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Sumar pollo fresco"
-                    class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition"
-                    @click="setPollosFrescosConvertir((Number(frescosHoy()) || 0) + 1)"
-                  >+</button>
+                <h3 class="text-base font-extrabold text-white">Pollo fresco</h3>
+                <div class="caja-stock">
+                  <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                  <div class="caja-stock-step">
+                    <button type="button" aria-label="Restar stock de pollo fresco" @click="fijarStockDirecto('pollo_fresco', 'crudo', stockCuadro('pollo_fresco', 'crudo') - 1)">−</button>
+                    <input type="number" min="0" step="any" aria-label="Stock actual de pollo fresco" :value="stockCuadro('pollo_fresco', 'crudo')" @change="fijarStockDirecto('pollo_fresco', 'crudo', $event.target.value)">
+                    <button type="button" aria-label="Sumar stock de pollo fresco" @click="fijarStockDirecto('pollo_fresco', 'crudo', stockCuadro('pollo_fresco', 'crudo') + 1)">+</button>
+                  </div>
+                  <p class="caja-stock-mas" x-show="textoIngreso('pollo_fresco', 'crudo')" x-text="textoIngreso('pollo_fresco', 'crudo')"></p>
+                  <p class="caja-stock-menos" x-show="textoResto('pollo_fresco', 'crudo')" x-text="textoResto('pollo_fresco', 'crudo')"></p>
                 </div>
                 <div class="space-y-1.5 pt-2 border-t border-[#26263a] text-[11px]">
-                  <div class="flex items-center justify-between text-sky-200">
-                    <span>1 Fresco → <strong x-text="config.factorPechugasPorFresco"></strong> Pecho</span>
-                    <span class="font-mono font-bold text-white" x-text="'= ' + pechugasObtenidas() + ' pzas'"></span>
+                  <div class="flex items-center justify-between gap-1 text-sky-200">
+                    <span>1 → <strong x-text="config.factorPechugasPorFresco"></strong> pecho</span>
+                    <span class="inline-flex items-center gap-0.5">
+                      <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Devolver 1 pollo fresco" @click="setPollosFrescosConvertir((Number(frescosHoy()) || 0) - 1)">−</button>
+                      <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Pasar 1 pollo fresco a piezas" @click="setPollosFrescosConvertir((Number(frescosHoy()) || 0) + 1)">+</button>
+                    </span>
                   </div>
                   <div class="flex items-center justify-between text-emerald-200">
-                    <span>1 Fresco → <strong x-text="config.factorPiernasPorFresco"></strong> Piernas</span>
-                    <span class="font-mono font-bold text-white" x-text="'= ' + piernasObtenidas() + ' pzas'"></span>
+                    <span>1 → <strong x-text="config.factorPiernasPorFresco"></strong> pierna</span>
+                    <span class="font-mono font-bold text-white" x-text="formatNum(piernasObtenidas())"></span>
                   </div>
-                </div>
-              </div>
-              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pollo_fresco" x-transition @click="abrirIngreso('pollo_fresco')">Ingreso</button>
-              <div class="ingreso-panel" x-show="ingresoAbierto.pollo_fresco" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
-                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pollo_fresco')">Cerrar</button>
-                </div>
-                <div class="mt-2 flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
-                  <button type="button" aria-label="Restar ingreso de pollo fresco" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="stepField('pollo_fresco', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de pollo fresco" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :value="getRow('pollo_fresco').ingreso" @change="updateIngresoDirecto('pollo_fresco', $event.target.value)">
-                  <button type="button" aria-label="Sumar ingreso de pollo fresco" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="stepField('pollo_fresco', 'ingreso', 1)">+</button>
                 </div>
               </div>
             </div>
@@ -2153,58 +2166,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="arbol-hijo primero" style="--c:#38bdf8">
                 <i class="arbol-punta"></i>
                 <div class="arbol">
-                  <div class="w-[220px] arbol-nodo">
+                  <div class="w-[240px] arbol-nodo">
                     <div class="bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3.5 space-y-2.5 shadow-lg">
                       <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-200 font-bold text-[10px] uppercase">Corte Primario</span>
-                        <span class="inline-flex items-center gap-1">
-                          <span class="text-[11px] font-mono text-sky-300" x-text="frescosHoy() + ' × ' + config.factorPechugasPorFresco"></span>
-                          <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pecho de pollo" title="Editar stock" @click="abrirEditarStock('pechuga')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                        </span>
+                        <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pecho de pollo" title="Editar stock" @click="abrirEditarStock('pechuga')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                       </div>
-                      <div>
-                        <h3 class="text-sm font-extrabold text-white">Pecho de Pollo</h3>
-                        <p class="text-2xl font-mono font-extrabold text-sky-300 mt-0.5">
-                          <span x-text="pechugasLibres()"></span>
-                          <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-                        </p>
-                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pechuga'))"></strong> · − <span class="text-rose-300" x-text="pechugasAFileteHoy()"></span> a filete</p>
-                      </div>
-                      <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
-                        <span class="text-xl font-extrabold text-sky-300" x-text="formatNum(formulaCorte('pechuga').total)"></span>
-                        <span class="text-base font-extrabold text-rose-400 inline-flex items-center gap-0.5"><span>↓</span><span x-text="formatNum(formulaCorte('pechuga').usado)"></span></span>
-                        <span class="text-sm font-bold text-[#a0a0b8]">=</span>
-                        <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pechuga').libre)"></span>
-                      </div>
-                      <div class="space-y-1 pt-2 border-t border-[#26263a] text-xs">
-                        <div class="flex justify-between text-[#a0a0b8]">
-                          <span>A Filete Pollo Crudo:</span>
-                          <span class="font-mono font-semibold text-[#d4af37]" x-text="pechugasAFileteHoy()"></span>
+                      <h3 class="text-sm font-extrabold text-white">Pecho de pollo</h3>
+                      <div class="caja-stock">
+                        <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                        <div class="caja-stock-step">
+                          <button type="button" aria-label="Restar stock de pecho de pollo" @click="fijarStockDirecto('pechuga', 'crudo', stockCuadro('pechuga', 'crudo') - 1)">−</button>
+                          <input type="number" min="0" step="any" aria-label="Stock actual de pecho de pollo" :value="stockCuadro('pechuga', 'crudo')" @change="fijarStockDirecto('pechuga', 'crudo', $event.target.value)">
+                          <button type="button" aria-label="Sumar stock de pecho de pollo" @click="fijarStockDirecto('pechuga', 'crudo', stockCuadro('pechuga', 'crudo') + 1)">+</button>
                         </div>
-                        <div class="flex justify-between text-[#a0a0b8]">
-                          <span>A Platos Pechuga:</span>
-                          <span class="font-mono font-semibold text-sky-200" x-text="pechugasEnPlatosGrupo()"></span>
-                        </div>
-                        <div class="flex justify-between text-[#a0a0b8]">
-                          <span>A Octavos:</span>
-                          <span class="font-mono font-semibold text-amber-200" x-text="formatNum(piezasPorOctavos('pechugas')) + ' pecho'"></span>
-                        </div>
-                        <div class="flex justify-between font-bold pt-1 border-t border-[#26263a]/60">
-                          <span class="text-white">Pechugas libres:</span>
-                          <span class="font-mono" :class="pechugasLibres() < 0 ? 'text-amber-300' : 'text-emerald-300'" x-text="pechugasLibres()"></span>
-                        </div>
-                      </div>
-                    </div>
-                    <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pechuga" x-transition @click="abrirIngreso('pechuga')">Ingreso</button>
-                    <div class="ingreso-panel" x-show="ingresoAbierto.pechuga" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
-                      <div class="flex items-center justify-between gap-2">
-                        <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
-                        <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pechuga')">Cerrar</button>
-                      </div>
-                      <div class="mt-2 flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
-                        <button type="button" aria-label="Restar ingreso de pecho de pollo" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="moverIngresoDirecto('pechuga', -1)">−</button>
-                        <input type="number" min="0" aria-label="Ingreso de pecho de pollo" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :value="ingresoDirectoDe('pechuga')" @change="fijarIngresoDirecto('pechuga', $event.target.value)">
-                        <button type="button" aria-label="Sumar ingreso de pecho de pollo" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="moverIngresoDirecto('pechuga', 1)">+</button>
+                        <p class="caja-stock-mas" x-show="textoIngreso('pechuga', 'crudo')" x-text="textoIngreso('pechuga', 'crudo')"></p>
+                        <p class="caja-stock-menos" x-show="textoResto('pechuga', 'crudo')" x-text="textoResto('pechuga', 'crudo')"></p>
                       </div>
                     </div>
                   </div>
@@ -2217,31 +2194,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="w-[250px] arbol-nodo">
                           <div class="bg-[#0a0a0f] border-2 border-[#d4af37]/80 rounded-xl p-3 space-y-2 shadow-md">
                             <div class="flex items-center justify-between gap-1.5">
-                              <span class="px-1.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase whitespace-nowrap">1 Pechuga = <span x-text="config.factorFiletesPorPechuga"></span> Filetes</span>
-                              <span class="inline-flex items-center gap-1">
-                                <span class="font-mono text-xs font-bold text-[#d4af37] whitespace-nowrap" x-text="'= ' + totalFiletesGenerados() + ' filetes'"></span>
-                                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Filete de pollo" title="Editar stock" @click="abrirEditarStock('filete')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                              </span>
+                              <span class="px-1.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase whitespace-nowrap">1 pecho = <span x-text="config.factorFiletesPorPechuga"></span></span>
+                              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Filete de pollo" title="Editar stock" @click="abrirEditarStock('filete')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                             </div>
-                            <div class="flex items-center justify-between gap-2">
-                              <div>
-                                <h4 class="text-sm font-bold text-white">Filete de pollo</h4>
-                                <p class="text-[11px] text-emerald-300 font-mono mt-0.5">+ <span x-text="filetesDePechuga()"></span> filetes</p>
-                                <p class="text-[11px] text-[#a0a0b8]">Stock hoja: <strong class="text-white font-mono" x-text="formatNum(quedanDe('filete'))"></strong> · Quedan <strong class="text-white font-mono" x-text="formatNum(quedanDe('filete'))"></strong></p>
-                                <p class="text-[11px] text-[#a0a0b8]">Pechugas que pasan a filete:</p>
+                            <h4 class="text-sm font-bold text-white">Filete de pollo</h4>
+                            <div class="caja-stock">
+                              <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                              <div class="caja-stock-step">
+                                <button type="button" aria-label="Restar stock de filete" @click="fijarStockFilete(stockCuadro('filete', 'crudo') - 1)">−</button>
+                                <input type="number" min="0" step="any" aria-label="Stock actual de filete de pollo" :value="stockCuadro('filete', 'crudo')" @change="fijarStockFilete($event.target.value)">
+                                <button type="button" aria-label="Sumar stock de filete" @click="fijarStockFilete(stockCuadro('filete', 'crudo') + 1)">+</button>
                               </div>
-                              <div class="inline-flex items-center gap-0.5 bg-[#14141f] border border-[#26263a] rounded-lg p-1">
-                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePechugasAFilete((Number(pechugasAFileteHoy()) || 0) - 1)">−</button>
-                                <input type="number" min="0" aria-label="Pechugas a filete" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="pechugasAFileteHoy()" :style="'--digitos:' + digitosDe(pechugasAFileteHoy())" @input="ajustarCajaDigitos($el)" @change="updatePechugasAFilete($event.target.value)">
-                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePechugasAFilete((Number(pechugasAFileteHoy()) || 0) + 1)">+</button>
-                              </div>
+                              <p class="caja-stock-mas" x-show="textoIngreso('filete', 'crudo')" x-text="textoIngreso('filete', 'crudo')"></p>
+                              <p class="caja-stock-menos" x-show="textoResto('filete', 'crudo')" x-text="textoResto('filete', 'crudo')"></p>
                             </div>
                             <div x-show="hasFactorPiernaFilete()" class="pt-1.5 border-t border-[#26263a] flex items-center justify-between gap-2 text-[11px]">
-                              <span class="text-emerald-200">Piernas → Filete (×<span x-text="config.factorFiletesPorPierna"></span>):</span>
+                              <span class="text-emerald-200">Pierna ×<span x-text="config.factorFiletesPorPierna"></span></span>
                               <div class="inline-flex items-center gap-0.5">
-                                <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePiernasAFilete((Number(piernasAFileteHoy()) || 0) - 1)">−</button>
-                                <input type="number" min="0" class="w-9 text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="piernasAFileteHoy()" @change="updatePiernasAFilete($event.target.value)">
-                                <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePiernasAFilete((Number(piernasAFileteHoy()) || 0) + 1)">+</button>
+                                <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Devolver pierna desde filete" @click="updatePiernasAFilete((Number(piernasAFileteHoy()) || 0) - 1)">−</button>
+                                <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Pasar 1 pierna a filete" @click="updatePiernasAFilete((Number(piernasAFileteHoy()) || 0) + 1)">+</button>
                               </div>
                             </div>
                           </div>
@@ -2320,35 +2291,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           <template x-for="ad in aderezosDeCorte('pechugas')" :key="'map-pech-' + ad.id">
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-sky-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
-                              <div class="flex items-center justify-between gap-2">
-                                <div class="min-w-0">
-                                  <span class="flex items-center justify-between gap-1">
-                                    <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
-                                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                                  </span>
-                                  <span class="text-[10px] text-sky-300/80 font-mono">1 Pechuga → 1 pza</span>
-                                  <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
+                              <span class="flex items-center justify-between gap-1">
+                                <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
+                                <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                              </span>
+                              <div class="caja-stock">
+                                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                                <div class="caja-stock-step">
+                                  <button type="button" :aria-label="'Restar crudo de ' + ad.nombre" @click="fijarStockHijo('pechuga', ad.id, 'crudo', stockCuadro(ad.id, 'crudo') - 1)">−</button>
+                                  <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="fijarStockHijo('pechuga', ad.id, 'crudo', $event.target.value)">
+                                  <button type="button" :aria-label="'Sumar crudo de ' + ad.nombre" @click="fijarStockHijo('pechuga', ad.id, 'crudo', stockCuadro(ad.id, 'crudo') + 1)">+</button>
                                 </div>
-                                <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="restarCrudoVisible(ad.id, 'pechugas')">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleAderezo(ad.id, 'pechugas'))" :value="crudoVisibleAderezo(ad.id, 'pechugas')" @input="ajustarCajaDigitos($el)" @change="fijarCrudoVisible(ad.id, 'pechugas', $event.target.value)">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="moverIngresoPlato('pechuga', ad.id, 'crudo', 1)">+</button>
-                                </div>
+                                <p class="caja-stock-mas" x-show="textoIngreso(ad.id, 'crudo')" x-text="textoIngreso(ad.id, 'crudo')"></p>
+                                <p class="caja-stock-menos" x-show="textoResto(ad.id, 'crudo')" x-text="textoResto(ad.id, 'crudo')"></p>
                               </div>
                               <template x-if="tienePaseCocido(ad.id)">
-                                <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                                  <div class="flex flex-col">
-                                    <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                                    <span class="text-[10px] font-mono text-[#a0a0b8]">
-                                      Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(ad.id))"></strong>
-                                      · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(ad.id))"></strong>
-                                    </span>
+                                <div class="caja-stock caja-stock-cocido">
+                                  <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                                  <div class="caja-stock-step">
+                                    <button type="button" :aria-label="'Restar cocido de ' + ad.nombre" @click="fijarStockHijo('pechuga', ad.id, 'cocido', stockCuadro(ad.id, 'cocido') - 1)">−</button>
+                                    <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="fijarStockHijo('pechuga', ad.id, 'cocido', $event.target.value)">
+                                    <button type="button" :aria-label="'Sumar cocido de ' + ad.nombre" @click="fijarStockHijo('pechuga', ad.id, 'cocido', stockCuadro(ad.id, 'cocido') + 1)">+</button>
                                   </div>
-                                  <div class="inline-flex items-center gap-0.5 shrink-0">
-                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + ad.nombre + ' (Pechuga)'" @click="pasarCrudoACocido(ad.id, -1)">−</button>
-                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pechuga)'" :value="cocidoActualTransformar(ad.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(ad.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
-                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + ad.nombre + ' (Pechuga)'" @click="pasarCrudoACocido(ad.id, 1)">+</button>
-                                  </div>
+                                  <p class="caja-stock-mas" x-show="textoIngreso(ad.id, 'cocido')" x-text="textoIngreso(ad.id, 'cocido')"></p>
+                                  <p class="caja-stock-menos" x-show="textoResto(ad.id, 'cocido')" x-text="textoResto(ad.id, 'cocido')"></p>
                                 </div>
                               </template>
                             </div>
@@ -2364,58 +2330,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="arbol-hijo" style="--c:#34d399">
                 <i class="arbol-punta"></i>
                 <div class="arbol">
-                  <div class="w-[220px] arbol-nodo">
+                  <div class="w-[240px] arbol-nodo">
                     <div class="bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3.5 space-y-2.5 shadow-lg">
                       <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-bold text-[10px] uppercase">Corte Primario</span>
-                        <span class="inline-flex items-center gap-1">
-                          <span class="text-[11px] font-mono text-emerald-300" x-text="frescosHoy() + ' × ' + config.factorPiernasPorFresco"></span>
-                          <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pierna de pollo" title="Editar stock" @click="abrirEditarStock('pierna')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                        </span>
+                        <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pierna de pollo" title="Editar stock" @click="abrirEditarStock('pierna')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                       </div>
-                      <div>
-                        <h3 class="text-sm font-extrabold text-white">Pierna de Pollo</h3>
-                        <p class="text-2xl font-mono font-extrabold text-emerald-300 mt-0.5">
-                          <span x-text="piernasLibres()"></span>
-                          <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-                        </p>
-                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pierna'))"></strong> · de <span x-text="piernasObtenidas()"></span> del fresco</p>
-                      </div>
-                      <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
-                        <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pierna').total)"></span>
-                        <span class="text-base font-extrabold text-rose-400 inline-flex items-center gap-0.5"><span>↓</span><span x-text="formatNum(formulaCorte('pierna').usado)"></span></span>
-                        <span class="text-sm font-bold text-[#a0a0b8]">=</span>
-                        <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pierna').libre)"></span>
-                      </div>
-                      <div class="space-y-1 pt-2 border-t border-[#26263a] text-xs">
-                        <div class="flex justify-between text-[#a0a0b8]">
-                          <span>A Platos Pierna:</span>
-                          <span class="font-mono font-semibold text-emerald-200" x-text="piernasEnPlatosGrupo()"></span>
+                      <h3 class="text-sm font-extrabold text-white">Pierna de pollo</h3>
+                      <div class="caja-stock">
+                        <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                        <div class="caja-stock-step">
+                          <button type="button" aria-label="Restar stock de pierna de pollo" @click="fijarStockDirecto('pierna', 'crudo', stockCuadro('pierna', 'crudo') - 1)">−</button>
+                          <input type="number" min="0" step="any" aria-label="Stock actual de pierna de pollo" :value="stockCuadro('pierna', 'crudo')" @change="fijarStockDirecto('pierna', 'crudo', $event.target.value)">
+                          <button type="button" aria-label="Sumar stock de pierna de pollo" @click="fijarStockDirecto('pierna', 'crudo', stockCuadro('pierna', 'crudo') + 1)">+</button>
                         </div>
-                        <div class="flex justify-between text-[#a0a0b8]">
-                          <span>A Octavos:</span>
-                          <span class="font-mono font-semibold text-amber-200" x-text="formatNum(piezasPorOctavos('piernas')) + ' pierna'"></span>
-                        </div>
-                        <div x-show="hasFactorPiernaFilete()" class="flex justify-between text-[#a0a0b8]">
-                          <span>A Filete:</span>
-                          <span class="font-mono font-semibold text-[#d4af37]" x-text="piernasAFileteHoy()"></span>
-                        </div>
-                        <div class="flex justify-between font-bold pt-1 border-t border-[#26263a]/60">
-                          <span class="text-white">Piernas libres:</span>
-                          <span class="font-mono" :class="piernasLibres() < 0 ? 'text-amber-300' : 'text-emerald-300'" x-text="piernasLibres()"></span>
-                        </div>
-                      </div>
-                    </div>
-                    <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pierna" x-transition @click="abrirIngreso('pierna')">Ingreso</button>
-                    <div class="ingreso-panel" x-show="ingresoAbierto.pierna" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
-                      <div class="flex items-center justify-between gap-2">
-                        <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
-                        <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pierna')">Cerrar</button>
-                      </div>
-                      <div class="mt-2 flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
-                        <button type="button" aria-label="Restar ingreso de pierna de pollo" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="moverIngresoDirecto('pierna', -1)">−</button>
-                        <input type="number" min="0" aria-label="Ingreso de pierna de pollo" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :value="ingresoDirectoDe('pierna')" @change="fijarIngresoDirecto('pierna', $event.target.value)">
-                        <button type="button" aria-label="Sumar ingreso de pierna de pollo" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" @click="moverIngresoDirecto('pierna', 1)">+</button>
+                        <p class="caja-stock-mas" x-show="textoIngreso('pierna', 'crudo')" x-text="textoIngreso('pierna', 'crudo')"></p>
+                        <p class="caja-stock-menos" x-show="textoResto('pierna', 'crudo')" x-text="textoResto('pierna', 'crudo')"></p>
                       </div>
                     </div>
                   </div>
@@ -2436,37 +2366,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           <template x-for="ad in aderezosDeCorte('piernas')" :key="'map-pier-' + ad.id">
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-emerald-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
-                              <div class="flex items-center justify-between gap-2">
-                                <div class="min-w-0">
-                                  <span class="flex items-center justify-between gap-1">
-                                    <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
-                                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                                  </span>
-                                  <span x-show="ad.id === 'pollo_pachamanca'" class="text-[10px] text-emerald-200/90 block">Sabor Pollo de la pachamanca</span>
-                                  <span class="text-[10px] text-emerald-300/80 font-mono">1 Pierna → 1 pza</span>
-                                  <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
+                              <span class="flex items-center justify-between gap-1">
+                                <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
+                                <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                              </span>
+                              <div class="caja-stock">
+                                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                                <div class="caja-stock-step">
+                                  <button type="button" :aria-label="'Restar crudo de ' + ad.nombre" @click="fijarStockHijo('pierna', ad.id, 'crudo', stockCuadro(ad.id, 'crudo') - 1)">−</button>
+                                  <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="fijarStockHijo('pierna', ad.id, 'crudo', $event.target.value)">
+                                  <button type="button" :aria-label="'Sumar crudo de ' + ad.nombre" @click="fijarStockHijo('pierna', ad.id, 'crudo', stockCuadro(ad.id, 'crudo') + 1)">+</button>
                                 </div>
-                                <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="restarCrudoVisible(ad.id, 'piernas')">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleAderezo(ad.id, 'piernas'))" :value="crudoVisibleAderezo(ad.id, 'piernas')" @input="ajustarCajaDigitos($el)" @change="fijarCrudoVisible(ad.id, 'piernas', $event.target.value)">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="moverIngresoPlato('pierna', ad.id, 'crudo', 1)">+</button>
-                                </div>
+                                <p class="caja-stock-mas" x-show="textoIngreso(ad.id, 'crudo')" x-text="textoIngreso(ad.id, 'crudo')"></p>
+                                <p class="caja-stock-menos" x-show="textoResto(ad.id, 'crudo')" x-text="textoResto(ad.id, 'crudo')"></p>
                               </div>
-                              <!-- Pase Crudo → Cocido en la misma fila de la hoja -->
                               <template x-if="tienePaseCocido(ad.id)">
-                                <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                                  <div class="flex flex-col">
-                                    <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                                    <span class="text-[10px] font-mono text-[#a0a0b8]">
-                                      Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(ad.id))"></strong>
-                                      · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(ad.id))"></strong>
-                                    </span>
+                                <div class="caja-stock caja-stock-cocido">
+                                  <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                                  <div class="caja-stock-step">
+                                    <button type="button" :aria-label="'Restar cocido de ' + ad.nombre" @click="fijarStockHijo('pierna', ad.id, 'cocido', stockCuadro(ad.id, 'cocido') - 1)">−</button>
+                                    <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="fijarStockHijo('pierna', ad.id, 'cocido', $event.target.value)">
+                                    <button type="button" :aria-label="'Sumar cocido de ' + ad.nombre" @click="fijarStockHijo('pierna', ad.id, 'cocido', stockCuadro(ad.id, 'cocido') + 1)">+</button>
                                   </div>
-                                  <div class="inline-flex items-center gap-0.5 shrink-0">
-                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + ad.nombre + ' (Pierna)'" @click="pasarCrudoACocido(ad.id, -1)">−</button>
-                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pierna)'" :value="cocidoActualTransformar(ad.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(ad.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
-                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + ad.nombre + ' (Pierna)'" @click="pasarCrudoACocido(ad.id, 1)">+</button>
-                                  </div>
+                                  <p class="caja-stock-mas" x-show="textoIngreso(ad.id, 'cocido')" x-text="textoIngreso(ad.id, 'cocido')"></p>
+                                  <p class="caja-stock-menos" x-show="textoResto(ad.id, 'cocido')" x-text="textoResto(ad.id, 'cocido')"></p>
                                 </div>
                               </template>
                             </div>
@@ -2482,35 +2405,40 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="arbol-hijo ultimo" style="--c:#fbbf24">
                 <i class="arbol-punta"></i>
                 <div class="arbol">
-                  <div class="w-[250px] arbol-nodo">
+                  <div class="w-[280px] arbol-nodo">
                     <div class="bg-[#0a0a0f] border-2 border-amber-400/80 rounded-xl p-3 space-y-2 shadow-md">
                       <div class="flex items-center justify-between gap-1.5">
-                        <span class="px-1.5 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase">2 octavos = 1 pieza</span>
-                        <span class="inline-flex items-center gap-1">
-                          <span class="font-mono text-xs font-bold text-amber-200" x-text="totalOctavos() + ' octavos'"></span>
-                          <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Octavo de pollo" title="Editar stock" @click="abrirEditarStock('octavo_pollo')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                        </span>
+                        <span class="px-1.5 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase">2 = 1</span>
+                        <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Octavo de pollo" title="Editar stock" @click="abrirEditarStock('octavo_pollo')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                       </div>
-                      <div>
-                        <h4 class="text-sm font-bold text-white">Octavo de pollo</h4>
-                        <p class="text-[11px] text-[#a0a0b8] mt-0.5">Elige si restas pecho o pierna. Cada 2 octavos restan 1 pieza.</p>
-                        <p class="text-[11px] text-[#a0a0b8]">Libres: <strong class="text-amber-200 font-mono" x-text="formatNum(octavosLibres())"></strong> · En platos: <strong class="text-white font-mono" x-text="octavosUsadosEnPlatos()"></strong></p>
+                      <h4 class="text-sm font-bold text-white">Octavo de pollo</h4>
+                      <div class="caja-stock">
+                        <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                        <p class="text-xl font-mono font-extrabold text-amber-200" x-text="formatNum(stockCuadro('octavo_pollo', 'crudo'))"></p>
+                        <p class="caja-stock-mas" x-show="textoIngreso('octavo_pollo', 'crudo')" x-text="textoIngreso('octavo_pollo', 'crudo')"></p>
+                        <p class="caja-stock-menos" x-show="textoResto('octavo_pollo', 'crudo')" x-text="textoResto('octavo_pollo', 'crudo')"></p>
                       </div>
-                      <div class="space-y-1.5 pt-1.5 border-t border-[#26263a]">
-                        <div class="flex items-center justify-between gap-2 text-[11px]">
-                          <span class="text-sky-200">Desde pecho</span>
-                          <div class="inline-flex items-center gap-0.5">
-                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" aria-label="Restar octavos desde pecho" @click="updateOctavos('pechugas', octavosDe('pechugas') - 1)">−</button>
-                            <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" aria-label="Octavos desde pecho de pollo" :value="octavosDe('pechugas')" :style="'--digitos:' + digitosDe(octavosDe('pechugas'))" @input="ajustarCajaDigitos($el)" @change="updateOctavos('pechugas', $event.target.value)">
-                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" aria-label="Sumar octavos desde pecho" @click="updateOctavos('pechugas', octavosDe('pechugas') + 1)">+</button>
+                      <div class="space-y-2 pt-1.5 border-t border-[#26263a]">
+                        <div>
+                          <p class="caja-stock-corte text-sky-200">Desde pecho</p>
+                          <p class="caja-stock-etiq">Stock pecho: <strong class="text-white" x-text="formatNum(stockCuadro('pechuga', 'crudo'))"></strong></p>
+                          <p class="caja-stock-mas" x-show="textoIngreso('pechuga', 'crudo')" x-text="textoIngreso('pechuga', 'crudo')"></p>
+                          <p class="caja-stock-menos" x-show="textoResto('pechuga', 'crudo')" x-text="textoResto('pechuga', 'crudo')"></p>
+                          <div class="caja-stock-step">
+                            <button type="button" aria-label="Restar octavos desde pecho" @click="fijarOctavosStock('pechugas', octavosStockCorte('pechugas') - 1)">−</button>
+                            <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosStockCorte('pechugas')" @change="fijarOctavosStock('pechugas', $event.target.value)">
+                            <button type="button" aria-label="Sumar octavos desde pecho" @click="fijarOctavosStock('pechugas', octavosStockCorte('pechugas') + 1)">+</button>
                           </div>
                         </div>
-                        <div class="flex items-center justify-between gap-2 text-[11px]">
-                          <span class="text-emerald-200">Desde pierna</span>
-                          <div class="inline-flex items-center gap-0.5">
-                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" aria-label="Restar octavos desde pierna" @click="updateOctavos('piernas', octavosDe('piernas') - 1)">−</button>
-                            <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" aria-label="Octavos desde pierna de pollo" :value="octavosDe('piernas')" :style="'--digitos:' + digitosDe(octavosDe('piernas'))" @input="ajustarCajaDigitos($el)" @change="updateOctavos('piernas', $event.target.value)">
-                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" aria-label="Sumar octavos desde pierna" @click="updateOctavos('piernas', octavosDe('piernas') + 1)">+</button>
+                        <div>
+                          <p class="caja-stock-corte text-emerald-200">Desde pierna</p>
+                          <p class="caja-stock-etiq">Stock pierna: <strong class="text-white" x-text="formatNum(stockCuadro('pierna', 'crudo'))"></strong></p>
+                          <p class="caja-stock-mas" x-show="textoIngreso('pierna', 'crudo')" x-text="textoIngreso('pierna', 'crudo')"></p>
+                          <p class="caja-stock-menos" x-show="textoResto('pierna', 'crudo')" x-text="textoResto('pierna', 'crudo')"></p>
+                          <div class="caja-stock-step">
+                            <button type="button" aria-label="Restar octavos desde pierna" @click="fijarOctavosStock('piernas', octavosStockCorte('piernas') - 1)">−</button>
+                            <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosStockCorte('piernas')" @change="fijarOctavosStock('piernas', $event.target.value)">
+                            <button type="button" aria-label="Sumar octavos desde pierna" @click="fijarOctavosStock('piernas', octavosStockCorte('piernas') + 1)">+</button>
                           </div>
                         </div>
                       </div>
@@ -2532,36 +2460,35 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           <template x-for="plato in platosDelOctavo()" :key="'map-octavo-' + plato.id">
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-amber-400/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
-                              <div class="flex items-center justify-between gap-2">
-                                <div class="min-w-0">
-                                  <span class="flex items-center justify-between gap-1">
-                                    <span class="text-xs font-semibold text-white block truncate" x-text="plato.nombre"></span>
-                                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                                  </span>
-                                  <span class="text-[10px] text-amber-200/90 font-mono">1 octavo → 1 pza</span>
-                                  <span x-show="!plato.cocido" class="text-[10px] text-[#a0a0b8] block">Solo crudo</span>
-                                  <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'crudo'))"></strong><span x-show="plato.cocido"> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'cocido'))"></strong></span></span>
-                                </div>
-                                <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar ' + plato.nombre" @click="restarCrudoPlato('octavo', plato.id)">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('octavo', plato.id, $event.target.value)">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Sumar ' + plato.nombre" @click="moverIngresoPlato('octavo_pollo', plato.id, 'crudo', 1)">+</button>
-                                </div>
-                              </div>
-                              <template x-if="plato.cocido">
-                                <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                                  <div class="flex flex-col">
-                                    <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                                    <span class="text-[10px] font-mono text-[#a0a0b8]">
-                                      Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(plato.id))"></strong>
-                                      · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(plato.id))"></strong>
-                                    </span>
+                              <span class="flex items-center justify-between gap-1">
+                                <span class="text-xs font-semibold text-white block truncate" x-text="plato.nombre"></span>
+                                <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                              </span>
+                              <template x-for="corte in ['piernas', 'pechugas']" :key="plato.id + '-' + corte">
+                                <div>
+                                  <p class="caja-stock-corte" :class="corte === 'piernas' ? 'text-emerald-200' : 'text-sky-200'" x-text="corte === 'piernas' ? 'Pierna' : 'Pecho'"></p>
+                                  <div class="caja-stock">
+                                    <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                                    <div class="caja-stock-step">
+                                      <button type="button" :aria-label="'Restar crudo ' + corte + ' de ' + plato.nombre" @click="fijarOctavoPlato(plato.id, corte, 'crudo', stockOctavoPlato(plato.id, corte, 'crudo') - 1)">−</button>
+                                      <input type="number" min="0" step="1" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="fijarOctavoPlato(plato.id, corte, 'crudo', $event.target.value)">
+                                      <button type="button" :aria-label="'Sumar crudo ' + corte + ' de ' + plato.nombre" @click="fijarOctavoPlato(plato.id, corte, 'crudo', stockOctavoPlato(plato.id, corte, 'crudo') + 1)">+</button>
+                                    </div>
+                                    <p class="caja-stock-mas" x-show="textoIngreso(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoIngreso(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
+                                    <p class="caja-stock-menos" x-show="textoResto(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoResto(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
                                   </div>
-                                  <div class="inline-flex items-center gap-0.5 shrink-0">
-                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + plato.nombre" @click="pasarCrudoACocido(plato.id, -1)">−</button>
-                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(plato.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
-                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + plato.nombre" @click="pasarCrudoACocido(plato.id, 1)">+</button>
-                                  </div>
+                                  <template x-if="plato.cocido">
+                                    <div class="caja-stock caja-stock-cocido">
+                                      <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                                      <div class="caja-stock-step">
+                                        <button type="button" :aria-label="'Restar cocido ' + corte + ' de ' + plato.nombre" @click="fijarOctavoPlato(plato.id, corte, 'cocido', stockOctavoPlato(plato.id, corte, 'cocido') - 1)">−</button>
+                                        <input type="number" min="0" step="1" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="fijarOctavoPlato(plato.id, corte, 'cocido', $event.target.value)">
+                                        <button type="button" :aria-label="'Sumar cocido ' + corte + ' de ' + plato.nombre" @click="fijarOctavoPlato(plato.id, corte, 'cocido', stockOctavoPlato(plato.id, corte, 'cocido') + 1)">+</button>
+                                      </div>
+                                      <p class="caja-stock-mas" x-show="textoIngreso(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoIngreso(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
+                                      <p class="caja-stock-menos" x-show="textoResto(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoResto(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
+                                    </div>
+                                  </template>
                                 </div>
                               </template>
                             </div>
@@ -2612,36 +2539,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <div class="flex items-center justify-between">
                     <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase" x-text="mapa.tipo === 'directo' ? 'Origen directo' : 'Origen crudo'"></span>
                     <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + mapa.origen.nombre" title="Editar stock" @click="abrirEditarStock(idDeClave(mapa.origen.clave))"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                    <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe(idDeClave(mapa.origen.clave)))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe(idDeClave(mapa.origen.clave)))"></strong></span>
                   </div>
-                  <div>
-                    <h3 class="text-base font-extrabold text-white" x-text="mapa.origen.nombre"></h3>
-                    <p class="text-[11px] text-[#a0a0b8] mt-0.5" x-show="mapa.tipo !== 'directo'">Cantidad que entra hoy al despiece:</p>
+                  <h3 class="text-base font-extrabold text-white" x-text="mapa.origen.nombre"></h3>
+                  <div class="caja-stock">
+                    <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                    <div class="caja-stock-step">
+                      <button type="button" :aria-label="'Restar stock de ' + mapa.origen.nombre" @click="fijarStockDirecto(idDeClave(mapa.origen.clave), 'crudo', stockCuadro(idDeClave(mapa.origen.clave), 'crudo') - 1)">−</button>
+                      <input type="number" min="0" step="any" :aria-label="'Stock actual de ' + mapa.origen.nombre" :value="stockCuadro(idDeClave(mapa.origen.clave), 'crudo')" @change="fijarStockDirecto(idDeClave(mapa.origen.clave), 'crudo', $event.target.value)">
+                      <button type="button" :aria-label="'Sumar stock de ' + mapa.origen.nombre" @click="fijarStockDirecto(idDeClave(mapa.origen.clave), 'crudo', stockCuadro(idDeClave(mapa.origen.clave), 'crudo') + 1)">+</button>
+                    </div>
+                    <p class="caja-stock-mas" x-show="textoIngreso(idDeClave(mapa.origen.clave), 'crudo')" x-text="textoIngreso(idDeClave(mapa.origen.clave), 'crudo')"></p>
+                    <p class="caja-stock-menos" x-show="textoResto(idDeClave(mapa.origen.clave), 'crudo')" x-text="textoResto(idDeClave(mapa.origen.clave), 'crudo')"></p>
                   </div>
-                  <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2" x-show="mapa.tipo !== 'directo'">
-                    <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition" :aria-label="'Restar ' + mapa.origen.nombre" @click="fijarOrigenMapa(mapa, origenMapa(mapa.id) - 1)">−</button>
-                    <input type="number" min="0" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :aria-label="mapa.origen.nombre + ' a convertir'" :value="origenMapa(mapa.id)" @change="fijarOrigenMapa(mapa, $event.target.value)">
-                    <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition" :aria-label="'Sumar ' + mapa.origen.nombre" @click="fijarOrigenMapa(mapa, origenMapa(mapa.id) + 1)">+</button>
-                  </div>
-                  <div class="space-y-1.5 pt-2 border-t border-[#26263a] text-[11px]" x-show="cortesDeOrigen(mapa).length">
+                  <div class="space-y-1.5 pt-2 border-t border-[#26263a] text-[11px]" x-show="mapa.tipo !== 'directo' && cortesDeOrigen(mapa).length">
+                    <div class="flex items-center justify-end gap-1">
+                      <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Devolver 1 ' + mapa.origen.nombre" @click="fijarOrigenMapa(mapa, origenMapa(mapa.id) - 1)">−</button>
+                      <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Pasar 1 ' + mapa.origen.nombre + ' a cortes'" @click="fijarOrigenMapa(mapa, origenMapa(mapa.id) + 1)">+</button>
+                    </div>
                     <template x-for="(rama, ri) in ramasDeMapa(mapa)" :key="mapa.id + '-eq-' + rama.key">
                       <div class="flex items-center justify-between" x-show="rama.tipo === 'corte'" :style="'color:' + rama.color">
-                        <span x-text="'1 → ' + (rama.corte ? rama.corte.factor : 0) + ' ' + rama.nombre"></span>
-                        <span class="font-mono font-bold text-white" x-text="'= ' + (rama.corte ? obtenidasCorte(mapa, rama.corte) : 0)"></span>
+                        <span x-text="'1 → ' + (rama.corte ? rama.corte.factor : 0)"></span>
+                        <span class="font-mono font-bold text-white" x-text="rama.corte ? obtenidasCorte(mapa, rama.corte) : 0"></span>
                       </div>
                     </template>
-                  </div>
-                </div>
-                <button type="button" class="ingreso-chip" x-show="!ingresoAbierto[idDeClave(mapa.origen.clave)]" x-transition @click="abrirIngreso(idDeClave(mapa.origen.clave))">Ingreso</button>
-                <div class="ingreso-panel" x-show="ingresoAbierto[idDeClave(mapa.origen.clave)]" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
-                    <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso(idDeClave(mapa.origen.clave))">Cerrar</button>
-                  </div>
-                  <div class="mt-2 flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
-                    <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" :aria-label="'Restar ingreso de ' + mapa.origen.nombre" @click="stepField(idDeClave(mapa.origen.clave), 'ingreso', -1)">−</button>
-                    <input type="number" min="0" class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none" :aria-label="'Ingreso de ' + mapa.origen.nombre" :value="getRow(idDeClave(mapa.origen.clave)).ingreso" @change="updateIngresoDirecto(idDeClave(mapa.origen.clave), $event.target.value)">
-                    <button type="button" class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] text-[#d4af37] font-extrabold cursor-pointer" :aria-label="'Sumar ingreso de ' + mapa.origen.nombre" @click="stepField(idDeClave(mapa.origen.clave), 'ingreso', 1)">+</button>
                   </div>
                 </div>
               </div>
@@ -2664,45 +2584,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + rama.nombre" title="Editar stock" @click="abrirEditarStock(idDeClave(rama.corte.clave))"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                               </span>
                             </div>
-                            <div>
-                              <h3 class="text-sm font-extrabold text-white" x-text="rama.nombre"></h3>
-                              <p class="text-2xl font-mono font-extrabold mt-0.5" :style="'color:' + rama.color">
-                                <span x-text="formatNum(quedanDe(idDeClave(rama.corte.clave)))"></span>
-                                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-                              </p>
-                              <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe(idDeClave(rama.corte.clave)))"></strong></p>
-                            </div>
-                            <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
-                              <span class="text-xl font-extrabold" :style="'color:' + rama.color" x-text="formatNum(formulaCorte(idDeClave(rama.corte.clave), mapa, rama.corte).total)"></span>
-                              <span class="text-base font-extrabold text-rose-400 inline-flex items-center gap-0.5"><span>↓</span><span x-text="formatNum(formulaCorte(idDeClave(rama.corte.clave), mapa, rama.corte).usado)"></span></span>
-                              <span class="text-sm font-bold text-[#a0a0b8]">=</span>
-                              <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte(idDeClave(rama.corte.clave), mapa, rama.corte).libre)"></span>
-                            </div>
-                            <div class="space-y-1 pt-2 border-t border-[#26263a] text-xs">
-                              <div class="flex justify-between text-[#a0a0b8]">
-                                <span>Venta comandas:</span>
-                                <span class="font-mono font-semibold text-rose-200" x-text="formatNum(valorTipo(getRow(idDeClave(rama.corte.clave)), 'venta', 'crudo') + valorTipo(getRow(idDeClave(rama.corte.clave)), 'venta', 'cocido'))"></span>
+                            <h3 class="text-sm font-extrabold text-white" x-text="rama.nombre"></h3>
+                            <div class="caja-stock">
+                              <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                              <div class="caja-stock-step">
+                                <button type="button" :aria-label="'Restar stock de ' + rama.nombre" @click="fijarStockDirecto(idDeClave(rama.corte.clave), 'crudo', stockCuadro(idDeClave(rama.corte.clave), 'crudo') - 1)">−</button>
+                                <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'crudo')" @change="fijarStockDirecto(idDeClave(rama.corte.clave), 'crudo', $event.target.value)">
+                                <button type="button" :aria-label="'Sumar stock de ' + rama.nombre" @click="fijarStockDirecto(idDeClave(rama.corte.clave), 'crudo', stockCuadro(idDeClave(rama.corte.clave), 'crudo') + 1)">+</button>
                               </div>
-                              <div class="flex justify-between font-bold pt-1 border-t border-[#26263a]/60">
-                                <span class="text-white">Queda en hoja:</span>
-                                <span class="font-mono text-emerald-300" x-text="formatNum(calcSaldoReal(getRow(idDeClave(rama.corte.clave))))"></span>
-                              </div>
+                              <p class="caja-stock-mas" x-show="textoIngreso(idDeClave(rama.corte.clave), 'crudo')" x-text="textoIngreso(idDeClave(rama.corte.clave), 'crudo')"></p>
+                              <p class="caja-stock-menos" x-show="textoResto(idDeClave(rama.corte.clave), 'crudo')" x-text="textoResto(idDeClave(rama.corte.clave), 'crudo')"></p>
                             </div>
-                            <!-- Pase Crudo → Cocido para cortes con cocido (Pechuga de pato y Pierna de pato) -->
                             <template x-if="tienePaseCocido(idDeClave(rama.corte.clave))">
-                              <div class="pt-2 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                                <div class="flex flex-col">
-                                  <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                                  <span class="text-[10px] font-mono text-[#a0a0b8]">
-                                    Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(idDeClave(rama.corte.clave)))"></strong>
-                                    · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(idDeClave(rama.corte.clave)))"></strong>
-                                  </span>
+                              <div class="caja-stock caja-stock-cocido">
+                                <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                                <div class="caja-stock-step">
+                                  <button type="button" :aria-label="'Restar cocido de ' + rama.nombre" @click="fijarStockDirecto(idDeClave(rama.corte.clave), 'cocido', stockCuadro(idDeClave(rama.corte.clave), 'cocido') - 1)">−</button>
+                                  <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'cocido')" @change="fijarStockDirecto(idDeClave(rama.corte.clave), 'cocido', $event.target.value)">
+                                  <button type="button" :aria-label="'Sumar cocido de ' + rama.nombre" @click="fijarStockDirecto(idDeClave(rama.corte.clave), 'cocido', stockCuadro(idDeClave(rama.corte.clave), 'cocido') + 1)">+</button>
                                 </div>
-                                <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + rama.nombre" @click="pasarCrudoACocido(idDeClave(rama.corte.clave), -1)">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + rama.nombre" :value="cocidoActualTransformar(idDeClave(rama.corte.clave))" :style="'--digitos:' + digitosDe(cocidoActualTransformar(idDeClave(rama.corte.clave)))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(idDeClave(rama.corte.clave), $event.target.value)">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + rama.nombre" @click="pasarCrudoACocido(idDeClave(rama.corte.clave), 1)">+</button>
-                                </div>
+                                <p class="caja-stock-mas" x-show="textoIngreso(idDeClave(rama.corte.clave), 'cocido')" x-text="textoIngreso(idDeClave(rama.corte.clave), 'cocido')"></p>
+                                <p class="caja-stock-menos" x-show="textoResto(idDeClave(rama.corte.clave), 'cocido')" x-text="textoResto(idDeClave(rama.corte.clave), 'cocido')"></p>
                               </div>
                             </template>
                           </div>
@@ -2798,17 +2700,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
               <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Panceta" title="Editar stock" @click="abrirEditarStock('panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
             </div>
-            <div>
-              <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
-              <p class="text-2xl font-mono font-extrabold text-[#d4af37] mt-0.5">
-                <span x-text="formatNum(quedanDe('panceta'))"></span>
-                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-              </p>
-            </div>
-            <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
-              <button type="button" aria-label="Restar 1 panceta del ingreso" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarStockPanceta(quedanDe('panceta') - 1)">−</button>
-              <input type="number" min="0" aria-label="Panceta entera en stock" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="quedanDe('panceta')" :style="'--digitos:' + digitosDe(quedanDe('panceta'))" @input="ajustarCajaDigitos($el)" @change="fijarStockPanceta($event.target.value)">
-              <button type="button" aria-label="Sumar 1 panceta al ingreso" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarStockPanceta(quedanDe('panceta') + 1)">+</button>
+            <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
+            <div class="caja-stock">
+              <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+              <div class="caja-stock-step">
+                <button type="button" aria-label="Restar stock de panceta" @click="fijarStockPanceta(quedanDe('panceta') - 1)">−</button>
+                <input type="number" min="0" step="1" aria-label="Stock actual de panceta entera" :value="quedanDe('panceta')" @change="fijarStockPanceta($event.target.value)">
+                <button type="button" aria-label="Sumar stock de panceta" @click="fijarStockPanceta(quedanDe('panceta') + 1)">+</button>
+              </div>
+              <p class="caja-stock-mas" x-show="textoIngreso('panceta', 'crudo')" x-text="textoIngreso('panceta', 'crudo')"></p>
+              <p class="caja-stock-menos" x-show="textoResto('panceta', 'crudo')" x-text="textoResto('panceta', 'crudo')"></p>
             </div>
           </div>
 
@@ -2824,10 +2725,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
             <div>
               <h3 class="text-sm font-extrabold text-white">Tira de panceta</h3>
-              <p class="text-2xl font-mono font-extrabold text-sky-300 mt-0.5">
-                <span x-text="formatNum(quedanDe('tira_panceta'))"></span>
-                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-              </p>
+              <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+              <p class="text-2xl font-mono font-extrabold text-sky-300" x-text="formatNum(quedanDe('tira_panceta'))"></p>
+              <p class="caja-stock-mas" x-show="textoIngreso('tira_panceta', 'crudo')" x-text="textoIngreso('tira_panceta', 'crudo')"></p>
+              <p class="caja-stock-menos" x-show="textoResto('tira_panceta', 'crudo')" x-text="textoResto('tira_panceta', 'crudo')"></p>
             </div>
             <div class="bg-[#14141f] border border-[#26263a] rounded-lg p-1.5 space-y-1">
               <span class="text-[10px] font-bold text-sky-200 block">Pancetas a tiras</span>
@@ -2853,14 +2754,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 font-bold text-[10px] uppercase">Corte variable</span>
               <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Trozo de panceta" title="Editar stock" @click="abrirEditarStock('trozo_panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
             </div>
-            <div>
-              <h3 class="text-sm font-extrabold text-white">Trozo de panceta</h3>
-              <p class="text-2xl font-mono font-extrabold text-emerald-300 mt-0.5">
-                <span x-text="formatNum(stockPlatoTransformar('trozo_panceta', 'crudo'))"></span>
-                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-              </p>
-              <p class="text-[11px] font-mono text-[#a0a0b8]">Cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar('trozo_panceta', 'cocido'))"></strong></p>
-            </div>
+            <h3 class="text-sm font-extrabold text-white">Trozo de panceta</h3>
             <div class="grid grid-cols-2 gap-2">
               <div class="bg-[#14141f] border border-rose-400/40 rounded-lg p-1.5 space-y-1">
                 <span class="text-[10px] font-bold text-rose-200 block">Tiras usadas</span>
@@ -2871,22 +2765,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
               </div>
               <div class="bg-[#14141f] border border-emerald-400/40 rounded-lg p-1.5 space-y-1">
-                <span class="text-[10px] font-bold text-emerald-200 block">Trozos</span>
+                <span class="text-[10px] font-bold text-emerald-200 block">Stock</span>
                 <div class="flex items-center justify-between">
-                  <button type="button" aria-label="Restar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarTrozosPanceta(trozosHoy() - 1)">−</button>
-                  <input type="number" min="0" aria-label="Trozos de panceta que salieron" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="trozosHoy()" :style="'--digitos:' + digitosDe(trozosHoy())" @input="ajustarCajaDigitos($el)" @change="fijarTrozosPanceta($event.target.value)">
-                  <button type="button" aria-label="Sumar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarTrozosPanceta(trozosHoy() + 1)">+</button>
+                  <button type="button" aria-label="Restar stock de trozo de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarStockTrozos(stockCuadro('trozo_panceta', 'crudo') - 1)">−</button>
+                  <input type="number" min="0" aria-label="Stock crudo de trozo de panceta" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="stockCuadro('trozo_panceta', 'crudo')" :style="'--digitos:' + digitosDe(stockCuadro('trozo_panceta', 'crudo'))" @input="ajustarCajaDigitos($el)" @change="fijarStockTrozos($event.target.value)">
+                  <button type="button" aria-label="Sumar stock de trozo de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarStockTrozos(stockCuadro('trozo_panceta', 'crudo') + 1)">+</button>
                 </div>
               </div>
             </div>
+            <div class="caja-stock">
+              <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+              <p class="text-xl font-mono font-extrabold text-emerald-300" x-text="formatNum(stockCuadro('trozo_panceta', 'crudo'))"></p>
+              <p class="caja-stock-mas" x-show="textoIngreso('trozo_panceta', 'crudo')" x-text="textoIngreso('trozo_panceta', 'crudo')"></p>
+              <p class="caja-stock-menos" x-show="textoResto('trozo_panceta', 'crudo')" x-text="textoResto('trozo_panceta', 'crudo')"></p>
+            </div>
             <template x-if="tienePaseCocido('trozo_panceta')">
-              <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                <div class="inline-flex items-center gap-0.5 shrink-0">
-                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Restar pase a cocido de Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', -1)">−</button>
-                  <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Trozo de panceta" :value="cocidoActualTransformar('trozo_panceta')" :style="'--digitos:' + digitosDe(cocidoActualTransformar('trozo_panceta'))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido('trozo_panceta', $event.target.value)">
-                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Pasar crudo a cocido en Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', 1)">+</button>
+              <div class="caja-stock caja-stock-cocido">
+                <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                <div class="caja-stock-step">
+                  <button type="button" aria-label="Restar cocido de trozo de panceta" @click="fijarStockDirecto('trozo_panceta', 'cocido', stockCuadro('trozo_panceta', 'cocido') - 1)">−</button>
+                  <input type="number" min="0" step="1" aria-label="Stock cocido de trozo de panceta" :value="stockCuadro('trozo_panceta', 'cocido')" @change="fijarStockDirecto('trozo_panceta', 'cocido', $event.target.value)">
+                  <button type="button" aria-label="Sumar cocido de trozo de panceta" @click="fijarStockDirecto('trozo_panceta', 'cocido', stockCuadro('trozo_panceta', 'cocido') + 1)">+</button>
                 </div>
+                <p class="caja-stock-mas" x-show="textoIngreso('trozo_panceta', 'cocido')" x-text="textoIngreso('trozo_panceta', 'cocido')"></p>
+                <p class="caja-stock-menos" x-show="textoResto('trozo_panceta', 'cocido')" x-text="textoResto('trozo_panceta', 'cocido')"></p>
               </div>
             </template>
           </div>
@@ -2948,11 +2850,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </span>
               </div>
               <span class="text-sm font-extrabold text-white block">Pescado</span>
-              <p class="text-[11px] text-[#a0a0b8]">Pescados usados hoy:</p>
-              <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
-                <button type="button" aria-label="Restar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(pescadosHoy()) || 0) - 1)">−</button>
-                <input type="number" min="0" aria-label="Pescados usados" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="pescadosHoy()" :style="'--digitos:' + digitosDe(pescadosHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPescadosUsados($event.target.value)">
-                <button type="button" aria-label="Sumar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(pescadosHoy()) || 0) + 1)">+</button>
+              <div class="caja-stock">
+                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                <div class="caja-stock-step">
+                  <button type="button" aria-label="Restar stock de pescado" @click="fijarStockDirecto('pescado_entero', 'crudo', stockCuadro('pescado_entero', 'crudo') - 1)">−</button>
+                  <input type="number" min="0" step="1" aria-label="Stock actual de pescado" :value="stockCuadro('pescado_entero', 'crudo')" @change="fijarStockDirecto('pescado_entero', 'crudo', $event.target.value)">
+                  <button type="button" aria-label="Sumar stock de pescado" @click="fijarStockDirecto('pescado_entero', 'crudo', stockCuadro('pescado_entero', 'crudo') + 1)">+</button>
+                </div>
+                <p class="caja-stock-mas" x-show="textoIngreso('pescado_entero', 'crudo')" x-text="textoIngreso('pescado_entero', 'crudo')"></p>
+                <p class="caja-stock-menos" x-show="textoResto('pescado_entero', 'crudo')" x-text="textoResto('pescado_entero', 'crudo')"></p>
+              </div>
+              <div class="flex items-center justify-between text-[11px] text-[#a0a0b8]">
+                <span>Usados</span>
+                <span class="inline-flex items-center gap-0.5">
+                  <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Devolver 1 pescado usado" @click="fijarPescadosUsados((Number(pescadosHoy()) || 0) - 1)">−</button>
+                  <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Usar 1 pescado" @click="fijarPescadosUsados((Number(pescadosHoy()) || 0) + 1)">+</button>
+                </span>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pescado_entero" x-transition @click="abrirIngreso('pescado_entero')">Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.pescado_entero" x-cloak>
@@ -3035,14 +2948,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pota" title="Editar stock" @click="abrirEditarStock('pota')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                 </span>
               </div>
-              <div>
-                <h3 class="text-sm font-extrabold text-white">Pota entera cruda</h3>
-                <p class="text-[11px] text-[#a0a0b8]">Cuántas potas enteras se parten hoy</p>
+              <h3 class="text-sm font-extrabold text-white">Pota entera cruda</h3>
+              <div class="caja-stock">
+                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                <div class="caja-stock-step">
+                  <button type="button" aria-label="Restar stock de pota" @click="fijarStockDirecto('pota', 'crudo', stockCuadro('pota', 'crudo') - 1)">−</button>
+                  <input type="number" min="0" step="1" aria-label="Stock actual de pota" :value="stockCuadro('pota', 'crudo')" @change="fijarStockDirecto('pota', 'crudo', $event.target.value)">
+                  <button type="button" aria-label="Sumar stock de pota" @click="fijarStockDirecto('pota', 'crudo', stockCuadro('pota', 'crudo') + 1)">+</button>
+                </div>
+                <p class="caja-stock-mas" x-show="textoIngreso('pota', 'crudo')" x-text="textoIngreso('pota', 'crudo')"></p>
+                <p class="caja-stock-menos" x-show="textoResto('pota', 'crudo')" x-text="textoResto('pota', 'crudo')"></p>
               </div>
-              <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
-                <button type="button" aria-label="Restar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(potasHoy()) || 0) - 1)">−</button>
-                <input type="number" min="0" aria-label="Potas enteras usadas" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="potasHoy()" :style="'--digitos:' + digitosDe(potasHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPotasUsadas($event.target.value)">
-                <button type="button" aria-label="Sumar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(potasHoy()) || 0) + 1)">+</button>
+              <div class="flex items-center justify-between text-[11px] text-[#a0a0b8]">
+                <span>Usadas</span>
+                <span class="inline-flex items-center gap-0.5">
+                  <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Devolver 1 pota usada" @click="fijarPotasUsadas((Number(potasHoy()) || 0) - 1)">−</button>
+                  <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Usar 1 pota" @click="fijarPotasUsadas((Number(potasHoy()) || 0) + 1)">+</button>
+                </span>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pota" x-transition @click="abrirIngreso('pota')">Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.pota" x-cloak>
@@ -3128,12 +3050,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Carnero" title="Editar stock" @click="abrirEditarStock('carnero')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                 </span>
               </div>
-              <span class="text-sm font-bold text-white block">Carnero Crudo</span>
-              <p class="text-2xl font-mono font-extrabold text-[#d4af37] mt-0.5">
-                <span x-text="formatNum(quedanDe('carnero'))"></span>
-                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-              </p>
-              <p class="text-[11px] font-mono text-[#a0a0b8]">Pasaron: <strong class="text-[#d4af37]" x-text="formatNum(carneroHoy())"></strong></p>
+              <span class="text-sm font-bold text-white block">Carnero crudo</span>
+              <div class="caja-stock">
+                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                <div class="caja-stock-step">
+                  <button type="button" aria-label="Restar stock de carnero" @click="fijarStockDirecto('carnero', 'crudo', stockCuadro('carnero', 'crudo') - 1)">−</button>
+                  <input type="number" min="0" step="any" aria-label="Stock actual de carnero" :value="stockCuadro('carnero', 'crudo')" @change="fijarStockDirecto('carnero', 'crudo', $event.target.value)">
+                  <button type="button" aria-label="Sumar stock de carnero" @click="fijarStockDirecto('carnero', 'crudo', stockCuadro('carnero', 'crudo') + 1)">+</button>
+                </div>
+                <p class="caja-stock-mas" x-show="textoIngreso('carnero', 'crudo')" x-text="textoIngreso('carnero', 'crudo')"></p>
+                <p class="caja-stock-menos" x-show="textoResto('carnero', 'crudo')" x-text="textoResto('carnero', 'crudo')"></p>
+              </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.carnero" x-transition @click="abrirIngreso('carnero')">Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.carnero" x-cloak>
                 <div class="flex items-center justify-between gap-2">
@@ -3160,35 +3087,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="grid grid-cols-2 gap-2">
                 <template x-for="pl in platosDelCarnero()" :key="'map-carnero-' + pl.id">
                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
-                    <div class="flex items-center justify-between gap-2">
-                      <div class="min-w-0">
-                        <span class="flex items-center justify-between gap-1">
-                          <span class="text-xs font-bold text-white block truncate" x-text="pl.nombre"></span>
-                          <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + pl.nombre" title="Editar stock" @click="abrirEditarStock(pl.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                        </span>
-                        <span class="text-[10px] text-[#d4af37] font-mono" x-text="'1 Carnero → ' + pl.factor + ' porc'"></span>
-                        <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(pl.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(pl.id, 'cocido'))"></strong></span>
+                    <span class="flex items-center justify-between gap-1">
+                      <span class="text-xs font-bold text-white block truncate" x-text="pl.nombre"></span>
+                      <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + pl.nombre" title="Editar stock" @click="abrirEditarStock(pl.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                    </span>
+                    <div class="caja-stock">
+                      <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                      <div class="caja-stock-step">
+                        <button type="button" :aria-label="'Restar crudo de ' + pl.nombre" @click="fijarStockHijo('carnero', pl.id, 'crudo', stockCuadro(pl.id, 'crudo') - 1)">−</button>
+                        <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + pl.nombre" :value="stockCuadro(pl.id, 'crudo')" @change="fijarStockHijo('carnero', pl.id, 'crudo', $event.target.value)">
+                        <button type="button" :aria-label="'Sumar crudo de ' + pl.nombre" @click="fijarStockHijo('carnero', pl.id, 'crudo', stockCuadro(pl.id, 'crudo') + 1)">+</button>
                       </div>
-                      <div class="inline-flex items-center gap-0.5 shrink-0">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Devolver 1 de ' + pl.nombre + ' a Carnero Crudo'" @click="moverIngresoPlato('carnero', pl.id, 'crudo', -1)">−</button>
-                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Crudo de ' + pl.nombre" :style="'--digitos:' + digitosDe(crudoVisibleTotal(pl.id))" :value="crudoVisibleTotal(pl.id)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('carnero', pl.id, $event.target.value)">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Pasar 1 de Carnero Crudo a ' + pl.nombre" @click="moverIngresoPlato('carnero', pl.id, 'crudo', 1)">+</button>
-                      </div>
+                      <p class="caja-stock-mas" x-show="textoIngreso(pl.id, 'crudo')" x-text="textoIngreso(pl.id, 'crudo')"></p>
+                      <p class="caja-stock-menos" x-show="textoResto(pl.id, 'crudo')" x-text="textoResto(pl.id, 'crudo')"></p>
                     </div>
                     <template x-if="tienePaseCocido(pl.id)">
-                      <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                        <div class="flex flex-col">
-                          <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                          <span class="text-[10px] font-mono text-[#a0a0b8]">
-                            Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(pl.id))"></strong>
-                            · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(pl.id))"></strong>
-                          </span>
+                      <div class="caja-stock caja-stock-cocido">
+                        <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                        <div class="caja-stock-step">
+                          <button type="button" :aria-label="'Restar cocido de ' + pl.nombre" @click="fijarStockHijo('carnero', pl.id, 'cocido', stockCuadro(pl.id, 'cocido') - 1)">−</button>
+                          <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + pl.nombre" :value="stockCuadro(pl.id, 'cocido')" @change="fijarStockHijo('carnero', pl.id, 'cocido', $event.target.value)">
+                          <button type="button" :aria-label="'Sumar cocido de ' + pl.nombre" @click="fijarStockHijo('carnero', pl.id, 'cocido', stockCuadro(pl.id, 'cocido') + 1)">+</button>
                         </div>
-                        <div class="inline-flex items-center gap-0.5 shrink-0">
-                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + pl.nombre" @click="pasarCrudoACocido(pl.id, -1)">−</button>
-                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + pl.nombre" :value="cocidoActualTransformar(pl.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(pl.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(pl.id, $event.target.value)">
-                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + pl.nombre" @click="pasarCrudoACocido(pl.id, 1)">+</button>
-                        </div>
+                        <p class="caja-stock-mas" x-show="textoIngreso(pl.id, 'cocido')" x-text="textoIngreso(pl.id, 'cocido')"></p>
+                        <p class="caja-stock-menos" x-show="textoResto(pl.id, 'cocido')" x-text="textoResto(pl.id, 'cocido')"></p>
                       </div>
                     </template>
                   </div>
@@ -3205,18 +3127,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('chicharron_chancho'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('chicharron_chancho'))"></strong></span>
               </div>
               <span class="text-sm font-bold text-white block">Chicharrón de chancho crudo</span>
-              <p class="text-2xl font-mono font-extrabold text-rose-300 mt-0.5">
-                <span x-text="formatNum(quedanDe('chicharron_chancho'))"></span>
-                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-              </p>
-              <p class="text-[10px] text-[#a0a0b8]">No sale de la panceta. Ingreso directo por unidad.</p>
-              <div class="flex items-center justify-between pt-1">
-                <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
-                <div class="inline-flex items-center gap-0.5">
-                  <button type="button" aria-label="Restar ingreso de chicharrón de chancho crudo" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('chicharron_chancho', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de chicharrón de chancho crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('chicharron_chancho').ingreso" :style="'--digitos:' + digitosDe(getRow('chicharron_chancho').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('chicharron_chancho', $event.target.value)">
-                  <button type="button" aria-label="Sumar ingreso de chicharrón de chancho crudo" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('chicharron_chancho', 'ingreso', 1)">+</button>
+              <div class="caja-stock">
+                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                <div class="caja-stock-step">
+                  <button type="button" aria-label="Restar stock de chicharrón de chancho" @click="fijarStockDirecto('chicharron_chancho', 'crudo', stockCuadro('chicharron_chancho', 'crudo') - 1)">−</button>
+                  <input type="number" min="0" step="1" aria-label="Stock actual de chicharrón de chancho" :value="stockCuadro('chicharron_chancho', 'crudo')" @change="fijarStockDirecto('chicharron_chancho', 'crudo', $event.target.value)">
+                  <button type="button" aria-label="Sumar stock de chicharrón de chancho" @click="fijarStockDirecto('chicharron_chancho', 'crudo', stockCuadro('chicharron_chancho', 'crudo') + 1)">+</button>
                 </div>
+                <p class="caja-stock-mas" x-show="textoIngreso('chicharron_chancho', 'crudo')" x-text="textoIngreso('chicharron_chancho', 'crudo')"></p>
+                <p class="caja-stock-menos" x-show="textoResto('chicharron_chancho', 'crudo')" x-text="textoResto('chicharron_chancho', 'crudo')"></p>
               </div>
             </div>
 
@@ -3248,14 +3167,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('cuy'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('cuy'))"></strong></span>
               </div>
               <span class="text-sm font-bold text-white block">Cuy</span>
-              <p class="text-[10px] text-[#a0a0b8]">No se transforma. El ingreso es por unidad.</p>
-              <div class="flex items-center justify-between pt-1">
-                <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
-                <div class="inline-flex items-center gap-0.5">
-                  <button type="button" aria-label="Restar ingreso de cuy" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('cuy', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de cuy" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('cuy').ingreso" :style="'--digitos:' + digitosDe(getRow('cuy').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('cuy', $event.target.value)">
-                  <button type="button" aria-label="Sumar ingreso de cuy" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('cuy', 'ingreso', 1)">+</button>
+              <div class="caja-stock">
+                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                <div class="caja-stock-step">
+                  <button type="button" aria-label="Restar stock de cuy" @click="fijarStockDirecto('cuy', 'crudo', stockCuadro('cuy', 'crudo') - 1)">−</button>
+                  <input type="number" min="0" step="any" aria-label="Stock actual de cuy" :value="stockCuadro('cuy', 'crudo')" @change="fijarStockDirecto('cuy', 'crudo', $event.target.value)">
+                  <button type="button" aria-label="Sumar stock de cuy" @click="fijarStockDirecto('cuy', 'crudo', stockCuadro('cuy', 'crudo') + 1)">+</button>
                 </div>
+                <p class="caja-stock-mas" x-show="textoIngreso('cuy', 'crudo')" x-text="textoIngreso('cuy', 'crudo')"></p>
+                <p class="caja-stock-menos" x-show="textoResto('cuy', 'crudo')" x-text="textoResto('cuy', 'crudo')"></p>
               </div>
             </div>
 
@@ -3303,12 +3223,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </span>
               </div>
               <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
-              <p class="text-2xl font-mono font-extrabold text-[#d4af37] mt-0.5">
-                <span x-text="formatNum(quedanDe('arroz'))"></span>
-                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
-              </p>
-              <p class="text-[11px] text-[#a0a0b8]">Se reparte con el + de cada tipo. Cada + resta 1 crudo de aquí.</p>
-              <p class="text-[11px] font-mono text-[#a0a0b8]">Repartido: <strong class="text-[#d4af37]" x-text="formatNum(arrozUsado())"></strong> · Libre: <strong class="text-white" x-text="formatNum(arrozLibre())"></strong></p>
+              <div class="caja-stock">
+                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                <div class="caja-stock-step">
+                  <button type="button" aria-label="Restar stock de arroz crudo" @click="fijarStockDirecto('arroz', 'crudo', stockCuadro('arroz', 'crudo') - 1)">−</button>
+                  <input type="number" min="0" step="any" aria-label="Stock actual de arroz crudo" :value="stockCuadro('arroz', 'crudo')" @change="fijarStockDirecto('arroz', 'crudo', $event.target.value)">
+                  <button type="button" aria-label="Sumar stock de arroz crudo" @click="fijarStockDirecto('arroz', 'crudo', stockCuadro('arroz', 'crudo') + 1)">+</button>
+                </div>
+                <p class="caja-stock-mas" x-show="textoIngreso('arroz', 'crudo')" x-text="textoIngreso('arroz', 'crudo')"></p>
+                <p class="caja-stock-menos" x-show="textoResto('arroz', 'crudo')" x-text="textoResto('arroz', 'crudo')"></p>
+              </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz')">Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.arroz" x-cloak>
                 <div class="flex items-center justify-between gap-2">
@@ -3337,15 +3261,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
               <div class="space-y-2">
                 <template x-for="d in destinosArroz()" :key="'arroz-dest-' + d.campo">
-                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                    <div>
-                      <span class="text-xs font-bold text-white block" x-text="d.nombre"></span>
-                      <span class="text-[10px] text-[#a0a0b8]">1 crudo → <span x-text="config[d.factorKey] || 1"></span> · Nacen <span class="text-white font-mono" x-text="formatNum(arrozHacia(d) * (Number(config[d.factorKey]) || 1))"></span></span>
-                    </div>
-                    <div class="inline-flex items-center gap-0.5">
-                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, arrozHacia(d) - 1)">−</button>
-                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Crudos a ' + d.nombre" :value="arrozHacia(d)" :style="'--digitos:' + digitosDe(arrozHacia(d))" @input="ajustarCajaDigitos($el)" @change="fijarArrozDestino(d.campo, $event.target.value)">
-                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, arrozHacia(d) + 1)">+</button>
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1">
+                    <span class="text-xs font-bold text-white block" x-text="d.nombre"></span>
+                    <span class="text-[10px] text-[#a0a0b8]">1 → <span x-text="config[d.factorKey] || 1"></span></span>
+                    <div class="caja-stock">
+                      <p class="caja-stock-etiq" x-text="tipoArrozDestino(d) === 'cocido' ? 'Stock actual (Cocido):' : 'Stock actual (Crudo):'"></p>
+                      <div class="caja-stock-step">
+                        <button type="button" :aria-label="'Restar stock de ' + d.nombre" @click="fijarStockArrozTipo(d.campo, stockCuadro(d.id, tipoArrozDestino(d)) - (Number(config[d.factorKey]) || 1))">−</button>
+                        <input type="number" min="0" step="any" :aria-label="'Stock de ' + d.nombre" :value="stockCuadro(d.id, tipoArrozDestino(d))" @change="fijarStockArrozTipo(d.campo, $event.target.value)">
+                        <button type="button" :aria-label="'Sumar stock de ' + d.nombre" @click="fijarStockArrozTipo(d.campo, stockCuadro(d.id, tipoArrozDestino(d)) + (Number(config[d.factorKey]) || 1))">+</button>
+                      </div>
+                      <p class="caja-stock-mas" x-show="textoIngreso(d.id, tipoArrozDestino(d))" x-text="textoIngreso(d.id, tipoArrozDestino(d))"></p>
+                      <p class="caja-stock-menos" x-show="textoResto(d.id, tipoArrozDestino(d))" x-text="textoResto(d.id, tipoArrozDestino(d))"></p>
                     </div>
                   </div>
                 </template>
@@ -3387,31 +3314,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <template x-for="corteId in ['carne_bistec', 'lomo_fino', 'carne_pachamanca', 'cerdo_pachamanca', 'carne_guiso']" :key="'sem-carne-' + corteId">
                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
-                    <div class="flex items-center justify-between gap-2">
-                      <div>
-                        <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
-                        <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-emerald-300 font-mono" x-text="formatNum(quedanDe(corteId))"></strong> · Quedan <strong class="text-white font-mono" x-text="formatNum(quedanDe(corteId))"></strong></span>
+                    <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
+                    <div class="caja-stock">
+                      <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                      <div class="caja-stock-step">
+                        <button type="button" :aria-label="'Restar stock de ' + getRow(corteId).nombre" @click="fijarStockDirecto(corteId, 'crudo', stockCuadro(corteId, 'crudo') - 1)">−</button>
+                        <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="fijarStockDirecto(corteId, 'crudo', $event.target.value)">
+                        <button type="button" :aria-label="'Sumar stock de ' + getRow(corteId).nombre" @click="fijarStockDirecto(corteId, 'crudo', stockCuadro(corteId, 'crudo') + 1)">+</button>
                       </div>
-                      <div class="inline-flex items-center gap-0.5">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', -1)">−</button>
-                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow(corteId).ingreso" :style="'--digitos:' + digitosDe(getRow(corteId).ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto(corteId, $event.target.value)">
-                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', 1)">+</button>
-                      </div>
+                      <p class="caja-stock-mas" x-show="textoIngreso(corteId, 'crudo')" x-text="textoIngreso(corteId, 'crudo')"></p>
+                      <p class="caja-stock-menos" x-show="textoResto(corteId, 'crudo')" x-text="textoResto(corteId, 'crudo')"></p>
                     </div>
                     <template x-if="tienePaseCocido(corteId)">
-                      <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                        <div class="flex flex-col">
-                          <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                          <span class="text-[10px] font-mono text-[#a0a0b8]">
-                            Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(corteId))"></strong>
-                            · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(corteId))"></strong>
-                          </span>
+                      <div class="caja-stock caja-stock-cocido">
+                        <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                        <div class="caja-stock-step">
+                          <button type="button" :aria-label="'Restar cocido de ' + getRow(corteId).nombre" @click="fijarStockDirecto(corteId, 'cocido', stockCuadro(corteId, 'cocido') - 1)">−</button>
+                          <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="fijarStockDirecto(corteId, 'cocido', $event.target.value)">
+                          <button type="button" :aria-label="'Sumar cocido de ' + getRow(corteId).nombre" @click="fijarStockDirecto(corteId, 'cocido', stockCuadro(corteId, 'cocido') + 1)">+</button>
                         </div>
-                        <div class="inline-flex items-center gap-0.5 shrink-0">
-                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, -1)">−</button>
-                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + getRow(corteId).nombre" :value="cocidoActualTransformar(corteId)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(corteId))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(corteId, $event.target.value)">
-                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, 1)">+</button>
-                        </div>
+                        <p class="caja-stock-mas" x-show="textoIngreso(corteId, 'cocido')" x-text="textoIngreso(corteId, 'cocido')"></p>
+                        <p class="caja-stock-menos" x-show="textoResto(corteId, 'cocido')" x-text="textoResto(corteId, 'cocido')"></p>
                       </div>
                     </template>
                   </div>
@@ -3439,15 +3362,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <template x-for="trId in ['trucha_entera', 'filete_trucha']" :key="'sem-tr-' + trId">
-                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-2 flex items-center justify-between gap-1.5">
-                    <div>
-                      <span class="text-xs font-bold text-white block" x-text="getRow(trId).nombre"></span>
-                      <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-sky-300 font-mono" x-text="formatNum(quedanDe(trId))"></strong> · Quedan <strong class="text-white font-mono" x-text="formatNum(quedanDe(trId))"></strong></span>
-                    </div>
-                    <div class="inline-flex items-center gap-0.5 shrink-0">
-                      <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(trId, 'ingreso', -1)">−</button>
-                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded text-xs" :value="getRow(trId).ingreso" :style="'--digitos:' + digitosDe(getRow(trId).ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto(trId, $event.target.value)">
-                      <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(trId, 'ingreso', 1)">+</button>
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-2 space-y-1">
+                    <span class="text-xs font-bold text-white block" x-text="getRow(trId).nombre"></span>
+                    <div class="caja-stock">
+                      <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                      <div class="caja-stock-step">
+                        <button type="button" :aria-label="'Restar stock de ' + getRow(trId).nombre" @click="fijarStockDirecto(trId, 'crudo', stockCuadro(trId, 'crudo') - 1)">−</button>
+                        <input type="number" min="0" step="any" :aria-label="'Stock de ' + getRow(trId).nombre" :value="stockCuadro(trId, 'crudo')" @change="fijarStockDirecto(trId, 'crudo', $event.target.value)">
+                        <button type="button" :aria-label="'Sumar stock de ' + getRow(trId).nombre" @click="fijarStockDirecto(trId, 'crudo', stockCuadro(trId, 'crudo') + 1)">+</button>
+                      </div>
+                      <p class="caja-stock-mas" x-show="textoIngreso(trId, 'crudo')" x-text="textoIngreso(trId, 'crudo')"></p>
+                      <p class="caja-stock-menos" x-show="textoResto(trId, 'crudo')" x-text="textoResto(trId, 'crudo')"></p>
                     </div>
                   </div>
                 </template>
@@ -8500,6 +8425,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         cocidoOpciones: [],
         draftCocido: [],
         movimientosPeriodo: [],
+        movimientosTurno: [],
         ventaInfo: null,
 
         diaOffset(base, dias) {
@@ -9296,6 +9222,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.ventasPeriodo = k.ventas || [];
             this.cocidoOpciones = k.cocidoOpciones || [];
             this.movimientosPeriodo = movs.movimientos || [];
+            await this.cargarMovimientosTurno(r);
             this.aplicarOpcionesCocido(this.cocidoOpciones);
             this.aplicarKardex(k.filas || [], this.movimientosPeriodo, this.ventasPeriodo);
             if (this.activeTab === 'grafico') this.cargarSerieGrafico();
@@ -12425,6 +12352,244 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return Math.max(0, this.redondear3(total));
         },
 
+        anotarMovs(movs) {
+          const lista = movs || [];
+          this.movimientosPeriodo = (this.movimientosPeriodo || []).concat(lista);
+          this.movimientosTurno = (this.movimientosTurno || []).concat(lista);
+        },
+
+        etiquetaTurnoCuadro() {
+          if (this.showTurnoDiaNoche && this.primerCierreHoyAt) return this.periodo === 'dia' ? 'día' : 'noche';
+          return 'hoy';
+        },
+
+        rangoTurnoCuadro() {
+          const TD = window.TurnosDiaNoche;
+          const ymd = TD ? TD.limaYMD() : this.fechaHoy();
+          if (this.showTurnoDiaNoche && this.primerCierreHoyAt && TD) {
+            const r = TD.rangoIso(this.periodo === 'dia' ? 'dia' : 'noche', this.primerCierreHoyAt);
+            if (r) return r;
+          }
+          if (TD) return { desde: TD.limaDayStart(ymd).toISOString(), hasta: TD.limaDayEnd(ymd).toISOString() };
+          return { desde: ymd + 'T04:00:00-05:00', hasta: ymd + 'T23:59:59-05:00' };
+        },
+
+        instanteRango(valor, fin) {
+          const s = String(valor || '');
+          if (s.indexOf('T') !== -1) return new Date(s).getTime();
+          if (fin && window.TurnosDiaNoche) return new Date(window.TurnosDiaNoche.addDaysYMD(s, 1) + 'T03:59:59.999-05:00').getTime();
+          return new Date(s + (fin ? 'T23:59:59-05:00' : 'T04:00:00-05:00')).getTime();
+        },
+
+        async cargarMovimientosTurno(rangoTabla) {
+          const turno = this.rangoTurnoCuadro();
+          const cubre = rangoTabla && this.instanteRango(rangoTabla.desde, false) <= this.instanteRango(turno.desde, false)
+            && this.instanteRango(rangoTabla.hasta, true) >= this.instanteRango(turno.hasta, true);
+          if (cubre) {
+            this.movimientosTurno = (this.movimientosPeriodo || []).slice();
+            return;
+          }
+          try {
+            const extra = await this.api('/inventario/movimientos?' + this.queryRango(turno));
+            this.movimientosTurno = (extra && extra.movimientos) || [];
+          } catch (e) {
+            this.movimientosTurno = (this.movimientosPeriodo || []).slice();
+          }
+        },
+
+        enTurnoCuadro(m) {
+          if (!m || !m.fecha) return true;
+          const t = new Date(m.fecha).getTime();
+          if (Number.isNaN(t)) return true;
+          const r = this.rangoTurnoCuadro();
+          return t >= new Date(r.desde).getTime() && t <= new Date(r.hasta).getTime();
+        },
+
+        partesMovimiento(id, tipo, filtro) {
+          const rowId = this.filaIdDePlatoTransformar(id) || id;
+          const clave = this.claveDeFila[rowId];
+          const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
+          const busca = filtro ? String(filtro) : '';
+          let ingreso = 0;
+          let resto = 0;
+          (this.movimientosTurno || []).forEach((m) => {
+            if (!m || m.rubro !== clave) return;
+            if (m.clase !== 'ingreso' && m.clase !== 'regulacion') return;
+            if ((m.tipoProducto || 'crudo') !== tipoOk) return;
+            if (busca && String(m.motivo || '').indexOf(busca) === -1) return;
+            if (!this.enTurnoCuadro(m)) return;
+            const n = Number(m.cantidad) || 0;
+            if (n > 0) ingreso += n;
+            else if (n < 0) resto += -n;
+          });
+          return { ingreso: this.redondear3(ingreso), resto: this.redondear3(resto) };
+        },
+
+        textoIngreso(id, tipo, filtro) {
+          const n = this.partesMovimiento(id, tipo, filtro).ingreso;
+          if (!(n > 0)) return '';
+          return '+' + this.formatNum(n) + ' ingreso ' + this.etiquetaTurnoCuadro();
+        },
+
+        textoResto(id, tipo, filtro) {
+          const n = this.partesMovimiento(id, tipo, filtro).resto;
+          if (!(n > 0)) return '';
+          return '-' + this.formatNum(n) + ' resto ' + this.etiquetaTurnoCuadro();
+        },
+
+        stockCuadro(id, tipo) {
+          const rowId = this.filaIdDePlatoTransformar(id) || id;
+          const row = this.filaReal(rowId);
+          if (!row) return 0;
+          return Math.max(0, this.redondear3(this.calcSaldoTipo(row, tipo === 'cocido' ? 'cocido' : 'crudo')));
+        },
+
+        async fijarStockDirecto(id, tipo, valor) {
+          const rowId = this.filaIdDePlatoTransformar(id) || id;
+          const row = this.filaReal(rowId);
+          if (!row) return false;
+          if (tipo === 'cocido') {
+            const next = Math.max(0, Math.round(Number(valor) || 0));
+            return this.pasarCrudoACocido(rowId, next - this.stockCuadro(rowId, 'cocido'));
+          }
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const actual = this.stockCuadro(rowId, 'crudo');
+          const delta = this.redondear3(next - actual);
+          if (!delta) return false;
+          const clave = this.claveDeFila[row.id];
+          if (!clave) return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' no tiene fila en la hoja.');
+          const ingreso = Number(this.valorTipo(row, 'ingreso', 'crudo')) || 0;
+          const base = (delta > 0 || ingreso + delta >= -0.0001) ? 'ingreso' : 'correccion';
+          const campo = this.campoTipo(base, 'crudo');
+          const previo = Number(row[campo]) || 0;
+          row[campo] = this.redondear3(previo + delta);
+          row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+          const motivo = (base === 'ingreso' ? 'Ingreso' : 'Corrección') + ' crudo';
+          const clase = base === 'correccion' ? 'regulacion' : 'ingreso';
+          const mov = { rubro: clave, clase: clase, tipoProducto: 'crudo', cantidad: delta, motivo: motivo, fecha: new Date().toISOString(), nombre: row.nombre };
+          this.anotarMovs([mov]);
+          this.pulseRowTotal(row.id);
+          try {
+            await this.paso(clave, 'crudo', delta, motivo, clase, row.nombre);
+            await this.cargarKardex();
+          } catch (e) {
+            row[campo] = previo;
+            row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+            this.movimientosPeriodo = (this.movimientosPeriodo || []).filter((m) => m !== mov);
+            this.movimientosTurno = (this.movimientosTurno || []).filter((m) => m !== mov);
+            this.toastMessage = e.message || 'No se guardó';
+            return false;
+          }
+          return true;
+        },
+
+        fijarStockFilete(valor) {
+          const actual = this.stockCuadro('filete', 'crudo');
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const deltaFiletes = this.redondear3(next - actual);
+          if (!deltaFiletes) return false;
+          const factor = Number(this.config.factorFiletesPorPechuga) || 1;
+          return this.transferir({
+            origenId: 'pechuga',
+            salen: this.redondear3(deltaFiletes / factor),
+            destinos: [{ id: 'filete', entran: deltaFiletes }],
+            motivo: this.motivoHacia('filete'),
+            historial: 'Pecho de Pollo → Filete'
+          });
+        },
+
+        fijarStockHijo(padreId, hijoId, tipo, valor) {
+          const id = this.filaIdDePlatoTransformar(hijoId) || hijoId;
+          if ((id === 'filete' || hijoId === 'filete') && tipo !== 'cocido') return this.fijarStockFilete(valor);
+          const actual = this.stockCuadro(id, tipo);
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const delta = this.redondear3(next - actual);
+          if (!delta) return false;
+          if (tipo === 'cocido') return this.pasarCrudoACocido(id, delta);
+          return this.moverIngresoPlato(padreId, id, 'crudo', delta);
+        },
+
+        marcaCorte(corte) {
+          return corte === 'piernas' || corte === 'pierna' ? 'pierna' : 'pecho';
+        },
+
+        netoMarcado(platoId, corte, tipo) {
+          const rowId = this.filaIdDePlatoTransformar(platoId) || platoId;
+          const clave = this.claveDeFila[rowId];
+          const marca = '· ' + this.marcaCorte(corte);
+          const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
+          const total = (this.movimientosPeriodo || []).reduce((a, m) => {
+            if (!m || m.rubro !== clave || m.clase !== 'ingreso') return a;
+            if ((m.tipoProducto || 'crudo') !== tipoOk) return a;
+            if (String(m.motivo || '').indexOf(marca) === -1) return a;
+            return a + (Number(m.cantidad) || 0);
+          }, 0);
+          return this.redondear3(total);
+        },
+
+        stockOctavoPlato(platoId, corte, tipo) {
+          const total = this.stockCuadro(platoId, tipo);
+          let pecho = Math.max(0, this.netoMarcado(platoId, 'pechugas', tipo));
+          let pierna = Math.max(0, this.netoMarcado(platoId, 'piernas', tipo));
+          const marcado = this.redondear3(pecho + pierna);
+          if (marcado <= 0) return corte === 'piernas' ? total : 0;
+          if (marcado > total + 0.0001) {
+            const f = total / marcado;
+            pecho = pecho * f;
+            pierna = pierna * f;
+            return this.redondear3(corte === 'pechugas' ? pecho : pierna);
+          }
+          const suelto = this.redondear3(total - marcado);
+          if (corte === 'piernas') return this.redondear3(pierna + Math.max(0, suelto));
+          return this.redondear3(pecho);
+        },
+
+        octavosStockCorte(corte) {
+          const creados = this.octavosDe(corte);
+          const usados = this.platosDelOctavo().reduce((a, p) => {
+            return a + Math.max(0, this.netoMarcado(p.id, corte, 'crudo')) + Math.max(0, this.netoMarcado(p.id, corte, 'cocido'));
+          }, 0);
+          return Math.max(0, this.redondear3(creados - usados));
+        },
+
+        fijarOctavosStock(corte, valor) {
+          const actual = this.octavosStockCorte(corte);
+          const next = Math.max(0, Math.round(Number(valor) || 0));
+          const delta = next - actual;
+          if (!delta) return false;
+          return this.updateOctavos(corte, this.octavosDe(corte) + delta);
+        },
+
+        fijarOctavoPlato(platoId, corte, tipo, valor) {
+          const actual = this.stockOctavoPlato(platoId, corte, tipo);
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const delta = this.redondear3(next - actual);
+          if (!delta) return false;
+          if (tipo === 'cocido') {
+            if (delta > 0 && this.stockOctavoPlato(platoId, corte, 'crudo') + 0.0001 < delta) {
+              return this.avisoTransformar('Aviso ámbar: no hay crudo de ' + this.marcaCorte(corte) + ' para cocido.');
+            }
+            return this.pasarCrudoACocido(platoId, delta, corte);
+          }
+          if (delta > 0) {
+            const libres = this.octavosStockCorte(corte);
+            if (libres + 0.0001 < delta) {
+              const falta = this.redondear3(delta - libres);
+              const ok = this.updateOctavos(corte, this.octavosDe(corte) + falta);
+              if (!ok) return false;
+            }
+          }
+          const marca = this.marcaCorte(corte);
+          return this.transferir({
+            origenId: 'octavo_pollo',
+            salen: delta,
+            destinos: [{ id: platoId, entran: delta, tipo: 'crudo' }],
+            motivo: this.motivoHacia(platoId),
+            motivoDestino: this.motivoHacia(platoId) + ' · ' + marca,
+            historial: 'Octavo ' + marca + ' → ' + this.nombreFila(platoId)
+          });
+        },
+
         stockCrudoDe(id) {
           const rowId = this.filaIdDePlatoTransformar(id) || id;
           const row = this.filaReal(rowId);
@@ -12488,10 +12653,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           destinos.forEach((d) => {
             const campo = this.campoTipo('ingreso', d.tipo);
             d.row[campo] = this.redondear3((Number(d.row[campo]) || 0) + d.entran);
-            movs.push({ rubro: d.clave, clase: 'ingreso', tipoProducto: d.tipo, cantidad: d.entran, motivo: this.motivoDesde(op.origenId), fecha: ahora, nombre: d.row.nombre });
+            movs.push({ rubro: d.clave, clase: 'ingreso', tipoProducto: d.tipo, cantidad: d.entran, motivo: op.motivoDestino || this.motivoDesde(op.origenId), fecha: ahora, nombre: d.row.nombre });
             this.pulseRowTotal(d.row.id);
           });
-          this.movimientosPeriodo = (this.movimientosPeriodo || []).concat(movs);
+          this.anotarMovs(movs);
           if (op.historial) {
             const signo = (salen || (destinos[0] && destinos[0].entran) || 0) >= 0 ? '+' : '−';
             this.anotarHistorial('transforma', op.historial, signo + this.formatNum(Math.abs(salen || (destinos[0] && destinos[0].entran) || 0)));
@@ -12709,6 +12874,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.transferir({ origenId: 'tira_panceta', salen: delta, destinos: [], motivo: 'Pasa a trozos', historial: 'Tiras usadas para trozos' });
         },
 
+
+        fijarStockTrozos(valor) {
+          const actual = this.stockCuadro('trozo_panceta', 'crudo');
+          const next = Math.max(0, Math.round(Number(valor) || 0));
+          const delta = next - actual;
+          if (!delta) return false;
+          return this.fijarTrozosPanceta(this.trozosHoy() + delta);
+        },
 
         fijarTrozosPanceta(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
@@ -13238,6 +13411,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.avisoTransformar('El arroz crudo se reparte desde cada tipo (blanco, verde, pato…). El tope es el stock de hoja del arroz crudo.');
         },
 
+
+        tipoArrozDestino(d) {
+          const row = d && this.filaReal(d.id);
+          return row && row.tieneCocido ? 'cocido' : 'crudo';
+        },
+
+        fijarStockArrozTipo(campo, valor) {
+          const d = this.destinosArroz().find((x) => x.campo === campo);
+          if (!d) return false;
+          const actual = this.stockCuadro(d.id, this.tipoArrozDestino(d));
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const deltaPorciones = this.redondear3(next - actual);
+          if (!deltaPorciones) return false;
+          const factor = Number(this.config[d.factorKey]) || 1;
+          return this.fijarArrozDestino(campo, this.arrozHacia(d) + deltaPorciones / factor);
+        },
 
         fijarArrozDestino(campo, val) {
           const d = this.destinosArroz().find((x) => x.campo === campo);
@@ -15199,7 +15388,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         // Pase Crudo → Cocido (o de vuelta) en la misma fila. Se guarda al momento con la hora real,
         // así la venta de comandas que llegue después gasta primero ese cocido.
-        pasarCrudoACocido(idOrClave, delta) {
+        pasarCrudoACocido(idOrClave, delta, corte) {
           const raw = String(idOrClave || '');
           const n = Math.round(Number(delta) || 0);
           if (!n) return false;
@@ -15213,6 +15402,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const desde = n > 0 ? 'crudo' : 'cocido';
           const hacia = n > 0 ? 'cocido' : 'crudo';
           const cant = Math.abs(n);
+          const marca = corte ? (' · ' + this.marcaCorte(corte)) : '';
           const disp = this.redondear3(this.calcSaldoTipo(row, desde));
           if (disp + 0.0001 < cant) {
             return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' no tiene ' + desde + ' para pasar a ' + hacia + '. Tiene ' + this.formatNum(Math.max(0, disp)) + '.');
@@ -15223,10 +15413,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           row.cocido = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
           const ahora = new Date().toISOString();
           const movs = [
-            { rubro: clave, clase: 'ingreso', tipoProducto: desde, cantidad: -cant, motivo: 'Pasa a ' + hacia + ' ' + row.nombre, fecha: ahora, nombre: row.nombre },
-            { rubro: clave, clase: 'ingreso', tipoProducto: hacia, cantidad: cant, motivo: 'Pasa de ' + desde + ' ' + row.nombre, fecha: ahora, nombre: row.nombre }
+            { rubro: clave, clase: 'ingreso', tipoProducto: desde, cantidad: -cant, motivo: 'Pasa a ' + hacia + ' ' + row.nombre + marca, fecha: ahora, nombre: row.nombre },
+            { rubro: clave, clase: 'ingreso', tipoProducto: hacia, cantidad: cant, motivo: 'Pasa de ' + desde + ' ' + row.nombre + marca, fecha: ahora, nombre: row.nombre }
           ];
-          this.movimientosPeriodo = (this.movimientosPeriodo || []).concat(movs);
+          this.anotarMovs(movs);
           this.pulseRowTotal(row.id);
           this.anotarHistorial('transforma', row.nombre + (n > 0 ? ' (Crudo → Cocido)' : ' (Cocido → Crudo)'), (n > 0 ? '+' : '−') + cant + ' cocido');
           this.encolarMovimientos(movs);
