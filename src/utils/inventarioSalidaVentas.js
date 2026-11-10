@@ -270,7 +270,8 @@ function rubrosDeFila(fila, mapas, bebidas) {
     if (humitas && !lista.some((x) => x.rubro === 'humita')) add('humita', humitas);
     if (consumeYuca(n) && !lista.some((x) => x.rubro === 'yuca')) add('yuca');
     if (consumeInca300(n) && !lista.some((x) => x.rubro === 'gaseosa-inca-kola-300ml')) add('gaseosa-inca-kola-300ml');
-    if (consumeCarneroCrudo(n) && !lista.some((x) => x.rubro === 'carnero')) add('carnero');
+    // Seco de carnero: gasta su propio cocido y crudo; si no hay, el Carnero Crudo (cascada de venta).
+    if (consumeCarneroCrudo(n) && !lista.some((x) => x.rubro === 'seco-cordero' || x.rubro === 'carnero')) add('seco-cordero');
     if (n.includes('frugos') && !lista.some((x) => x.rubro === 'frugos-1-5l')) add('frugos-1-5l');
     const pizza = rubroPizza(n);
     if (pizza && !lista.some((x) => x.rubro === pizza)) add(pizza);

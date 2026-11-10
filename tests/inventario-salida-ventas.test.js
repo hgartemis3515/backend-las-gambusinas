@@ -370,7 +370,8 @@ test('yuca, inca 300, carnero, frugos y pizza descuentan su fila', () => {
     ]);
     expect(inca['gaseosa-inca-kola-300ml']).toBe(6);
     const carnero = aplicarMapa([{ nombre: 'Seco de carnero chico (250 gr + arroz + frijol + zarza criolla)', cantidad: 2 }]);
-    expect(carnero.carnero).toBe(2);
+    expect(carnero['seco-cordero']).toBe(2);
+    expect(carnero.carnero).toBeUndefined();
     const otros = aplicarMapa([
         { nombre: 'Frugos 1.5Lt', cantidad: 3 },
         { nombre: 'Pizza Americana 20 x 20 personal (Jamon- Queso)', cantidad: 2 },

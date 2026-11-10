@@ -35,6 +35,7 @@ Hoja de producción del período. Es la fuente de verdad.
 - Elegir el período: hoy, ayer, 7 días, 30 días, este mes, 1 año o un rango.
 - Buscar por nombre y filtrar por categoría. El filtro **Pachamanca** deja solo los sabores (pollo, carne, carnero, cerdo y humita).
 - Abrir o cerrar los grupos. Imprimir la hoja. Abrir el reporte del día. Poner en cero los movimientos de hoy (el saldo anterior se conserva).
+- Abrir **Bloqueo de inventario** (icono de candado, donde antes estaba Contar cámara). Ver la sección 5.
 - Entrar a Configuración (factores de pollo, arroz, carnero y aderezos) y al color de fondo de las filas.
 
 ### Columnas
@@ -60,9 +61,23 @@ Si el producto tiene cocido, cada columna se parte en crudo y cocido. El pase **
 
 La venta gasta primero el cocido del plato, después el crudo del plato y, si sigue faltando, la reserva de la pieza (pecho, pierna o filete), cuando esa reserva está definida.
 
+Cada movimiento se guarda con la hora real. Si a las 9:00 se pasa pecho de pato a cocido y a las 10:00 entra una comanda de arroz con pato, la venta resta ese cocido. (Antes todo se guardaba a las 12:00 y una venta de la mañana restaba crudo.)
+
+Casos con cadena propia:
+
+| Venta | Orden en que resta |
+| --- | --- |
+| Pollo de pachamanca (sabor) | Cocido de Pollo pachamanca pierna, cocido de Pecho pachamanca, crudo de pierna pachamanca, crudo de pecho pachamanca y, al final, Pierna de Pollo. |
+| Seco de carnero o de cordero | Cocido de Seco de carnero, crudo de Seco de carnero, cocido de Carnero Crudo y, al final, crudo de Carnero Crudo. |
+
 ### Venta manual
 
-Resta en este orden: cocido del producto, crudo del producto y, al final, la pieza de reserva. Queda anotada como venta, no como transformación.
+El botón rojo **−** de Venta comandas abre el modal. Tiene dos pestañas:
+
+- **Por unidad**: resta unidades del producto. Orden: cocido del producto, crudo del producto y, al final, la pieza de reserva.
+- **Por plato vinculado**: se elige un plato y cuántos se vendieron. Salen los platos con fila propia que cuelgan del producto (por ejemplo, de Pecho de Pollo: Pecho leña, Sandwich, Pecho pachamanca) y los platos de la carta vinculados en Relación de platos. Un plato con fila propia gasta su cocido, su crudo y lo que falte sale del producto. Un plato de la carta resta *platos × lo que come* del producto. Antes de confirmar se ve qué va a restar.
+
+Queda anotada como venta, no como transformación.
 
 ### Grupos de la hoja
 
@@ -70,7 +85,9 @@ Pollo fresco, pato fresco, panceta, carnes, trucha, carnero, arroz, gaseosas, li
 
 ## 2. Transformar
 
-Mapa de izquierda a derecha. Sirve para partir un producto en cortes o platos. El tope de pecho y de pierna es el **stock de hoja** de esa fila (el saldo crudo). Si el pecho tiene 13, se pueden transformar hasta 13, y cada pieza transformada resta 1 de esos 13. Igual la pierna.
+Mapa de izquierda a derecha. Sirve para partir un producto en cortes o platos. El tope de cada origen es su **stock de hoja** (el saldo crudo de esa fila, sin platos hijos y sin conteo). Si el pecho tiene 13, se pueden transformar hasta 13, y cada pieza transformada resta 1 de esos 13. Vale igual para pierna, octavo, filete, panceta, tira, pescado, pota, carnero, arroz y pato.
+
+Cada **+** / **−** se guarda en el momento: el origen resta en Transformación y el destino suma en Ingreso. Los números de los cuadros se leen de esos movimientos guardados, así que al recargar la página siguen ahí.
 
 ### Pollo fresco
 
@@ -81,7 +98,7 @@ Mapa de izquierda a derecha. Sirve para partir un producto en cortes o platos. E
 Sale del fresco o de un ingreso directo.
 
 - A **filete**: 1 pecho = el factor configurado (por defecto 1 filete). Los filetes alimentan su grupo de platos (milanesa, filete junior, chicharrón, chaufa, saltado y el resto del grupo). Filete junior come 0,5 filete.
-- Al cuadro de pecho: **Pecho leña**, **Sandwich** y **Menú pecho**. 1 pecho = 1 pieza.
+- Al cuadro de pecho: **Pecho leña**, **Sandwich** y **Pecho pachamanca**. 1 pecho = 1 pieza. Pecho pachamanca tiene crudo y cocido, y la venta del sabor Pollo de la pachamanca también lo gasta.
 - A **octavo de pollo**: 2 octavos restan 1 pecho.
 
 ### Pierna de pollo
@@ -110,25 +127,25 @@ Del octavo cuelgan:
 
 | Origen | Regla |
 | --- | --- |
-| Pato fresco | 1 pato = 2 pechos de pato y 2 piernas de pato. |
-| Panceta | 1 panceta = 6 tiras. De las tiras usadas salen los trozos (el número se anota a mano; suele ser 39, 40 o 41). |
-| Pescado entero | Se anota cuántos se usaron y cuántas piezas salieron. La venta descuenta la pieza. |
+| Pato fresco | 1 pato = 2 pechos de pato y 2 piernas de pato. El + del origen resta 1 pato y suma los cortes. Pecho y pierna de pato tienen Crudo → Cocido. |
+| Panceta | Tres cuadros en línea: **Panceta entera → Tira de panceta → Trozo de panceta**, y después los platos. **Panceta entera**: la caja es el stock y sus + / − son ingreso (si no hay ingreso de hoy para restar, va a Corrección). **Tira de panceta**: muestra las tiras que quedan; "Pancetas a tiras" + resta 1 panceta y suma 6 tiras. **Trozo de panceta**: "Tiras usadas" resta tiras y "Trozos" suma los trozos que salieron (suele ser 39, 40 o 41). Su "quedan" es el crudo: al pasar a cocido, baja. No deja anotar trozos sin tiras usadas, ni devolver una panceta cuyas tiras ya se usaron. |
+| Pescado entero | Se anota cuántos se usaron (resta el entero) y cuántas piezas salieron (suma la pieza). La venta descuenta la pieza. |
 | Pota | Igual que el pescado: potas usadas y piezas obtenidas. |
-| Carnero | 1 carnero = 1 carnero pachamanca. |
-| Arroz crudo | 1 crudo puede rendir arroz blanco (8), verde (6), pato (4), chaufa (4), con mariscos (4) o arroz pollo (1). El factor se cambia en Configuración. |
+| Carnero | Dos platos: **Carnero pachamanca** (1 carnero = el factor configurado, por defecto 1) y **Seco de carnero** (1 a 1). Los dos tienen crudo y cocido. |
+| Arroz crudo | Se reparte con el + de cada tipo: cada + resta 1 arroz crudo y suma blanco (8), verde (6), pato (4), chaufa (4), con mariscos (4) o arroz pollo (1). El origen solo muestra lo repartido y lo libre. El factor se cambia en Configuración. |
 | Carnes, trucha, cuy, papas y similares | Entran directo. No se despiezan en este mapa. |
 
 ### Cómo se usa
 
-1. Sube el origen (pollo fresco, panceta, arroz, etc.) o usa el ingreso directo del corte.
-2. Reparte hacia el corte o el plato con **+** / **−**.
-3. Si el producto tiene cocido, la tarjeta tiene dos controles:
-   - **Origen → Cocido** (naranja): resta 1 del producto origen (pecho, pierna, octavo, filete, tira de panceta o carnero) y suma 1 al **cocido** del plato. El crudo del plato no cambia. Ej.: + en Pecho a la leña cocido resta 1 Pecho de Pollo.
-   - **Crudo → Cocido** (dorado): pasa unidades ya crudas del plato a cocido. Solo resta el crudo del plato; el origen no se toca.
-   El **+** principal de la tarjeta sigue sumando crudo del plato desde el origen.
-4. **Pasar a la hoja** escribe la salida en Transformación del origen y la entrada en Ingreso del destino, y abre Inventario Tabla.
+1. Carga el origen con **Ingreso** (o desde Inventario Tabla).
+2. Reparte con **+** / **−**, o escribe el número en la caja.
+   - En los orígenes (pollos frescos, pechos a filete, octavos, pancetas a tiras, tiras usadas, pescados, potas, pato) la caja es **lo que pasó en el período**. Panceta entera es la excepción: su caja es el stock y funciona como ingreso.
+   - Pecho, pierna, panceta, tira, trozo, arroz crudo, carnero crudo y chicharrón de chancho muestran el número grande **quedan**: el stock crudo de hoja, que baja con cada transformación y con las ventas.
+   - En los platos (Pecho leña, Pollada, Arroz con pollo, Seco de carnero…) la caja es **el stock crudo del plato**. El + pasa 1 pieza del padre al crudo del plato; el − la devuelve.
+3. Si el plato tiene cocido, debajo está **Crudo → Cocido**: pasa unidades crudas del plato a cocido. No toca el padre.
+4. **Pasar a la hoja** espera a que terminen de guardarse los pases y abre Inventario Tabla. Ya no hace falta para guardar.
 
-Si no alcanza el stock de hoja, el aviso ámbar detiene el paso y no deja el saldo en negativo.
+Si no alcanza el stock de hoja, el aviso ámbar detiene el paso y no deja el saldo en negativo. Lo mismo al devolver: no se devuelve más de lo que el destino tiene.
 
 El **editor de mapas** crea o ajusta familias nuevas (pato y las que se agreguen). El mapa de pollo fresco de esta pantalla es el mapa fijo descrito arriba.
 
@@ -166,6 +183,16 @@ Lista corta de lo que queda hoy. No se edita aquí y no hay un gran total, porqu
 - La unidad se muestra al lado del número.
 
 Sirve para mirar. Para cargar, transformar, vender o contar se usa Inventario Tabla o Transformar.
+
+## 5. Bloqueo de inventario (bosquejo)
+
+Icono de candado en la barra de Inventario Tabla. Reemplaza el botón Contar cámara (el conteo por fila sigue en la columna Conteo).
+
+Es un bosquejo: todavía no guarda ni llega a los mozos. El botón **Aplicar bloqueo** está desactivado.
+
+- Pestaña **Productos**: cada fila del inventario con lo que queda, una caja **Reservar** (aparta unidades del stock, por ejemplo para un evento) y un interruptor **Bloquear** (el mozo no lo puede pedir aunque haya stock).
+- Pestaña **Platos de la carta**: un interruptor **Bloquear** por plato.
+- Abajo: motivo, hora hasta la que dura y el resumen de cuántos quedan bloqueados o con reserva.
 
 ## Cómo se conectan
 

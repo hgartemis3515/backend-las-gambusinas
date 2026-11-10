@@ -1122,7 +1122,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </button>
       </nav>
 
-      <!-- Acciones derechas: Imprimir + Reporte del día + Contar cámara + Configuración -->
+      <!-- Acciones derechas: Imprimir + Reporte del día + Bloqueo de inventario + Configuración -->
       <div class="barra-secciones-acciones">
         <button
           type="button"
@@ -1146,10 +1146,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <button
           type="button"
-          @click="openCountModal()"
-          class="px-4 py-2.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-bold text-sm hover:brightness-110 active:scale-[0.98] transition cursor-pointer shadow"
+          @click="abrirBloqueo()"
+          aria-label="Bloqueo de inventario"
+          title="Bloqueo de inventario: reservar y bloquear productos y platos para los mozos"
+          class="px-3.5 py-2.5 rounded-lg border-2 border-[#d4af37] bg-[#1c1c2b] hover:bg-[#d4af37] text-[#d4af37] hover:text-[#1a1200] font-bold text-sm flex items-center gap-2 active:scale-[0.98] transition cursor-pointer shadow"
         >
-          Contar cámara
+          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <span>Bloqueo</span>
         </button>
 
         <!-- Menú Configuración -->
@@ -2003,7 +2006,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="px-2.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-xs uppercase tracking-wide">Flujo Izquierda → Derecha</span>
           </div>
           <p class="text-xs text-[#a0a0b8]">
-            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña y Sandwich</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca pierna, Pierna a la leña y Pollada</span>. <span class="text-amber-200 font-semibold">2 Octavos de pollo = 1 Pecho o 1 Pierna</span>, y el octavo abarca Arroz con pollo, Pollo a la olla y Caldo de pollo.
+            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña, Sandwich y Pecho pachamanca</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca pierna, Pierna a la leña y Pollada</span>. <span class="text-amber-200 font-semibold">2 Octavos de pollo = 1 Pecho o 1 Pierna</span>, y el octavo abarca Arroz con pollo, Pollo a la olla y Caldo de pollo.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
@@ -2063,7 +2066,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </div>
           <div class="flex flex-wrap items-center gap-3 text-xs font-mono">
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#26263a] text-white">
-              Frescos: <strong class="text-[#d4af37]" x-text="despiece.frescos"></strong>
+              Frescos: <strong class="text-[#d4af37]" x-text="frescosHoy()"></strong>
             </span>
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-sky-500/40 text-sky-200">
               Pecho: <strong x-text="pechugasObtenidas()"></strong> (Libres: <strong :class="pechugasLibres() < 0 ? 'text-amber-300' : 'text-emerald-300'" x-text="pechugasLibres()"></strong>)
@@ -2101,21 +2104,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     type="button"
                     aria-label="Restar pollo fresco"
                     class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition"
-                    @click="setPollosFrescosConvertir((Number(despiece.frescos) || 0) - 1)"
+                    @click="setPollosFrescosConvertir((Number(frescosHoy()) || 0) - 1)"
                   >−</button>
                   <input
                     type="number"
                     min="0"
                     aria-label="Pollos frescos a convertir"
                     class="w-16 min-w-0 text-center num-mono text-xl font-extrabold text-white bg-transparent focus:outline-none"
-                    :value="despiece.frescos"
+                    :value="frescosHoy()"
                     @change="setPollosFrescosConvertir($event.target.value)"
                   />
                   <button
                     type="button"
                     aria-label="Sumar pollo fresco"
                     class="w-8 h-8 shrink-0 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-extrabold text-base cursor-pointer transition"
-                    @click="setPollosFrescosConvertir((Number(despiece.frescos) || 0) + 1)"
+                    @click="setPollosFrescosConvertir((Number(frescosHoy()) || 0) + 1)"
                   >+</button>
                 </div>
                 <div class="space-y-1.5 pt-2 border-t border-[#26263a] text-[11px]">
@@ -2155,7 +2158,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-200 font-bold text-[10px] uppercase">Corte Primario</span>
                         <span class="inline-flex items-center gap-1">
-                          <span class="text-[11px] font-mono text-sky-300" x-text="despiece.frescos + ' × ' + config.factorPechugasPorFresco"></span>
+                          <span class="text-[11px] font-mono text-sky-300" x-text="frescosHoy() + ' × ' + config.factorPechugasPorFresco"></span>
                           <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pecho de pollo" title="Editar stock" @click="abrirEditarStock('pechuga')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                         </span>
                       </div>
@@ -2165,7 +2168,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span x-text="pechugasLibres()"></span>
                           <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
                         </p>
-                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pechuga'))"></strong> · − <span class="text-rose-300" x-text="despiece.pechugasAFilete"></span> a filete</p>
+                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pechuga'))"></strong> · − <span class="text-rose-300" x-text="pechugasAFileteHoy()"></span> a filete</p>
                       </div>
                       <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
                         <span class="text-xl font-extrabold text-sky-300" x-text="formatNum(formulaCorte('pechuga').total)"></span>
@@ -2176,7 +2179,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div class="space-y-1 pt-2 border-t border-[#26263a] text-xs">
                         <div class="flex justify-between text-[#a0a0b8]">
                           <span>A Filete Pollo Crudo:</span>
-                          <span class="font-mono font-semibold text-[#d4af37]" x-text="despiece.pechugasAFilete"></span>
+                          <span class="font-mono font-semibold text-[#d4af37]" x-text="pechugasAFileteHoy()"></span>
                         </div>
                         <div class="flex justify-between text-[#a0a0b8]">
                           <span>A Platos Pechuga:</span>
@@ -2228,17 +2231,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <p class="text-[11px] text-[#a0a0b8]">Pechugas que pasan a filete:</p>
                               </div>
                               <div class="inline-flex items-center gap-0.5 bg-[#14141f] border border-[#26263a] rounded-lg p-1">
-                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePechugasAFilete((Number(despiece.pechugasAFilete) || 0) - 1)">−</button>
-                                <input type="number" min="0" aria-label="Pechugas a filete" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pechugasAFilete" :style="'--digitos:' + digitosDe(despiece.pechugasAFilete)" @input="ajustarCajaDigitos($el)" @change="updatePechugasAFilete($event.target.value)">
-                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePechugasAFilete((Number(despiece.pechugasAFilete) || 0) + 1)">+</button>
+                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePechugasAFilete((Number(pechugasAFileteHoy()) || 0) - 1)">−</button>
+                                <input type="number" min="0" aria-label="Pechugas a filete" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="pechugasAFileteHoy()" :style="'--digitos:' + digitosDe(pechugasAFileteHoy())" @input="ajustarCajaDigitos($el)" @change="updatePechugasAFilete($event.target.value)">
+                                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePechugasAFilete((Number(pechugasAFileteHoy()) || 0) + 1)">+</button>
                               </div>
                             </div>
                             <div x-show="hasFactorPiernaFilete()" class="pt-1.5 border-t border-[#26263a] flex items-center justify-between gap-2 text-[11px]">
                               <span class="text-emerald-200">Piernas → Filete (×<span x-text="config.factorFiletesPorPierna"></span>):</span>
                               <div class="inline-flex items-center gap-0.5">
-                                <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePiernasAFilete((Number(despiece.piernasAFilete) || 0) - 1)">−</button>
-                                <input type="number" min="0" class="w-9 text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.piernasAFilete" @change="updatePiernasAFilete($event.target.value)">
-                                <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePiernasAFilete((Number(despiece.piernasAFilete) || 0) + 1)">+</button>
+                                <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePiernasAFilete((Number(piernasAFileteHoy()) || 0) - 1)">−</button>
+                                <input type="number" min="0" class="w-9 text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="piernasAFileteHoy()" @change="updatePiernasAFilete($event.target.value)">
+                                <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePiernasAFilete((Number(piernasAFileteHoy()) || 0) + 1)">+</button>
                               </div>
                             </div>
                           </div>
@@ -2271,8 +2274,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                       </div>
                                       <div class="inline-flex items-center gap-0.5 shrink-0">
                                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="restarCrudoPlato('filete', plato.id)">−</button>
-                                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id, (despiece.platosFilete && despiece.platosFilete[plato.id]) || 0))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id, (despiece.platosFilete && despiece.platosFilete[plato.id]) || 0)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('filete', plato.id, $event.target.value)">
-                                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePlatoFilete(plato.id, nudge((despiece.platosFilete && despiece.platosFilete[plato.id]) || 0, 1))">+</button>
+                                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('filete', plato.id, $event.target.value)">
+                                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverIngresoPlato('filete', plato.id, 'crudo', 1)">+</button>
                                       </div>
                                     </div>
                                     <!-- Pase Crudo → Cocido solo para productos con cocido según semilla -->
@@ -2308,7 +2311,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-sky-500/30">
                           <div class="flex items-center gap-2">
                             <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase tracking-wider">CUADRO GRUPAL · PECHUGA</span>
-                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pecho leña y Sandwich</h4>
+                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pecho leña, Sandwich y Pecho pachamanca</h4>
                           </div>
                           <span class="text-[11px] font-mono text-sky-200">
                             Pechugas en este grupo: <strong class="text-white" x-text="pechugasEnPlatosGrupo()"></strong> pzas
@@ -2366,7 +2369,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-bold text-[10px] uppercase">Corte Primario</span>
                         <span class="inline-flex items-center gap-1">
-                          <span class="text-[11px] font-mono text-emerald-300" x-text="despiece.frescos + ' × ' + config.factorPiernasPorFresco"></span>
+                          <span class="text-[11px] font-mono text-emerald-300" x-text="frescosHoy() + ' × ' + config.factorPiernasPorFresco"></span>
                           <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pierna de pollo" title="Editar stock" @click="abrirEditarStock('pierna')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                         </span>
                       </div>
@@ -2395,7 +2398,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </div>
                         <div x-show="hasFactorPiernaFilete()" class="flex justify-between text-[#a0a0b8]">
                           <span>A Filete:</span>
-                          <span class="font-mono font-semibold text-[#d4af37]" x-text="despiece.piernasAFilete"></span>
+                          <span class="font-mono font-semibold text-[#d4af37]" x-text="piernasAFileteHoy()"></span>
                         </div>
                         <div class="flex justify-between font-bold pt-1 border-t border-[#26263a]/60">
                           <span class="text-white">Piernas libres:</span>
@@ -2541,8 +2544,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
                                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar ' + plato.nombre" @click="restarCrudoPlato('octavo', plato.id)">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id]) || 0))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id]) || 0)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('octavo', plato.id, $event.target.value)">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Sumar ' + plato.nombre" @click="updatePlatoOctavo(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id] || 0) + 1)">+</button>
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('octavo', plato.id, $event.target.value)">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Sumar ' + plato.nombre" @click="moverIngresoPlato('octavo_pollo', plato.id, 'crudo', 1)">+</button>
                                 </div>
                               </div>
                               <template x-if="plato.cocido">
@@ -2770,121 +2773,130 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <div class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('panceta')">
         <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
           <div>
-            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['panceta'])"></span>. Mapa Semántico Horizontal — Panceta (Tiras → Trozos → Platos)</h2>
+            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['panceta'])"></span>. Mapa Semántico Horizontal — Panceta (Panceta → Tiras → Trozos → Platos)</h2>
             <p class="text-xs text-[#a0a0b8]">
               <strong class="text-white">1 panceta = 6 tiras de panceta</strong> (factor fijo). La tira no se vende: se canjea/transforma en <strong class="text-[#d4af37]">Trozo de panceta</strong> (con Crudo y Cocido), del cual descuentan los platos.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2.5 text-xs font-mono">
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#26263a] text-white">
-              Pancetas: <strong class="text-[#d4af37]" x-text="despiece.pancetasSalen"></strong>
+              Panceta queda: <strong class="text-[#d4af37]" x-text="formatNum(quedanDe('panceta'))"></strong>
             </span>
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-sky-500/40 text-sky-200">
-              Tiras (+<span x-text="(Number(despiece.pancetasSalen) || 0) * 6"></span>): <strong x-text="formatNum(calcSaldoReal(getRow('tira_panceta')))"></strong> libres
+              Tiras quedan: <strong x-text="formatNum(quedanDe('tira_panceta'))"></strong> · usadas <strong x-text="formatNum(tirasUsadasHoy())"></strong>
             </span>
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-emerald-500/40 text-emerald-200">
-              Trozos hoy: <strong x-text="despiece.trozosPanceta"></strong> (Queda: <strong x-text="formatNum(calcSaldoReal(getRow('trozo_panceta')))"></strong>)
+              Trozos salieron: <strong x-text="formatNum(trozosHoy())"></strong> · quedan <strong x-text="formatNum(calcSaldoReal(getRow('trozo_panceta')))"></strong>
             </span>
           </div>
         </div>
 
-        <div class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          <!-- 1. ORIGEN: PANCETA ENTERA -->
-          <div class="lg:w-56 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+        <div class="flex flex-col xl:flex-row items-stretch xl:items-center gap-3 xl:overflow-x-auto pb-1">
+          <!-- 1. PANCETA ENTERA: la caja es el stock y los +/− son ingreso -->
+          <div class="xl:w-52 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
             <div class="flex items-center justify-between gap-2">
               <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-              <span class="inline-flex items-center gap-1">
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('panceta'))"></strong></span>
-                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Panceta" title="Editar stock" @click="abrirEditarStock('panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-              </span>
+              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Panceta" title="Editar stock" @click="abrirEditarStock('panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
             </div>
             <div>
               <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
-              <p class="text-[11px] text-[#a0a0b8]">1 panceta = 6 tiras · Nacen <strong class="text-[#d4af37] font-mono" x-text="(Number(despiece.pancetasSalen) || 0) * 6"></strong> tiras</p>
+              <p class="text-2xl font-mono font-extrabold text-[#d4af37] mt-0.5">
+                <span x-text="formatNum(quedanDe('panceta'))"></span>
+                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
+              </p>
             </div>
             <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
-              <button type="button" aria-label="Restar panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPancetasSalen((Number(despiece.pancetasSalen) || 0) - 1)">−</button>
-              <input type="number" min="0" aria-label="Pancetas que salen a tiras" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pancetasSalen" :style="'--digitos:' + digitosDe(despiece.pancetasSalen)" @input="ajustarCajaDigitos($el)" @change="fijarPancetasSalen($event.target.value)">
-              <button type="button" aria-label="Sumar panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPancetasSalen((Number(despiece.pancetasSalen) || 0) + 1)">+</button>
-            </div>
-            <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.panceta" x-transition @click="abrirIngreso('panceta')">Ingreso</button>
-            <div class="ingreso-panel" x-show="ingresoAbierto.panceta" x-cloak>
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
-                <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('panceta')">Cerrar</button>
-              </div>
-              <div class="mt-2 inline-flex items-center gap-0.5">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de panceta" @click="stepField('panceta', 'ingreso', -1)">−</button>
-                <input type="number" min="0" aria-label="Ingreso de panceta" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('panceta').ingreso" :style="'--digitos:' + digitosDe(getRow('panceta').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('panceta', $event.target.value)">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de panceta" @click="stepField('panceta', 'ingreso', 1)">+</button>
-              </div>
+              <button type="button" aria-label="Restar 1 panceta del ingreso" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarStockPanceta(quedanDe('panceta') - 1)">−</button>
+              <input type="number" min="0" aria-label="Panceta entera en stock" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="quedanDe('panceta')" :style="'--digitos:' + digitosDe(quedanDe('panceta'))" @input="ajustarCajaDigitos($el)" @change="fijarStockPanceta($event.target.value)">
+              <button type="button" aria-label="Sumar 1 panceta al ingreso" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarStockPanceta(quedanDe('panceta') + 1)">+</button>
             </div>
           </div>
 
-          <div class="hidden lg:flex w-8 shrink-0 items-center">
+          <div class="hidden xl:flex w-6 shrink-0 items-center">
             <div class="conector-h-barra-oro"></div>
           </div>
 
-          <!-- 2. CORTE INTERMEDIO Y DESTINO VARIABLE: TIRA DE PANCETA -> TROZO DE PANCETA -->
-          <div class="lg:w-80 bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+          <!-- 2. TIRA DE PANCETA: stock de tiras, pase desde panceta y tiras usadas -->
+          <div class="xl:w-56 bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
             <div class="flex items-center justify-between gap-2">
-              <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-200 font-extrabold text-[10px] uppercase">Canje Tiras → Trozos</span>
-              <span class="text-[11px] font-mono text-sky-300">Tiras en hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('tira_panceta')))"></strong></span>
+              <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-200 font-bold text-[10px] uppercase">1 panceta = 6 tiras</span>
+              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Tira de panceta" title="Editar stock" @click="abrirEditarStock('tira_panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
             </div>
-
-            <!-- Tiras de panceta usadas (resta en Transformación de Tira de panceta) -->
-            <div class="bg-[#14141f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-              <div>
-                <span class="text-xs font-bold text-white block">Tira de panceta (Usadas)</span>
-                <span class="text-[10px] text-[#a0a0b8]">Resta en Transformación de la tira (No se vende)</span>
-              </div>
-              <div class="inline-flex items-center gap-0.5 shrink-0">
-                <button type="button" aria-label="Restar tiras usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarTirasUsadas((Number(despiece.tirasUsadas) || 0) - 1)">−</button>
-                <input type="number" min="0" aria-label="Tiras de panceta usadas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.tirasUsadas" :style="'--digitos:' + digitosDe(despiece.tirasUsadas)" @input="ajustarCajaDigitos($el)" @change="fijarTirasUsadas($event.target.value)">
-                <button type="button" aria-label="Sumar tiras usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarTirasUsadas((Number(despiece.tirasUsadas) || 0) + 1)">+</button>
+            <div>
+              <h3 class="text-sm font-extrabold text-white">Tira de panceta</h3>
+              <p class="text-2xl font-mono font-extrabold text-sky-300 mt-0.5">
+                <span x-text="formatNum(quedanDe('tira_panceta'))"></span>
+                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
+              </p>
+            </div>
+            <div class="bg-[#14141f] border border-[#26263a] rounded-lg p-1.5 space-y-1">
+              <span class="text-[10px] font-bold text-sky-200 block">Pancetas a tiras</span>
+              <div class="flex items-center justify-between">
+                <button type="button" aria-label="Devolver 1 panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPancetasSalen(pancetasHoy() - 1)">−</button>
+                <input type="number" min="0" aria-label="Pancetas que pasaron a tiras" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="pancetasHoy()" :style="'--digitos:' + digitosDe(pancetasHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPancetasSalen($event.target.value)">
+                <button type="button" aria-label="Pasar 1 panceta a 6 tiras" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPancetasSalen(pancetasHoy() + 1)">+</button>
               </div>
             </div>
-
-            <!-- Trozos de panceta obtenidos (suma en Ingreso de Trozo de panceta) + Pase Crudo -> Cocido -->
-            <div class="bg-[#14141f] border border-[#d4af37]/50 rounded-lg px-3 py-2 space-y-2">
-              <div class="flex items-center justify-between gap-2">
-                <div>
-                  <span class="text-xs font-bold text-white block">Trozo de panceta (Salieron)</span>
-                  <span class="text-[10px] text-emerald-300">Suma en Ingreso. De las tiras usadas suelen salir 39, 40 o 41 trozos; anota el número real.</span>
-                </div>
-                <div class="inline-flex items-center gap-0.5 shrink-0">
-                  <button type="button" aria-label="Restar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarTrozosPanceta((Number(despiece.trozosPanceta) || 0) - 1)">−</button>
-                  <input type="number" min="0" aria-label="Trozos de panceta obtenidos" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.trozosPanceta" :style="'--digitos:' + digitosDe(despiece.trozosPanceta)" @input="ajustarCajaDigitos($el)" @change="fijarTrozosPanceta($event.target.value)">
-                  <button type="button" aria-label="Sumar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarTrozosPanceta((Number(despiece.trozosPanceta) || 0) + 1)">+</button>
-                </div>
-              </div>
-
-              <!-- Pase Crudo → Cocido de Trozo de panceta -->
-              <template x-if="tienePaseCocido('trozo_panceta')">
-                <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                  <div class="flex flex-col">
-                    <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                    <span class="text-[10px] font-mono text-[#a0a0b8]">
-                      Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar('trozo_panceta'))"></strong>
-                      · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar('trozo_panceta'))"></strong>
-                    </span>
-                  </div>
-                  <div class="inline-flex items-center gap-0.5 shrink-0">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Restar pase a cocido de Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', -1)">−</button>
-                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#0a0a0f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Trozo de panceta" :value="cocidoActualTransformar('trozo_panceta')" :style="'--digitos:' + digitosDe(cocidoActualTransformar('trozo_panceta'))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido('trozo_panceta', $event.target.value)">
-                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Pasar crudo a cocido en Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', 1)">+</button>
-                  </div>
-                </div>
-              </template>
+            <div class="flex justify-between text-[11px] font-mono text-[#a0a0b8]">
+              <span>Entraron <strong class="text-emerald-300" x-text="formatNum(pancetasHoy() * 6)"></strong></span>
+              <span>Usadas <strong class="text-rose-300" x-text="formatNum(tirasUsadasHoy())"></strong></span>
             </div>
           </div>
 
-          <div class="hidden lg:flex w-8 shrink-0 items-center">
+          <div class="hidden xl:flex w-6 shrink-0 items-center">
             <div class="conector-h-barra-oro"></div>
           </div>
 
-          <!-- 3. CUADRO GRUPAL: PLATOS QUE DESCUENTAN TROZO DE PANCETA -->
-          <div class="flex-1 cuadro-grupal-semantico space-y-2">
+          <!-- 3. TROZO DE PANCETA: tiras usadas, trozos que salieron y pase a cocido -->
+          <div class="xl:w-72 bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 font-bold text-[10px] uppercase">Corte variable</span>
+              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Trozo de panceta" title="Editar stock" @click="abrirEditarStock('trozo_panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+            </div>
+            <div>
+              <h3 class="text-sm font-extrabold text-white">Trozo de panceta</h3>
+              <p class="text-2xl font-mono font-extrabold text-emerald-300 mt-0.5">
+                <span x-text="formatNum(stockPlatoTransformar('trozo_panceta', 'crudo'))"></span>
+                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
+              </p>
+              <p class="text-[11px] font-mono text-[#a0a0b8]">Cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar('trozo_panceta', 'cocido'))"></strong></p>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-[#14141f] border border-rose-400/40 rounded-lg p-1.5 space-y-1">
+                <span class="text-[10px] font-bold text-rose-200 block">Tiras usadas</span>
+                <div class="flex items-center justify-between">
+                  <button type="button" aria-label="Restar tiras usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-rose-300 font-bold cursor-pointer" @click="fijarTirasUsadas(tirasUsadasHoy() - 1)">−</button>
+                  <input type="number" min="0" aria-label="Tiras de panceta usadas" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="tirasUsadasHoy()" :style="'--digitos:' + digitosDe(tirasUsadasHoy())" @input="ajustarCajaDigitos($el)" @change="fijarTirasUsadas($event.target.value)">
+                  <button type="button" aria-label="Sumar tiras usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-rose-300 font-bold cursor-pointer" @click="fijarTirasUsadas(tirasUsadasHoy() + 1)">+</button>
+                </div>
+              </div>
+              <div class="bg-[#14141f] border border-emerald-400/40 rounded-lg p-1.5 space-y-1">
+                <span class="text-[10px] font-bold text-emerald-200 block">Trozos</span>
+                <div class="flex items-center justify-between">
+                  <button type="button" aria-label="Restar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarTrozosPanceta(trozosHoy() - 1)">−</button>
+                  <input type="number" min="0" aria-label="Trozos de panceta que salieron" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="trozosHoy()" :style="'--digitos:' + digitosDe(trozosHoy())" @input="ajustarCajaDigitos($el)" @change="fijarTrozosPanceta($event.target.value)">
+                  <button type="button" aria-label="Sumar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarTrozosPanceta(trozosHoy() + 1)">+</button>
+                </div>
+              </div>
+            </div>
+            <template x-if="tienePaseCocido('trozo_panceta')">
+              <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                <div class="inline-flex items-center gap-0.5 shrink-0">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Restar pase a cocido de Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', -1)">−</button>
+                  <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Trozo de panceta" :value="cocidoActualTransformar('trozo_panceta')" :style="'--digitos:' + digitosDe(cocidoActualTransformar('trozo_panceta'))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido('trozo_panceta', $event.target.value)">
+                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Pasar crudo a cocido en Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', 1)">+</button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div class="hidden xl:flex w-6 shrink-0 items-center">
+            <div class="conector-h-barra-oro"></div>
+          </div>
+
+          <!-- 4. CUADRO GRUPAL: PLATOS QUE DESCUENTAN TROZO DE PANCETA -->
+          <div class="flex-1 xl:min-w-[16rem] cuadro-grupal-semantico space-y-2">
             <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-[#26263a]">
               <div class="flex items-center gap-2">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · TROZO DE PANCETA</span>
@@ -2938,9 +2950,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-sm font-extrabold text-white block">Pescado</span>
               <p class="text-[11px] text-[#a0a0b8]">Pescados usados hoy:</p>
               <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
-                <button type="button" aria-label="Restar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(despiece.pescadosUsados) || 0) - 1)">−</button>
-                <input type="number" min="0" aria-label="Pescados usados" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pescadosUsados" :style="'--digitos:' + digitosDe(despiece.pescadosUsados)" @input="ajustarCajaDigitos($el)" @change="fijarPescadosUsados($event.target.value)">
-                <button type="button" aria-label="Sumar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(despiece.pescadosUsados) || 0) + 1)">+</button>
+                <button type="button" aria-label="Restar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(pescadosHoy()) || 0) - 1)">−</button>
+                <input type="number" min="0" aria-label="Pescados usados" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="pescadosHoy()" :style="'--digitos:' + digitosDe(pescadosHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPescadosUsados($event.target.value)">
+                <button type="button" aria-label="Sumar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(pescadosHoy()) || 0) + 1)">+</button>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pescado_entero" x-transition @click="abrirIngreso('pescado_entero')">Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.pescado_entero" x-cloak>
@@ -2973,12 +2985,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="bg-[#0a0a0f] border border-sky-500/40 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
                 <div>
                   <span class="text-xs font-bold text-white block">Pieza de pescado (Salieron)</span>
-                  <span class="text-[10px] text-[#a0a0b8]">De <strong class="text-white" x-text="despiece.pescadosUsados"></strong> pescado(s) · Queda: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow('pieza_pescado')))"></strong></span>
+                  <span class="text-[10px] text-[#a0a0b8]">De <strong class="text-white" x-text="pescadosHoy()"></strong> pescado(s) · Queda: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow('pieza_pescado')))"></strong></span>
                 </div>
                 <div class="inline-flex items-center gap-0.5 shrink-0">
-                  <button type="button" aria-label="Restar piezas de pescado" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPiezasPescado((Number(despiece.piezasPescado) || 0) - 1)">−</button>
-                  <input type="number" min="0" aria-label="Piezas de pescado obtenidas" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.piezasPescado" :style="'--digitos:' + digitosDe(despiece.piezasPescado)" @input="ajustarCajaDigitos($el)" @change="fijarPiezasPescado($event.target.value)">
-                  <button type="button" aria-label="Sumar piezas de pescado" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPiezasPescado((Number(despiece.piezasPescado) || 0) + 1)">+</button>
+                  <button type="button" aria-label="Restar piezas de pescado" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPiezasPescado((Number(piezasPescadoHoy()) || 0) - 1)">−</button>
+                  <input type="number" min="0" aria-label="Piezas de pescado obtenidas" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="piezasPescadoHoy()" :style="'--digitos:' + digitosDe(piezasPescadoHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPiezasPescado($event.target.value)">
+                  <button type="button" aria-label="Sumar piezas de pescado" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPiezasPescado((Number(piezasPescadoHoy()) || 0) + 1)">+</button>
                 </div>
               </div>
 
@@ -3006,10 +3018,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
             <div class="flex flex-wrap items-center gap-2.5 text-xs font-mono">
               <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#26263a] text-white">
-                Potas: <strong class="text-[#d4af37]" x-text="despiece.potasUsadas"></strong>
+                Potas: <strong class="text-[#d4af37]" x-text="potasHoy()"></strong>
               </span>
               <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-emerald-500/40 text-emerald-200">
-                Piezas hoy: <strong x-text="despiece.piezasPota"></strong> (Queda: <strong x-text="formatNum(calcSaldoReal(getRow('pieza_pota')))"></strong>)
+                Piezas hoy: <strong x-text="piezasPotaHoy()"></strong> (Queda: <strong x-text="formatNum(calcSaldoReal(getRow('pieza_pota')))"></strong>)
               </span>
             </div>
           </div>
@@ -3028,9 +3040,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <p class="text-[11px] text-[#a0a0b8]">Cuántas potas enteras se parten hoy</p>
               </div>
               <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
-                <button type="button" aria-label="Restar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(despiece.potasUsadas) || 0) - 1)">−</button>
-                <input type="number" min="0" aria-label="Potas enteras usadas" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.potasUsadas" :style="'--digitos:' + digitosDe(despiece.potasUsadas)" @input="ajustarCajaDigitos($el)" @change="fijarPotasUsadas($event.target.value)">
-                <button type="button" aria-label="Sumar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(despiece.potasUsadas) || 0) + 1)">+</button>
+                <button type="button" aria-label="Restar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(potasHoy()) || 0) - 1)">−</button>
+                <input type="number" min="0" aria-label="Potas enteras usadas" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="potasHoy()" :style="'--digitos:' + digitosDe(potasHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPotasUsadas($event.target.value)">
+                <button type="button" aria-label="Sumar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(potasHoy()) || 0) + 1)">+</button>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pota" x-transition @click="abrirIngreso('pota')">Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.pota" x-cloak>
@@ -3058,12 +3070,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="bg-[#14141f] border border-emerald-500/40 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
                 <div>
                   <span class="text-xs font-bold text-white block">Pieza de pota (Salieron)</span>
-                  <span class="text-[10px] text-[#a0a0b8]">De <strong class="text-white" x-text="despiece.potasUsadas"></strong> pota(s) entera(s). Suma en Ingreso.</span>
+                  <span class="text-[10px] text-[#a0a0b8]">De <strong class="text-white" x-text="potasHoy()"></strong> pota(s) entera(s). Suma en Ingreso.</span>
                 </div>
                 <div class="inline-flex items-center gap-0.5 shrink-0">
-                  <button type="button" aria-label="Restar piezas de pota" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarPiezasPota((Number(despiece.piezasPota) || 0) - 1)">−</button>
-                  <input type="number" min="0" aria-label="Piezas de pota obtenidas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.piezasPota" :style="'--digitos:' + digitosDe(despiece.piezasPota)" @input="ajustarCajaDigitos($el)" @change="fijarPiezasPota($event.target.value)">
-                  <button type="button" aria-label="Sumar piezas de pota" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarPiezasPota((Number(despiece.piezasPota) || 0) + 1)">+</button>
+                  <button type="button" aria-label="Restar piezas de pota" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarPiezasPota((Number(piezasPotaHoy()) || 0) - 1)">−</button>
+                  <input type="number" min="0" aria-label="Piezas de pota obtenidas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="piezasPotaHoy()" :style="'--digitos:' + digitosDe(piezasPotaHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPiezasPota($event.target.value)">
+                  <button type="button" aria-label="Sumar piezas de pota" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarPiezasPota((Number(piezasPotaHoy()) || 0) + 1)">+</button>
                 </div>
               </div>
             </div>
@@ -3103,7 +3115,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('carnero')">
           <div class="pb-2 border-b border-[#26263a]">
             <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['carnero'])"></span>. Mapa Semántico Horizontal — Carnero, Chicharrón de Chancho y Cuy</h2>
-            <p class="text-xs text-[#a0a0b8]">Carnero convierte 1 a 1 a Carnero pachamanca; Chicharrón de chancho crudo y Cuy entran por unidad sin transformación.</p>
+            <p class="text-xs text-[#a0a0b8]">Carnero pasa 1 a 1 a Carnero pachamanca y a Seco de carnero (cada uno con crudo y cocido); Chicharrón de chancho crudo y Cuy entran por unidad sin transformación.</p>
           </div>
 
           <!-- Flujo Horizontal Carnero -->
@@ -3117,12 +3129,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </span>
               </div>
               <span class="text-sm font-bold text-white block">Carnero Crudo</span>
-              <p class="text-[11px] text-[#a0a0b8]">Salen a pachamanca</p>
-              <div class="inline-flex items-center gap-0.5">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('carneroSalen', -1)">−</button>
-                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" x-model.number="despiece.carneroSalen" @change="volcarTransformacionEnTabla()">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverDespiece('carneroSalen', 1)">+</button>
-              </div>
+              <p class="text-2xl font-mono font-extrabold text-[#d4af37] mt-0.5">
+                <span x-text="formatNum(quedanDe('carnero'))"></span>
+                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
+              </p>
+              <p class="text-[11px] font-mono text-[#a0a0b8]">Pasaron: <strong class="text-[#d4af37]" x-text="formatNum(carneroHoy())"></strong></p>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.carnero" x-transition @click="abrirIngreso('carnero')">Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.carnero" x-cloak>
                 <div class="flex items-center justify-between gap-2">
@@ -3144,30 +3155,42 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="flex-1 cuadro-grupal-semantico">
               <div class="flex items-center justify-between gap-2 mb-1">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CARNERO</span>
-                <span class="text-[11px] text-[#d4af37] font-mono">1 Carnero Crudo = <span x-text="config.factorCarneroPachamanca || 1"></span> Pachamanca</span>
+                <span class="text-[11px] text-[#d4af37] font-mono">Carnero pachamanca y Seco de carnero</span>
               </div>
-              <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
-                <div class="flex items-center justify-between gap-2">
-                  <div>
-                    <span class="text-xs font-bold text-white block">Carnero pachamanca</span>
-                    <span class="text-[10px] text-[#a0a0b8]">Clave interna: pachamanca-cordero · Pase directo 1 a 1</span>
-                  </div>
-                  <span class="px-3 py-1 rounded bg-[#14141f] border border-[#d4af37]/40 font-mono font-extrabold text-sm text-[#d4af37]" x-text="(Number(despiece.carneroSalen) || 0) * (Number(config.factorCarneroPachamanca) || 1) + ' porc'"></span>
-                </div>
-                <template x-if="tienePaseCocido('carnero_pachamanca')">
-                  <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
-                    <div class="flex flex-col">
-                      <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
-                      <span class="text-[10px] font-mono text-[#a0a0b8]">
-                        Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar('carnero_pachamanca'))"></strong>
-                        · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar('carnero_pachamanca'))"></strong>
-                      </span>
+              <div class="grid grid-cols-2 gap-2">
+                <template x-for="pl in platosDelCarnero()" :key="'map-carnero-' + pl.id">
+                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="min-w-0">
+                        <span class="flex items-center justify-between gap-1">
+                          <span class="text-xs font-bold text-white block truncate" x-text="pl.nombre"></span>
+                          <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + pl.nombre" title="Editar stock" @click="abrirEditarStock(pl.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        </span>
+                        <span class="text-[10px] text-[#d4af37] font-mono" x-text="'1 Carnero → ' + pl.factor + ' porc'"></span>
+                        <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(pl.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(pl.id, 'cocido'))"></strong></span>
+                      </div>
+                      <div class="inline-flex items-center gap-0.5 shrink-0">
+                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Devolver 1 de ' + pl.nombre + ' a Carnero Crudo'" @click="moverIngresoPlato('carnero', pl.id, 'crudo', -1)">−</button>
+                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Crudo de ' + pl.nombre" :style="'--digitos:' + digitosDe(crudoVisibleTotal(pl.id))" :value="crudoVisibleTotal(pl.id)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('carnero', pl.id, $event.target.value)">
+                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Pasar 1 de Carnero Crudo a ' + pl.nombre" @click="moverIngresoPlato('carnero', pl.id, 'crudo', 1)">+</button>
+                      </div>
                     </div>
-                    <div class="inline-flex items-center gap-0.5 shrink-0">
-                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Restar pase a cocido de Carnero pachamanca" @click="pasarCrudoACocido('carnero_pachamanca', -1)">−</button>
-                      <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Carnero pachamanca" :value="cocidoActualTransformar('carnero_pachamanca')" :style="'--digitos:' + digitosDe(cocidoActualTransformar('carnero_pachamanca'))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido('carnero_pachamanca', $event.target.value)">
-                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Pasar crudo a cocido en Carnero pachamanca" @click="pasarCrudoACocido('carnero_pachamanca', 1)">+</button>
-                    </div>
+                    <template x-if="tienePaseCocido(pl.id)">
+                      <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                        <div class="flex flex-col">
+                          <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                          <span class="text-[10px] font-mono text-[#a0a0b8]">
+                            Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(pl.id))"></strong>
+                            · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(pl.id))"></strong>
+                          </span>
+                        </div>
+                        <div class="inline-flex items-center gap-0.5 shrink-0">
+                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + pl.nombre" @click="pasarCrudoACocido(pl.id, -1)">−</button>
+                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + pl.nombre" :value="cocidoActualTransformar(pl.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(pl.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(pl.id, $event.target.value)">
+                          <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + pl.nombre" @click="pasarCrudoACocido(pl.id, 1)">+</button>
+                        </div>
+                      </div>
+                    </template>
                   </div>
                 </template>
               </div>
@@ -3182,6 +3205,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('chicharron_chancho'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('chicharron_chancho'))"></strong></span>
               </div>
               <span class="text-sm font-bold text-white block">Chicharrón de chancho crudo</span>
+              <p class="text-2xl font-mono font-extrabold text-rose-300 mt-0.5">
+                <span x-text="formatNum(quedanDe('chicharron_chancho'))"></span>
+                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
+              </p>
               <p class="text-[10px] text-[#a0a0b8]">No sale de la panceta. Ingreso directo por unidad.</p>
               <div class="flex items-center justify-between pt-1">
                 <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
@@ -3276,12 +3303,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </span>
               </div>
               <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
-              <p class="text-[11px] text-[#a0a0b8]">A repartir</p>
-              <div class="inline-flex items-center gap-0.5">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozCrudo(nudge(despiece.arrozCrudo, -1))">−</button>
-                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.arrozCrudo" :style="'--digitos:' + digitosDe(despiece.arrozCrudo)" @input="ajustarCajaDigitos($el)" @change="fijarArrozCrudo($event.target.value)">
-                <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozCrudo(nudge(despiece.arrozCrudo, 1))">+</button>
-              </div>
+              <p class="text-2xl font-mono font-extrabold text-[#d4af37] mt-0.5">
+                <span x-text="formatNum(quedanDe('arroz'))"></span>
+                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
+              </p>
+              <p class="text-[11px] text-[#a0a0b8]">Se reparte con el + de cada tipo. Cada + resta 1 crudo de aquí.</p>
+              <p class="text-[11px] font-mono text-[#a0a0b8]">Repartido: <strong class="text-[#d4af37]" x-text="formatNum(arrozUsado())"></strong> · Libre: <strong class="text-white" x-text="formatNum(arrozLibre())"></strong></p>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz')">Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.arroz" x-cloak>
                 <div class="flex items-center justify-between gap-2">
@@ -3313,12 +3340,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
                     <div>
                       <span class="text-xs font-bold text-white block" x-text="d.nombre"></span>
-                      <span class="text-[10px] text-[#a0a0b8]">1 crudo → <span x-text="config[d.factorKey] || 1"></span> · Nacen <span class="text-white font-mono" x-text="(Number(despiece[d.campo]) || 0) * (Number(config[d.factorKey]) || 1)"></span></span>
+                      <span class="text-[10px] text-[#a0a0b8]">1 crudo → <span x-text="config[d.factorKey] || 1"></span> · Nacen <span class="text-white font-mono" x-text="formatNum(arrozHacia(d) * (Number(config[d.factorKey]) || 1))"></span></span>
                     </div>
                     <div class="inline-flex items-center gap-0.5">
-                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, nudge(despiece[d.campo], -1))">−</button>
-                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Crudos a ' + d.nombre" :value="despiece[d.campo]" :style="'--digitos:' + digitosDe(despiece[d.campo])" @input="ajustarCajaDigitos($el)" @change="fijarArrozDestino(d.campo, $event.target.value)">
-                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, nudge(despiece[d.campo], 1))">+</button>
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, arrozHacia(d) - 1)">−</button>
+                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Crudos a ' + d.nombre" :value="arrozHacia(d)" :style="'--digitos:' + digitosDe(arrozHacia(d))" @input="ajustarCajaDigitos($el)" @change="fijarArrozDestino(d.campo, $event.target.value)">
+                      <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, arrozHacia(d) + 1)">+</button>
                     </div>
                   </div>
                 </template>
@@ -6860,19 +6887,154 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div>
             <h3 class="text-lg font-semibold text-[#ff0000]">Venta manual</h3>
             <p class="text-sm text-white mt-1" x-text="ventaManualFila.nombre"></p>
-            <p class="text-xs text-[#a0a0b8] mt-1">Resta unidades de este producto. No es una comanda.</p>
+            <p class="text-xs text-[#a0a0b8] mt-1">Resta de este producto o de un plato vinculado. No es una comanda.</p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ventaManualAbierta = false" aria-label="Cerrar">×</button>
         </div>
-        <div class="inline-flex items-center gap-2">
-          <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = Math.max(1, (Number(ventaManualCantidad) || 1) - 1)">−</button>
-          <input type="number" min="1" step="1" x-model.number="ventaManualCantidad" aria-label="Unidades a restar" class="w-24 text-center num-mono text-white bg-[#0a0a0f] border border-[#ff0000] rounded-lg px-2 py-2">
-          <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = (Number(ventaManualCantidad) || 0) + 1">+</button>
+        <div class="grid grid-cols-2 gap-2" role="tablist" aria-label="Cómo restar">
+          <button type="button" role="tab" :aria-selected="ventaManualModo === 'unidad'" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition" :class="ventaManualModo === 'unidad' ? 'bg-[#ff0000] text-white' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a] hover:text-white'" @click="ventaManualModo = 'unidad'">Por unidad</button>
+          <button type="button" role="tab" :aria-selected="ventaManualModo === 'plato'" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition" :class="ventaManualModo === 'plato' ? 'bg-[#ff0000] text-white' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a] hover:text-white'" @click="ventaManualModo = 'plato'">Por plato vinculado</button>
+        </div>
+        <div x-show="ventaManualModo === 'unidad'" class="space-y-2">
+          <p class="text-[11px] text-[#a0a0b8]">Resta en orden: cocido, crudo y al final la pieza de reserva.</p>
+          <div class="inline-flex items-center gap-2">
+            <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = Math.max(1, (Number(ventaManualCantidad) || 1) - 1)">−</button>
+            <input type="number" min="1" step="1" x-model.number="ventaManualCantidad" aria-label="Unidades a restar" class="w-24 text-center num-mono text-white bg-[#0a0a0f] border border-[#ff0000] rounded-lg px-2 py-2">
+            <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = (Number(ventaManualCantidad) || 0) + 1">+</button>
+          </div>
+        </div>
+        <div x-show="ventaManualModo === 'plato'" x-cloak class="space-y-3">
+          <template x-if="!platosVentaManual(ventaManualFila).length">
+            <p class="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2">Este producto no tiene platos vinculados. Vincúlalos en Relación de platos.</p>
+          </template>
+          <div class="max-h-56 overflow-y-auto space-y-1.5 pr-1" x-show="platosVentaManual(ventaManualFila).length">
+            <template x-for="p in platosVentaManual(ventaManualFila)" :key="'vm-' + p.key">
+              <label class="flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer transition" :class="ventaManualPlatoKey === p.key ? 'border-[#ff0000] bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f] hover:border-[#ff0000]/50'">
+                <input type="radio" name="venta-manual-plato" class="mt-0.5" :value="p.key" :checked="ventaManualPlatoKey === p.key" @change="ventaManualPlatoKey = p.key">
+                <span class="min-w-0 flex-1">
+                  <span class="block text-xs font-semibold text-white" x-text="p.nombre"></span>
+                  <span class="block text-[10px] text-[#a0a0b8]" x-text="'Come ' + formatNum(p.cantidad) + ' · ' + p.origen"></span>
+                </span>
+              </label>
+            </template>
+          </div>
+          <div class="flex items-center justify-between gap-3" x-show="platosVentaManual(ventaManualFila).length">
+            <span class="text-xs text-[#a0a0b8]">Platos vendidos</span>
+            <div class="inline-flex items-center gap-2">
+              <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualPlatos = Math.max(1, (Number(ventaManualPlatos) || 1) - 1)">−</button>
+              <input type="number" min="1" step="1" x-model.number="ventaManualPlatos" aria-label="Platos a restar" class="w-20 text-center num-mono text-white bg-[#0a0a0f] border border-[#ff0000] rounded-lg px-2 py-2">
+              <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualPlatos = (Number(ventaManualPlatos) || 0) + 1">+</button>
+            </div>
+          </div>
+          <p class="text-[11px] font-mono text-[#a0a0b8]" x-show="textoPartesVentaManual()">Restará: <span class="text-white" x-text="textoPartesVentaManual()"></span></p>
         </div>
         <label class="block text-xs text-[#a0a0b8]">Motivo <span class="text-[#5a5a7a]">(opcional)</span>
           <textarea x-model="ventaManualMotivo" maxlength="180" rows="2" placeholder="Si quieres, anota por qué se resta" aria-label="Motivo de la venta manual" class="mt-1 w-full rounded-lg border border-[#ff0000]/50 bg-[#0a0a0f] px-3 py-2 text-sm text-white focus:outline-none"></textarea>
         </label>
-        <button type="button" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando" @click="confirmarVentaManual()">Restar</button>
+        <button type="button" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando || (ventaManualModo === 'plato' && !platoVentaManualElegido())" @click="confirmarVentaManual()">Restar</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: BLOQUEO DE INVENTARIO (BOSQUEJO, TODAVÍA NO GUARDA)            -->
+  <!-- Reserva y bloquea productos y platos para que los mozos no los vendan -->
+  <!-- ===================================================================== -->
+  <template x-if="bloqueo.abierto">
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="cerrarBloqueo()" @keydown.escape.window="cerrarBloqueo()" role="dialog" aria-modal="true" aria-label="Bloqueo de inventario">
+      <div class="w-full max-w-3xl max-h-[90vh] flex flex-col bg-[#14141f] border-2 border-[#d4af37] rounded-xl overflow-hidden">
+        <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-[#26263a]">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <svg viewBox="0 0 24 24" class="w-5 h-5 text-[#d4af37]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              <h3 class="text-lg font-semibold text-[#d4af37]">Bloqueo de inventario</h3>
+              <span class="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-amber-200 text-[10px] font-bold uppercase tracking-wide">Bosquejo · aún no activo</span>
+            </div>
+            <p class="text-xs text-[#a0a0b8] mt-1">Aparta unidades o bloquea un producto o plato para que los mozos no lo puedan pedir. Los mozos verían “Reservado” o “Bloqueado” en su app.</p>
+          </div>
+          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="cerrarBloqueo()" aria-label="Cerrar">×</button>
+        </div>
+
+        <div class="px-5 py-3 space-y-3 border-b border-[#26263a]">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="inline-flex rounded-lg border border-[#26263a] overflow-hidden" role="tablist" aria-label="Qué bloquear">
+              <button type="button" role="tab" :aria-selected="bloqueo.tab === 'productos'" class="px-3 py-1.5 text-xs font-bold cursor-pointer transition" :class="bloqueo.tab === 'productos' ? 'bg-[#d4af37] text-[#1a1200]' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white'" @click="bloqueo.tab = 'productos'">Productos</button>
+              <button type="button" role="tab" :aria-selected="bloqueo.tab === 'platos'" class="px-3 py-1.5 text-xs font-bold cursor-pointer transition" :class="bloqueo.tab === 'platos' ? 'bg-[#d4af37] text-[#1a1200]' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white'" @click="bloqueo.tab = 'platos'">Platos de la carta</button>
+            </div>
+            <input type="search" x-model="bloqueo.busqueda" placeholder="Buscar producto o plato" aria-label="Buscar en bloqueo" class="flex-1 min-w-[10rem] rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#d4af37]">
+          </div>
+          <p class="text-[11px] text-[#a0a0b8]">
+            <strong class="text-white">Reservar</strong>: aparta unidades del stock (por ejemplo, para un evento). El mozo ve el stock menos lo reservado.
+            <strong class="text-white">Bloquear</strong>: el mozo no puede pedirlo, aunque haya stock.
+          </p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-5 py-3">
+          <!-- Productos del inventario -->
+          <div x-show="bloqueo.tab === 'productos'" class="space-y-1.5">
+            <div class="hidden sm:grid grid-cols-12 gap-2 px-3 text-[10px] uppercase font-bold text-[#5a5a7a]">
+              <span class="col-span-5">Producto</span>
+              <span class="col-span-2 text-right">Queda</span>
+              <span class="col-span-3 text-center">Reservar</span>
+              <span class="col-span-2 text-center">Bloquear</span>
+            </div>
+            <template x-for="f in filasBloqueo()" :key="'bloq-p-' + f.id">
+              <div class="grid grid-cols-12 items-center gap-2 rounded-lg border px-3 py-2 transition" :class="lineaBloqueo('p:' + f.id).bloqueado ? 'border-[#ff0000]/60 bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f]'">
+                <div class="col-span-12 sm:col-span-5 min-w-0">
+                  <span class="block text-xs font-semibold text-white truncate" x-text="f.nombre"></span>
+                  <span class="block text-[10px] text-[#a0a0b8]" x-text="f.grupo || 'Fila sola'"></span>
+                </div>
+                <span class="col-span-4 sm:col-span-2 text-right text-xs font-mono text-white" x-text="formatNum(f.stock) + ' ' + f.unidad"></span>
+                <div class="col-span-5 sm:col-span-3 flex justify-center">
+                  <input type="number" min="0" step="1" :aria-label="'Reservar de ' + f.nombre" :value="lineaBloqueo('p:' + f.id).reserva" @change="fijarReservaBloqueo('p:' + f.id, $event.target.value)" class="w-20 text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1 text-xs">
+                </div>
+                <div class="col-span-3 sm:col-span-2 flex justify-center">
+                  <button type="button" role="switch" :aria-checked="lineaBloqueo('p:' + f.id).bloqueado" :aria-label="'Bloquear ' + f.nombre" @click="alternarBloqueo('p:' + f.id)" class="relative w-10 h-5 rounded-full transition cursor-pointer" :class="lineaBloqueo('p:' + f.id).bloqueado ? 'bg-[#ff0000]' : 'bg-[#26263a]'">
+                    <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" :class="lineaBloqueo('p:' + f.id).bloqueado ? 'left-5' : 'left-0.5'"></span>
+                  </button>
+                </div>
+              </div>
+            </template>
+            <p class="text-xs text-[#a0a0b8] text-center py-6" x-show="!filasBloqueo().length">No hay productos con ese nombre.</p>
+          </div>
+
+          <!-- Platos de la carta -->
+          <div x-show="bloqueo.tab === 'platos'" x-cloak class="space-y-1.5">
+            <template x-for="p in platosBloqueo()" :key="'bloq-c-' + (p.clave || p.nombre)">
+              <div class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition" :class="lineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'border-[#ff0000]/60 bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f]'">
+                <div class="min-w-0">
+                  <span class="block text-xs font-semibold text-white truncate" x-text="p.nombre"></span>
+                  <span class="block text-[10px] text-[#a0a0b8]" x-text="(p.codigo ? p.codigo + ' · ' : '') + (p.categoria || '')"></span>
+                </div>
+                <button type="button" role="switch" :aria-checked="lineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado" :aria-label="'Bloquear ' + p.nombre" @click="alternarBloqueo('c:' + (p.clave || p.nombre))" class="relative shrink-0 w-10 h-5 rounded-full transition cursor-pointer" :class="lineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'bg-[#ff0000]' : 'bg-[#26263a]'">
+                  <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" :class="lineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'left-5' : 'left-0.5'"></span>
+                </button>
+              </div>
+            </template>
+            <p class="text-xs text-[#a0a0b8] text-center py-6" x-show="!platosBloqueo().length">No hay platos con ese nombre.</p>
+          </div>
+        </div>
+
+        <div class="px-5 py-4 border-t border-[#26263a] space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label class="block text-xs text-[#a0a0b8]">Motivo
+              <input type="text" x-model="bloqueo.motivo" maxlength="120" placeholder="Ej.: evento de las 8 pm, se acabó el carbón" class="mt-1 w-full rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#d4af37]">
+            </label>
+            <label class="block text-xs text-[#a0a0b8]">Hasta
+              <input type="time" x-model="bloqueo.hasta" class="mt-1 w-full rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#d4af37]">
+            </label>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <span class="text-xs text-[#a0a0b8]">
+              <strong class="text-white" x-text="resumenBloqueo().bloqueados"></strong> bloqueados ·
+              <strong class="text-white" x-text="resumenBloqueo().reservas"></strong> con reserva
+            </span>
+            <div class="flex items-center gap-2">
+              <button type="button" class="px-4 py-2 rounded-lg border border-[#26263a] text-[#a0a0b8] hover:text-white text-sm font-semibold cursor-pointer" @click="cerrarBloqueo()">Cerrar</button>
+              <button type="button" disabled title="Próximamente: todavía no se guarda ni llega a los mozos" class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-sm font-extrabold opacity-50 cursor-not-allowed">Aplicar bloqueo</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </template>
@@ -7505,7 +7667,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           { id: 'panceta', nombre: 'Panceta', open: true, staggerKey: 1, nota: 'Panceta entera y trozos anotados a mano' },
           { id: 'carnes', nombre: 'Grupo Carnes', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'trucha', nombre: 'Trucha', open: true, staggerKey: 1, nota: 'Cada corte entra directo' },
-          { id: 'carnero', nombre: 'Carnero', open: true, staggerKey: 1, nota: '1 a 1 a Carnero pachamanca' },
+          { id: 'carnero', nombre: 'Carnero', open: true, staggerKey: 1, nota: '1 a 1 a Carnero pachamanca y a Seco de carnero' },
           { id: 'arroz', nombre: 'Arroz crudo', open: true, staggerKey: 1, nota: '1 crudo nace 8 blanco, 6 verde, 4 pato, 4 chaufa o 4 con mariscos' },
           { id: 'gaseosas', nombre: 'Gaseosas', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'licores', nombre: 'Licores', open: true, staggerKey: 1, nota: '', sinDatos: true },
@@ -7524,7 +7686,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               children: [
                 { id: 'pollo_lena', nombre: 'Pecho Leña', plato: true },
                 { id: 'mix_lena_pecho', nombre: 'Mix leña pecho', plato: true },
-                { id: 'sandwich', nombre: 'Sandwich', plato: true }
+                { id: 'sandwich', nombre: 'Sandwich', plato: true },
+                { id: 'pecho_pachamanca', nombre: 'Pecho pachamanca', plato: true }
               ]
             },
             {
@@ -7594,7 +7757,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             nombre: 'Carnero Crudo',
             open: true,
             children: [
-              { id: 'carnero_pachamanca', nombre: 'Carnero pachamanca' }
+              { id: 'carnero_pachamanca', nombre: 'Carnero pachamanca' },
+              { id: 'seco_carnero', nombre: 'Seco de carnero' }
             ]
           },
           arroz: {
@@ -7658,7 +7822,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'salt_pollo', nombre: 'Lomo saltado de pollo', aceptaPierna: false, aceptaPechuga: false },
             { id: 'chaufa_pollo', nombre: 'Chaufa de pollo', aceptaPierna: false, aceptaPechuga: false },
             { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false },
-            { id: 'sandwich', nombre: 'Sandwich', aceptaPierna: false, aceptaPechuga: true }
+            { id: 'sandwich', nombre: 'Sandwich', aceptaPierna: false, aceptaPechuga: true },
+            { id: 'pecho_pachamanca', nombre: 'Pecho pachamanca', aceptaPierna: false, aceptaPechuga: true }
           ],
           relaciones: [
             { id: 1, rubro: 'Filete de pollo', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'POLLO - CARNES (A31)', cantidad: 1, unidadNota: 'filete' },
@@ -7910,6 +8075,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           pizza_30: 'pizza-30x30',
           pizza_20: 'pizza-20x20',
           carnero_pachamanca: 'pachamanca-cordero',
+          seco_carnero: 'seco-cordero',
+          pecho_pachamanca: 'pachamanca-pollo-pecho',
           pescado_entero: 'pescado-entero',
           arroz: 'arroz',
           arroz_pollo: 'arroz-tipo-pollo',
@@ -8076,8 +8243,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           ];
         },
 
+
         arrozUsado() {
-          return this.camposArroz().reduce((a, k) => a + (Number(this.despiece[k]) || 0), 0);
+          return this.redondear3(this.destinosArroz().reduce((a, d) => a + this.arrozHacia(d), 0));
         },
 
         guardarConfigLocal() {
@@ -8319,6 +8487,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ventaManualCantidad: 1,
         ventaManualMotivo: '',
         ventaManualGuardando: false,
+        ventaManualModo: 'unidad',
+        ventaManualPlatoKey: '',
+        ventaManualPlatos: 1,
+        bloqueo: { abierto: false, tab: 'productos', busqueda: '', motivo: '', hasta: '', lineas: {} },
         ingresoAbierto: {},
         ventasPeriodo: [],
         graficoSerie: [],
@@ -9201,16 +9373,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
           const pases = new Map();
           (movimientos || []).forEach((m) => {
-            if (!m || m.clase !== 'ingreso' || !(Number(m.cantidad) < 0)) return;
+            if (!m || m.clase !== 'ingreso') return;
             const motivo = String(m.motivo || '');
             if (motivo.indexOf('Pasa a ') !== 0 || this.esPaseEntreTipos(motivo)) return;
             const key = m.rubro + '|' + (m.tipoProducto || 'crudo');
-            pases.set(key, (pases.get(key) || 0) + Math.abs(Number(m.cantidad) || 0));
+            pases.set(key, (pases.get(key) || 0) - (Number(m.cantidad) || 0));
           });
           this.rows.forEach((row) => {
             const clave = this.claveDeFila[row.id];
             const partes = porClave[clave] || [];
-            const sale = (tipo) => pases.get(clave + '|' + tipo) || 0;
+            const sale = (tipo) => Math.max(0, Math.round((pases.get(clave + '|' + tipo) || 0) * 1000) / 1000);
             const crudo = partes.find((p) => p.tipoProducto === 'crudo') || {};
             const cocido = partes.find((p) => p.tipoProducto === 'cocido') || {};
             const carga = (p, tipo) => {
@@ -9258,9 +9430,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             tipoProducto: tipo || 'crudo',
             clase: claseFinal,
             cantidad: claseFinal === 'egreso' ? Math.abs(n) : n,
-            motivo,
-            fecha: fecha || (this.fechaHoy() + 'T12:00:00-05:00')
+            motivo
           };
+          // Sin fecha, el servidor pone la hora real. Con las 12:00 fijas, un cocido cargado a las 9:00
+          // quedaba después de una venta de las 10:00 y la venta restaba crudo.
+          if (fecha) body.fecha = fecha;
           if (nombre) body.nombre = nombre;
           await this.api('/inventario/movimientos', {
             method: 'POST',
@@ -9268,19 +9442,91 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
+
         abrirVentaManual(row) {
           if (!row) return;
           this.ventaManualFila = row;
           this.ventaManualCantidad = 1;
           this.ventaManualMotivo = '';
+          this.ventaManualModo = 'unidad';
+          this.ventaManualPlatos = 1;
+          const lista = this.platosVentaManual(row);
+          this.ventaManualPlatoKey = lista.length ? lista[0].key : '';
           this.ventaManualAbierta = true;
         },
 
+        // Platos que se pueden restar desde la venta manual de un producto:
+        // los que tienen fila propia y cuelgan de él, y los de la carta vinculados en Relación de platos.
+        platosVentaManual(row) {
+          if (!row) return [];
+          const out = [];
+          const vistos = new Set();
+          const push = (p) => {
+            const k = this.norm(p.nombre);
+            if (!k || vistos.has(k) || !(Number(p.cantidad) > 0)) return;
+            vistos.add(k);
+            out.push(p);
+          };
+          const conFila = (id, cantidad) => {
+            const hijo = this.filaReal(id);
+            if (!hijo || hijo.id === row.id || !this.claveDeFila[hijo.id]) return;
+            push({ key: 'fila:' + hijo.id, nombre: hijo.nombre, cantidad: cantidad, filaId: hijo.id, origen: 'Plato con stock propio. Gasta su cocido, su crudo y después ' + row.nombre });
+          };
+          this.platosDirectosDe(row.id).forEach((n) => {
+            if (this.esPlatoRepetidoDeLena(n)) return;
+            conFila(n.id, this.factorUsoPlato(row.id, n.id));
+          });
+          if (row.id === 'carnero') this.platosDelCarnero().forEach((p) => conFila(p.id, this.factorUsoPlato('carnero', p.id)));
+          this.relacionesDeFila(row).forEach((rel) => {
+            push({ key: 'rel:' + rel.id, nombre: rel.plato, cantidad: Number(rel.cantidad), filaId: '', origen: rel.complemento || 'Relación de platos' });
+          });
+          this.platosDeclaradosEnTabla(row).forEach((p) => {
+            push({ key: 'tabla:' + this.norm(p.nombre), nombre: p.nombre, cantidad: Number(p.cantidad), filaId: '', origen: p.complemento || 'Inventario Tabla' });
+          });
+          return out;
+        },
+
+        platoVentaManualElegido() {
+          return this.platosVentaManual(this.ventaManualFila).find((p) => p.key === this.ventaManualPlatoKey) || null;
+        },
+
+        // Partes que restaría la venta manual por plato, sin guardar. Sirve para la vista previa y para guardar.
+        partesVentaManualPlato() {
+          const row = this.ventaManualFila;
+          const p = this.platoVentaManualElegido();
+          const n = Math.round(Number(this.ventaManualPlatos) || 0);
+          if (!row || !p || !(n > 0)) return [];
+          const clave = this.claveDeFila[row.id];
+          if (!clave) return [];
+          if (!p.filaId) return this.repartirVentaManual(clave, row, this.redondear3(n * p.cantidad));
+          const hijo = this.filaReal(p.filaId);
+          const claveH = hijo && this.claveDeFila[hijo.id];
+          if (!hijo || !claveH) return this.repartirVentaManual(clave, row, this.redondear3(n * p.cantidad));
+          const partes = [];
+          let falta = n;
+          (hijo.tieneCocido ? ['cocido', 'crudo'] : ['crudo']).forEach((t) => {
+            if (falta <= 0) return;
+            const toma = Math.min(falta, Math.max(0, this.calcSaldoTipo(hijo, t)));
+            if (toma > 0) {
+              partes.push({ rubro: claveH, tipo: t, cantidad: toma, nombre: hijo.nombre });
+              falta -= toma;
+            }
+          });
+          if (falta > 0) return partes.concat(this.repartirVentaManual(clave, row, this.redondear3(falta * p.cantidad)));
+          return partes;
+        },
+
+        textoPartesVentaManual() {
+          return this.partesVentaManualPlato().map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
+        },
+
+
         async confirmarVentaManual() {
           const row = this.ventaManualFila;
-          const n = Number(this.ventaManualCantidad);
+          const porPlato = this.ventaManualModo === 'plato';
+          const n = Number(porPlato ? this.ventaManualPlatos : this.ventaManualCantidad);
           if (!row || !(n > 0)) {
-            this.toastMessage = 'Escribe las unidades a restar.';
+            this.toastMessage = porPlato ? 'Escribe cuántos platos se vendieron.' : 'Escribe las unidades a restar.';
             return;
           }
           const clave = this.claveDeFila[row.id];
@@ -9288,15 +9534,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.toastMessage = 'Este producto no tiene clave de inventario.';
             return;
           }
+          const plato = porPlato ? this.platoVentaManualElegido() : null;
+          if (porPlato && !plato) {
+            this.toastMessage = 'Elige el plato vinculado.';
+            return;
+          }
+          const partes = porPlato ? this.partesVentaManualPlato() : this.repartirVentaManual(clave, row, n);
           const nota = String(this.ventaManualMotivo || '').trim();
-          const motivo = nota ? ('Venta manual · ' + nota) : 'Venta manual';
+          const base = porPlato ? ('Venta manual · ' + plato.nombre + ' ×' + n) : 'Venta manual';
+          const motivo = nota ? (base + ' · ' + nota) : base;
           this.ventaManualGuardando = true;
           try {
-            for (const p of this.repartirVentaManual(clave, row, n)) {
+            await (this._colaTransformar || Promise.resolve());
+            for (const p of partes) {
               await this.paso(p.rubro, p.tipo, p.cantidad, motivo, 'egreso', p.nombre);
             }
             this.ventaManualAbierta = false;
-            this.toastMessage = 'Se restaron ' + n + ' de ' + row.nombre + '.';
+            this.toastMessage = porPlato
+              ? ('Se restaron ' + n + ' × ' + plato.nombre + '.')
+              : ('Se restaron ' + n + ' de ' + row.nombre + '.');
             await this.cargarKardex();
           } catch (e) {
             this.toastMessage = e.message || 'No se pudo restar';
@@ -9364,6 +9620,59 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.ventaEspecialAbierta = false;
           this.playUiSound();
           this.toastMessage = 'Venta especial aplicada. Se restó el stock apartado para evento.';
+        },
+
+
+        // ===== Bloqueo de inventario (bosquejo) =====
+        // Solo arma el borrador en pantalla. Todavía no guarda ni bloquea nada para los mozos.
+        abrirBloqueo() {
+          this.bloqueo = Object.assign({}, this.bloqueo, { abierto: true, busqueda: '' });
+        },
+
+        cerrarBloqueo() {
+          this.bloqueo = Object.assign({}, this.bloqueo, { abierto: false });
+        },
+
+        filasBloqueo() {
+          const q = this.norm(this.bloqueo.busqueda || '').trim();
+          return (this.rows || [])
+            .filter((r) => r && r.id && this.claveDeFila[r.id])
+            .filter((r) => !q || this.norm(r.nombre).includes(q))
+            .map((r) => ({ id: r.id, nombre: r.nombre, unidad: r.unidad || 'unid', stock: this.redondear3(this.saldoRealColumna(r)), grupo: this.getGroupName(r.grupo) }))
+            .sort((a, b) => b.stock - a.stock || String(a.nombre).localeCompare(String(b.nombre), 'es'))
+            .slice(0, 60);
+        },
+
+        platosBloqueo() {
+          const q = this.norm(this.bloqueo.busqueda || '').trim();
+          return (this.platosCarta || [])
+            .filter((p) => p && p.nombre && (!q || this.norm(p.nombre).includes(q)))
+            .slice(0, 60);
+        },
+
+        lineaBloqueo(key) {
+          if (!this.bloqueo.lineas[key]) this.bloqueo.lineas[key] = { bloqueado: false, reserva: 0 };
+          return this.bloqueo.lineas[key];
+        },
+
+        alternarBloqueo(key) {
+          const l = this.lineaBloqueo(key);
+          l.bloqueado = !l.bloqueado;
+          this.bloqueo.lineas = Object.assign({}, this.bloqueo.lineas);
+        },
+
+        fijarReservaBloqueo(key, val) {
+          const l = this.lineaBloqueo(key);
+          l.reserva = Math.max(0, Number(val) || 0);
+          this.bloqueo.lineas = Object.assign({}, this.bloqueo.lineas);
+        },
+
+        resumenBloqueo() {
+          const lineas = Object.values(this.bloqueo.lineas || {});
+          return {
+            bloqueados: lineas.filter((l) => l.bloqueado).length,
+            reservas: lineas.filter((l) => Number(l.reserva) > 0).length
+          };
         },
 
         initSocket() {
@@ -9882,6 +10191,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'filete', grupo: 'pollo', nombre: 'Filete de pollo', detalle: 'Abarca milanesa, filete junior, chicharrón, chaufa y saltado', unidad: 'unid', saldoAnterior: 0, ingreso: 12, correccion: 0, venta: 0, ritmoVentaDiario: 8, transformacion: 0, destinoTrans: '', inventario: null, crudo: 12, cocido: 0 },
             { id: 'pollo_pachamanca', grupo: 'pollo', nombre: 'Pollo pachamanca pierna', detalle: 'Sale de pierna. El sabor Pollo de la pachamanca resta aquí', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 8, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
             { id: 'pollo_lena', grupo: 'pollo', nombre: 'Pecho a la Leña', detalle: '1/4 pollo a la leña (pecho) y Mix a la leña (pecho). El mix cuenta en la venta', unidad: 'pza', saldoAnterior: 0, ingreso: 1, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 1, cocido: 2 },
+            { id: 'pecho_pachamanca', grupo: 'pollo', nombre: 'Pecho pachamanca', detalle: 'Sale de Pecho de Pollo. Sabor Pollo de la pachamanca. Crudo y cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
             { id: 'pollo_baby', grupo: 'pollo', nombre: 'Pollo Baby', detalle: 'Solo el 1/2 pollo a la leña baby. Cada plato consume 0.5', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'pierna_lena', grupo: 'pollo', nombre: 'Pierna a la leña', detalle: 'Pieza de pierna a la leña', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
             { id: 'pollada', grupo: 'pollo', nombre: 'Pollada', detalle: 'Si no hay cocido ni crudo, resta la pechuga fresca', unidad: 'pza', saldoAnterior: 0, ingreso: 2, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 2, cocido: 2 },
@@ -9926,8 +10236,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'filete_trucha', grupo: 'trucha', nombre: 'Filete de trucha', detalle: 'Ingreso directo, sin transformación', unidad: 'unid', saldoAnterior: 0, ingreso: 9, correccion: 0, venta: 0, ritmoVentaDiario: 7, transformacion: 0, destinoTrans: '', inventario: null, crudo: 9, cocido: 0 },
 
             // GRUPO CARNERO
-            { id: 'carnero', grupo: 'carnero', nombre: 'Carnero Crudo', detalle: 'Seco de carnero come 1. Tiene crudo y cocido', unidad: 'porc', saldoAnterior: 5, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 3, destinoTrans: '→ Pachamanca', inventario: null, tieneCocido: true, crudo: 2, cocido: 0 },
+            { id: 'carnero', grupo: 'carnero', nombre: 'Carnero Crudo', detalle: 'Pasa a Carnero pachamanca y a Seco de carnero. Tiene crudo y cocido', unidad: 'porc', saldoAnterior: 5, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 3, destinoTrans: '→ Pachamanca y Seco', inventario: null, tieneCocido: true, crudo: 2, cocido: 0 },
             { id: 'carnero_pachamanca', grupo: 'carnero', nombre: 'Carnero pachamanca', detalle: 'Conversión 1 a 1 desde Carnero', unidad: 'porc', saldoAnterior: 0, ingreso: 3, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 3 },
+            { id: 'seco_carnero', grupo: 'carnero', nombre: 'Seco de carnero', detalle: 'Sale de Carnero Crudo, 1 a 1. Crudo y cocido. La venta de Seco de carnero o de cordero resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
 
             // FILAS SOLAS (Directas en la tabla, sin grupo de despiece)
             { id: 'cerdo_pachamanca', grupo: null, nombre: 'Cerdo pachamanca', detalle: 'Sabor de pachamanca. La venta de Cerdo de pachamanca resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -9983,7 +10294,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         idsPachamanca() {
-          return ['pollo_pachamanca', 'carne_pachamanca', 'carnero_pachamanca', 'cerdo_pachamanca', 'humita'];
+          return ['pollo_pachamanca', 'pecho_pachamanca', 'carne_pachamanca', 'carnero_pachamanca', 'cerdo_pachamanca', 'humita'];
         },
 
         busquedaEsPachamanca() {
@@ -9999,7 +10310,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         filaPachamancaIndependiente(row) {
-          return this.vistaPachamanca() && !!(row && row.id === 'pollo_pachamanca');
+          return this.vistaPachamanca() && !!(row && (row.id === 'pollo_pachamanca' || row.id === 'pecho_pachamanca'));
         },
 
         matchesSearch(row) {
@@ -10532,6 +10843,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           'pachamanca-res': { tieneCocido: true, reservaClave: '' },
           'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
           carnero: { tieneCocido: true, reservaClave: '' },
+          'seco-cordero': { tieneCocido: true, reservaClave: 'carnero' },
+          'pachamanca-pollo-pecho': { tieneCocido: true, reservaClave: 'pechuga-pollo' },
           'salt-pollo': { tieneCocido: false, reservaClave: 'filete' },
           'chaufa-pollo': { tieneCocido: false, reservaClave: 'filete' },
           milanesa: { tieneCocido: false, reservaClave: 'filete' },
@@ -10572,8 +10885,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (clave === 'menu' || clave === 'menu-pecho' || clave === 'menu-pierna' || clave === 'caldo-pollo') row.tieneCocido = false;
             if (clave === 'arroz-pollo' || row.id === 'arroz_con_pollo') row.tieneCocido = true;
             if (clave === 'pollo-olla' || row.id === 'pollo_olla') row.tieneCocido = true;
+            if (clave === 'seco-cordero' || clave === 'pachamanca-pollo-pecho') row.tieneCocido = true;
             row.reservaClave = materia ? '' : (base.reservaClave || '');
             if (clave === 'pollada' || clave === 'pachamanca-pollo') row.reservaClave = 'pierna-pollo';
+            if (clave === 'pachamanca-pollo-pecho') row.reservaClave = 'pechuga-pollo';
+            if (clave === 'seco-cordero') row.reservaClave = 'carnero';
             if (clave === 'pollo-lena') row.reservaClave = '';
             if (op) row.stockMinimo = Number(op.stockMinimo) || 0;
           });
@@ -10670,6 +10986,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
+
         cadenaDeFila(clave, row) {
           if (this.esMateriaClave(clave)) return [{ rubro: clave, tipo: 'crudo' }];
           const cadena = [];
@@ -10677,6 +10994,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           cadena.push({ rubro: clave, tipo: 'crudo' });
           if (row && row.reservaClave && this.esMateriaClave(row.reservaClave)) {
             cadena.push({ rubro: row.reservaClave, tipo: 'crudo' });
+          } else if (row && row.reservaClave === 'carnero') {
+            cadena.push({ rubro: 'carnero', tipo: 'cocido' });
+            cadena.push({ rubro: 'carnero', tipo: 'crudo' });
           }
           return cadena;
         },
@@ -11358,13 +11678,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return ing + corPos;
         },
 
+
         platoConTransformacion(padreId, platoId) {
-          const id = String(platoId || '');
-          if (padreId === 'filete' || id.indexOf('mix') !== -1) return false;
-          return padreId === 'pechuga' || padreId === 'pierna' || padreId === 'pechuga_pato' || padreId === 'pierna_pato';
+          const padres = ['pechuga', 'pierna', 'pechuga_pato', 'pierna_pato', 'octavo_pollo', 'filete', 'carnero'];
+          if (padres.indexOf(padreId) === -1) return false;
+          const id = this.filaIdDePlatoTransformar(platoId) || platoId;
+          return !!this.filaReal(id);
         },
 
+
         factorUsoPlato(padreId, platoId) {
+          if (padreId === 'carnero' && platoId === 'carnero_pachamanca') {
+            return 1 / (Number(this.config.factorCarneroPachamanca) || 1);
+          }
           if (padreId !== 'filete') return 1;
           if (platoId === 'filete_junior' || platoId === 'filete-junior') return 0.5;
           const lista = this.platosDelFilete();
@@ -11443,7 +11769,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             id: row.id,
             nombre: row.nombre,
             tieneCocido: !!row.tieneCocido,
-            frescos: Number(this.despiece.frescos) || 0,
+            frescos: this.frescosHoy(),
             factorPechuga: Number(this.config.factorPechugasPorFresco) || 2,
             factorPierna: Number(this.config.factorPiernasPorFresco) || 2,
             crudo: Math.max(0, this.calcSaldoTipo(row, 'crudo')),
@@ -11494,15 +11820,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }, 280);
         },
 
+
         puedeSumarPlato(padreId, plato, tipo) {
           if (!plato || !plato.transforma) return false;
-          if (padreId === 'pollo_fresco') {
-            const padre = this.filaReal('pollo_fresco');
-            return !!(padre && this.calcSaldoTipo(padre, 'crudo') > 0);
-          }
           if (tipo === 'cocido') return plato.tieneCocido && plato.crudo > 0;
-          const padre = this.filaReal(padreId);
-          return !!(padre && this.calcSaldoTipo(padre, 'crudo') > 0);
+          return this.quedanDe(padreId) > 0;
         },
 
         corteDeFamilia(padreId) {
@@ -11533,42 +11855,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
+
+        // + / − de un plato: pasa piezas del padre al crudo del plato (o las devuelve).
         async moverIngresoPlato(padreId, platoId, tipo, delta) {
-          const pasoInicial = delta < 0 ? -1 : 1;
-          if (padreId === 'pollo_fresco') {
-            const padre = this.filaReal('pollo_fresco');
-            if (!padre || !pasoInicial) return;
-            if (pasoInicial > 0 && this.calcSaldoTipo(padre, 'crudo') <= 0) return;
-            if (!this.despiece.padresPintados) this.marcarPadresPintados();
-            this.setPollosFrescosConvertir((Number(this.despiece.frescos) || 0) + pasoInicial);
-            if (this.ingresoLupa && this.ingresoLupa.id === 'pollo_fresco') this.abrirIngresoLupa(padre, true);
-            return;
-          }
-          if (!this.platoConTransformacion(padreId, platoId)) return;
-          const row = this.filaReal(platoId);
+          const n = Math.round(Number(delta) || 0);
+          if (!n) return false;
+          if (padreId === 'pollo_fresco') return this.setPollosFrescosConvertir(this.frescosHoy() + n);
+          if (tipo === 'cocido') return this.pasarCrudoACocido(platoId, n);
+          const rowId = this.filaIdDePlatoTransformar(platoId) || platoId;
+          const row = this.filaReal(rowId);
+          if (!row) return this.avisoTransformar('Aviso ámbar: ' + platoId + ' no tiene fila en Inventario Tabla.');
+          if (!this.filaReal(padreId)) return this.avisoTransformar('Aviso ámbar: ' + padreId + ' no tiene fila en Inventario Tabla.');
+          const come = this.factorUsoPlato(padreId, platoId);
+          const ok = this.transferir({
+            origenId: padreId,
+            salen: n * come,
+            destinos: [{ id: rowId, entran: n, tipo: 'crudo' }],
+            motivo: this.motivoHacia(rowId),
+            historial: this.nombreFila(padreId) + ' → ' + row.nombre
+          });
           const padre = this.filaReal(padreId);
-          const paso = delta < 0 ? -1 : 1;
-          if (!row || !padre || !paso) return;
-          if (tipo === 'cocido') {
-            if (!row.tieneCocido) return;
-            if (paso < 0 && this.calcSaldoTipo(row, 'cocido') <= 0) return;
-            if (paso > 0 && this.calcSaldoTipo(row, 'crudo') <= 0) return;
-            await this.pasarCrudoACocido(platoId, paso);
-          } else if (paso > 0 && this.calcSaldoTipo(padre, 'crudo') <= 0) {
-            return;
-          } else if (paso < 0 && this.calcSaldoTipo(row, 'crudo') <= 0) {
-            return;
-          } else {
-            const corte = this.corteDeFamilia(padreId);
-            if (!this.despiece.aderezos[platoId]) this.despiece.aderezos[platoId] = { piernas: 0, pechugas: 0 };
-            const bolsa = this.despiece.aderezos[platoId];
-            const actualCorte = corte === 'piernas' && this.esPlatoSoloPierna({ id: platoId })
-              ? this.piezasPiernaPlato(platoId)
-              : (Number(bolsa[corte]) || 0);
-            this.updateAderezoCorte(platoId, corte, actualCorte + paso);
-          }
-          const actual = this.filaReal(padreId);
-          if (this.ingresoLupa && this.ingresoLupa.id === padreId && actual) this.abrirIngresoLupa(actual, true);
+          if (ok && this.ingresoLupa && this.ingresoLupa.id === padreId && padre) this.abrirIngresoLupa(padre, true);
+          return ok;
         },
 
         restaIngresoTotalFila(row) {
@@ -11892,7 +12200,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (id === 'pollo_fresco') {
             const fPech = Number(this.config.factorPechugasPorFresco) || 2;
             const fPier = Number(this.config.factorPiernasPorFresco) || 2;
-            const frescos = Number(this.despiece.frescos) || transformado;
+            const frescos = this.frescosHoy() || transformado;
             info.resumenConversion = frescos + ' Pollo(s) Fresco(s) → ' + (frescos * fPech) + ' Pecho + ' + (frescos * fPier) + ' Piernas';
             info.destinos = [
               makeDest('pechuga', '1 Pollo → ' + fPech + ' Pecho', frescos, frescos * fPech, 'sky', true, 'De ' + (frescos * fPech) + ' pechos, salieron ' + this.pechugasUsadas() + ' a filetes y platos'),
@@ -11902,13 +12210,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             info.origenPadreId = 'pollo_fresco';
             info.origenPadreNombre = 'Pollo fresco';
             const fFil = Number(this.config.factorFiletesPorPechuga) || 2;
-            const pechAFi = Number(this.despiece.pechugasAFilete) || 0;
+            const pechAFi = this.pechugasAFileteHoy();
             info.resumenConversion = transformado + ' Pecho(s) repartidos hacia Filete y Platos de Pechuga';
             info.destinos.push(
               makeDest('filete', '1 Pecho → ' + fFil + ' Filetes', pechAFi, pechAFi * fFil, 'gold', true, pechAFi + ' pechos produjeron ' + (pechAFi * fFil) + ' filetes')
             );
             this.aderezosDeCorte('pechugas').forEach((ad) => {
-              const usadas = cantidadTransformadaEn(ad.id, this.despiece.aderezos?.[ad.id]?.pechugas);
+              const usadas = cantidadTransformadaEn(ad.id, this.transformadoHoy('pechuga', this.motivoHacia(ad.id)));
               info.destinos.push(
                 makeDest(ad.id, '1 Pechuga → 1 pza', usadas, usadas, 'sky', false, 'Recibió ' + usadas + ' pechuga(s)')
               );
@@ -11921,7 +12229,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             info.resumenConversion = transformado + ' Pierna(s) repartidas hacia Platos de Pierna';
             if (this.hasFactorPiernaFilete()) {
               const fFilP = Number(this.config.factorFiletesPorPierna) || 1;
-              const pierAFi = Number(this.despiece.piernasAFilete) || 0;
+              const pierAFi = this.piernasAFileteHoy();
               info.destinos.push(
                 makeDest('filete', '1 Pierna → ' + fFilP + ' Filete', pierAFi, pierAFi * fFilP, 'gold', true)
               );
@@ -11941,7 +12249,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.platosDelFilete().forEach((plato) => {
               const rowId = this.filaIdDePlatoTransformar(plato.id);
               if (!rowId) return;
-              const delMapa = Number(this.despiece.platosFilete?.[plato.id] ?? this.despiece.platosFilete?.[rowId]) || 0;
+              const delMapa = this.transformadoHoy('filete', this.motivoHacia(rowId));
               const cant = cantidadTransformadaEn(rowId, delMapa);
               if (!(cant > 0)) return;
               const factor = Number(plato.cantidad) || 1;
@@ -11952,51 +12260,53 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           } else if (id === 'octavo_pollo') {
             info.resumenConversion = transformado + ' octavo(s) repartidos en Arroz con pollo, Pollo a la olla y Caldo de pollo';
             this.platosDelOctavo().forEach((plato) => {
-              const cant = Number(this.despiece.platosOctavo && this.despiece.platosOctavo[plato.id] || 0);
+              const cant = this.transformadoHoy('octavo_pollo', this.motivoHacia(plato.id));
               if (!(cant > 0)) return;
               info.destinos.push(makeDest(plato.id, '1 octavo → 1 pza', cant, cant, 'gold', false, plato.cocido ? 'Crudo y cocido' : 'Solo crudo'));
             });
           } else if (id === 'panceta') {
-            const sal = Number(this.despiece.pancetasSalen) || transformado;
+            const sal = this.pancetasHoy() || transformado;
             const tiras = sal * 6;
             info.resumenConversion = sal + ' Panceta(s) → ' + tiras + ' Tiras de panceta (1 panceta = 6 tiras)';
             info.destinos = [
-              makeDest('tira_panceta', '1 Panceta → 6 Tiras', sal, tiras, 'gold', true, 'De ' + tiras + ' tiras se usaron ' + (Number(this.despiece.tirasUsadas) || 0) + ' para trozos')
+              makeDest('tira_panceta', '1 Panceta → 6 Tiras', sal, tiras, 'gold', true, 'De ' + tiras + ' tiras se usaron ' + this.tirasUsadasHoy() + ' para trozos')
             ];
           } else if (id === 'tira_panceta') {
             info.origenPadreId = 'panceta';
             info.origenPadreNombre = 'Panceta';
-            const tirasU = Number(this.despiece.tirasUsadas) || transformado;
-            const trozos = tirasU > 0 ? (Number(this.despiece.trozosPanceta) || 0) : 0;
+            const tirasU = this.tirasUsadasHoy() || transformado;
+            const trozos = this.trozosHoy();
             info.resumenConversion = tirasU + ' Tira(s) usada(s) → ' + trozos + ' Trozos de panceta (corte variable)';
             info.destinos = [
               makeDest('trozo_panceta', 'Corte variable', tirasU, trozos, 'gold', false, 'Anotado a mano. De las tiras suelen salir 39, 40 o 41 trozos')
             ];
           } else if (id === 'pescado_entero') {
-            const peces = Number(this.despiece.pescadosUsados) || transformado;
-            const piezas = peces > 0 ? (Number(this.despiece.piezasPescado) || 0) : 0;
+            const peces = this.pescadosHoy() || transformado;
+            const piezas = this.piezasPescadoHoy();
             info.resumenConversion = peces + ' Pescado(s) usado(s) → ' + piezas + ' Pieza(s) de pescado';
             info.destinos = [
               makeDest('pieza_pescado', 'Variable', peces, piezas, 'sky', false, 'Las ventas descuentan Pieza de pescado')
             ];
           } else if (id === 'pota') {
-            const potas = Number(this.despiece.potasUsadas) || transformado;
-            const piezas = potas > 0 ? (Number(this.despiece.piezasPota) || 0) : 0;
+            const potas = this.potasHoy() || transformado;
+            const piezas = this.piezasPotaHoy();
             info.resumenConversion = potas + ' Pota(s) usada(s) → ' + piezas + ' Pieza(s) de pota';
             info.destinos = [
               makeDest('pieza_pota', 'Variable', potas, piezas, 'sky', false, 'Las ventas descuentan Pieza de pota')
             ];
           } else if (id === 'carnero') {
-            const sal = Number(this.despiece.carneroSalen) || transformado;
             const fCar = Number(this.config.factorCarneroPachamanca) || 1;
-            info.resumenConversion = sal + ' Carnero → ' + (sal * fCar) + ' Carnero pachamanca';
+            const aPacha = this.carneroHoy('carnero_pachamanca');
+            const aSeco = this.carneroHoy('seco_carnero');
+            info.resumenConversion = (aPacha + aSeco) + ' Carnero → ' + (aPacha * fCar) + ' Carnero pachamanca y ' + aSeco + ' Seco de carnero';
             info.destinos = [
-              makeDest('carnero_pachamanca', '1 → ' + fCar + ' Pachamanca', sal, sal * fCar, 'emerald', false)
+              makeDest('carnero_pachamanca', '1 → ' + fCar + ' Pachamanca', aPacha, aPacha * fCar, 'emerald', false),
+              makeDest('seco_carnero', '1 → 1 Seco', aSeco, aSeco, 'gold', false)
             ];
           } else if (id === 'arroz') {
             info.resumenConversion = transformado + ' de Arroz crudo repartido en ollas de arroz cocido';
             this.destinosArroz().forEach((d) => {
-              const crudos = Number(this.despiece[d.campo]) || 0;
+              const crudos = this.arrozHacia(d);
               const factor = Number(this.config[d.factorKey]) || 1;
               info.destinos.push(
                 makeDest(d.id, '1 crudo → ' + factor, crudos, crudos * factor, 'sky', false)
@@ -12070,6 +12380,208 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return Number(n);
         },
 
+
+        // ===== Transformar sobre la hoja =====
+        // Cada + / − guarda el pase en el momento: el origen resta en Transformación y el destino suma en Ingreso.
+        // Los números de los cuadros se leen de esos movimientos guardados, así no se pierden al recargar
+        // y la tabla y el mapa cuentan la misma historia.
+        redondear3(n) {
+          return Math.round((Number(n) || 0) * 1000) / 1000;
+        },
+
+        nombreFila(id) {
+          const row = this.filaReal(id);
+          return (row && row.nombre) || String(id || '');
+        },
+
+        motivoHacia(destinoId) {
+          const id = this.filaIdDePlatoTransformar(destinoId) || destinoId;
+          return 'Pasa a ' + this.nombreFila(id);
+        },
+
+        motivoDesde(origenId) {
+          return 'Sale de ' + this.nombreFila(origenId);
+        },
+
+        // Lo que salió del origen con ese motivo en el período (neto de devoluciones).
+        transformadoHoy(origenId, motivo) {
+          const clave = this.claveDeFila[origenId];
+          if (!clave) return 0;
+          const total = (this.movimientosPeriodo || []).reduce((a, m) => {
+            if (!m || m.rubro !== clave || m.clase !== 'ingreso' || String(m.motivo || '') !== motivo) return a;
+            return a - (Number(m.cantidad) || 0);
+          }, 0);
+          return Math.max(0, this.redondear3(total));
+        },
+
+        // Lo que entró al destino con ese motivo en el período.
+        ingresadoHoy(destinoId, motivo) {
+          const clave = this.claveDeFila[destinoId];
+          if (!clave) return 0;
+          const total = (this.movimientosPeriodo || []).reduce((a, m) => {
+            if (!m || m.rubro !== clave || m.clase !== 'ingreso' || String(m.motivo || '') !== motivo) return a;
+            return a + (Number(m.cantidad) || 0);
+          }, 0);
+          return Math.max(0, this.redondear3(total));
+        },
+
+        stockCrudoDe(id) {
+          const rowId = this.filaIdDePlatoTransformar(id) || id;
+          const row = this.filaReal(rowId);
+          return row ? Math.max(0, this.redondear3(this.calcSaldoTipo(row, 'crudo'))) : 0;
+        },
+
+        avisoTransformar(texto) {
+          this.transformWarning = texto;
+          if (this.activeTab !== 'transformar') this.toastMessage = texto;
+          return false;
+        },
+
+        /**
+         * Pase entre filas. op = { origenId, salen, destinos: [{ id, entran, tipo }], motivo, historial }
+         * salen > 0: resta el origen (no pasa de su stock crudo de hoja). salen < 0: devuelve al origen.
+         * entran < 0: el destino devuelve (no pasa de su stock).
+         */
+        transferir(op) {
+          const origen = this.filaReal(op.origenId);
+          const claveO = this.claveDeFila[op.origenId];
+          if (!origen || !claveO) return this.avisoTransformar('Aviso ámbar: ' + (op.origenId || 'el origen') + ' no está en la hoja.');
+          const salen = this.redondear3(op.salen);
+          const destinos = [];
+          for (const d of (op.destinos || [])) {
+            const id = this.filaIdDePlatoTransformar(d.id) || d.id;
+            const row = this.filaReal(id);
+            const clave = this.claveDeFila[id];
+            if (!row || !clave) return this.avisoTransformar('Aviso ámbar: ' + (d.nombre || d.id) + ' no tiene fila en la hoja.');
+            const entran = this.redondear3(d.entran);
+            if (!entran) continue;
+            destinos.push({ row, clave, entran, tipo: d.tipo === 'cocido' && row.tieneCocido ? 'cocido' : 'crudo' });
+          }
+          if (!salen && !destinos.length) return false;
+          if (salen > 0) {
+            const stock = this.redondear3(this.calcSaldoTipo(origen, 'crudo'));
+            if (stock + 0.0001 < salen) {
+              return this.avisoTransformar('Aviso ámbar: ' + origen.nombre + ' no tiene stock de hoja para pasar ' + this.formatNum(salen) + '. Quedan ' + this.formatNum(Math.max(0, stock)) + '.');
+            }
+          }
+          if (salen < 0) {
+            const hoy = this.transformadoHoy(op.origenId, op.motivo);
+            if (hoy + 0.0001 < -salen) {
+              return this.avisoTransformar('Aviso ámbar: no se puede devolver más de lo que pasó en el período (' + this.formatNum(hoy) + ').');
+            }
+          }
+          for (const d of destinos) {
+            if (d.entran >= 0) continue;
+            const stock = this.redondear3(this.calcSaldoTipo(d.row, d.tipo));
+            if (stock + 0.0001 < -d.entran) {
+              return this.avisoTransformar('Aviso ámbar: ' + d.row.nombre + ' no tiene tanto ' + d.tipo + ' para devolver. Tiene ' + this.formatNum(Math.max(0, stock)) + '.');
+            }
+          }
+          this.transformWarning = '';
+          const ahora = new Date().toISOString();
+          const movs = [];
+          if (salen) {
+            origen.transformacion = this.redondear3((Number(origen.transformacion) || 0) + salen);
+            movs.push({ rubro: claveO, clase: 'ingreso', tipoProducto: 'crudo', cantidad: -salen, motivo: op.motivo, fecha: ahora, nombre: origen.nombre });
+            this.pulseRowTotal(origen.id);
+          }
+          destinos.forEach((d) => {
+            const campo = this.campoTipo('ingreso', d.tipo);
+            d.row[campo] = this.redondear3((Number(d.row[campo]) || 0) + d.entran);
+            movs.push({ rubro: d.clave, clase: 'ingreso', tipoProducto: d.tipo, cantidad: d.entran, motivo: this.motivoDesde(op.origenId), fecha: ahora, nombre: d.row.nombre });
+            this.pulseRowTotal(d.row.id);
+          });
+          this.movimientosPeriodo = (this.movimientosPeriodo || []).concat(movs);
+          if (op.historial) {
+            const signo = (salen || (destinos[0] && destinos[0].entran) || 0) >= 0 ? '+' : '−';
+            this.anotarHistorial('transforma', op.historial, signo + this.formatNum(Math.abs(salen || (destinos[0] && destinos[0].entran) || 0)));
+          }
+          this.encolarMovimientos(movs);
+          return true;
+        },
+
+        // Guarda los movimientos en orden, uno detrás de otro, y recarga la hoja al final.
+        encolarMovimientos(movs) {
+          const lista = (movs || []).slice();
+          this._colaTransformar = (this._colaTransformar || Promise.resolve()).then(async () => {
+            for (const m of lista) {
+              await this.paso(m.rubro, m.tipoProducto, m.cantidad, m.motivo, 'ingreso', m.nombre);
+            }
+          }).catch((e) => {
+            this.toastMessage = (e && e.message) || 'No se guardó el pase. La hoja se recarga.';
+          });
+          this.programarRecargaKardex();
+        },
+
+        programarRecargaKardex() {
+          clearTimeout(this._recargaKardexTimer);
+          this._recargaKardexTimer = setTimeout(async () => {
+            await (this._colaTransformar || Promise.resolve());
+            await this.cargarKardex();
+            if (this.ingresoLupa && this.ingresoLupa.id) {
+              const fila = this.filaReal(this.ingresoLupa.id);
+              if (fila) this.abrirIngresoLupa(fila, true);
+            }
+          }, 600);
+        },
+
+        // Contadores del período, leídos de los movimientos
+        frescosHoy() {
+          return this.transformadoHoy('pollo_fresco', 'Pasa a piezas');
+        },
+
+        pechugasAFileteHoy() {
+          return this.transformadoHoy('pechuga', this.motivoHacia('filete'));
+        },
+
+        piernasAFileteHoy() {
+          return this.transformadoHoy('pierna', this.motivoHacia('filete'));
+        },
+
+        pancetasHoy() {
+          return this.transformadoHoy('panceta', 'Pasa a tiras');
+        },
+
+        tirasUsadasHoy() {
+          return this.transformadoHoy('tira_panceta', 'Pasa a trozos');
+        },
+
+        trozosHoy() {
+          return this.ingresadoHoy('trozo_panceta', this.motivoDesde('tira_panceta'));
+        },
+
+        pescadosHoy() {
+          return this.transformadoHoy('pescado_entero', 'Pasa a piezas');
+        },
+
+        piezasPescadoHoy() {
+          return this.ingresadoHoy('pieza_pescado', this.motivoDesde('pescado_entero'));
+        },
+
+        potasHoy() {
+          return this.transformadoHoy('pota', 'Pasa a piezas');
+        },
+
+        piezasPotaHoy() {
+          return this.ingresadoHoy('pieza_pota', this.motivoDesde('pota'));
+        },
+
+        platosDelCarnero() {
+          return [
+            { id: 'carnero_pachamanca', nombre: 'Carnero pachamanca', clave: 'pachamanca-cordero', factor: Number(this.config.factorCarneroPachamanca) || 1, nota: 'Sabor carnero de la pachamanca' },
+            { id: 'seco_carnero', nombre: 'Seco de carnero', clave: 'seco-cordero', factor: 1, nota: 'Plato Seco de carnero o de cordero' }
+          ];
+        },
+
+        carneroHoy(destinoId) {
+          if (destinoId) return this.transformadoHoy('carnero', this.motivoHacia(destinoId));
+          return this.redondear3(this.platosDelCarnero().reduce((a, p) => a + this.transformadoHoy('carnero', this.motivoHacia(p.id)), 0));
+        },
+
+        arrozHacia(d) {
+          return d ? this.transformadoHoy('arroz', this.motivoHacia(d.id)) : 0;
+        },
+
         abrirIngreso(id) {
           this.ingresoAbierto = Object.assign({}, this.ingresoAbierto, { [id]: true });
         },
@@ -12105,6 +12617,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           await this.moverIngresoDirecto(rowId, next - this.ingresoDirectoDe(rowId));
         },
 
+
         async moverIngresoDirecto(rowId, delta) {
           if (rowId !== 'pechuga' && rowId !== 'pierna') return;
           const cambio = Math.round(Number(delta) || 0);
@@ -12113,23 +12626,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const actual = this.ingresoDirectoDe(rowId);
           const next = actual + cambio;
           if (next < 0) return;
-          const auto = rowId === 'pierna' ? this.piernasObtenidas() : this.pechugasObtenidas();
-          const usadas = rowId === 'pierna' ? this.piernasUsadas() : this.pechugasUsadas();
-          if (auto + next < usadas) {
-            this.transformWarning = 'Aviso ámbar: ese ingreso ya está repartido. No puede quedar por debajo de lo transformado.';
-            return;
-          }
           const row = this.filaReal(rowId);
           const clave = this.claveDeFila[rowId];
           if (!row || !clave) return;
+          if (cambio < 0 && this.stockCrudoDe(rowId) < -cambio) {
+            this.transformWarning = 'Aviso ámbar: ese ingreso ya está repartido. ' + row.nombre + ' no tiene stock para quitar ' + (-cambio) + '.';
+            return;
+          }
           this.transformWarning = '';
           const prevIngreso = Number(row.ingreso) || 0;
           this.despiece.ingresoCorte[rowId] = next;
           row.ingreso = prevIngreso + cambio;
-          if (this.despiece.padresPintados) {
-            const auto = rowId === 'pierna' ? this.piernasObtenidas() : this.pechugasObtenidas();
-            this.despiece.padresPintados[rowId === 'pierna' ? 'piernaIng' : 'pechugaIng'] = auto + next;
-          }
           row.crudo = Math.max(0, this.calcSaldo(row));
           this.pulseRowTotal(rowId);
           try {
@@ -12152,76 +12659,105 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return Math.max(0, (Number(valor) || 0) + delta);
         },
 
+
         moverDespiece(campo, delta) {
+          if (campo === 'carneroSalen') return this.moverIngresoPlato('carnero', 'carnero_pachamanca', 'crudo', delta);
           this.despiece[campo] = this.nudge(this.despiece[campo], delta);
-          this.volcarTransformacionEnTabla();
         },
+
 
         fijarPancetasSalen(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
-          const maxTiras = next * 6;
-          if (Number(this.despiece.tirasUsadas || 0) > maxTiras) this.despiece.tirasUsadas = maxTiras;
-          if (maxTiras === 0) this.despiece.trozosPanceta = 0;
+          const delta = next - this.pancetasHoy();
+          if (!delta) return false;
+          return this.transferir({
+            origenId: 'panceta',
+            salen: delta,
+            destinos: [{ id: 'tira_panceta', entran: delta * 6 }],
+            motivo: 'Pasa a tiras',
+            historial: 'Panceta → Tiras (1 = 6)'
+          });
+        },
+
+
+
+        // La caja de Panceta entera es su stock. Si se escribe un número menor, la diferencia pasa a tiras;
+        // si es mayor, se devuelven pancetas desde las tiras (si las tiras aún están).
+
+        // La caja de Panceta entera es su stock y funciona como ingreso: + suma, − resta, o se escribe el número.
+        // Para pasar panceta a tiras se usa "Pancetas a tiras" en el cuadro de Tira de panceta.
+
+        // La caja de Panceta entera es su stock y funciona como ingreso: + suma, − resta, o se escribe el número.
+        // Si el ingreso de hoy no alcanza para restar (el stock viene del saldo anterior), la resta va a Corrección.
+        // Para pasar panceta a tiras se usa "Pancetas a tiras" en el cuadro de Tira de panceta.
+        fijarStockPanceta(val) {
+          const row = this.filaReal('panceta');
+          if (!row) return false;
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          const delta = next - this.quedanDe('panceta');
+          if (!delta) return false;
           this.transformWarning = '';
-          this.despiece.pancetasSalen = next;
-          this.volcarTransformacionEnTabla();
+          const ingreso = Number(row.ingreso) || 0;
+          if (delta > 0 || ingreso + delta >= 0) return this.moverCampo('panceta', 'ingreso', 'crudo', delta);
+          return this.moverCampo('panceta', 'correccion', 'crudo', delta);
         },
 
         fijarTirasUsadas(val) {
-          const maxTiras = Number(this.despiece.pancetasSalen || 0) * 6;
-          const req = Math.max(0, parseInt(val, 10) || 0);
-          if (req > maxTiras) {
-            this.transformWarning = 'Aviso ámbar: No puedes usar más tiras de panceta de las generadas (' + maxTiras + ').';
-            this.despiece.tirasUsadas = maxTiras;
-          } else {
-            this.transformWarning = '';
-            this.despiece.tirasUsadas = req;
-          }
-          if (this.despiece.tirasUsadas === 0) this.despiece.trozosPanceta = 0;
-          this.volcarTransformacionEnTabla();
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          const delta = next - this.tirasUsadasHoy();
+          if (!delta) return false;
+          return this.transferir({ origenId: 'tira_panceta', salen: delta, destinos: [], motivo: 'Pasa a trozos', historial: 'Tiras usadas para trozos' });
         },
+
 
         fijarTrozosPanceta(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
-          if (next > 0 && !(Number(this.despiece.tirasUsadas || 0) > 0)) {
-            this.transformWarning = 'Aviso ámbar: Indica primero cuántas tiras de panceta se usaron.';
-            return;
+          const delta = next - this.trozosHoy();
+          if (!delta) return false;
+          if (delta > 0 && !(this.tirasUsadasHoy() > 0)) {
+            return this.avisoTransformar('Aviso ámbar: indica primero cuántas tiras de panceta se usaron.');
           }
-          this.transformWarning = '';
-          this.despiece.trozosPanceta = next;
-          this.volcarTransformacionEnTabla();
+          return this.transferir({
+            origenId: 'tira_panceta',
+            salen: 0,
+            destinos: [{ id: 'trozo_panceta', entran: delta, tipo: 'crudo' }],
+            motivo: 'Pasa a trozos',
+            historial: 'Tiras → Trozos de panceta'
+          });
         },
+
 
         fijarPescadosUsados(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
-          if (next === 0) this.despiece.piezasPescado = 0;
-          this.transformWarning = '';
-          this.despiece.pescadosUsados = next;
-          this.volcarTransformacionEnTabla();
+          const delta = next - this.pescadosHoy();
+          if (!delta) return false;
+          return this.transferir({ origenId: 'pescado_entero', salen: delta, destinos: [], motivo: 'Pasa a piezas', historial: 'Pescado entero usado' });
         },
+
 
         fijarPiezasPescado(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
-          if (next > 0 && !(Number(this.despiece.pescadosUsados || 0) > 0)) this.despiece.pescadosUsados = 1;
-          this.transformWarning = '';
-          this.despiece.piezasPescado = next;
-          this.volcarTransformacionEnTabla();
+          const delta = next - this.piezasPescadoHoy();
+          if (!delta) return false;
+          if (delta > 0 && !(this.pescadosHoy() > 0)) return this.avisoTransformar('Aviso ámbar: indica primero cuántos pescados se usaron.');
+          return this.transferir({ origenId: 'pescado_entero', salen: 0, destinos: [{ id: 'pieza_pescado', entran: delta }], motivo: 'Pasa a piezas', historial: 'Pescado → Piezas' });
         },
+
 
         fijarPotasUsadas(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
-          if (next === 0) this.despiece.piezasPota = 0;
-          this.transformWarning = '';
-          this.despiece.potasUsadas = next;
-          this.volcarTransformacionEnTabla();
+          const delta = next - this.potasHoy();
+          if (!delta) return false;
+          return this.transferir({ origenId: 'pota', salen: delta, destinos: [], motivo: 'Pasa a piezas', historial: 'Pota entera usada' });
         },
+
 
         fijarPiezasPota(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
-          if (next > 0 && !(Number(this.despiece.potasUsadas || 0) > 0)) this.despiece.potasUsadas = 1;
-          this.transformWarning = '';
-          this.despiece.piezasPota = next;
-          this.volcarTransformacionEnTabla();
+          const delta = next - this.piezasPotaHoy();
+          if (!delta) return false;
+          if (delta > 0 && !(this.potasHoy() > 0)) return this.avisoTransformar('Aviso ámbar: indica primero cuántas potas se usaron.');
+          return this.transferir({ origenId: 'pota', salen: 0, destinos: [{ id: 'pieza_pota', entran: delta }], motivo: 'Pasa a piezas', historial: 'Pota → Piezas' });
         },
 
         platosDeTrozoPanceta() {
@@ -12290,8 +12826,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Cálculos de Despiece de Pollo en Transformar
+
         piernasObtenidas() {
-          return Number(this.despiece.frescos || 0) * Number(this.config.factorPiernasPorFresco || 2);
+          return this.frescosHoy() * Number(this.config.factorPiernasPorFresco || 2);
         },
 
         stockHojaCrudo(rowId) {
@@ -12300,39 +12837,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.calcSaldoTipo(row, 'crudo');
         },
 
-        // Lo que se puede transformar: el stock de hoja (incluye el ingreso independiente)
-        // o las piezas de esta sesión, el que sea mayor.
+        // Lo que se puede transformar: el stock crudo de hoja de esa fila. Sin platos hijos y sin conteo.
         quedanDe(rowId) {
-          const hoja = Math.max(0, this.stockHojaCrudo(rowId));
-          let deSesion = 0;
-          if (rowId === 'pechuga') deSesion = this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga') - this.pechugasUsadas();
-          else if (rowId === 'pierna') deSesion = this.piernasObtenidas() + this.ingresoDirectoDe('pierna') - this.piernasUsadas();
-          else deSesion = this.ingresoDirectoDe(rowId);
-          return Math.max(hoja, deSesion);
+          return Math.max(0, this.redondear3(this.stockHojaCrudo(rowId)));
         },
 
+
+        // Tres cifras de la misma cuenta: stock antes, lo que salió en el período, stock que queda.
         formulaCorte(rowOrId, mapa, corteObj) {
-          const id = typeof rowOrId === 'string' ? rowOrId : (rowOrId && rowOrId.id);
-          let total = 0;
-          let usado = 0;
-          if (id === 'pechuga' || id === 'pierna') {
-            usado = id === 'pechuga' ? this.pechugasUsadas() : this.piernasUsadas();
-            const libreHoja = this.quedanDe(id);
-            total = libreHoja + usado;
-            return { total: total, usado: usado, libre: libreHoja };
-          } else if (id === 'pechuga_pato' || id === 'pierna_pato' || (mapa && corteObj)) {
-            const rowId = (id === 'pechuga_pato' || id === 'pierna_pato') ? id : this.idDeClave(corteObj.clave);
-            const row = this.filaReal(rowId);
-            usado = row ? (Number(row.transformacion) || 0) : 0;
-            const libreHoja = this.quedanDe(rowId);
-            total = libreHoja + usado;
-            return { total: total, usado: usado, libre: libreHoja };
-          }
-          return { total: total, usado: usado, libre: Math.max(0, total - usado) };
+          let id = typeof rowOrId === 'string' ? rowOrId : (rowOrId && rowOrId.id);
+          if (corteObj && !this.filaReal(id)) id = this.idDeClave(corteObj.clave);
+          const row = this.filaReal(id);
+          if (!row) return { total: 0, usado: 0, libre: 0 };
+          const libre = this.quedanDe(id);
+          const usado = Math.max(0, this.redondear3(Number(row.transformacion) || 0));
+          return { total: this.redondear3(libre + usado), usado: usado, libre: libre };
         },
 
         pechugasObtenidas() {
-          return Number(this.despiece.frescos || 0) * Number(this.config.factorPechugasPorFresco || 2);
+          return this.frescosHoy() * Number(this.config.factorPechugasPorFresco || 2);
         },
 
         hasFactorPiernaFilete() {
@@ -12340,13 +12863,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.config.factorFiletesPorPierna !== '' && !Number.isNaN(f) && f > 0;
         },
 
+
         filetesDePierna() {
           if (!this.hasFactorPiernaFilete()) return 0;
-          return Number(this.despiece.piernasAFilete || 0) * Number(this.config.factorFiletesPorPierna);
+          return this.piernasAFileteHoy() * Number(this.config.factorFiletesPorPierna);
         },
 
+
         filetesDePechuga() {
-          return Number(this.despiece.pechugasAFilete || 0) * Number(this.config.factorFiletesPorPechuga || 1);
+          return this.pechugasAFileteHoy() * Number(this.config.factorFiletesPorPechuga || 1);
         },
 
         totalFiletesGenerados() {
@@ -12365,6 +12890,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return n.includes('pachamanca') && n.includes('pollo');
         },
 
+
         aderezosDeCorte(corte) {
           const defs = corte === 'piernas'
             ? [
@@ -12374,38 +12900,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               ]
             : [
                 { id: 'pollo_lena', nombre: 'Pecho Leña' },
-                { id: 'sandwich', nombre: 'Sandwich' }
+                { id: 'sandwich', nombre: 'Sandwich' },
+                { id: 'pecho_pachamanca', nombre: 'Pecho pachamanca' }
               ];
           const porId = {};
           (this.config.aderezos || []).forEach((ad) => { porId[ad.id] = ad; });
           return defs.map((d) => {
             const ad = porId[d.id] || { id: d.id, nombre: d.nombre, aceptaPierna: corte === 'piernas', aceptaPechuga: corte !== 'piernas' };
-            if (d.id !== 'pollo_pachamanca') return ad;
-            return Object.assign({}, ad, { nombre: 'Pollo pachamanca pierna', aceptaPierna: true, aceptaPechuga: false });
+            if (d.id === 'pollo_pachamanca') return Object.assign({}, ad, { nombre: 'Pollo pachamanca pierna', aceptaPierna: true, aceptaPechuga: false });
+            if (d.id === 'pecho_pachamanca') return Object.assign({}, ad, { nombre: 'Pecho pachamanca', aceptaPierna: false, aceptaPechuga: true });
+            return ad;
           });
         },
+
 
         pechugasEnPlatosGrupo() {
-          let sum = 0;
-          this.aderezosDeCorte('pechugas').forEach((ad) => {
-            sum += Number(this.despiece.aderezos[ad.id] && this.despiece.aderezos[ad.id].pechugas || 0);
-          });
-          return sum;
+          return this.redondear3(this.aderezosDeCorte('pechugas').reduce((a, ad) => a + this.transformadoHoy('pechuga', this.motivoHacia(ad.id)), 0));
         },
+
 
         piernasEnPlatosGrupo() {
-          let sum = 0;
-          this.aderezosDeCorte('piernas').forEach((ad) => {
-            sum += this.piezasPiernaPlato(ad.id);
-          });
-          return sum;
+          return this.redondear3(this.aderezosDeCorte('piernas').reduce((a, ad) => a + this.transformadoHoy('pierna', this.motivoHacia(ad.id)), 0));
         },
 
+
         piezasPiernaPlato(id) {
-          const bolsa = (this.despiece.aderezos && this.despiece.aderezos[id]) || {};
-          const piernas = Number(bolsa.piernas) || 0;
-          if (!this.esPlatoSoloPierna({ id: id })) return piernas;
-          return piernas + (Number(bolsa.pechugas) || 0);
+          return this.transformadoHoy('pierna', this.motivoHacia(id));
         },
 
         asegurarOctavos() {
@@ -12425,9 +12945,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           ];
         },
 
+
         octavosDe(corte) {
-          this.asegurarOctavos();
-          return Math.max(0, Number(this.despiece.octavos[corte]) || 0);
+          const padre = corte === 'piernas' ? 'pierna' : 'pechuga';
+          return this.redondear3(this.transformadoHoy(padre, this.motivoHacia('octavo_pollo')) * this.factorOctavosPorPieza());
         },
 
         piezasPorOctavos(corte) {
@@ -12438,51 +12959,47 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.octavosDe('pechugas') + this.octavosDe('piernas');
         },
 
+
         octavosUsadosEnPlatos() {
-          this.asegurarOctavos();
-          return this.platosDelOctavo().reduce((sum, plato) => sum + Math.max(0, Number(this.despiece.platosOctavo[plato.id]) || 0), 0);
+          return this.redondear3(this.platosDelOctavo().reduce((a, p) => a + this.transformadoHoy('octavo_pollo', this.motivoHacia(p.id)), 0));
         },
+
 
         octavosLibres() {
-          return this.totalOctavos() - this.octavosUsadosEnPlatos();
+          return this.stockCrudoDe('octavo_pollo');
         },
+
 
         filetesUsadosEnPlatos() {
-          if (!this.despiece.platosFilete) return 0;
-          return this.platosDelFilete().reduce((sum, plato) => {
-            const porciones = Number(this.despiece.platosFilete[plato.id] || 0);
-            const come = Number(plato.cantidad) > 0 ? Number(plato.cantidad) : 1;
-            return sum + porciones * come;
-          }, 0);
+          const vistos = new Set();
+          return this.redondear3(this.platosDelFilete().reduce((a, p) => {
+            const rowId = this.filaIdDePlatoTransformar(p.id);
+            if (!rowId || vistos.has(rowId)) return a;
+            vistos.add(rowId);
+            return a + this.transformadoHoy('filete', this.motivoHacia(rowId));
+          }, 0));
         },
+
 
         filetesLibresEnPieza() {
-          return Math.max(0, this.totalFiletesGenerados() - this.filetesUsadosEnPlatos());
+          return this.stockCrudoDe('filete');
         },
+
 
         updatePlatoFilete(platoId, val) {
-          if (!this.despiece.platosFilete) this.despiece.platosFilete = {};
-          const plato = this.platosDelFilete().find((p) => p.id === platoId);
-          const come = plato && Number(plato.cantidad) > 0 ? Number(plato.cantidad) : 1;
-          const next = Math.max(0, parseInt(val, 10) || 0);
-          const current = Number(this.despiece.platosFilete[platoId] || 0);
-          const diff = (next - current) * come;
-          if (this.filetesLibresEnPieza() - diff < -0.001) {
-            this.transformWarning = 'Aviso ámbar: No puedes asignar más filetes a platos de los generados (' + this.totalFiletesGenerados() + ').';
-            return;
-          }
-          this.transformWarning = '';
-          this.despiece.platosFilete[platoId] = next;
-          this.volcarTransformacionEnTabla();
+          return this.fijarCrudoPlato('filete', platoId, val);
         },
+
 
         piernasUsadas() {
-          const aFilete = this.hasFactorPiernaFilete() ? Number(this.despiece.piernasAFilete || 0) : 0;
-          return aFilete + this.piernasEnPlatosGrupo() + this.piezasPorOctavos('piernas');
+          const row = this.filaReal('pierna');
+          return row ? Math.max(0, this.redondear3(Number(row.transformacion) || 0)) : 0;
         },
 
+
         pechugasUsadas() {
-          return Number(this.despiece.pechugasAFilete || 0) + this.pechugasEnPlatosGrupo() + this.piezasPorOctavos('pechugas');
+          const row = this.filaReal('pechuga');
+          return row ? Math.max(0, this.redondear3(Number(row.transformacion) || 0)) : 0;
         },
 
         piernasLibres() {
@@ -12493,419 +13010,144 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.quedanDe('pechuga');
         },
 
-        setPollosFrescosConvertir(val) {
-          const nextFrescos = Math.max(0, parseInt(val, 10) || 0);
-          const nextPiernas = nextFrescos * Number(this.config.factorPiernasPorFresco || 2);
-          const nextPechugas = nextFrescos * Number(this.config.factorPechugasPorFresco || 2);
 
-          if (nextPiernas + this.ingresoDirectoDe('pierna') < this.piernasUsadas() || nextPechugas + this.ingresoDirectoDe('pechuga') < this.pechugasUsadas()) {
-            this.transformWarning = 'No se puede bajar Pollos frescos por debajo de las piernas o pechugas ya repartidas (dejaría libres < 0).';
-            return;
-          }
-          this.transformWarning = '';
-          this.despiece.frescos = nextFrescos;
-          this.volcarTransformacionEnTabla();
+        setPollosFrescosConvertir(val) {
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          const delta = next - this.frescosHoy();
+          if (!delta) return false;
+          const fp = Number(this.config.factorPechugasPorFresco) || 2;
+          const fl = Number(this.config.factorPiernasPorFresco) || 2;
+          return this.transferir({
+            origenId: 'pollo_fresco',
+            salen: delta,
+            destinos: [{ id: 'pechuga', entran: delta * fp }, { id: 'pierna', entran: delta * fl }],
+            motivo: 'Pasa a piezas',
+            historial: 'Pollo fresco → Pecho y Pierna'
+          });
         },
+
 
         updatePiernasAFilete(val) {
           if (!this.hasFactorPiernaFilete()) {
-            this.despiece.piernasAFilete = 0;
-            return;
+            return this.avisoTransformar('Pierna a filete está apagada en Configuración: el factor pierna → filete está vacío.');
           }
           const next = Math.max(0, parseInt(val, 10) || 0);
-          const diff = next - Number(this.despiece.piernasAFilete || 0);
-          if (diff > 0 && this.piernasLibres() < diff) {
-            this.transformWarning = 'Aviso ámbar: Pierna de Pollo no tiene stock de hoja para transformar ' + diff + '. Quedan ' + this.formatNum(this.piernasLibres()) + '.';
-            return;
-          }
-          this.transformWarning = '';
-          this.despiece.piernasAFilete = next;
-          this.volcarTransformacionEnTabla();
+          const delta = next - this.piernasAFileteHoy();
+          if (!delta) return false;
+          return this.transferir({
+            origenId: 'pierna',
+            salen: delta,
+            destinos: [{ id: 'filete', entran: delta * Number(this.config.factorFiletesPorPierna) }],
+            motivo: this.motivoHacia('filete'),
+            historial: 'Pierna de Pollo → Filete'
+          });
         },
+
 
         updatePechugasAFilete(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
-          const diff = next - Number(this.despiece.pechugasAFilete || 0);
-          if (diff > 0 && this.pechugasLibres() < diff) {
-            this.transformWarning = 'Aviso ámbar: Pecho de Pollo no tiene stock de hoja para transformar ' + diff + '. Quedan ' + this.formatNum(this.pechugasLibres()) + '.';
-            return;
-          }
-          this.transformWarning = '';
-          this.despiece.pechugasAFilete = next;
-          this.volcarTransformacionEnTabla();
-          if (diff !== 0) {
-            const filetes = diff * Number(this.config.factorFiletesPorPechuga || 1);
-            this.anotarHistorial('transforma', 'Pecho de Pollo → Filete Pollo Crudo', (diff > 0 ? '−' : '+') + Math.abs(diff) + ' pecho, ' + (filetes > 0 ? '+' : '') + filetes + ' filete');
-          }
+          const delta = next - this.pechugasAFileteHoy();
+          if (!delta) return false;
+          return this.transferir({
+            origenId: 'pechuga',
+            salen: delta,
+            destinos: [{ id: 'filete', entran: delta * (Number(this.config.factorFiletesPorPechuga) || 1) }],
+            motivo: this.motivoHacia('filete'),
+            historial: 'Pecho de Pollo → Filete'
+          });
         },
+
 
         updateOctavos(corte, val) {
-          this.asegurarOctavos();
           const next = Math.max(0, parseInt(val, 10) || 0);
-          const current = this.octavosDe(corte);
-          const diffPieza = (next - current) / this.factorOctavosPorPieza();
-          const otro = corte === 'piernas' ? this.octavosDe('pechugas') : this.octavosDe('piernas');
-          if (next + otro < this.octavosUsadosEnPlatos()) {
-            this.transformWarning = 'Aviso ámbar: esos octavos ya están en Arroz con pollo, Pollo a la olla o Caldo de pollo.';
-            return;
-          }
-          const libres = corte === 'piernas' ? this.piernasLibres() : this.pechugasLibres();
-          if (diffPieza > 0 && libres + 0.0001 < diffPieza) {
-            const nombre = corte === 'piernas' ? 'Pierna de Pollo' : 'Pecho de Pollo';
-            this.transformWarning = 'Aviso ámbar: ' + nombre + ' no alcanza. 2 octavos restan 1 pieza.';
-            return;
-          }
-          this.transformWarning = '';
-          this.despiece.octavos[corte] = next;
-          this.volcarTransformacionEnTabla();
+          const delta = next - this.octavosDe(corte);
+          if (!delta) return false;
+          const padre = corte === 'piernas' ? 'pierna' : 'pechuga';
+          return this.transferir({
+            origenId: padre,
+            salen: delta / this.factorOctavosPorPieza(),
+            destinos: [{ id: 'octavo_pollo', entran: delta }],
+            motivo: this.motivoHacia('octavo_pollo'),
+            historial: this.nombreFila(padre) + ' → Octavos (2 = 1 pieza)'
+          });
         },
+
 
         updatePlatoOctavo(platoId, val) {
-          this.asegurarOctavos();
-          const next = Math.max(0, parseInt(val, 10) || 0);
-          const current = Number(this.despiece.platosOctavo[platoId] || 0);
-          const diff = next - current;
-          if (this.octavosLibres() - diff < -0.001) {
-            this.transformWarning = 'Aviso ámbar: no hay octavos libres. Agrega 2 octavos para restar 1 pecho o 1 pierna.';
-            return;
-          }
-          const plato = this.filaReal(platoId);
-          if (diff < 0 && plato && this.calcSaldoTipo(plato, 'crudo') < Math.abs(diff)) {
-            this.transformWarning = 'Aviso ámbar: ' + (plato.nombre || 'el plato') + ' no tiene tanto crudo para devolver.';
-            return;
-          }
-          this.transformWarning = '';
-          this.despiece.platosOctavo[platoId] = next;
-          if (this.despiece.paseCocido && this.despiece.paseCocido[platoId] > next) this.despiece.paseCocido[platoId] = next;
-          this.volcarTransformacionEnTabla();
+          return this.fijarCrudoPlato('octavo', platoId, val);
         },
 
-        crudoVisibleTotal(id, total) {
-          return Math.max(0, (Number(total) || 0) - this.cocidoActualTransformar(id));
+
+        // El número del cuadro de un plato es su stock crudo en la hoja.
+        crudoVisibleTotal(id) {
+          return this.stockCrudoDe(id);
         },
 
-        crudoVisibleAderezo(id, corte) {
-          const bolsa = (this.despiece.aderezos && this.despiece.aderezos[id]) || {};
-          const total = corte === 'piernas' ? this.piezasPiernaPlato(id) : (Number(bolsa.pechugas) || 0);
-          return this.crudoVisibleTotal(id, total);
+
+        crudoVisibleAderezo(id) {
+          return this.stockCrudoDe(id);
         },
+
 
         fijarCrudoVisible(id, corte, val) {
-          const crudo = Math.max(0, parseInt(val, 10) || 0);
-          this.updateAderezoCorte(id, corte, crudo + this.cocidoActualTransformar(id));
+          const padre = corte === 'piernas' ? 'pierna' : 'pechuga';
+          const delta = Math.max(0, parseInt(val, 10) || 0) - this.stockCrudoDe(id);
+          return this.moverIngresoPlato(padre, id, 'crudo', delta);
         },
 
+
         restarCrudoVisible(id, corte) {
-          if (this.crudoVisibleAderezo(id, corte) <= 0) return;
-          const bolsa = (this.despiece.aderezos && this.despiece.aderezos[id]) || {};
-          const total = corte === 'piernas' ? this.piezasPiernaPlato(id) : (Number(bolsa.pechugas) || 0);
-          this.updateAderezoCorte(id, corte, total - 1);
+          return this.moverIngresoPlato(corte === 'piernas' ? 'pierna' : 'pechuga', id, 'crudo', -1);
+        },
+
+
+        padreDeTipoPlato(tipo) {
+          if (tipo === 'octavo') return 'octavo_pollo';
+          if (tipo === 'filete') return 'filete';
+          if (tipo === 'piernas') return 'pierna';
+          if (tipo === 'pechugas') return 'pechuga';
+          return tipo;
         },
 
         fijarCrudoPlato(tipo, id, val) {
-          const crudo = Math.max(0, parseInt(val, 10) || 0);
-          const total = crudo + this.cocidoActualTransformar(id);
-          if (tipo === 'octavo') this.updatePlatoOctavo(id, total);
-          else this.updatePlatoFilete(id, total);
+          const delta = Math.max(0, parseInt(val, 10) || 0) - this.stockCrudoDe(id);
+          return this.moverIngresoPlato(this.padreDeTipoPlato(tipo), id, 'crudo', delta);
         },
+
 
         restarCrudoPlato(tipo, id) {
-          const bolsa = tipo === 'octavo' ? (this.despiece.platosOctavo || {}) : (this.despiece.platosFilete || {});
-          const total = Number(bolsa[id]) || 0;
-          if (this.crudoVisibleTotal(id, total) <= 0) return;
-          if (tipo === 'octavo') this.updatePlatoOctavo(id, total - 1);
-          else this.updatePlatoFilete(id, total - 1);
+          return this.moverIngresoPlato(this.padreDeTipoPlato(tipo), id, 'crudo', -1);
         },
+
 
         updateAderezoCorte(aderezoId, corte, val) {
-          const next = Math.max(0, parseInt(val, 10) || 0);
-          if (!this.despiece.aderezos[aderezoId]) {
-            this.despiece.aderezos[aderezoId] = { piernas: 0, pechugas: 0 };
-          }
-          const soloPierna = corte === 'piernas' && this.esPlatoSoloPierna({ id: aderezoId });
-          const current = soloPierna
-            ? this.piezasPiernaPlato(aderezoId)
-            : Number(this.despiece.aderezos[aderezoId][corte] || 0);
-          const diff = next - current;
-
-          const padreId = corte === 'piernas' ? 'pierna' : 'pechuga';
-          const padre = this.filaReal(padreId);
-          const plato = this.filaReal(aderezoId);
-          if (diff > 0 && padre && this.calcSaldoTipo(padre, 'crudo') < diff) {
-            this.transformWarning = 'Aviso ámbar: ' + padre.nombre + ' no tiene saldo para transformar ' + diff + '.';
-            return;
-          }
-          if (diff < 0 && plato && this.calcSaldoTipo(plato, 'crudo') < Math.abs(diff)) {
-            this.transformWarning = 'Aviso ámbar: ' + (plato.nombre || 'el plato') + ' no tiene tanto crudo para devolver al producto.';
-            return;
-          }
-
-          this.transformWarning = '';
-          if (!this.despiece.aportePintado) this.marcarAportePintado();
-          if (soloPierna) {
-            this.despiece.aderezos[aderezoId].piernas = next;
-            this.despiece.aderezos[aderezoId].pechugas = 0;
-          } else {
-            this.despiece.aderezos[aderezoId][corte] = next;
-          }
-          this.volcarTransformacionEnTabla();
+          return this.fijarCrudoVisible(aderezoId, corte, val);
         },
 
-        // Lo anotado en Transformar cae en la fila del mismo producto.
+        // Antes copiaba contadores de sesión a la hoja y pisaba ingresos. Ahora cada pase se guarda
+        // al momento (transferir); aquí solo se pide recargar la hoja.
         volcarTransformacionEnTabla() {
-          const rFresco = this.getRow('pollo_fresco');
-          this.aplicarDeltaPadre(rFresco, 'transformacion', Number(this.despiece.frescos || 0), 'fresco');
-          rFresco.crudo = Math.max(0, this.calcSaldo(rFresco));
-          rFresco.cocido = 0;
-          this.pulseRowTotal('pollo_fresco');
-
-          const rPierna = this.getRow('pierna');
-          this.aplicarDeltaPadre(rPierna, 'ingreso', this.piernasObtenidas() + this.ingresoDirectoDe('pierna'), 'piernaIng');
-          this.aplicarDeltaPadre(rPierna, 'transformacion', this.piernasUsadas(), 'piernaTrans');
-          rPierna.crudo = this.calcSaldo(rPierna);
-          rPierna.cocido = 0;
-          this.pulseRowTotal('pierna');
-
-          const rPechuga = this.getRow('pechuga');
-          this.aplicarDeltaPadre(rPechuga, 'ingreso', this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga'), 'pechugaIng');
-          this.aplicarDeltaPadre(rPechuga, 'transformacion', this.pechugasUsadas(), 'pechugaTrans');
-          rPechuga.crudo = this.calcSaldo(rPechuga);
-          rPechuga.cocido = 0;
-          this.pulseRowTotal('pechuga');
-
-          const rFilete = this.getRow('filete');
-          this.aplicarDeltaPadre(rFilete, 'ingreso', this.totalFiletesGenerados(), 'fileteIng');
-          this.aplicarDeltaPadre(rFilete, 'transformacion', this.filetesUsadosEnPlatos(), 'fileteTrans');
-          rFilete.crudo = this.calcSaldo(rFilete);
-          rFilete.cocido = 0;
-          this.pulseRowTotal('filete');
-
-          if (!this.despiece.paseCocido) this.despiece.paseCocido = {};
-          const acumuladosFiletePorFila = {};
-          this.platosDelFilete().forEach((plato) => {
-            const targetId = this.filaIdDePlatoTransformar(plato.id);
-            if (!targetId) return;
-            const cant = Number(this.despiece.platosFilete && this.despiece.platosFilete[plato.id] || 0);
-            acumuladosFiletePorFila[targetId] = (acumuladosFiletePorFila[targetId] || 0) + cant;
-          });
-          Object.keys(acumuladosFiletePorFila).forEach((rowId) => {
-            const row = this.filaReal(rowId);
-            if (!row) return;
-            const totalBruto = acumuladosFiletePorFila[rowId];
-            if (row.tieneCocido) {
-              const pase = Math.min(totalBruto, Math.max(0, Number(this.despiece.paseCocido[row.id] || 0)));
-              this.despiece.paseCocido[row.id] = pase;
-              row.ingreso = Math.max(0, totalBruto - pase);
-              row.ingresoCocido = pase;
-              row.crudo = this.calcSaldoTipo(row, 'crudo');
-              row.cocido = this.calcSaldoTipo(row, 'cocido');
-            } else {
-              row.ingreso = totalBruto;
-              row.ingresoCocido = 0;
-              row.crudo = this.calcSaldo(row);
-              row.cocido = 0;
-            }
-            this.pulseRowTotal(row.id);
-          });
-
-          this.asegurarOctavos();
-          const rOctavo = this.filaReal('octavo_pollo');
-          if (rOctavo) {
-            this.aplicarDeltaPadre(rOctavo, 'ingreso', this.totalOctavos(), 'octavoIng');
-            this.aplicarDeltaPadre(rOctavo, 'transformacion', this.octavosUsadosEnPlatos(), 'octavoTrans');
-            rOctavo.tieneCocido = false;
-            rOctavo.crudo = this.calcSaldo(rOctavo);
-            rOctavo.cocido = 0;
-            this.pulseRowTotal('octavo_pollo');
-          }
-          if (!this.despiece.paseCocido) this.despiece.paseCocido = {};
-          this.platosDelOctavo().forEach((plato) => {
-            const row = this.filaReal(plato.id);
-            if (!row) return;
-            const totalBruto = Math.max(0, Number(this.despiece.platosOctavo[plato.id]) || 0);
-            row.tieneCocido = plato.cocido === true;
-            if (row.tieneCocido) {
-              const pase = Math.min(totalBruto, Math.max(0, Number(this.despiece.paseCocido[row.id] || 0)));
-              this.despiece.paseCocido[row.id] = pase;
-              row.ingreso = Math.max(0, totalBruto - pase);
-              row.ingresoCocido = pase;
-              row.crudo = this.calcSaldoTipo(row, 'crudo');
-              row.cocido = this.calcSaldoTipo(row, 'cocido');
-            } else {
-              this.despiece.paseCocido[row.id] = 0;
-              row.ingreso = totalBruto;
-              row.ingresoCocido = 0;
-              row.crudo = this.calcSaldo(row);
-              row.cocido = 0;
-            }
-            this.pulseRowTotal(row.id);
-          });
-          this.volcarMapasDinamicosEnFilas();
-
-          const vistosAd = new Set();
-          const aderezosAVolcar = [];
-          this.aderezosSinFiletes().concat(this.aderezosDeCorte('piernas'), this.aderezosDeCorte('pechugas')).forEach((ad) => {
-            if (!ad || !ad.id || vistosAd.has(ad.id)) return;
-            vistosAd.add(ad.id);
-            aderezosAVolcar.push(ad);
-          });
-          aderezosAVolcar.forEach(ad => {
-            let row = this.rows.find(r => r.id === ad.id);
-            const p = Number(this.despiece.aderezos[ad.id]?.piernas || 0);
-            const pech = Number(this.despiece.aderezos[ad.id]?.pechugas || 0);
-            const totalAd = p + pech;
-            const pasePrev = Math.max(0, Number(this.despiece.paseCocido[ad.id] || 0));
-            const pase = Math.min(totalAd, pasePrev);
-            this.despiece.paseCocido[ad.id] = pase;
-            if (!row) {
-              row = {
-                id: ad.id,
-                grupo: 'pollo',
-                nombre: ad.nombre,
-                detalle: p + ' piernas + ' + pech + ' pechugas',
-                unidad: 'pza',
-                saldoAnterior: 0,
-                ingreso: Math.max(0, totalAd - pase),
-                ingresoCocido: pase,
-                correccion: 0,
-                venta: 0,
-                transformacion: 0,
-                destinoTrans: '',
-                inventario: null,
-                tieneCocido: this.tienePaseCocido(ad.id),
-                crudo: Math.max(0, totalAd - pase),
-                cocido: pase,
-                isNew: true
-              };
-              this.rows.push(row);
-              if (!this.despiece.aportePintado) this.despiece.aportePintado = {};
-              this.despiece.aportePintado[ad.id] = {
-                crudo: row.tieneCocido ? Math.max(0, totalAd - pase) : totalAd,
-                cocido: row.tieneCocido ? pase : 0
-              };
-              setTimeout(() => { row.isNew = false; }, 600);
-            } else {
-              row.nombre = ad.nombre;
-              row.detalle = p + ' piernas + ' + pech + ' pechugas';
-              const crudoMapa = row.tieneCocido ? Math.max(0, totalAd - pase) : totalAd;
-              const cocidoMapa = row.tieneCocido ? pase : 0;
-              this.aplicarLotePlato(row, crudoMapa, cocidoMapa);
-            }
-            this.pulseRowTotal(ad.id);
-          });
-
-          const rPanceta = this.getRow('panceta');
-          const pancetas = Number(this.despiece.pancetasSalen || 0);
-          const tiras = pancetas * 6;
-          const tirasUsadas = Math.min(tiras, Math.max(0, Number(this.despiece.tirasUsadas || 0)));
-          this.despiece.tirasUsadas = tirasUsadas;
-          rPanceta.transformacion = pancetas;
-          rPanceta.crudo = Math.max(0, this.calcSaldo(rPanceta));
-          this.pulseRowTotal('panceta');
-
-          const rTira = this.filaReal('tira_panceta');
-          if (rTira) {
-            rTira.ingreso = tiras;
-            rTira.transformacion = tirasUsadas;
-            rTira.crudo = Math.max(0, this.calcSaldo(rTira));
-            rTira.cocido = 0;
-            this.pulseRowTotal('tira_panceta');
-          }
-
-          const rTrozo = this.getRow('trozo_panceta');
-          const trozos = tirasUsadas > 0 ? Math.max(0, parseInt(this.despiece.trozosPanceta, 10) || 0) : 0;
-          const paseTrozo = Math.min(trozos, Math.max(0, Number(this.despiece.paseCocido && this.despiece.paseCocido.trozo_panceta || 0)));
-          if (this.despiece.paseCocido) this.despiece.paseCocido.trozo_panceta = paseTrozo;
-          rTrozo.tieneCocido = true;
-          rTrozo.ingreso = Math.max(0, trozos - paseTrozo);
-          rTrozo.ingresoCocido = paseTrozo;
-          rTrozo.crudo = this.calcSaldoTipo(rTrozo, 'crudo');
-          rTrozo.cocido = this.calcSaldoTipo(rTrozo, 'cocido');
-          this.pulseRowTotal('trozo_panceta');
-
-          const rPiezaPez = this.filaReal('pieza_pescado');
-          const rPez = this.filaReal('pescado_entero');
-          const peces = Math.max(0, Number(this.despiece.pescadosUsados || 0));
-          const piezasPez = peces > 0 ? Math.max(0, Number(this.despiece.piezasPescado || 0)) : 0;
-          if (rPez) {
-            rPez.transformacion = peces;
-            rPez.crudo = Math.max(0, this.calcSaldo(rPez));
-            rPez.cocido = 0;
-            this.pulseRowTotal('pescado_entero');
-          }
-          if (rPiezaPez) {
-            rPiezaPez.ingreso = piezasPez;
-            rPiezaPez.crudo = Math.max(0, this.calcSaldo(rPiezaPez));
-            rPiezaPez.cocido = 0;
-            this.pulseRowTotal('pieza_pescado');
-          }
-          const rPiezaPota = this.filaReal('pieza_pota');
-          const rPota = this.filaReal('pota');
-          const potas = Math.max(0, Number(this.despiece.potasUsadas || 0));
-          const piezasPota = potas > 0 ? Math.max(0, Number(this.despiece.piezasPota || 0)) : 0;
-          if (rPota) {
-            rPota.transformacion = potas;
-            rPota.crudo = Math.max(0, this.calcSaldo(rPota));
-            rPota.cocido = 0;
-            this.pulseRowTotal('pota');
-          }
-          if (rPiezaPota) {
-            rPiezaPota.ingreso = piezasPota;
-            rPiezaPota.crudo = Math.max(0, this.calcSaldo(rPiezaPota));
-            rPiezaPota.cocido = 0;
-            this.pulseRowTotal('pieza_pota');
-          }
-
-          const rCarnero = this.getRow('carnero');
-          rCarnero.transformacion = Number(this.despiece.carneroSalen || 0);
-          rCarnero.crudo = Math.max(0, this.calcSaldo(rCarnero));
-          this.pulseRowTotal('carnero');
-
-          const rCarneroPacha = this.getRow('carnero_pachamanca');
-          const totalCarneroPacha = Number(this.despiece.carneroSalen || 0) * Number(this.config.factorCarneroPachamanca || 1);
-          const paseCarnero = Math.min(totalCarneroPacha, Math.max(0, Number(this.despiece.paseCocido?.carnero_pachamanca ?? totalCarneroPacha)));
-          if (this.despiece.paseCocido) this.despiece.paseCocido.carnero_pachamanca = paseCarnero;
-          rCarneroPacha.ingreso = Math.max(0, totalCarneroPacha - paseCarnero);
-          rCarneroPacha.ingresoCocido = paseCarnero;
-          rCarneroPacha.crudo = this.calcSaldoTipo(rCarneroPacha, 'crudo');
-          rCarneroPacha.cocido = this.calcSaldoTipo(rCarneroPacha, 'cocido');
-          this.pulseRowTotal('carnero_pachamanca');
-
-          const rArroz = this.getRow('arroz');
-          const usadoArroz = this.arrozUsado();
-          if (rArroz) {
-            rArroz.transformacion = usadoArroz;
-            rArroz.crudo = Math.max(0, this.calcSaldo(rArroz));
-            this.pulseRowTotal('arroz');
-          }
-          this.destinosArroz().forEach((d) => {
-            const row = this.filaReal(d.id);
-            if (!row) return;
-            row.ingreso = (Number(this.despiece[d.campo]) || 0) * (Number(this.config[d.factorKey]) || 1);
-            row.cocido = this.calcSaldo(row);
-            row.crudo = 0;
-            this.pulseRowTotal(row.id);
-          });
-          this.programarGuardadoDespiece();
+          this.programarRecargaKardex();
         },
 
-        pasarALaHoja() {
-          clearTimeout(this._guardarDespieceTimer);
-          this.volcarTransformacionEnTabla();
-          clearTimeout(this._guardarDespieceTimer);
+
+        async pasarALaHoja() {
           this.playUiSound();
-          this.toastMessage = 'Pasando a Inventario Tabla…';
+          this.toastMessage = 'Guardando y abriendo Inventario Tabla…';
+          clearTimeout(this._recargaKardexTimer);
+          await (this._colaTransformar || Promise.resolve());
+          await this.cargarKardex();
           this.irA('tabla');
-          this.guardarDespieceEnServidor();
+          this.toastMessage = 'La transformación ya está en Inventario Tabla.';
         },
 
         esPaseEntreTipos(motivo) {
           return /^Pasa (?:a|de) (?:crudo|cocido)\b/.test(String(motivo || ''));
         },
 
+
         programarGuardadoDespiece() {
-          clearTimeout(this._guardarDespieceTimer);
-          this._guardarDespieceTimer = setTimeout(() => this.guardarDespieceEnServidor(), 450);
+          this.programarRecargaKardex();
         },
 
         aporteDespieceDe(rowId) {
@@ -12986,102 +13228,39 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           };
         },
 
+
         arrozLibre() {
-          return Number(this.despiece.arrozCrudo || 0) - this.arrozUsado();
+          return this.quedanDe('arroz');
         },
 
-        fijarArrozCrudo(val) {
-          const next = Math.max(0, Number(val) || 0);
-          if (next < this.arrozUsado()) {
-            this.transformWarning = 'Aviso ámbar: el arroz crudo no alcanza para lo ya repartido.';
-            return;
-          }
-          this.transformWarning = '';
-          this.despiece.arrozCrudo = next;
-          this.volcarTransformacionEnTabla();
+
+        fijarArrozCrudo() {
+          this.avisoTransformar('El arroz crudo se reparte desde cada tipo (blanco, verde, pato…). El tope es el stock de hoja del arroz crudo.');
         },
+
 
         fijarArrozDestino(campo, val) {
-          const next = Math.max(0, Number(val) || 0);
-          const otros = this.camposArroz().filter((k) => k !== campo).reduce((a, k) => a + Number(this.despiece[k] || 0), 0);
-          if (otros + next > Number(this.despiece.arrozCrudo || 0)) {
-            this.transformWarning = 'Aviso ámbar: no se puede repartir más arroz del crudo indicado.';
-            return;
-          }
-          this.transformWarning = '';
-          this.despiece[campo] = next;
-          this.volcarTransformacionEnTabla();
+          const d = this.destinosArroz().find((x) => x.campo === campo);
+          if (!d) return false;
+          const next = Math.max(0, this.redondear3(Number(val) || 0));
+          const delta = this.redondear3(next - this.arrozHacia(d));
+          if (!delta) return false;
+          const factor = Number(this.config[d.factorKey]) || 1;
+          const row = this.filaReal(d.id);
+          return this.transferir({
+            origenId: 'arroz',
+            salen: delta,
+            destinos: [{ id: d.id, entran: delta * factor, tipo: row && row.tieneCocido ? 'cocido' : 'crudo' }],
+            motivo: this.motivoHacia(d.id),
+            historial: 'Arroz crudo → ' + d.nombre + ' (1 = ' + factor + ')'
+          });
         },
 
+
+        // Los pases ya se guardan al momento. Solo espera la cola y recarga la hoja.
         async guardarDespieceEnServidor() {
-          if (this._guardandoDespiece) {
-            this._guardarOtraVez = true;
-            return;
-          }
-          this._guardandoDespiece = true;
-          try {
-            const antes = this.despieceAplicado || {
-              frescoSale: 0, piernasEntran: 0, pechugasEntran: 0, piernasSalen: 0, pechugasSalen: 0,
-              filetesEntran: 0, filetesSalen: 0, octavosEntran: 0, octavosSalen: 0, pancetaSale: 0, tirasEntran: 0, tirasSalen: 0,
-              trozo: { crudo: 0, cocido: 0 }, pescadoSale: 0, piezasPescado: 0, potaSale: 0, piezasPota: 0, carneroSale: 0,
-              carnero: { crudo: 0, cocido: 0 }, arrozSale: 0, arroz: {}, destinos: {}
-            };
-            const ahora = this.fotoTransformacion();
-            const delta = (a, b) => Math.round(((Number(a) || 0) - (Number(b) || 0)) * 1000) / 1000;
-            let hubo = false;
-            const post = async (n, rubro, tipo, motivo) => {
-              if (!n || !rubro) return;
-              hubo = true;
-              await this.paso(rubro, tipo, n, motivo);
-            };
-            await post(delta(ahora.frescoSale, antes.frescoSale) * -1, 'pollo-origen', 'crudo', 'Pasa a piezas');
-            await post(delta(ahora.piernasEntran, antes.piernasEntran), 'pierna-pollo', 'crudo', 'Sale de Pollo fresco');
-            await post(delta(ahora.pechugasEntran, antes.pechugasEntran), 'pechuga-pollo', 'crudo', 'Sale de Pollo fresco');
-            await post(delta(ahora.piernasSalen, antes.piernasSalen) * -1, 'pierna-pollo', 'crudo', 'Pasa a destinos');
-            await post(delta(ahora.pechugasSalen, antes.pechugasSalen) * -1, 'pechuga-pollo', 'crudo', 'Pasa a destinos');
-            await post(delta(ahora.filetesEntran, antes.filetesEntran), 'filete', 'crudo', 'Sale de Pechuga');
-            await post(delta(ahora.filetesSalen, antes.filetesSalen) * -1, 'filete', 'crudo', 'Pasa a platos');
-            await post(delta(ahora.octavosEntran, antes.octavosEntran), 'octavo-pollo', 'crudo', 'Sale de Pecho o Pierna');
-            await post(delta(ahora.octavosSalen, antes.octavosSalen) * -1, 'octavo-pollo', 'crudo', 'Pasa a platos');
-            const claves = new Set(Object.keys(ahora.destinos).concat(Object.keys(antes.destinos || {})));
-            for (const clave of claves) {
-              const a = ahora.destinos[clave] || { crudo: 0, cocido: 0 };
-              const p = (antes.destinos && antes.destinos[clave]) || { crudo: 0, cocido: 0 };
-              await post(delta(a.crudo, p.crudo), clave, 'crudo', 'Sale de piezas');
-              await post(delta(a.cocido, p.cocido), clave, 'cocido', 'Sale de piezas');
-            }
-            await post(delta(ahora.pancetaSale, antes.pancetaSale) * -1, 'panceta', 'crudo', 'Pasa a tiras');
-            await post(delta(ahora.tirasEntran, antes.tirasEntran), 'tira-panceta', 'crudo', 'Sale de Panceta');
-            await post(delta(ahora.tirasSalen, antes.tirasSalen) * -1, 'tira-panceta', 'crudo', 'Pasa a trozos');
-            await post(delta(ahora.trozo.crudo, antes.trozo && antes.trozo.crudo), 'trozo-panceta', 'crudo', 'Sale de tiras');
-            await post(delta(ahora.trozo.cocido, antes.trozo && antes.trozo.cocido), 'trozo-panceta', 'cocido', 'Sale de tiras');
-            await post(delta(ahora.pescadoSale, antes.pescadoSale) * -1, 'pescado-entero', 'crudo', 'Pasa a piezas');
-            await post(delta(ahora.piezasPescado, antes.piezasPescado), 'pieza-pescado', 'crudo', 'Sale de Pescado');
-            await post(delta(ahora.potaSale, antes.potaSale) * -1, 'pota', 'crudo', 'Pasa a piezas');
-            await post(delta(ahora.piezasPota, antes.piezasPota), 'pieza-pota', 'crudo', 'Sale de Pota');
-            await post(delta(ahora.carneroSale, antes.carneroSale) * -1, 'carnero', 'crudo', 'Pasa a Carnero pachamanca');
-            await post(delta(ahora.carnero.crudo, antes.carnero.crudo), 'pachamanca-cordero', 'crudo', 'Sale de Carnero');
-            await post(delta(ahora.carnero.cocido, antes.carnero.cocido), 'pachamanca-cordero', 'cocido', 'Sale de Carnero');
-            await post(delta(ahora.arrozSale, antes.arrozSale) * -1, 'arroz', 'crudo', 'Pasa a tipos de arroz');
-            const arroces = new Set(Object.keys(ahora.arroz).concat(Object.keys(antes.arroz || {})));
-            for (const clave of arroces) {
-              await post(delta(ahora.arroz[clave], antes.arroz && antes.arroz[clave]), clave, 'cocido', 'Sale de Arroz crudo');
-            }
-            this.despieceAplicado = ahora;
-            await this.guardarMapasDinamicos();
-            if (hubo) {
-              await this.cargarKardex();
-              this.toastMessage = 'La transformación quedó en Inventario Tabla.';
-            }
-          } catch (e) {
-            this.toastMessage = e.message || 'No se guardó la transformación';
-          } finally {
-            this._guardandoDespiece = false;
-            if (this._guardarOtraVez) {
-              this._guardarOtraVez = false;
-              this.guardarDespieceEnServidor();
-            }
-          }
+          await (this._colaTransformar || Promise.resolve());
+          await this.cargarKardex();
         },
 
         // Modal Contar Cámara
@@ -13155,6 +13334,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cerdo_pachamanca: ['Cerdo pachamanca', 'Cerdo de pachamanca'],
             carne_pachamanca: ['Carne Pachamanca', 'Res de pachamanca'],
             carnero_pachamanca: ['Carnero pachamanca'],
+            seco_carnero: ['Seco de carnero', 'Seco de cordero'],
+            pecho_pachamanca: ['Pecho pachamanca', 'Pollo pachamanca pecho'],
             arroz_blanco: ['Arroz blanco'],
             arroz_pollo: ['Arroz pollo'],
             arroz_con_pollo: ['Arroz con pollo'],
@@ -14800,6 +14981,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             milanesa: 'milanesa',
             'pachamanca-pollo': 'pollo_pachamanca',
             pollo_pachamanca: 'pollo_pachamanca',
+            'pachamanca-pollo-pecho': 'pecho_pachamanca',
+            pecho_pachamanca: 'pecho_pachamanca',
+            'seco-cordero': 'seco_carnero',
+            seco_carnero: 'seco_carnero',
             'pollo-lena': 'pollo_lena',
             pollo_lena: 'pollo_lena',
             'pierna-lena': 'pierna_lena',
@@ -14869,6 +15054,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             pierna_lena: 'pierna-lena',
             'pachamanca-pollo': 'pachamanca-pollo',
             pollo_pachamanca: 'pachamanca-pollo',
+            pecho_pachamanca: 'pachamanca-pollo-pecho',
+            seco_carnero: 'seco-cordero',
             'octavo-pollo': 'octavo-pollo',
             octavo_pollo: 'octavo-pollo',
             'arroz-pollo': 'arroz-pollo',
@@ -14950,15 +15137,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           row.cocido = row.tieneCocido ? Math.max(0, this.calcSaldoTipo(row, 'cocido')) : 0;
         },
 
+
         stockPlatoTransformar(idOrClave, tipo) {
           const rowId = this.filaIdDePlatoTransformar(idOrClave) || String(idOrClave || '');
           const row = rowId ? this.filaReal(rowId) : null;
-          const delRow = row ? Math.max(0, this.calcSaldoTipo(row, tipo === 'cocido' ? 'cocido' : 'crudo')) : 0;
-          const ad = this.despiece && this.despiece.aderezos && this.despiece.aderezos[rowId];
-          const totalMapa = ad ? (Number(ad.piernas) || 0) + (Number(ad.pechugas) || 0) : 0;
-          const pase = Math.min(totalMapa, Math.max(0, Number(this.despiece && this.despiece.paseCocido && this.despiece.paseCocido[rowId] || 0)));
-          const delMapa = tipo === 'cocido' ? pase : Math.max(0, totalMapa - pase);
-          return Math.max(delRow, delMapa);
+          if (!row) return 0;
+          return Math.max(0, this.redondear3(this.calcSaldoTipo(row, tipo === 'cocido' ? 'cocido' : 'crudo')));
         },
 
         tienePaseCocido(idOrClave) {
@@ -14972,29 +15156,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.opcionCocidoDe(clave).tieneCocido === true;
         },
 
+
         crudoActualTransformar(idOrClave) {
-          const raw = String(idOrClave || '');
-          if (raw === 'filete-junior' || raw === 'filete_junior') {
-            const total = Number(this.despiece.platosFilete?.['filete-junior'] ?? this.despiece.platosFilete?.filete_junior ?? 0);
-            const coc = Math.min(total, Math.max(0, Number(this.despiece.paseCocido?.filete_junior || 0)));
-            return Math.max(0, total - coc);
-          }
-          const rowId = this.filaIdDePlatoTransformar(raw);
-          const row = rowId ? this.filaReal(rowId) : null;
-          if (!row) return 0;
-          return Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+          return this.stockPlatoTransformar(idOrClave, 'crudo');
         },
 
+
         cocidoActualTransformar(idOrClave) {
-          const raw = String(idOrClave || '');
-          if (raw === 'filete-junior' || raw === 'filete_junior') {
-            const total = Number(this.despiece.platosFilete?.['filete-junior'] ?? this.despiece.platosFilete?.filete_junior ?? 0);
-            return Math.min(total, Math.max(0, Number(this.despiece.paseCocido?.filete_junior || 0)));
-          }
-          const rowId = this.filaIdDePlatoTransformar(raw);
-          const row = rowId ? this.filaReal(rowId) : null;
-          if (!row) return 0;
-          return Math.max(0, this.calcSaldoTipo(row, 'cocido'));
+          return this.stockPlatoTransformar(idOrClave, 'cocido');
         },
 
         moverTipoEnFila(row, desde, hacia, n) {
@@ -15027,76 +15196,49 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
-        async pasarCrudoACocido(idOrClave, delta) {
+
+        // Pase Crudo → Cocido (o de vuelta) en la misma fila. Se guarda al momento con la hora real,
+        // así la venta de comandas que llegue después gasta primero ese cocido.
+        pasarCrudoACocido(idOrClave, delta) {
           const raw = String(idOrClave || '');
-          if (!this.tienePaseCocido(raw)) return;
-          const cambioSolicitado = Math.round(Number(delta) || 0);
-          if (!cambioSolicitado) return;
-          if (!this.despiece.paseCocido) this.despiece.paseCocido = {};
-
-          if (raw === 'filete-junior' || raw === 'filete_junior') {
-            const total = Number(this.despiece.platosFilete?.['filete-junior'] ?? this.despiece.platosFilete?.filete_junior ?? 0);
-            const actual = Math.min(total, Math.max(0, Number(this.despiece.paseCocido.filete_junior || 0)));
-            const sig = Math.max(0, Math.min(total, actual + cambioSolicitado));
-            this.despiece.paseCocido.filete_junior = sig;
-            return;
+          const n = Math.round(Number(delta) || 0);
+          if (!n) return false;
+          const rowId = this.filaIdDePlatoTransformar(raw) || raw;
+          const row = this.filaReal(rowId);
+          const clave = row && this.claveDeFila[row.id];
+          if (!row || !clave) return this.avisoTransformar('Aviso ámbar: ' + raw + ' no tiene fila en la hoja.');
+          if (!row.tieneCocido || !this.tienePaseCocido(row.id)) {
+            return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' no tiene cocido. Actívalo en Configuración → Cocido y reservas.');
           }
-
-          const rowId = this.filaIdDePlatoTransformar(raw);
-          const row = rowId ? this.filaReal(rowId) : null;
-          if (!row || !row.tieneCocido) return;
-
-          if (!this.despiece.aportePintado) this.marcarAportePintado();
-          const lote = this.loteDeAderezo(row.id);
-          if (cambioSolicitado > 0) {
-            const crudoDisp = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
-            const pasoReal = Math.min(cambioSolicitado, crudoDisp);
-            if (pasoReal <= 0) {
-              this.transformWarning = 'Aviso ámbar: ' + row.nombre + ' no tiene unidades crudas disponibles para pasar a cocido.';
-              return;
-            }
-            this.transformWarning = '';
-            const desdeMapa = Math.min(pasoReal, lote.crudo);
-            const resto = pasoReal - desdeMapa;
-            if (desdeMapa) this.despiece.paseCocido[row.id] = lote.cocido + desdeMapa;
-            if (resto) this.moverTipoEnFila(row, 'crudo', 'cocido', resto);
-            if (desdeMapa) this.aplicarLotePlato(row, lote.crudo - desdeMapa, lote.cocido + desdeMapa);
-            else {
-              row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
-              row.cocido = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
-            }
-            this.pulseRowTotal(row.id);
-            this.anotarHistorial('transforma', row.nombre + ' (Crudo → Cocido)', '−' + pasoReal + ' crudo, +' + pasoReal + ' cocido');
-            if (desdeMapa) this.programarGuardadoDespiece();
-            else await this.guardarPaseTipo(row, 'crudo', 'cocido', resto);
-          } else {
-            const cocidoDisp = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
-            const revReal = Math.min(Math.abs(cambioSolicitado), cocidoDisp);
-            if (revReal <= 0) return;
-            this.transformWarning = '';
-            const desdeMapa = Math.min(revReal, lote.cocido);
-            const resto = revReal - desdeMapa;
-            if (desdeMapa) this.despiece.paseCocido[row.id] = Math.max(0, lote.cocido - desdeMapa);
-            if (resto) this.moverTipoEnFila(row, 'cocido', 'crudo', resto);
-            if (desdeMapa) this.aplicarLotePlato(row, lote.crudo + desdeMapa, Math.max(0, lote.cocido - desdeMapa));
-            else {
-              row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
-              row.cocido = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
-            }
-            this.pulseRowTotal(row.id);
-            this.anotarHistorial('transforma', row.nombre + ' (Cocido → Crudo)', '+' + revReal + ' crudo, −' + revReal + ' cocido');
-            if (desdeMapa) this.programarGuardadoDespiece();
-            else await this.guardarPaseTipo(row, 'cocido', 'crudo', resto);
+          const desde = n > 0 ? 'crudo' : 'cocido';
+          const hacia = n > 0 ? 'cocido' : 'crudo';
+          const cant = Math.abs(n);
+          const disp = this.redondear3(this.calcSaldoTipo(row, desde));
+          if (disp + 0.0001 < cant) {
+            return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' no tiene ' + desde + ' para pasar a ' + hacia + '. Tiene ' + this.formatNum(Math.max(0, disp)) + '.');
           }
+          this.transformWarning = '';
+          this.moverTipoEnFila(row, desde, hacia, cant);
+          row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+          row.cocido = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
+          const ahora = new Date().toISOString();
+          const movs = [
+            { rubro: clave, clase: 'ingreso', tipoProducto: desde, cantidad: -cant, motivo: 'Pasa a ' + hacia + ' ' + row.nombre, fecha: ahora, nombre: row.nombre },
+            { rubro: clave, clase: 'ingreso', tipoProducto: hacia, cantidad: cant, motivo: 'Pasa de ' + desde + ' ' + row.nombre, fecha: ahora, nombre: row.nombre }
+          ];
+          this.movimientosPeriodo = (this.movimientosPeriodo || []).concat(movs);
+          this.pulseRowTotal(row.id);
+          this.anotarHistorial('transforma', row.nombre + (n > 0 ? ' (Crudo → Cocido)' : ' (Cocido → Crudo)'), (n > 0 ? '+' : '−') + cant + ' cocido');
+          this.encolarMovimientos(movs);
+          return true;
         },
 
-        async fijarPaseCrudoACocido(idOrClave, nuevoValorCocido) {
+
+        fijarPaseCrudoACocido(idOrClave, nuevoValorCocido) {
           const objetivo = Math.max(0, parseInt(nuevoValorCocido, 10) || 0);
-          const actual = this.cocidoActualTransformar(idOrClave);
-          const delta = objetivo - actual;
-          if (delta !== 0) {
-            await this.pasarCrudoACocido(idOrClave, delta);
-          }
+          const delta = objetivo - this.cocidoActualTransformar(idOrClave);
+          if (delta !== 0) return this.pasarCrudoACocido(idOrClave, delta);
+          return false;
         },
 
         mapasRespaldo() {
@@ -15121,6 +15263,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 { id: 'chi-chico', nombre: 'Chicharron de pollo chico', complemento: '', cuelgaDe: 'chicharron-pollo', cantidad: 1, venta: true, aliases: [] },
                 { id: 'salt-pollo', nombre: 'Lomo saltado de pollo', complemento: '', cuelgaDe: 'salt-pollo', cantidad: 1, venta: true, aliases: ['salt de pollo'] },
                 { id: 'pollo-lena', nombre: 'Pecho a la Leña', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+                { id: 'pecho-pachamanca', nombre: 'Pecho pachamanca', complemento: 'pollo', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
                 { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
                 { id: 'pierna-lena', nombre: 'Pierna a la leña', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: ['pierna leña'] },
                 { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
@@ -15171,7 +15314,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               tipo: 'despiece',
               origen: { clave: 'carnero', nombre: 'Carnero Crudo' },
               cortes: [
-                { clave: 'pachamanca-cordero', nombre: 'Carnero pachamanca', factor: 1, factorDesde: '' }
+                { clave: 'pachamanca-cordero', nombre: 'Carnero pachamanca', factor: 1, factorDesde: '' },
+                { clave: 'seco-cordero', nombre: 'Seco de carnero', factor: 1, factorDesde: '' }
               ],
               platos: []
             },
@@ -15306,9 +15450,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.despiece.dinamico[id];
         },
 
+
         origenMapa(id) {
-          const st = this.despiece.dinamico && this.despiece.dinamico[id];
-          return Number(st && st.origen) || 0;
+          const mapa = this.mapasSueltos().find((m) => m.id === id);
+          if (!mapa || !mapa.origen) return 0;
+          return this.transformadoHoy(this.idDeClave(mapa.origen.clave), 'Pasa a cortes');
         },
 
         obtenidasCorte(mapa, corte) {
@@ -15316,10 +15462,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.origenMapa(mapa.id) * (Number(corte.factor) || 0);
         },
 
+
         fijarOrigenMapa(mapa, valor) {
-          this.transformWarning = '';
-          this.estadoMapa(mapa.id).origen = Math.max(0, parseInt(valor, 10) || 0);
-          this.volcarTransformacionEnTabla();
+          if (!mapa || !mapa.origen) return false;
+          const next = Math.max(0, parseInt(valor, 10) || 0);
+          const delta = next - this.origenMapa(mapa.id);
+          if (!delta) return false;
+          const destinos = this.cortesDeOrigen(mapa)
+            .filter((c) => Number(c.factor) > 0)
+            .map((c) => ({ id: this.idDeClave(c.clave), nombre: c.nombre, entran: delta * Number(c.factor) }));
+          return this.transferir({
+            origenId: this.idDeClave(mapa.origen.clave),
+            salen: delta,
+            destinos: destinos,
+            motivo: 'Pasa a cortes',
+            historial: mapa.origen.nombre + ' → cortes'
+          });
         },
 
         idDeClave(clave) {
@@ -15588,41 +15746,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
+
         volcarMapasDinamicosEnFilas() {
-          this.mapasSueltos().forEach((mapa) => {
-            if (mapa.tipo !== 'despiece') return;
-            const st = this.estadoMapa(mapa.id);
-            const origen = this.filaReal(this.idDeClave(mapa.origen.clave));
-            if (origen) {
-              origen.transformacion = Number(st.origen || 0);
-              origen.crudo = Math.max(0, this.calcSaldo(origen));
-              origen.cocido = 0;
-              this.pulseRowTotal(origen.id);
-            }
-            (mapa.cortes || []).filter((c) => !c.factorDesde).forEach((corte) => {
-              const row = this.filaReal(this.idDeClave(corte.clave));
-              if (!row) return;
-              row.ingreso = this.obtenidasCorte(mapa, corte);
-              row.crudo = Math.max(0, this.calcSaldo(row));
-              row.cocido = 0;
-              this.pulseRowTotal(row.id);
-            });
-          });
+          // Los mapas del editor ya guardan cada pase al momento (fijarOrigenMapa).
         },
 
+        // Antes volvía a guardar el acumulado de la sesión en cada guardado y duplicaba el pase.
+        // Ahora fijarOrigenMapa guarda cada + / − al momento.
         async guardarMapasDinamicos() {
-          for (const mapa of this.mapasSueltos()) {
-            if (mapa.tipo !== 'despiece') continue;
-            const st = this.estadoMapa(mapa.id);
-            const n = Number(st.origen || 0);
-            if (n && mapa.origen && mapa.origen.clave) {
-              await this.paso(mapa.origen.clave, 'crudo', -n, 'Pasa a cortes');
-            }
-            for (const corte of (mapa.cortes || []).filter((c) => !c.factorDesde)) {
-              const obt = this.obtenidasCorte(mapa, corte);
-              if (obt) await this.paso(corte.clave, 'crudo', obt, 'Sale de ' + mapa.origen.nombre);
-            }
-          }
+          await (this._colaTransformar || Promise.resolve());
         }
       };
     }

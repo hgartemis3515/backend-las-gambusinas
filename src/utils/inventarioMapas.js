@@ -25,6 +25,7 @@ const SEMILLA = [
             { id: 'pollada', nombre: 'Pollada', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna', complemento: 'pollo', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: ['pollo de pachamanca'] },
             { id: 'pollo_lena', nombre: 'Pecho a la Leña', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
+            { id: 'pecho_pachamanca', nombre: 'Pecho pachamanca', complemento: 'pollo', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pechuga-pollo', cantidad: 1, venta: false, aliases: [] },
             { id: 'menu', nombre: 'Menú', complemento: '', cuelgaDe: 'pierna-pollo', cantidad: 1, venta: false, aliases: [] }
         ]
@@ -42,7 +43,10 @@ const SEMILLA = [
         nombre: 'Carnero Crudo',
         tipo: 'despiece',
         origen: { clave: 'carnero', nombre: 'Carnero Crudo' },
-        cortes: [{ clave: 'pachamanca-cordero', nombre: 'Carnero pachamanca', factor: 1, factorDesde: '' }],
+        cortes: [
+            { clave: 'pachamanca-cordero', nombre: 'Carnero pachamanca', factor: 1, factorDesde: '' },
+            { clave: 'seco-cordero', nombre: 'Seco de carnero', factor: 1, factorDesde: '' }
+        ],
         platos: []
     },
     {

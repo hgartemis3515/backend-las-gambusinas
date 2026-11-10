@@ -120,3 +120,21 @@ La guía dice que Pasar a la hoja escribe salida en Transformación e entrada en
 7. Al abrir el día, reconstruir los contadores de Transformar desde los movimientos, para que el mapa y la hoja cuenten la misma historia.
 
 Sin el punto 1 y el 3, pecho con “13” en Queda o en Stock puede seguir sin pasar a filete, y la pierna puede transformarse a pachamanca sin que esa columna baje.
+
+## Estado al 10 de noviembre de 2026
+
+Se cambió el modelo de Transformar: ya no hay contadores de sesión que se vuelcan a la hoja. Cada **+** / **−** guarda el pase al instante (origen −, destino +) y los cuadros leen esos movimientos.
+
+| Punto | Estado |
+| --- | --- |
+| 1. Un solo número | El tope y la caja usan el saldo crudo de la fila (`quedanDe`), sin platos hijos ni conteo. La columna Queda de la tabla sigue sumando los platos hijos, como pide la guía. |
+| 2. Primer clic no restaba | Resuelto. `aplicarDeltaPadre` ya no interviene; el pase se guarda en el clic. |
+| 3. Filete comprado | Resuelto. El tope es el stock de hoja del filete. |
+| 4. Octavo de días anteriores | Resuelto. El tope es el stock de hoja del octavo. |
+| 5. Arroz, panceta, pescado, pota, carnero, pato | Resuelto. Todos topan con el stock de hoja y suman al ingreso del destino sin pisarlo. Se quitó el reposteo acumulado de los mapas del editor (`guardarMapasDinamicos` duplicaba el pase en cada guardado). |
+| 6. + que falla en silencio | Resuelto. Todo + que no puede avanzar muestra el aviso ámbar. |
+| 7. Pierna a filete apagada | Muestra "Pierna a filete está apagada en Configuración". |
+| 8. Ingreso inflado | La transformación es el neto de los pases "Pasa a …" (las devoluciones restan). El ingreso recupera el bruto, sin duplicar. |
+| 9. Fórmula de la tarjeta | Stock antes = queda + transformación del período; ↓ transformación; = queda. |
+
+Además: los movimientos se guardan con la hora real (antes todos a las 12:00), que era lo que hacía que una venta de la mañana restara crudo aunque ya hubiera cocido.

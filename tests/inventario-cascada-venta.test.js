@@ -232,3 +232,46 @@ test('un rubro sin cuadro cocido gasta antes el cocido que quedó', () => {
         ['filete', 'crudo', 1]
     ]);
 });
+
+test('el seco de carnero gasta su cocido, su crudo y al final el Carnero Crudo (cocido y crudo)', () => {
+    const movimientos = [
+        { rubro: 'seco-cordero', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-11-10T09:00:00-05:00' },
+        { rubro: 'seco-cordero', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 1, fecha: '2026-11-10T09:00:00-05:00' },
+        { rubro: 'carnero', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-11-10T09:00:00-05:00' },
+        { rubro: 'carnero', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 5, fecha: '2026-11-10T09:00:00-05:00' }
+    ];
+    const venta = { rubro: 'seco-cordero', nombre: 'Seco de carnero', cantidad: 4, fecha: '2026-11-10T13:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], { 'seco-cordero': semillaCocido('seco-cordero') }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual([
+        'seco-cordero|cocido:1',
+        'seco-cordero|crudo:1',
+        'carnero|cocido:1',
+        'carnero|crudo:1'
+    ]);
+});
+
+test('el sabor Pollo de pachamanca gasta primero los cocidos de pierna y de pecho pachamanca', () => {
+    const movimientos = [
+        { rubro: 'pachamanca-pollo', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-11-10T09:00:00-05:00' },
+        { rubro: 'pachamanca-pollo-pecho', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 2, fecha: '2026-11-10T09:00:00-05:00' },
+        { rubro: 'pierna-pollo', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 5, fecha: '2026-11-10T09:00:00-05:00' }
+    ];
+    const venta = { rubro: 'pachamanca-pollo', nombre: 'Pollo de pachamanca', cantidad: 4, fecha: '2026-11-10T13:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], {}).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual([
+        'pachamanca-pollo|cocido:1',
+        'pachamanca-pollo-pecho|cocido:2',
+        'pierna-pollo|crudo:1'
+    ]);
+});
+
+test('el cocido agregado antes de la venta se gasta primero (pecho de pato)', () => {
+    const movimientos = [
+        { rubro: 'pechuga-pato', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 4, fecha: '2026-11-10T08:00:00-05:00' },
+        { rubro: 'pechuga-pato', tipoProducto: 'crudo', clase: 'ingreso', cantidad: -2, fecha: '2026-11-10T09:30:00-05:00' },
+        { rubro: 'pechuga-pato', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 2, fecha: '2026-11-10T09:30:00-05:00' }
+    ];
+    const venta = { rubro: 'pechuga-pato', nombre: 'Arroz con pato', cantidad: 1, fecha: '2026-11-10T10:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], { 'pechuga-pato': semillaCocido('pechuga-pato') }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['pechuga-pato|cocido:1']);
+});

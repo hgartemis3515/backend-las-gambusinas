@@ -23,6 +23,8 @@ const SEMILLA = {
     'pachamanca-res': { tieneCocido: true, reservaClave: '' },
     'pachamanca-cordero': { tieneCocido: true, reservaClave: '' },
     carnero: { tieneCocido: true, reservaClave: '' },
+    'seco-cordero': { tieneCocido: true, reservaClave: 'carnero' },
+    'pachamanca-pollo-pecho': { tieneCocido: true, reservaClave: 'pechuga-pollo' },
     'salt-pollo': { tieneCocido: false, reservaClave: 'filete' },
     'chaufa-pollo': { tieneCocido: false, reservaClave: 'filete' },
     milanesa: { tieneCocido: false, reservaClave: 'filete' },
@@ -42,6 +44,16 @@ const SEMILLA = {
 
 function esMateria(clave) {
     return MATERIAS.indexOf(String(clave || '')) !== -1;
+}
+
+/**
+ * Reservas que no son piezas de pollo. El seco de carnero, si no tiene cocido ni crudo propio,
+ * gasta el Carnero Crudo (primero su cocido, después su crudo).
+ */
+const RESERVAS_CON_COCIDO = ['carnero'];
+
+function esReservaValida(clave) {
+    return esMateria(clave) || RESERVAS_CON_COCIDO.indexOf(String(clave || '')) !== -1;
 }
 
 function semillaCocido(clave) {
@@ -78,8 +90,25 @@ function cadenaDe(rubro, opciones) {
     cadena.push({ rubro: rubro, tipo: 'crudo' });
     if (op.reservaClave && esMateria(op.reservaClave)) {
         cadena.push({ rubro: op.reservaClave, tipo: 'crudo' });
+    } else if (op.reservaClave && RESERVAS_CON_COCIDO.indexOf(op.reservaClave) !== -1) {
+        cadena.push({ rubro: op.reservaClave, tipo: 'cocido' });
+        cadena.push({ rubro: op.reservaClave, tipo: 'crudo' });
     }
     return cadena;
+}
+
+/**
+ * Sabor Pollo de la pachamanca: gasta los cocidos (pierna y pecho pachamanca),
+ * después los crudos y, si no alcanza, la Pierna de Pollo.
+ */
+function cadenaPachamancaPollo() {
+    return [
+        { rubro: 'pachamanca-pollo', tipo: 'cocido' },
+        { rubro: 'pachamanca-pollo-pecho', tipo: 'cocido' },
+        { rubro: 'pachamanca-pollo', tipo: 'crudo' },
+        { rubro: 'pachamanca-pollo-pecho', tipo: 'crudo' },
+        { rubro: 'pierna-pollo', tipo: 'crudo' }
+    ];
 }
 
 function repartirVenta(cantidad, cadena, bases) {
@@ -132,12 +161,12 @@ function validarCocidoConfig(clave, config) {
     const body = config || {};
     if (esMateria(clave)) return { valido: true, tieneCocido: false, reservaClave: '' };
     const reserva = String(body.reservaClave || '').trim();
-    if (reserva && !esMateria(reserva)) {
+    if (reserva && !esReservaValida(reserva)) {
         return {
             valido: false,
             tieneCocido: body.tieneCocido === true,
             reservaClave: '',
-            error: 'La reserva solo puede ser Pollo fresco, Pechuga, Pierna o Filete Pollo Crudo'
+            error: 'La reserva solo puede ser Pollo fresco, Pechuga, Pierna, Filete Pollo Crudo, Octavo o Carnero Crudo'
         };
     }
     return { valido: true, tieneCocido: body.tieneCocido === true, reservaClave: reserva };
@@ -186,8 +215,12 @@ function atribuirVentas(movimientos, ventas, opciones) {
         if (!rubro || cant <= 0) return;
         const op = (opciones && opciones[rubro]) || semillaCocido(rubro);
         const mixPecho = rubro === 'pollo-lena' && esMixPechoLena(v);
-        const cadena = mixPecho ? cadenaMixPechoLena() : cadenaDe(rubro, op);
-        if (!mixPecho && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
+        const pachaPollo = rubro === 'pachamanca-pollo';
+        let cadena;
+        if (mixPecho) cadena = cadenaMixPechoLena();
+        else if (pachaPollo) cadena = cadenaPachamancaPollo();
+        else cadena = cadenaDe(rubro, op);
+        if (!mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
         const partes = repartirVenta(cant, cadena, bases);
         const algunaLocal = partes.some((p) => p.rubro === rubro);
         let cubierta = 0;
@@ -231,6 +264,8 @@ module.exports = {
     semillaCocido,
     cadenaDe,
     cadenaMixPechoLena,
+    cadenaPachamancaPollo,
+    esReservaValida,
     esMixPechoLena,
     repartirVenta,
     validarCocidoConfig,
