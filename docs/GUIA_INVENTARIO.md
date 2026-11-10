@@ -122,7 +122,10 @@ Del octavo cuelgan:
 
 1. Sube el origen (pollo fresco, panceta, arroz, etc.) o usa el ingreso directo del corte.
 2. Reparte hacia el corte o el plato con **+** / **−**.
-3. Si el producto tiene cocido, pasa de crudo a cocido en la misma tarjeta.
+3. Si el producto tiene cocido, la tarjeta tiene dos controles:
+   - **Origen → Cocido** (naranja): resta 1 del producto origen (pecho, pierna, octavo, filete, tira de panceta o carnero) y suma 1 al **cocido** del plato. El crudo del plato no cambia. Ej.: + en Pecho a la leña cocido resta 1 Pecho de Pollo.
+   - **Crudo → Cocido** (dorado): pasa unidades ya crudas del plato a cocido. Solo resta el crudo del plato; el origen no se toca.
+   El **+** principal de la tarjeta sigue sumando crudo del plato desde el origen.
 4. **Pasar a la hoja** escribe la salida en Transformación del origen y la entrada en Ingreso del destino, y abre Inventario Tabla.
 
 Si no alcanza el stock de hoja, el aviso ámbar detiene el paso y no deja el saldo en negativo.
