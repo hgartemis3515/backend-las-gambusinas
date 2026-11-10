@@ -7549,15 +7549,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           ],
           relaciones: [
             { id: 1, rubro: 'Filete de pollo', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'POLLO - CARNES (A31)', cantidad: 1, unidadNota: 'filete' },
-            { id: 20, rubro: 'Menú', plato: 'Caldo de pollo', complemento: 'Sale de Menú pecho o Menú pierna, según el stock', cantidad: 1, unidadNota: 'menu' },
-            { id: 21, rubro: 'Menú', plato: 'Arroz con pollo', complemento: 'Sale de Menú pecho o Menú pierna, según el stock', cantidad: 1, unidadNota: 'menu' },
-            { id: 22, rubro: 'Menú', plato: 'Pollo a la olla', complemento: 'Sale de Menú pecho o Menú pierna, según el stock', cantidad: 1, unidadNota: 'menu' },
-            { id: 23, rubro: 'Menú pecho', plato: 'Caldo de pollo', complemento: 'Tipo: Pecho', cantidad: 1, unidadNota: 'pecho' },
-            { id: 24, rubro: 'Menú pecho', plato: 'Arroz con pollo', complemento: 'Tipo: Pecho', cantidad: 1, unidadNota: 'pecho' },
-            { id: 25, rubro: 'Menú pecho', plato: 'Pollo a la olla', complemento: 'Tipo: Pecho', cantidad: 1, unidadNota: 'pecho' },
-            { id: 26, rubro: 'Menú pierna', plato: 'Caldo de pollo', complemento: 'Tipo: Pierna', cantidad: 1, unidadNota: 'pierna' },
-            { id: 27, rubro: 'Menú pierna', plato: 'Arroz con pollo', complemento: 'Tipo: Pierna', cantidad: 1, unidadNota: 'pierna' },
-            { id: 28, rubro: 'Menú pierna', plato: 'Pollo a la olla', complemento: 'Tipo: Pierna', cantidad: 1, unidadNota: 'pierna' },
+            { id: 20, rubro: 'Caldo de pollo', plato: 'Caldo de pollo', complemento: 'Sale de Octavo de pollo. Solo crudo', cantidad: 1, unidadNota: 'octavo' },
+            { id: 21, rubro: 'Arroz con pollo', plato: 'Arroz con pollo', complemento: 'Sale de Octavo de pollo. Crudo y cocido', cantidad: 1, unidadNota: 'octavo' },
+            { id: 22, rubro: 'Pollo a la olla', plato: 'Pollo a la olla', complemento: 'Sale de Octavo de pollo. Crudo y cocido', cantidad: 1, unidadNota: 'octavo' },
+            { id: 23, rubro: 'Octavo de pollo', plato: 'Arroz con pollo', complemento: '1 octavo. 2 octavos restan 1 pecho o 1 pierna', cantidad: 1, unidadNota: 'octavo' },
+            { id: 24, rubro: 'Octavo de pollo', plato: 'Pollo a la olla', complemento: '1 octavo. 2 octavos restan 1 pecho o 1 pierna', cantidad: 1, unidadNota: 'octavo' },
+            { id: 25, rubro: 'Octavo de pollo', plato: 'Caldo de pollo', complemento: '1 octavo. Solo crudo. 2 octavos restan 1 pecho o 1 pierna', cantidad: 1, unidadNota: 'octavo' },
             { id: 2, rubro: 'Filete de pollo', plato: 'Filete junior + papas fritas', complemento: 'PORCIONES - ADICIONALES (U342)', cantidad: 0.5, unidadNota: 'filete' },
             { id: 3, rubro: 'Pecho de Pollo', plato: 'Chicharrón de pollo a la BBQ + arroz + papas fritas', complemento: 'POLLO - CARNES', cantidad: 1, unidadNota: 'pechuga' },
             { id: 4, rubro: 'Pecho a la Leña', plato: '1/4 pollo a la leña', complemento: 'Parte pecho', cantidad: 1, unidadNota: 'pecho' },
@@ -8079,7 +8076,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               else if (n.includes('pan con pollo') || (n.includes('sandwich') && n.includes('pollo'))) push(p, 'Sandwich', 1, 'pechuga');
               else if (n.includes('pollada')) push(p, 'Pollada', 1, 'pollada');
               else if (n.includes('arroz con pato') || n.includes('arroz de pato')) push(p, 'Arroz pato', 1, 'arroz pato');
-              else if (n.includes('arroz con pollo')) push(p, 'Arroz con pollo', 1, 'aderezo');
+              else if (n.includes('arroz con pollo')) push(p, 'Arroz con pollo', 1, 'octavo', 'Sale de Octavo de pollo');
+              else if (n.includes('pollo a la olla') || (n.includes('pollo') && /\bolla\b/.test(n))) push(p, 'Pollo a la olla', 1, 'octavo', 'Sale de Octavo de pollo');
+              else if (n.includes('caldo') && n.includes('pollo')) push(p, 'Caldo de pollo', 1, 'octavo', 'Sale de Octavo de pollo. Solo crudo');
               else if (/\btamal\b/.test(n)) push(p, 'Tamal', 1, 'tamal');
               else if (n === 'delicia' || n.includes('delicias')) push(p, 'Delicias', 1, 'delicia');
               else if (/\bhelados?\b/.test(n)) push(p, 'Helados', 1, 'helado');
@@ -8112,9 +8111,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 || n.includes('pollo a la olla')
                 || (n.includes('pollo') && /\bolla\b/.test(n));
               if (esPlatoMenu) {
-                if (!ya('Menú')) push(p, 'Menú', 1, 'menu', 'Sale de Menú pecho o Menú pierna, según el stock');
-                if (!ya('Menú pecho')) push(p, 'Menú pecho', 1, 'pecho', 'Tipo: Pecho. Si el nombre termina en Pec, o no dice Pie');
-                if (!ya('Menú pierna')) push(p, 'Menú pierna', 1, 'pierna', 'Tipo: Pierna. Si el nombre termina en Pie');
+                const rubroGrupo = n.includes('arroz con pollo')
+                  ? 'Arroz con pollo'
+                  : ((n.includes('pollo a la olla') || (n.includes('pollo') && /\bolla\b/.test(n))) ? 'Pollo a la olla' : 'Caldo de pollo');
+                if (!ya(rubroGrupo)) push(p, rubroGrupo, 1, 'octavo', 'Sale de Octavo de pollo');
+                if (!ya('Octavo de pollo')) push(p, 'Octavo de pollo', 1, 'octavo', '1 octavo. 2 octavos restan 1 pecho o 1 pierna');
               }
               if ((n.includes('arroz con pato') || n.includes('arroz de pato'))) {
                 if (!ya('Pecho de Pato')) push(p, 'Pecho de Pato', 1, 'pecho', 'Parte pecho');
@@ -13739,7 +13740,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               origenNombre: 'Pollo fresco',
               origenClave: 'pollo-origen',
               origenSubtexto: '1 pollo fresco = 2 Pechos de Pollo y 2 Piernas de Pollo',
-              resumenRegla: '1 pollo fresco produce a la vez 2 Pechos de Pollo y 2 Piernas de Pollo. 1 pecho produce 2 filetes.',
+              resumenRegla: '1 pollo fresco produce a la vez 2 Pechos de Pollo y 2 Piernas de Pollo. 1 pecho produce 2 filetes. 2 octavos restan 1 pecho o 1 pierna.',
               notaNoSuma: 'Esos cortes no se suman entre sí',
               ramas: [
                 {
@@ -13748,7 +13749,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   color: '#38bdf8',
                   factorTexto: 'Factor: 1 pollo = 2 Pechos de Pollo',
                   subFactorTexto: 'Factor: 1 pecho = 2 filetes',
-                  notaCorte: 'Del pecho cuelgan los platos de filete, chicharrón, chaufa, lomo saltado, Pecho a la leña y Menú pecho.',
+                  notaCorte: 'Del pecho cuelgan los platos de filete, chicharrón, chaufa, lomo saltado, Pecho a la leña y Menú pecho. También puede pasar a Octavo de pollo: 2 octavos = 1 pecho.',
                   platos: [
                     { nombre: 'Filete de Pollo', complemento: 'A31', cantidad: 1, esAderezo: false },
                     { nombre: 'Milanesa de pollo', complemento: 'A32', cantidad: 1, esAderezo: false },
@@ -13769,12 +13770,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   color: '#34d399',
                   factorTexto: 'Factor: 1 pollo = 2 Piernas de Pollo',
                   subFactorTexto: factorPiernaFilete > 0 ? ('Factor pierna → filete: ' + factorPiernaFilete) : 'Pierna → filete: solo si factor > 0',
-                  notaCorte: 'La pierna solo pasa a filete si el factor es mayor que 0. De la pierna cuelgan:',
+                  notaCorte: 'La pierna solo pasa a filete si el factor es mayor que 0. También puede pasar a Octavo de pollo: 2 octavos = 1 pierna. De la pierna cuelgan:',
                   platos: [
                     { nombre: 'Pollo pachamanca pierna', complemento: 'Pachamanca', cantidad: 1, esAderezo: true },
                     { nombre: 'Pierna a la leña', complemento: 'Solo crudo', cantidad: 1, esAderezo: true },
                     { nombre: 'Pollada', complemento: 'A37 · Crudo y cocido', cantidad: 1, esAderezo: true },
                     { nombre: 'Menú pierna', complemento: 'Aderezo', cantidad: 1, esAderezo: true }
+                  ]
+                },
+                {
+                  clave: 'octavo-pollo',
+                  nombre: 'Octavo de pollo',
+                  color: '#fbbf24',
+                  factorTexto: '2 octavos = 1 pecho o 1 pierna',
+                  subFactorTexto: 'Elige pecho o pierna',
+                  notaCorte: 'Del octavo cuelgan estos platos. Caldo de pollo solo tiene crudo.',
+                  platos: [
+                    { nombre: 'Arroz con pollo', complemento: 'Crudo y cocido', cantidad: 1, esAderezo: true },
+                    { nombre: 'Pollo a la olla', complemento: 'Crudo y cocido', cantidad: 1, esAderezo: true },
+                    { nombre: 'Caldo de pollo', complemento: 'Solo crudo', cantidad: 1, esAderezo: true }
                   ]
                 }
               ]
