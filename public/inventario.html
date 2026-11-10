@@ -2124,7 +2124,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span x-text="pechugasLibres()"></span>
                           <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
                         </p>
-                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pechuga')))"></strong> · − <span class="text-rose-300" x-text="despiece.pechugasAFilete"></span> a filete</p>
+                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(stockHojaCrudo('pechuga'))"></strong> · − <span class="text-rose-300" x-text="despiece.pechugasAFilete"></span> a filete</p>
                       </div>
                       <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
                         <span class="text-xl font-extrabold text-sky-300" x-text="formatNum(formulaCorte('pechuga').total)"></span>
@@ -2323,7 +2323,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span x-text="piernasLibres()"></span>
                           <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
                         </p>
-                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pierna')))"></strong> · de <span x-text="piernasObtenidas()"></span> del fresco</p>
+                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(stockHojaCrudo('pierna'))"></strong> · de <span x-text="piernasObtenidas()"></span> del fresco</p>
                       </div>
                       <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
                         <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pierna').total)"></span>
@@ -12117,16 +12117,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return Number(this.despiece.frescos || 0) * Number(this.config.factorPiernasPorFresco || 2);
         },
 
+        stockHojaCrudo(rowId) {
+          const row = this.filaReal(rowId);
+          if (!row) return 0;
+          return this.calcSaldoTipo(row, 'crudo');
+        },
+
         formulaCorte(rowOrId, mapa, corteObj) {
           const id = typeof rowOrId === 'string' ? rowOrId : (rowOrId && rowOrId.id);
           let total = 0;
           let usado = 0;
-          if (id === 'pechuga') {
-            total = this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga');
-            usado = this.pechugasUsadas();
-          } else if (id === 'pierna') {
-            total = this.piernasObtenidas() + this.ingresoDirectoDe('pierna');
-            usado = this.piernasUsadas();
+          if (id === 'pechuga' || id === 'pierna') {
+            usado = id === 'pechuga' ? this.pechugasUsadas() : this.piernasUsadas();
+            const libreHoja = this.stockHojaCrudo(id);
+            total = libreHoja + usado;
+            return { total: total, usado: usado, libre: libreHoja };
           } else if (id === 'pechuga_pato' || id === 'pierna_pato') {
             total = this.origenMapa('pato-fresco') * 2;
             const row = this.getRow(id);
@@ -12296,11 +12301,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         piernasLibres() {
-          return this.piernasObtenidas() + this.ingresoDirectoDe('pierna') - this.piernasUsadas();
+          return this.stockHojaCrudo('pierna');
         },
 
         pechugasLibres() {
-          return this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga') - this.pechugasUsadas();
+          return this.stockHojaCrudo('pechuga');
         },
 
         setPollosFrescosConvertir(val) {
@@ -12324,8 +12329,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           const next = Math.max(0, parseInt(val, 10) || 0);
           const diff = next - Number(this.despiece.piernasAFilete || 0);
-          if (this.piernasLibres() - diff < 0) {
-            this.transformWarning = 'Aviso ámbar: No puedes repartir más piernas de las disponibles (' + (this.piernasObtenidas() + this.ingresoDirectoDe('pierna')) + '). Piernas libres no puede quedar en negativo.';
+          if (diff > 0 && this.piernasLibres() < diff) {
+            this.transformWarning = 'Aviso ámbar: Pierna de Pollo no tiene stock de hoja para transformar ' + diff + '. Quedan ' + this.formatNum(this.piernasLibres()) + '.';
             return;
           }
           this.transformWarning = '';
@@ -12336,8 +12341,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         updatePechugasAFilete(val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
           const diff = next - Number(this.despiece.pechugasAFilete || 0);
-          if (this.pechugasLibres() - diff < 0) {
-            this.transformWarning = 'Aviso ámbar: No puedes repartir más pechugas de las disponibles (' + (this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga')) + '). Pechugas libres no puede quedar en negativo.';
+          if (diff > 0 && this.pechugasLibres() < diff) {
+            this.transformWarning = 'Aviso ámbar: Pecho de Pollo no tiene stock de hoja para transformar ' + diff + '. Quedan ' + this.formatNum(this.pechugasLibres()) + '.';
             return;
           }
           this.transformWarning = '';
