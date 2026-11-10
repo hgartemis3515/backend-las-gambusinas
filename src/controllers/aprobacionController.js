@@ -180,9 +180,8 @@ router.get('/aprobacion/pendiente-cobro', async (req, res) => {
  */
 router.get('/aprobacion/turnos-dia', async (req, res) => {
   try {
-    const CierreCajaRestaurante = require('../database/models/cierreCajaRestaurante.model');
-    const { obtenerTurnosDia } = require('../utils/cierreCajaTurnosDia');
-    const data = await obtenerTurnosDia(CierreCajaRestaurante);
+    const cajaAdicionalService = require('../services/cajaAdicional.service');
+    const data = await cajaAdicionalService.resumenTurno();
     res.json(data);
   } catch (error) {
     logger.error('Error al obtener turnos DIA/NOCHE', { error: error.message });

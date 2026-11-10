@@ -2419,29 +2419,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <h4 class="text-sm font-bold text-white">Octavo de pollo</h4>
                       <div class="caja-stock">
                         <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                        <p class="text-xl font-mono font-extrabold text-amber-200" x-text="formatNum(stockCuadro('octavo_pollo', 'crudo'))"></p>
-                        <p class="caja-stock-mas" x-show="textoIngreso('octavo_pollo', 'crudo')" x-text="textoIngreso('octavo_pollo', 'crudo')"></p>
-                        <p class="caja-stock-menos" x-show="textoResto('octavo_pollo', 'crudo')" x-text="textoResto('octavo_pollo', 'crudo')"></p>
+                        <p class="text-xl font-mono font-extrabold text-amber-200" x-text="formatNum(totalOctavosLibres())"></p>
+                        <p class="caja-stock-mas" x-show="totalOctavosLibres() > 0" x-text="'+' + formatNum(totalOctavosLibres()) + ' ingreso ' + etiquetaTurnoCuadro()"></p>
                       </div>
                       <div class="space-y-2 pt-1.5 border-t border-[#26263a]">
                         <div>
                           <p class="caja-stock-corte text-sky-200">Desde pecho</p>
-                          <p class="caja-stock-etiq">Stock pecho: <strong class="text-white" x-text="formatNum(octavosDe('pechugas'))"></strong></p>
-                          <p class="caja-stock-etiq">Stock pierna: <strong class="text-white" x-text="formatNum(octavosDe('piernas'))"></strong></p>
+                          <p class="caja-stock-etiq">Stock pecho: <strong class="text-white" x-text="formatNum(octavosStockCorte('pechugas'))"></strong></p>
+                          <p class="caja-stock-etiq">Stock pierna: <strong class="text-white" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
                           <div class="caja-stock-step">
-                            <button type="button" aria-label="Restar octavos desde pecho" @click="updateOctavos('pechugas', octavosDe('pechugas') - 1)">−</button>
-                            <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosDe('pechugas')" @change="updateOctavos('pechugas', $event.target.value)">
-                            <button type="button" aria-label="Sumar octavos desde pecho" @click="updateOctavos('pechugas', octavosDe('pechugas') + 1)">+</button>
+                            <button type="button" aria-label="Restar octavos desde pecho" @click="fijarOctavosStock('pechugas', octavosStockCorte('pechugas') - 1)">−</button>
+                            <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosStockCorte('pechugas')" @change="fijarOctavosStock('pechugas', $event.target.value)">
+                            <button type="button" aria-label="Sumar octavos desde pecho" @click="fijarOctavosStock('pechugas', octavosStockCorte('pechugas') + 1)">+</button>
                           </div>
                         </div>
                         <div>
                           <p class="caja-stock-corte text-emerald-200">Desde pierna</p>
-                          <p class="caja-stock-etiq">Stock pecho: <strong class="text-white" x-text="formatNum(octavosDe('pechugas'))"></strong></p>
-                          <p class="caja-stock-etiq">Stock pierna: <strong class="text-white" x-text="formatNum(octavosDe('piernas'))"></strong></p>
+                          <p class="caja-stock-etiq">Stock pecho: <strong class="text-white" x-text="formatNum(octavosStockCorte('pechugas'))"></strong></p>
+                          <p class="caja-stock-etiq">Stock pierna: <strong class="text-white" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
                           <div class="caja-stock-step">
-                            <button type="button" aria-label="Restar octavos desde pierna" @click="updateOctavos('piernas', octavosDe('piernas') - 1)">−</button>
-                            <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosDe('piernas')" @change="updateOctavos('piernas', $event.target.value)">
-                            <button type="button" aria-label="Sumar octavos desde pierna" @click="updateOctavos('piernas', octavosDe('piernas') + 1)">+</button>
+                            <button type="button" aria-label="Restar octavos desde pierna" @click="fijarOctavosStock('piernas', octavosStockCorte('piernas') - 1)">−</button>
+                            <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosStockCorte('piernas')" @change="fijarOctavosStock('piernas', $event.target.value)">
+                            <button type="button" aria-label="Sumar octavos desde pierna" @click="fijarOctavosStock('piernas', octavosStockCorte('piernas') + 1)">+</button>
                           </div>
                         </div>
                       </div>
@@ -5970,7 +5969,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <button type="button" class="text-[#a0a0b8] hover:text-white cursor-pointer" aria-label="Cerrar" @click="editarStock.abierto = false">✕</button>
       </div>
       <div class="space-y-3" x-show="editarStock.octavo">
-        <p class="text-xs text-[#a0a0b8]">Stock pecho: <strong class="text-sky-200" x-text="formatNum(octavosDe('pechugas'))"></strong> · Stock pierna: <strong class="text-emerald-200" x-text="formatNum(octavosDe('piernas'))"></strong></p>
+        <p class="text-xs text-[#a0a0b8]">Stock pecho: <strong class="text-sky-200" x-text="formatNum(octavosStockCorte('pechugas'))"></strong> · Stock pierna: <strong class="text-emerald-200" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
         <label class="block text-xs text-[#a0a0b8]">
           <span class="font-bold text-sky-200">Cantidad de pecho</span>
           <input type="number" min="0" step="1" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.pecho" aria-label="Octavos desde pecho">
@@ -8428,6 +8427,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         periodo: 'hoy',
         showTurnoDiaNoche: false,
+        turnosCajas: [],
+        turnosSegmentos: [],
         primerCierreHoyAt: null,
         cierresHoyCount: 0,
         turnosLimaYMD: '',
@@ -8476,16 +8477,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         periodosVisibles() {
-          if (!this.showTurnoDiaNoche) return this.periodos;
-          return [{ id: 'dia', label: 'Día' }, { id: 'noche', label: 'Noche' }].concat(this.periodos);
+          const cajas = (this.turnosCajas || []).map((s) => ({ id: s.id, label: s.label }));
+          if (!this.showTurnoDiaNoche) return cajas.concat(this.periodos);
+          return [{ id: 'dia', label: 'Día' }].concat(cajas).concat([{ id: 'noche', label: 'Noche' }]).concat(this.periodos);
         },
 
         rangoPeriodo() {
           const hoy = this.fechaHoy();
           if (!this.customDesde) this.customDesde = hoy;
           if (!this.customHasta) this.customHasta = hoy;
-          if ((this.periodo === 'dia' || this.periodo === 'noche') && this.primerCierreHoyAt && window.TurnosDiaNoche) {
-            const r = window.TurnosDiaNoche.rangoIso(this.periodo, this.primerCierreHoyAt);
+          if (window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(this.periodo)) {
+            const r = window.TurnosDiaNoche.rangoDe(this.periodo, this);
             if (r) return { desde: r.desde, hasta: r.hasta };
           }
           if (this.periodo === 'ayer') {
@@ -11212,8 +11214,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             octavo: true,
             crudo: 0,
             cocido: 0,
-            pecho: this.octavosDe('pechugas'),
-            pierna: this.octavosDe('piernas'),
+            pecho: this.octavosStockCorte('pechugas'),
+            pierna: this.octavosStockCorte('piernas'),
             motivo: ''
           };
         },
@@ -11222,11 +11224,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const f = this.editarStock;
           const pecho = Math.max(0, Math.round(Number(f.pecho) || 0));
           const pierna = Math.max(0, Math.round(Number(f.pierna) || 0));
-          const antesPecho = this.octavosDe('pechugas');
-          const antesPierna = this.octavosDe('piernas');
+          const antesPecho = this.octavosStockCorte('pechugas');
+          const antesPierna = this.octavosStockCorte('piernas');
           this.transformWarning = '';
-          if (pecho !== antesPecho && this.updateOctavos('pechugas', pecho) === false && this.transformWarning) return;
-          if (pierna !== antesPierna && this.updateOctavos('piernas', pierna) === false && this.transformWarning) return;
+          if (pecho !== antesPecho && this.fijarOctavosStock('pechugas', pecho) === false && this.transformWarning) return;
+          if (pierna !== antesPierna && this.fijarOctavosStock('piernas', pierna) === false && this.transformWarning) return;
           this.editarStock.abierto = false;
         },
 
@@ -12441,15 +12443,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         etiquetaTurnoCuadro() {
-          if (this.showTurnoDiaNoche && this.primerCierreHoyAt) return this.periodo === 'dia' ? 'día' : 'noche';
+          if (window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(this.periodo)) {
+            const et = window.TurnosDiaNoche.etiqueta(this.periodo, this.primerCierreHoyAt, this);
+            if (et) return et;
+          }
           return 'hoy';
         },
 
         rangoTurnoCuadro() {
           const TD = window.TurnosDiaNoche;
           const ymd = TD ? TD.limaYMD() : this.fechaHoy();
-          if (this.showTurnoDiaNoche && this.primerCierreHoyAt && TD) {
-            const r = TD.rangoIso(this.periodo === 'dia' ? 'dia' : 'noche', this.primerCierreHoyAt);
+          if (TD && TD.esSegmento(this.periodo)) {
+            const r = TD.rangoDe(this.periodo, this);
             if (r) return r;
           }
           if (TD) return { desde: TD.limaDayStart(ymd).toISOString(), hasta: TD.limaDayEnd(ymd).toISOString() };
@@ -12656,9 +12661,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (delta > 0) {
             const libres = this.octavosStockCorte(corte);
             if (libres + 0.0001 < delta) {
-              const falta = this.redondear3(delta - libres);
-              const ok = this.updateOctavos(corte, this.octavosDe(corte) + falta);
-              if (!ok) return false;
+              return this.avisoTransformar('Aviso ámbar: en octavo de ' + this.marcaCorte(corte) + ' quedan ' + this.formatNum(libres) + '. No alcanza para ' + this.formatNum(delta) + '.');
             }
           }
           const marca = this.marcaCorte(corte);
@@ -13211,7 +13214,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         totalOctavos() {
-          return this.octavosDe('pechugas') + this.octavosDe('piernas');
+          return this.redondear3(this.octavosDe('pechugas') + this.octavosDe('piernas'));
+        },
+
+        totalOctavosLibres() {
+          return this.redondear3(this.octavosStockCorte('pechugas') + this.octavosStockCorte('piernas'));
         },
 
 

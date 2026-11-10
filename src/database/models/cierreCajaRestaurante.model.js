@@ -256,6 +256,11 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Comanda'
   }],
+  cajaAdicionalNumero: { type: Number, default: null },
+  tramos: [{
+    inicio: Date,
+    fin: Date,
+  }],
   reversion: {
     fecha: Date,
     usuario: String,

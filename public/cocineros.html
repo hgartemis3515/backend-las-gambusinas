@@ -237,12 +237,21 @@ tailwind.config = {
           <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroFecha('dia')"
             class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
             :class="filtroFecha === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+          <template x-for="seg in turnosCajas" :key="seg.id">
+            <button type="button" @click="setFiltroFecha(seg.id)"
+              class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+              :class="filtroFecha === seg.id ? 'bg-emerald-600/20 border-emerald-400 text-emerald-300' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-emerald-400/40'"
+              x-text="seg.label"></button>
+          </template>
           <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroFecha('noche')"
             class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
             :class="filtroFecha === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
           <select x-model="filtroFecha" @change="setFiltroFecha(filtroFecha)" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             <option value="hoy">Hoy</option>
             <option value="dia" x-bind:hidden="!showTurnoDiaNoche">DIA</option>
+            <template x-for="seg in turnosCajas" :key="'f-' + seg.id">
+              <option :value="seg.id" x-text="seg.label"></option>
+            </template>
             <option value="noche" x-bind:hidden="!showTurnoDiaNoche">NOCHE</option>
             <option value="7dias">Últimos 7 días</option>
             <option value="30dias">Últimos 30 días</option>
@@ -2833,6 +2842,12 @@ tailwind.config = {
               <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setHistorialFiltroFecha('dia')"
                 class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
                 :class="historialFiltroFecha === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+              <template x-for="seg in turnosCajas" :key="'h-' + seg.id">
+                <button type="button" @click="setHistorialFiltroFecha(seg.id)"
+                  class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+                  :class="historialFiltroFecha === seg.id ? 'bg-emerald-600/20 border-emerald-400 text-emerald-300' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-emerald-400/40'"
+                  x-text="seg.label"></button>
+              </template>
               <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setHistorialFiltroFecha('noche')"
                 class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
                 :class="historialFiltroFecha === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
@@ -2842,6 +2857,9 @@ tailwind.config = {
               class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
               <option value="hoy">Hoy</option>
               <option value="dia" x-bind:hidden="!showTurnoDiaNoche">DIA</option>
+              <template x-for="seg in turnosCajas" :key="'ho-' + seg.id">
+                <option :value="seg.id" x-text="seg.label"></option>
+              </template>
               <option value="noche" x-bind:hidden="!showTurnoDiaNoche">NOCHE</option>
               <option value="ayer">Ayer</option>
               <option value="7dias">Últimos 7 días</option>
@@ -4685,6 +4703,8 @@ function cocinerosApp() {
     fechaDesde: '',
     fechaHasta: '',
     showTurnoDiaNoche: false,
+    turnosCajas: [],
+    turnosSegmentos: [],
     primerCierreHoyAt: null,
     cierresHoyCount: 0,
     turnosLimaYMD: '',
@@ -5418,7 +5438,8 @@ function cocinerosApp() {
 
     setFiltroFecha(id) {
       this.filtroFecha = id;
-      if (this.historialFiltroFecha === 'hoy' || this.historialFiltroFecha === 'dia' || this.historialFiltroFecha === 'noche') {
+      const h = String(this.historialFiltroFecha || '');
+      if (h === 'hoy' || h === 'dia' || h === 'noche' || h.indexOf('caja-') === 0) {
         this.historialFiltroFecha = id;
         this.cargarHistorialCocinados();
       }
@@ -5439,7 +5460,8 @@ function cocinerosApp() {
         getPeriod: () => this.filtroFecha,
         setPeriod: (v) => {
           this.filtroFecha = v;
-          if (this.historialFiltroFecha === 'hoy' || this.historialFiltroFecha === 'dia' || this.historialFiltroFecha === 'noche') {
+          const h = String(this.historialFiltroFecha || '');
+          if (h === 'hoy' || h === 'dia' || h === 'noche' || h.indexOf('caja-') === 0) {
             this.historialFiltroFecha = v;
           }
         },
@@ -5459,8 +5481,10 @@ function cocinerosApp() {
           desde = hasta;
           break;
         case 'dia':
-        case 'noche': {
-          const r = typeof TurnosDiaNoche !== 'undefined' ? TurnosDiaNoche.rangoIso(this.filtroFecha, this.primerCierreHoyAt) : null;
+        case 'noche':
+        default: {
+          if (String(this.filtroFecha).indexOf('caja-') !== 0 && this.filtroFecha !== 'dia' && this.filtroFecha !== 'noche') break;
+          const r = typeof TurnosDiaNoche !== 'undefined' ? TurnosDiaNoche.rangoDe(this.filtroFecha, this) : null;
           if (r) { desde = r.desde; hasta = r.hasta; }
           else { desde = hoy; }
           break;
@@ -9727,8 +9751,8 @@ function cocinerosApp() {
         let desde = this.historialFechaDesde;
         let hasta = this.historialFechaHasta;
         if (this.historialFiltroFecha === 'hoy') { desde = hoy; hasta = hoy; }
-        else if (this.historialFiltroFecha === 'dia' || this.historialFiltroFecha === 'noche') {
-          const r = typeof TurnosDiaNoche !== 'undefined' ? TurnosDiaNoche.rangoIso(this.historialFiltroFecha, this.primerCierreHoyAt) : null;
+        else if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(this.historialFiltroFecha)) {
+          const r = TurnosDiaNoche.rangoDe(this.historialFiltroFecha, this);
           if (r) { desde = r.desde; hasta = r.hasta; } else { desde = hoy; hasta = hoy; }
         }
         else if (this.historialFiltroFecha === 'ayer') { const ayer = addDaysYMD(hoy, -1); desde = ayer; hasta = ayer; }

@@ -77,6 +77,12 @@ tailwind.config = {
           <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('dia')"
             class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
             :class="filtroPeriodo === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+          <template x-for="seg in turnosCajas" :key="seg.id">
+            <button type="button" @click="setFiltroPeriodo(seg.id)"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition"
+              :class="filtroPeriodo === seg.id ? 'bg-emerald-600/20 border-emerald-400 text-emerald-300' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-emerald-400/40'"
+              x-text="seg.label"></button>
+          </template>
           <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('noche')"
             class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
             :class="filtroPeriodo === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
@@ -678,6 +684,8 @@ function dashApp() {
     _ventasDataCache: [],
     filtroPeriodo: 'hoy',
     showTurnoDiaNoche: false,
+    turnosCajas: [],
+    turnosSegmentos: [],
     primerCierreHoyAt: null,
     turnosLimaYMD: '',
     cierresHoyCount: 0,
@@ -756,8 +764,8 @@ function dashApp() {
     },
 
     fechasQuery() {
-      if ((this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') && this.primerCierreHoyAt && typeof TurnosDiaNoche !== 'undefined') {
-        const r = TurnosDiaNoche.rangoIso(this.filtroPeriodo, this.primerCierreHoyAt);
+      if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(this.filtroPeriodo)) {
+        const r = TurnosDiaNoche.rangoDe(this.filtroPeriodo, this);
         if (r) return { fechaInicio: r.desde, fechaFin: r.hasta };
       }
       const hoy = this.limaHoyYMD();
@@ -765,8 +773,9 @@ function dashApp() {
     },
 
     get etiquetaPeriodo() {
-      if ((this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') && this.primerCierreHoyAt && typeof TurnosDiaNoche !== 'undefined') {
-        return TurnosDiaNoche.etiqueta(this.filtroPeriodo, this.primerCierreHoyAt);
+      if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(this.filtroPeriodo)) {
+        const et = TurnosDiaNoche.etiqueta(this.filtroPeriodo, this.primerCierreHoyAt, this);
+        if (et) return et;
       }
       return 'Hoy · ' + this.limaHoyYMD();
     },
@@ -775,12 +784,8 @@ function dashApp() {
       if (!createdAt) return false;
       const t = new Date(createdAt).getTime();
       if (!Number.isFinite(t)) return false;
-      if ((this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') && this.primerCierreHoyAt && typeof TurnosDiaNoche !== 'undefined') {
-        const corte = new Date(this.primerCierreHoyAt).getTime();
-        const ymd = this.limaHoyYMD();
-        if (t < TurnosDiaNoche.limaDayStart(ymd).getTime() || t > TurnosDiaNoche.limaDayEnd(ymd).getTime()) return false;
-        if (this.filtroPeriodo === 'dia') return t < corte;
-        return t >= corte;
+      if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(this.filtroPeriodo)) {
+        return TurnosDiaNoche.contiene(this.filtroPeriodo, createdAt, this);
       }
       return TurnosDiaNoche && typeof TurnosDiaNoche.limaYMD === 'function'
         ? TurnosDiaNoche.limaYMD(new Date(createdAt)) === this.limaHoyYMD()

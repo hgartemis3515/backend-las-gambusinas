@@ -43,6 +43,7 @@ const auditoriaSchema = new mongoose.Schema({
       'TICKETS_VERIFICADOS_CIERRE_MASIVO',
       'CIERRE_CAJA_EJECUTADO',
       'CIERRE_CAJA_REVERTIDO',
+      'CAJA_ADICIONAL_HABILITADA',
       'TICKET_ANULADO_COCINA',
       // Solicitar Orden (Panel Gestión / KDS supervisor)
       'SOLICITUD_ORDEN_APROBADA',

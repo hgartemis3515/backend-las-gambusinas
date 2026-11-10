@@ -54,6 +54,59 @@
     }).format(new Date(d));
   }
 
+  function esSegmento(preset) {
+    var key = String(preset || '').toLowerCase();
+    return key === 'dia' || key === 'noche' || key.indexOf('caja-') === 0;
+  }
+
+  function buscarSegmento(ctx, preset) {
+    var segs = (ctx && ctx.turnosSegmentos) || [];
+    var key = String(preset || '').toLowerCase();
+    for (var i = 0; i < segs.length; i++) {
+      if (String(segs[i].id).toLowerCase() === key) return segs[i];
+    }
+    return null;
+  }
+
+  function contiene(preset, createdAt, ctx) {
+    if (!esSegmento(preset) || !createdAt) return false;
+    var seg = buscarSegmento(ctx, preset);
+    var t = new Date(createdAt).getTime();
+    if (!Number.isFinite(t)) return false;
+    var ymd = limaYMD();
+    if (t < limaDayStart(ymd).getTime() || t > limaDayEnd(ymd).getTime()) return false;
+    if (!seg) {
+      var key = String(preset || '').toLowerCase();
+      var corte = ctx && ctx.primerCierreHoyAt ? new Date(ctx.primerCierreHoyAt).getTime() : NaN;
+      if (!Number.isFinite(corte)) return false;
+      if (key === 'dia') return t < corte;
+      if (key === 'noche') return t >= corte;
+      return false;
+    }
+    var desde = new Date(seg.desde).getTime();
+    var hasta = new Date(seg.hasta).getTime();
+    if (String(seg.id) === 'noche') {
+      if (t < desde || t > hasta) return false;
+      var excl = seg.excluir || [];
+      for (var i = 0; i < excl.length; i++) {
+        var a = new Date(excl[i].desde).getTime();
+        var b = new Date(excl[i].hasta).getTime();
+        if (excl[i].abierto) {
+          if (t >= a && t <= b) return false;
+        } else if (t >= a && t < b) return false;
+      }
+      return true;
+    }
+    if (seg.abierto) return t >= desde && t <= hasta;
+    return t >= desde && t < hasta;
+  }
+
+  function rangoDe(preset, ctx) {
+    var seg = buscarSegmento(ctx, preset);
+    if (seg) return { desde: seg.desde, hasta: seg.hasta, excluir: seg.excluir || [] };
+    return rangoIso(preset, ctx && ctx.primerCierreHoyAt);
+  }
+
   function rangoIso(preset, primerCierreHoyAt) {
     var key = String(preset || '').toLowerCase();
     if (!primerCierreHoyAt || (key !== 'dia' && key !== 'noche')) return null;
@@ -72,7 +125,9 @@
     };
   }
 
-  function etiqueta(preset, primerCierreHoyAt) {
+  function etiqueta(preset, primerCierreHoyAt, ctx) {
+    var seg = buscarSegmento(ctx, preset);
+    if (seg) return seg.label + ' · ' + limaHM(seg.desde) + '–' + limaHM(seg.hasta);
     var key = String(preset || '').toLowerCase();
     if (!primerCierreHoyAt) return key === 'dia' ? 'DIA' : key === 'noche' ? 'NOCHE' : '';
     if (key === 'dia') return 'Día · ' + limaYMD() + ' 04:00–' + limaHM(primerCierreHoyAt);
@@ -100,10 +155,14 @@
     var cantidad = mismoDia ? (Number(data.cantidad) || 0) : 0;
     var hay = mismoDia && data.hayCierreHoy === true && cantidad >= 1 && !!data.primerCierreAt;
     var diaCambio = ctx.turnosLimaYMD && ctx.turnosLimaYMD !== ymd;
-    var isTurno = function (v) { return v === diaValue || v === nocheValue; };
+    var isTurno = function (v) {
+      var s = String(v || '');
+      return s === diaValue || s === nocheValue || s === 'dia' || s === 'noche' || s === 'DIA' || s === 'NOCHE' || s.indexOf('caja-') === 0;
+    };
 
     if (diaCambio) {
       ctx._turnosAutoNocheHecho = false;
+      ctx._periodoActivoVisto = '';
       if (isTurno(getPeriod())) setPeriod(hoyValues[0]);
     }
 
@@ -111,14 +170,23 @@
     ctx.showTurnoDiaNoche = hay;
     ctx.primerCierreHoyAt = hay ? data.primerCierreAt : null;
     ctx.cierresHoyCount = cantidad;
+    ctx.turnosSegmentos = hay && Array.isArray(data.segmentos) ? data.segmentos : [];
+    ctx.turnosCajas = ctx.turnosSegmentos.filter(function (s) { return String(s.id).indexOf('caja-') === 0; });
 
-    if (hay) {
-      if (autoNoche && !ctx._turnosAutoNocheHecho) {
+    var activo = mismoDia && data.periodoActivo ? data.periodoActivo : (hay ? 'noche' : 'hoy');
+    if (autoNoche && activo !== ctx._periodoActivoVisto) {
+      if (activo === 'hoy') {
+        if (isTurno(getPeriod())) setPeriod(hoyValues[0]);
+      } else if (activo === 'noche') {
         setPeriod(nocheValue);
+      } else if (String(activo).indexOf('caja-') === 0) {
+        setPeriod(activo);
       }
-      ctx._turnosAutoNocheHecho = true;
-    } else {
+      ctx._periodoActivoVisto = activo;
+      ctx._turnosAutoNocheHecho = hay;
+    } else if (!hay) {
       ctx._turnosAutoNocheHecho = false;
+      ctx._periodoActivoVisto = 'hoy';
       if (isTurno(getPeriod())) setPeriod(hoyValues[0]);
     }
     return true;
@@ -151,6 +219,9 @@
     limaDayStart: limaDayStart,
     limaDayEnd: limaDayEnd,
     addDaysYMD: addDaysYMD,
+    esSegmento: esSegmento,
+    contiene: contiene,
+    rangoDe: rangoDe,
     rangoIso: rangoIso,
     etiqueta: etiqueta,
     applyPayload: applyPayload,

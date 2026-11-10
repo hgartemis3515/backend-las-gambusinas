@@ -635,6 +635,12 @@ tailwind.config = {
             <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setPreset('dia')"
               class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
               :class="rangoPreset === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+            <template x-for="seg in turnosCajas" :key="seg.id">
+              <button type="button" @click="setPreset(seg.id)"
+                class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+                :class="rangoPreset === seg.id ? 'bg-emerald-600/20 border-emerald-400 text-emerald-300' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-emerald-400/40'"
+                x-text="seg.label"></button>
+            </template>
             <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setPreset('noche')"
               class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
               :class="rangoPreset === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
@@ -1384,6 +1390,9 @@ tailwind.config = {
             class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             <option value="hoy">Hoy</option>
             <option value="dia" x-bind:hidden="!showTurnoDiaNoche">DIA</option>
+            <template x-for="seg in turnosCajas" :key="'opt-' + seg.id">
+              <option :value="seg.id" x-text="seg.label"></option>
+            </template>
             <option value="noche" x-bind:hidden="!showTurnoDiaNoche">NOCHE</option>
             <option value="ayer">Ayer</option>
             <option value="7dias">Últimos 7 días</option>
@@ -3270,6 +3279,8 @@ function mozosExecutiveApp() {
     customDesde: '',
     customHasta: '',
     showTurnoDiaNoche: false,
+    turnosCajas: [],
+    turnosSegmentos: [],
     primerCierreHoyAt: null,
     cierresHoyCount: 0,
     turnosLimaYMD: '',
@@ -3478,8 +3489,8 @@ function mozosExecutiveApp() {
     },
 
     get rangoFechas() {
-      const turno = (typeof TurnosDiaNoche !== 'undefined')
-        ? TurnosDiaNoche.rangoIso(this.rangoPreset, this.primerCierreHoyAt)
+      const turno = (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(this.rangoPreset))
+        ? TurnosDiaNoche.rangoDe(this.rangoPreset, this)
         : null;
       if (turno) return { inicio: turno.desde, fin: turno.hasta };
       const hoy = limaYMD();
@@ -3492,8 +3503,9 @@ function mozosExecutiveApp() {
       return { inicio: a, fin: b };
     },
     get rangoEtiqueta() {
-      if ((this.rangoPreset === 'dia' || this.rangoPreset === 'noche') && this.primerCierreHoyAt) {
-        return TurnosDiaNoche.etiqueta(this.rangoPreset, this.primerCierreHoyAt);
+      if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(this.rangoPreset)) {
+        const et = TurnosDiaNoche.etiqueta(this.rangoPreset, this.primerCierreHoyAt, this);
+        if (et) return et;
       }
       const { inicio, fin } = this.rangoFechas;
       return inicio === fin ? inicio : inicio + ' → ' + fin;
@@ -4077,7 +4089,8 @@ function mozosExecutiveApp() {
 
     _setPeriodoTurno(v) {
       this.rangoPreset = v;
-      if (this.historialMozoFiltroFecha === 'hoy' || this.historialMozoFiltroFecha === 'dia' || this.historialMozoFiltroFecha === 'noche') {
+      const h = String(this.historialMozoFiltroFecha || '');
+      if (h === 'hoy' || h === 'dia' || h === 'noche' || h.indexOf('caja-') === 0) {
         this.historialMozoFiltroFecha = v;
       }
     },
@@ -4413,8 +4426,8 @@ function mozosExecutiveApp() {
         let desde = this.historialMozoFechaDesde;
         let hasta = this.historialMozoFechaHasta;
         if (this.historialMozoFiltroFecha === 'hoy') { desde = hoy; hasta = hoy; }
-        else if (this.historialMozoFiltroFecha === 'dia' || this.historialMozoFiltroFecha === 'noche') {
-          const r = typeof TurnosDiaNoche !== 'undefined' ? TurnosDiaNoche.rangoIso(this.historialMozoFiltroFecha, this.primerCierreHoyAt) : null;
+        else if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(this.historialMozoFiltroFecha)) {
+          const r = TurnosDiaNoche.rangoDe(this.historialMozoFiltroFecha, this);
           if (r) { desde = r.desde; hasta = r.hasta; } else { desde = hoy; hasta = hoy; }
         }
         else if (this.historialMozoFiltroFecha === 'ayer') { const ayer = addDaysYMD(hoy, -1); desde = ayer; hasta = ayer; }

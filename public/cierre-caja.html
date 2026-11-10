@@ -70,6 +70,14 @@ tailwind.config = {
           <div class="w-2 h-2 rounded-full status-pulse" :class="estado.diasTranscurridos > 3 ? 'bg-st-pagado' : estado.diasTranscurridos > 1 ? 'bg-st-esperando' : 'bg-st-preparado'"></div>
           <span class="text-xs text-txt-secondary" x-text="estado.diasTranscurridos > 3 ? 'Cierre pendiente' : estado.diasTranscurridos > 1 ? 'Revisar cierre' : 'Al día'"></span>
         </div>
+        <button type="button" @click="abrirModalHabilitarCaja()" x-show="tienePermiso('ejecutar-cierre-caja')" x-cloak
+          :disabled="!puedeHabilitarCaja"
+          :title="puedeHabilitarCaja ? ('Abrir CAJA ' + siguienteCaja) : (cajaAbierta ? ('CAJA ' + cajaAbierta.numero + ' está abierta. Ciérrala para volver a Noche') : 'Solo se habilita en Noche, después de cerrar la caja')"
+          class="px-5 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2"
+          :class="puedeHabilitarCaja ? 'bg-emerald-600 text-white hover:brightness-110' : 'bg-emerald-950/50 text-emerald-200/40 cursor-not-allowed'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Habilitar Caja adicional
+        </button>
         <button @click="abrirModalCerrarCaja()" x-show="tienePermiso('ejecutar-cierre-caja')" x-cloak class="bg-gold text-bg-primary px-5 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
           Cerrar Caja
@@ -237,6 +245,20 @@ tailwind.config = {
 
 <!-- ============================================ -->
 <!-- MODAL OVERLAY -->
+<div x-show="modalHabilitarCaja" x-cloak class="fixed inset-0 z-[10050] bg-black/70" @click="modalHabilitarCaja = false"></div>
+<div x-show="modalHabilitarCaja" x-cloak class="fixed inset-0 z-[10051] flex items-center justify-center p-4" @keydown.escape.window="modalHabilitarCaja = false">
+  <div class="bg-bg-card border border-emerald-500/30 rounded-2xl shadow-2xl w-full max-w-md p-6" @click.stop>
+    <h3 class="text-lg font-bold text-emerald-400">Habilitar CAJA <span x-text="siguienteCaja"></span></h3>
+    <p class="text-xs text-txt-secondary mt-1">Se abre una caja igual que la del día. Al cerrarla, el turno vuelve a Noche.</p>
+    <label class="block text-[11px] text-txt-muted mt-4 mb-1">Motivo (opcional)</label>
+    <textarea x-model="motivoCajaAdicional" rows="3" maxlength="500" placeholder="Por qué se abre esta caja" class="w-full bg-bg-primary border border-[rgba(212,175,55,0.2)] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"></textarea>
+    <div class="flex gap-3 mt-4">
+      <button type="button" @click="modalHabilitarCaja = false" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary px-4 py-2.5 rounded-xl text-sm font-semibold">Cancelar</button>
+      <button type="button" @click="confirmarHabilitarCaja()" :disabled="habilitandoCaja" class="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">Habilitar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================ -->
 <div x-show="modalOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm" @click="cerrarModal()"></div>
 
@@ -524,6 +546,12 @@ function cierreApp() {
     ordenTicketsCierre: 'antiguo',
     datosConfirmacion: null,
     loadingVerificacion: false,
+    puedeHabilitarCaja: false,
+    cajaAbierta: null,
+    siguienteCaja: 2,
+    modalHabilitarCaja: false,
+    motivoCajaAdicional: '',
+    habilitandoCaja: false,
     modalDetalleAbierto: false,
     modalComandaVer: false,
     comandaVerUrl: '',
@@ -581,6 +609,9 @@ function cierreApp() {
             periodoFin: data.periodoFin,
             verificacion: data.verificacion || { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: true }
           };
+          this.puedeHabilitarCaja = !!data.puedeHabilitarCajaAdicional;
+          this.cajaAbierta = data.cajaAbierta || null;
+          this.siguienteCaja = data.siguienteNumero || 2;
         }
       } catch (e) { console.error('Error loading estado:', e); }
       this.loadingEstado = false;
@@ -680,6 +711,33 @@ function cierreApp() {
         mesa_estado_cambiado: 'Estado de mesa'
       };
       return labels[tipo] || tipo || '—';
+    },
+
+    abrirModalHabilitarCaja() {
+      if (!this.puedeHabilitarCaja) {
+        this.showToast(this.cajaAbierta
+          ? ('Cierra CAJA ' + this.cajaAbierta.numero + ' para volver a Noche')
+          : 'Solo se habilita en Noche, después de cerrar la caja', 'error');
+        return;
+      }
+      this.motivoCajaAdicional = '';
+      this.modalHabilitarCaja = true;
+    },
+
+    async confirmarHabilitarCaja() {
+      if (this.habilitandoCaja) return;
+      this.habilitandoCaja = true;
+      try {
+        const res = await apiPost('/cierre-caja/cajas-adicionales', { motivo: this.motivoCajaAdicional || '' });
+        if (!res || res.success === false || res.error) throw new Error(res?.message || res?.error || 'No se pudo habilitar');
+        this.modalHabilitarCaja = false;
+        this.motivoCajaAdicional = '';
+        this.showToast('CAJA ' + (res.caja?.numero || this.siguienteCaja) + ' habilitada');
+        await this.loadEstadoActual();
+      } catch (e) {
+        this.showToast(e.message || 'No se pudo habilitar', 'error');
+      }
+      this.habilitandoCaja = false;
     },
 
     // ========== CERRAR CAJA (FLUJO EN 2 PASOS) ==========

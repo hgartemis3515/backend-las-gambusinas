@@ -259,6 +259,12 @@ tailwind.config = {
         <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroRapido('DIA')"
           :class="isFilterActive('DIA') ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
           class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200">DIA</button>
+        <template x-for="seg in turnosCajas" :key="seg.id">
+          <button type="button" @click="setFiltroRapido(seg.id)"
+            :class="isFilterActive(seg.id) ? 'bg-emerald-600 text-white font-bold' : 'border border-emerald-500/40 text-emerald-300 hover:border-emerald-400'"
+            class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200"
+            x-text="seg.label"></button>
+        </template>
         <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroRapido('NOCHE')"
           :class="isFilterActive('NOCHE') ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
           class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200">NOCHE</button>
@@ -1294,6 +1300,8 @@ function reportesApp() {
       fechaFin: ''         // YYYY-MM-DD
     },
     showTurnoDiaNoche: false,
+    turnosCajas: [],
+    turnosSegmentos: [],
     primerCierreHoyAt: null,
     cierresHoyCount: 0,
     turnosLimaYMD: '',
@@ -1527,7 +1535,7 @@ function reportesApp() {
      * Establece un filtro rápido y dispara la actualización de datos
      */
     setFiltroRapido(filtro) {
-      if (filtro === 'DIA' || filtro === 'NOCHE') {
+      if (filtro === 'DIA' || filtro === 'NOCHE' || String(filtro).indexOf('caja-') === 0) {
         const hoyStr = DateUtils.getTodayStr();
         this.dateFilter = { tipo: filtro, fechaInicio: hoyStr, fechaFin: hoyStr };
         this.refreshAllData();
@@ -1544,8 +1552,8 @@ function reportesApp() {
     
     fechasQuery() {
       const t = this.dateFilter.tipo;
-      if ((t === 'DIA' || t === 'NOCHE') && this.primerCierreHoyAt && typeof TurnosDiaNoche !== 'undefined') {
-        const r = TurnosDiaNoche.rangoIso(t === 'DIA' ? 'dia' : 'noche', this.primerCierreHoyAt);
+      if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(t)) {
+        const r = TurnosDiaNoche.rangoDe(t, this);
         if (r) return { fechaInicio: r.desde, fechaFin: r.hasta };
       }
       return { fechaInicio: this.dateFilter.fechaInicio, fechaFin: this.dateFilter.fechaFin };
@@ -1654,7 +1662,10 @@ function reportesApp() {
           cargarDesgloseVentas(q.fechaInicio, q.fechaFin),
           cargarContadorPlatos(q.fechaInicio, q.fechaFin)
         ]);
-        const bouchers = Array.isArray(pack) ? pack : (pack.filas || []);
+        let bouchers = Array.isArray(pack) ? pack : (pack.filas || []);
+        if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.esSegmento(this.dateFilter.tipo)) {
+          bouchers = bouchers.filter((b) => TurnosDiaNoche.contiene(this.dateFilter.tipo, b.fechaPago || b.createdAt, this));
+        }
         this.conteoComandas = (!Array.isArray(pack) && pack.conteo) ? pack.conteo : null;
         
         console.log('📦 Bouchers cargados:', bouchers.length);

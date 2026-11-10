@@ -31,6 +31,7 @@ const {
 const { obtenerUltimoCierreVigente } = require('../utils/cierreCajaReversion');
 const { resolverPeriodoPendienteCierre } = require('../utils/cierreCajaTurnosDia');
 const { boundsDiaOperativo, ymdOperativo } = require('../utils/diaOperativoRestaurante');
+const cajaAdicionalService = require('./cajaAdicional.service');
 
 const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos mozoNombre procesadoPor procesandoPor eliminada fechaEliminacion`;
 
@@ -42,19 +43,44 @@ const POPULATE_COMANDAS_TICKET = {
 
 const ZONA = 'America/Lima';
 
-/** Período pendiente de cerrar: hoy Lima, sin comandas ya incluidas en un cierre. */
-async function obtenerPeriodoPendiente() {
+function filtroCreatedAtTramos(tramos, periodoInicio, periodoFin) {
+  const list = (tramos || []).filter((t) => t && t.inicio && t.fin);
+  if (list.length > 1) {
+    return { $or: list.map((t) => ({ createdAt: { $gte: t.inicio, $lte: t.fin } })) };
+  }
+  const t = list[0];
+  const inicio = t ? t.inicio : periodoInicio;
+  const fin = t ? t.fin : periodoFin;
+  return { createdAt: { $gte: inicio, $lte: fin } };
+}
+
+/** Período pendiente de cerrar. Con caja adicional abierta, solo esa caja. */
+async function obtenerPeriodoPendiente(now = new Date()) {
   const ultimoCierre = await obtenerUltimoCierreVigente(
     CierreCajaRestaurante,
     'fechaCierre periodoFin estado'
   );
 
-  const { periodoInicio, periodoFin } = resolverPeriodoPendienteCierre(ultimoCierre);
+  const { periodoInicio, periodoFin } = resolverPeriodoPendienteCierre(ultimoCierre, now);
+  const { inicio } = boundsDiaOperativo(ymdOperativo(now));
+  let tramos = [{ inicio: periodoInicio, fin: periodoFin }];
+  let cajaAbierta = null;
+  try {
+    const extra = await cajaAdicionalService.tramosDelPendiente({ inicioDia: inicio, now });
+    if (extra.tramos && extra.tramos.length) tramos = extra.tramos;
+    cajaAbierta = extra.cajaAbierta || null;
+  } catch (e) {
+    logger.warn('No se pudieron armar los tramos de caja adicional', { error: e.message });
+  }
+  const inicioReal = tramos.reduce((m, t) => (t.inicio < m ? t.inicio : m), tramos[0].inicio);
+  const finReal = tramos.reduce((m, t) => (t.fin > m ? t.fin : m), tramos[0].fin);
 
   return {
     ultimoCierre: ultimoCierre || null,
-    periodoInicio,
-    periodoFin,
+    periodoInicio: inicioReal,
+    periodoFin: finReal,
+    tramos,
+    cajaAbierta,
   };
 }
 
@@ -72,10 +98,10 @@ function filtroNoIncluidoEnCierre() {
  * @returns {Promise<{ periodoInicio: Date, periodoFin: Date, tickets: Array, resumen: Object }>}
  */
 async function listarTicketsParaVerificacion() {
-  const { periodoInicio, periodoFin } = await obtenerPeriodoPendiente();
+  const { periodoInicio, periodoFin, tramos } = await obtenerPeriodoPendiente();
   await cargarConfigMonedaEstadisticas();
 
-  const filtroRango = { createdAt: { $gte: periodoInicio, $lte: periodoFin } };
+  const filtroRango = filtroCreatedAtTramos(tramos, periodoInicio, periodoFin);
 
   // Tickets de aprobación de comandas (comanda completa o pago parcial)
   const [ticketsComanda, ticketsAdelantado] = await Promise.all([
@@ -544,11 +570,11 @@ async function confirmarTodos(usuarioId, usuarioNombre) {
  * Marca todos los tickets confirmados del período como incluidos en el cierre ejecutado.
  * Llamar después de guardar el documento de CierreCajaRestaurante.
  */
-async function marcarTicketsComoIncluidosEnCierre(cierreId, periodoInicio, periodoFin) {
+async function marcarTicketsComoIncluidosEnCierre(cierreId, periodoInicio, periodoFin, tramos) {
   if (!mongoose.Types.ObjectId.isValid(cierreId)) return;
 
   const query = {
-    createdAt: { $gte: periodoInicio, $lte: periodoFin },
+    ...filtroCreatedAtTramos(tramos, periodoInicio, periodoFin),
     ...filtroNoIncluidoEnCierre(),
     'verificacionCierre.confirmado': true,
   };

@@ -417,6 +417,12 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
   <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('dia')"
     class="filtro-solido px-3 py-2 rounded-lg text-xs transition bg-[#0284c7]"
     :class="filtroPeriodo === 'dia' ? 'filtro-on' : ''">DIA</button>
+  <template x-for="seg in turnosCajas" :key="seg.id">
+   <button type="button" @click="setFiltroPeriodo(seg.id)"
+    class="filtro-solido px-3 py-2 rounded-lg text-xs transition bg-[#047857]"
+    :class="filtroPeriodo === seg.id ? 'filtro-on' : ''"
+    x-text="seg.label"></button>
+  </template>
   <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('noche')"
     class="filtro-solido px-3 py-2 rounded-lg text-xs transition bg-[#4338ca]"
     :class="filtroPeriodo === 'noche' ? 'filtro-on' : ''">NOCHE</button>
@@ -3743,6 +3749,9 @@ function comandasApp() {
  filterPrecioMax: '',
  showTurnoDiaNoche: false,
  primerCierreHoyAt: null,
+ turnosCajas: [],
+ turnosSegmentos: [],
+ _periodoActivoVisto: '',
  cierresHoyCount: 0,
  turnosLimaYMD: '',
  _turnosAutoNocheHecho: false,
@@ -5698,15 +5707,19 @@ this.scheduleRefreshVentasTotales();
    let data = null;
    try { data = await apiGet('/cierre-caja/turnos-dia'); } catch (e) { data = null; }
 
+   const esTurno = (v) => v === 'dia' || v === 'noche' || String(v || '').indexOf('caja-') === 0;
    if (diaCambio) {
      this._turnosAutoNocheHecho = false;
-     if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
+     this._periodoActivoVisto = '';
+     if (esTurno(this.filtroPeriodo)) {
        this.filtroPeriodo = 'hoy';
      }
      this.turnosLimaYMD = ymd;
      this.showTurnoDiaNoche = false;
      this.primerCierreHoyAt = null;
      this.cierresHoyCount = 0;
+     this.turnosCajas = [];
+     this.turnosSegmentos = [];
      await this.loadComandas();
      await this.loadVentasTotales();
    }
@@ -5721,16 +5734,23 @@ this.scheduleRefreshVentasTotales();
    this.showTurnoDiaNoche = hay;
    this.primerCierreHoyAt = hay ? data.primerCierreAt : null;
    this.cierresHoyCount = cantidad;
+   this.turnosSegmentos = hay && Array.isArray(data.segmentos) ? data.segmentos : [];
+   this.turnosCajas = this.turnosSegmentos.filter((s) => String(s.id).indexOf('caja-') === 0);
 
-   if (hay && !this._turnosAutoNocheHecho) {
-     this.filtroPeriodo = 'noche';
-     this._turnosAutoNocheHecho = true;
+   const activo = mismoDia && data.periodoActivo ? data.periodoActivo : (hay ? 'noche' : 'hoy');
+   if (activo !== this._periodoActivoVisto) {
+     if (activo === 'hoy') {
+       if (esTurno(this.filtroPeriodo)) this.filtroPeriodo = 'hoy';
+     } else {
+       this.filtroPeriodo = activo;
+     }
+     this._periodoActivoVisto = activo;
+     this._turnosAutoNocheHecho = hay;
    }
    if (!hay) {
      this._turnosAutoNocheHecho = false;
-     if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
-       this.filtroPeriodo = 'hoy';
-     }
+     this._periodoActivoVisto = 'hoy';
+     if (esTurno(this.filtroPeriodo)) this.filtroPeriodo = 'hoy';
    }
 
    if (diaCambio || filtrar) this.filterComandas();
@@ -6768,7 +6788,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  get rangoFiltroFechas() {
   const hoy = limaYMD();
   if (this.filtroPeriodo === 'todos') return null;
-  if (this.filtroPeriodo === 'hoy' || this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
+  if (this.filtroPeriodo === 'hoy' || this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche' || String(this.filtroPeriodo || '').indexOf('caja-') === 0) {
     return { desde: hoy, hasta: hoy };
   }
   if (this.filtroPeriodo === 'ayer') {
@@ -6784,11 +6804,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  get rangoFiltroEtiqueta() {
   if (this.filtroPeriodo === 'todos') return 'Todas';
-  if (this.filtroPeriodo === 'dia' && this.primerCierreHoyAt) {
-    return 'Día · ' + limaYMD() + ' 04:00–' + limaHM(this.primerCierreHoyAt);
-  }
-  if (this.filtroPeriodo === 'noche' && this.primerCierreHoyAt) {
-    return 'Noche · ' + limaHM(this.primerCierreHoyAt) + '–04:00';
+  if (window.TurnosDiaNoche && TurnosDiaNoche.esSegmento(this.filtroPeriodo)) {
+    const et = TurnosDiaNoche.etiqueta(this.filtroPeriodo, this.primerCierreHoyAt, this);
+    if (et) return et;
   }
   const rango = this.rangoFiltroFechas;
   if (!rango) return 'Todas';
@@ -6880,14 +6898,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  matchFechaRango(createdAt) {
   if (this.filtroPeriodo === 'todos') return true;
   if (!createdAt) return false;
-  if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
-    if (!this.primerCierreHoyAt) return false;
-    const t = new Date(createdAt).getTime();
-    const corte = new Date(this.primerCierreHoyAt).getTime();
-    const ymd = limaYMD();
-    if (t < limaDayStart(ymd).getTime() || t > limaDayEnd(ymd).getTime()) return false;
-    if (this.filtroPeriodo === 'dia') return t < corte;
-    return t >= corte;
+  if (window.TurnosDiaNoche && TurnosDiaNoche.esSegmento(this.filtroPeriodo)) {
+    return TurnosDiaNoche.contiene(this.filtroPeriodo, createdAt, this);
   }
   const ymd = limaYMD(new Date(createdAt));
   const rango = this.rangoFiltroFechas;
@@ -6988,8 +7000,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  fechasQueryVentas() {
-  if ((this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') && this.primerCierreHoyAt) {
-    const r = TurnosDiaNoche.rangoIso(this.filtroPeriodo, this.primerCierreHoyAt);
+  if (window.TurnosDiaNoche && TurnosDiaNoche.esSegmento(this.filtroPeriodo)) {
+    const r = TurnosDiaNoche.rangoDe(this.filtroPeriodo, this);
     if (r) return { fechaInicio: r.desde, fechaFin: r.hasta };
   }
   const rango = this.rangoFiltroFechas;

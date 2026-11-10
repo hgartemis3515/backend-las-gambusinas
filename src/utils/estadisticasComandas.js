@@ -338,6 +338,19 @@ function matchFechaPeriodoCaja(inicio, fin) {
     return matchFechaDiaOperativo(inicio, fin);
 }
 
+function matchFechaTramos(tramos) {
+    const list = (tramos || []).filter((t) => t && t.inicio && t.fin);
+    if (list.length === 1) return matchFechaPeriodoCaja(list[0].inicio, list[0].fin);
+    if (!list.length) return { createdAt: { $gte: new Date(0), $lte: new Date(0) } };
+    return { $or: list.map((t) => matchFechaPeriodoCaja(t.inicio, t.fin)) };
+}
+
+function fechaDeTramos(periodoInicio, periodoFin, tramos) {
+    return Array.isArray(tramos) && tramos.length
+        ? matchFechaTramos(tramos)
+        : matchFechaPeriodoCaja(periodoInicio, periodoFin);
+}
+
 /** Eje de agrupación horaria / diaria de reportes: mismo día operativo. */
 function exprFechaComanda() {
     return '$createdAt';
@@ -448,19 +461,19 @@ function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
  * Usa $and para no pisar el filtro de fechas con el de incluidoEnCierre.
  */
 /** Eliminadas del mismo período de caja. No entran al dinero; sí al ticket y al conteo. */
-function matchComandasEliminadasPeriodo(periodoInicio, periodoFin) {
+function matchComandasEliminadasPeriodo(periodoInicio, periodoFin, opts = {}) {
     return {
         $and: [
-            matchFechaPeriodoCaja(periodoInicio, periodoFin),
+            fechaDeTramos(periodoInicio, periodoFin, opts.tramos),
             { $or: [{ eliminada: true }, { fechaEliminacion: { $ne: null } }] }
         ]
     };
 }
 
-function matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas = false } = {}) {
+function matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas = false, tramos = null } = {}) {
     const clauses = [
         matchComandaVigente(),
-        matchFechaPeriodoCaja(periodoInicio, periodoFin),
+        fechaDeTramos(periodoInicio, periodoFin, tramos),
         filtroNoIncluidoEnCierreComanda()
     ];
     if (soloVendidas) {
@@ -897,6 +910,7 @@ module.exports = {
     exprMontoComanda,
     matchFechaDiaOperativo,
     matchFechaPeriodoCaja,
+    matchFechaTramos,
     exprFechaComanda,
     matchComandaVigente,
     esComandaEliminada,

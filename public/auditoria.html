@@ -103,6 +103,12 @@ tailwind.config = {
         <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('dia')"
           class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
           :class="filtroPeriodo === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+        <template x-for="seg in turnosCajas" :key="seg.id">
+          <button type="button" @click="setFiltroPeriodo(seg.id)"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition"
+            :class="filtroPeriodo === seg.id ? 'bg-emerald-600/20 border-emerald-400 text-emerald-300' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-emerald-400/40'"
+            x-text="seg.label"></button>
+        </template>
         <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('noche')"
           class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
           :class="filtroPeriodo === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
@@ -612,6 +618,8 @@ function auditoriaApp() {
     filtroPeriodo: 'hoy',
     showTurnoDiaNoche: false,
     primerCierreHoyAt: null,
+    turnosCajas: [],
+    turnosSegmentos: [],
     cierresHoyCount: 0,
     turnosLimaYMD: '',
     _turnosAutoNocheHecho: false,
@@ -711,11 +719,8 @@ function auditoriaApp() {
         return true;
       }
       if (!fecha) return false;
-      if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
-        const rango = T.rangoIso(this.filtroPeriodo, this.primerCierreHoyAt);
-        if (!rango) return false;
-        const t = new Date(fecha).getTime();
-        return t >= new Date(rango.desde).getTime() && t <= new Date(rango.hasta).getTime();
+      if (T.esSegmento(this.filtroPeriodo)) {
+        return T.contiene(this.filtroPeriodo, fecha, this);
       }
       const ymd = T.limaYMD(new Date(fecha));
       const hoy = T.limaYMD();

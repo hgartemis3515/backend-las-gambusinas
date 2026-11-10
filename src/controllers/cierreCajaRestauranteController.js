@@ -18,7 +18,7 @@ const {
   normalizarMotivoReversion,
   obtenerUltimoCierreVigente
 } = require('../utils/cierreCajaReversion');
-const { obtenerTurnosDia } = require('../utils/cierreCajaTurnosDia');
+const cajaAdicionalService = require('../services/cajaAdicional.service');
 const { letraRevisionTicket } = require('../utils/comandasNumbers');
 const configuracionRepository = require('../repository/configuracion.repository');
 const {
@@ -75,8 +75,9 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     }
 
     // Paso 2: Obtener fecha del último cierre
-    const { periodoInicio, periodoFin, ultimoCierre } = await verificacionService.obtenerPeriodoPendiente();
+    const { periodoInicio, periodoFin, ultimoCierre, tramos, cajaAbierta } = await verificacionService.obtenerPeriodoPendiente();
     const fechaUltimoCierre = ultimoCierre?.fechaCierre || null;
+    const matchPendiente = { tramos };
     
     logger.info('Iniciando cierre de caja', {
       usuarioAdmin,
@@ -86,7 +87,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     });
     
     // Paso 3 y 4: mismas comandas que reportes (platos + fechas de pago), aún no cerradas
-    const comandas = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin))
+    const comandas = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin, matchPendiente))
     .populate(POPULATE_COMANDAS_CIERRE)
     .lean();
     const vendidas = comandas.filter(esComandaVendida);
@@ -100,7 +101,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     // Paso 5–6: misma base que reportes (platos activos + config IGV)
     await cargarConfigMonedaEstadisticas();
     const resumenFinanciero = calcularResumenFinanciero(comandas, periodoInicio, periodoFin);
-    const eliminadasPeriodo = await Comanda.find(matchComandasEliminadasPeriodo(periodoInicio, periodoFin))
+    const eliminadasPeriodo = await Comanda.find(matchComandasEliminadasPeriodo(periodoInicio, periodoFin, matchPendiente))
       .select('_id')
       .lean();
     resumenFinanciero.comandasEliminadas = eliminadasPeriodo.length;
@@ -151,12 +152,22 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
         notasAdmin: req.body.notasAdmin || ''
       },
       estado: 'completado',
+      cajaAdicionalNumero: cajaAbierta ? cajaAbierta.numero : null,
+      tramos: (tramos || []).map((t) => ({ inicio: t.inicio, fin: t.fin })),
       comandasIds: comandaIds,
       datosGraficos: generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocineros)
     });
     
     // Paso 12: Guardar cierre en base de datos
     await cierre.save();
+
+    if (cajaAbierta) {
+      try {
+        await cajaAdicionalService.cerrarAbierta(cajaAbierta._id || cajaAbierta.id, cierre._id, periodoFin);
+      } catch (cajaErr) {
+        logger.warn('No se pudo marcar la caja adicional como cerrada', { error: cajaErr.message });
+      }
+    }
     
     // Paso 13: Marcar comandas como procesadas (CRÍTICO)
     await Comanda.updateMany(
@@ -167,7 +178,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     // Paso 13b: Marcar tickets verificados como incluidos en este cierre
     // (impide que reaparezcan en el siguiente cierre)
     try {
-      await verificacionService.marcarTicketsComoIncluidosEnCierre(cierre._id, periodoInicio, periodoFin);
+      await verificacionService.marcarTicketsComoIncluidosEnCierre(cierre._id, periodoInicio, periodoFin, tramos);
     } catch (ticketsErr) {
       logger.warn('No se pudieron marcar los tickets en el cierre (no bloquea el cierre)', {
         error: ticketsErr.message,
@@ -350,6 +361,11 @@ router.put('/cierre-caja/:id/revertir', adminAuth, checkPermission('ejecutar-cie
     cierre.estado = 'revertido';
     cierre.reversion = reversion;
     await cierre.save();
+    try {
+      await cajaAdicionalService.reabrirPorCierre(cierre._id);
+    } catch (cajaErr) {
+      logger.warn('No se pudo reabrir la caja adicional del cierre revertido', { error: cajaErr.message });
+    }
 
     const liberado = await liberarMarcas();
     if (!Array.isArray(cierre.comandasIds) || !cierre.comandasIds.length) {
@@ -469,13 +485,40 @@ router.get('/cierre-caja/historial', adminAuth, checkPermission('ver-cierre-caja
  */
 router.get('/cierre-caja/turnos-dia', adminAuth, async (req, res) => {
   try {
-    const data = await obtenerTurnosDia(CierreCajaRestaurante);
+    const data = await cajaAdicionalService.resumenTurno();
     res.json(data);
   } catch (error) {
     logger.error('Error al obtener turnos del día', { error: error.message });
     res.status(500).json({
       error: 'Error al obtener turnos del día',
       message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/cierre-caja/cajas-adicionales
+ * Abre la siguiente caja (2, 3, …) solo desde Noche, con motivo opcional y auditoría.
+ */
+router.post('/cierre-caja/cajas-adicionales', adminAuth, checkPermission('ejecutar-cierre-caja'), async (req, res) => {
+  try {
+    const usuarioNombre = (req.admin && (req.admin.nombre || req.admin.name || req.admin.usuario))
+      || req.body.usuarioAdmin
+      || 'admin';
+    const usuarioId = req.admin && (req.admin.id || req.admin.usuarioId);
+    const caja = await cajaAdicionalService.habilitar({
+      motivo: req.body?.motivo,
+      usuarioId,
+      usuarioNombre,
+    });
+    res.json({ success: true, caja });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    if (status >= 500) logger.error('Error al habilitar caja adicional', { error: error.message });
+    res.status(status).json({
+      success: false,
+      error: error.message,
+      message: error.message,
     });
   }
 });
@@ -524,15 +567,16 @@ router.get('/cierre-caja/:id', adminAuth, checkPermission('ver-cierre-caja'), as
  */
 router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
   try {
-    const { periodoInicio, periodoFin, ultimoCierre } = await verificacionService.obtenerPeriodoPendiente();
+    const { periodoInicio, periodoFin, ultimoCierre, tramos } = await verificacionService.obtenerPeriodoPendiente();
+    const matchPendiente = { tramos };
     
     const cfg = await cargarConfigMonedaEstadisticas();
 
     const comandasPendientes = await Comanda.countDocuments(
-      matchComandasCierrePendiente(periodoInicio, periodoFin)
+      matchComandasCierrePendiente(periodoInicio, periodoFin, matchPendiente)
     );
 
-    const delPeriodo = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin))
+    const delPeriodo = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin, matchPendiente))
       .select('platos cantidades totalCalculado precioTotal precioTotalOriginal descuento montoDescuento totalSinDescuento status eliminada fechaEliminacion')
       .populate('platos.plato', 'nombre precio categoria')
       .lean();
@@ -561,6 +605,18 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       logger.warn('No se pudo obtener resumen de verificación para estado/actual', { error: verifErr.message });
     }
 
+    let turno = {
+      puedeHabilitarCajaAdicional: false,
+      cajaAbierta: null,
+      siguienteNumero: 2,
+      periodoActivo: 'hoy',
+    };
+    try {
+      turno = await cajaAdicionalService.resumenTurno();
+    } catch (turnoErr) {
+      logger.warn('No se pudo obtener el turno de caja', { error: turnoErr.message });
+    }
+
     res.json({
       ultimoCierre: ultimoCierre?.fechaCierre || null,
       ultimoCierreId: ultimoCierre?._id || null,
@@ -570,7 +626,11 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       comandasPendientes,
       montoPendiente,
       descuentosPendientes,
-      verificacion
+      verificacion,
+      puedeHabilitarCajaAdicional: !!turno.puedeHabilitarCajaAdicional,
+      cajaAbierta: turno.cajaAbierta || null,
+      siguienteNumero: turno.siguienteNumero || 2,
+      periodoActivo: turno.periodoActivo || 'hoy',
     });
     
   } catch (error) {
