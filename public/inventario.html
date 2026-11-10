@@ -2052,10 +2052,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-4 space-y-3 shadow-lg relative">
                 <div class="flex items-center justify-between">
                   <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-                  <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="calcSaldoReal(getRow('pollo_fresco'))"></strong></span>
+                  <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pollo_fresco'))"></strong></span>
                 </div>
                 <div>
                   <h3 class="text-base font-extrabold text-white">Pollo Fresco</h3>
+                  <p class="text-2xl font-mono font-extrabold text-[#d4af37] mt-0.5"><span x-text="formatNum(quedanDe('pollo_fresco'))"></span> <span class="text-xs font-normal text-[#a0a0b8]">quedan</span></p>
                   <p class="text-[11px] text-[#a0a0b8] mt-0.5">Cantidad que entra hoy al despiece:</p>
                 </div>
                 <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-2">
@@ -2124,7 +2125,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span x-text="pechugasLibres()"></span>
                           <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
                         </p>
-                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(stockHojaCrudo('pechuga'))"></strong> · − <span class="text-rose-300" x-text="despiece.pechugasAFilete"></span> a filete</p>
+                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pechuga'))"></strong> · − <span class="text-rose-300" x-text="despiece.pechugasAFilete"></span> a filete</p>
                       </div>
                       <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
                         <span class="text-xl font-extrabold text-sky-300" x-text="formatNum(formulaCorte('pechuga').total)"></span>
@@ -2180,7 +2181,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <div>
                                 <h4 class="text-sm font-bold text-white">Filete de pollo</h4>
                                 <p class="text-[11px] text-emerald-300 font-mono mt-0.5">+ <span x-text="filetesDePechuga()"></span> filetes</p>
-                                <p class="text-[11px] text-[#a0a0b8]">Stock hoja: <strong class="text-white font-mono" x-text="formatNum(calcSaldoReal(getRow('filete')))"></strong></p>
+                                <p class="text-[11px] text-[#a0a0b8]">Stock hoja: <strong class="text-white font-mono" x-text="formatNum(quedanDe('filete'))"></strong> · Quedan <strong class="text-white font-mono" x-text="formatNum(quedanDe('filete'))"></strong></p>
                                 <p class="text-[11px] text-[#a0a0b8]">Pechugas que pasan a filete:</p>
                               </div>
                               <div class="inline-flex items-center gap-0.5 bg-[#14141f] border border-[#26263a] rounded-lg p-1">
@@ -2323,7 +2324,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span x-text="piernasLibres()"></span>
                           <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
                         </p>
-                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(stockHojaCrudo('pierna'))"></strong> · de <span x-text="piernasObtenidas()"></span> del fresco</p>
+                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pierna'))"></strong> · de <span x-text="piernasObtenidas()"></span> del fresco</p>
                       </div>
                       <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
                         <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pierna').total)"></span>
@@ -2546,7 +2547,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div class="bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-4 space-y-3 shadow-lg">
                   <div class="flex items-center justify-between">
                     <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase" x-text="mapa.tipo === 'directo' ? 'Origen directo' : 'Origen crudo'"></span>
-                    <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow(idDeClave(mapa.origen.clave))))"></strong></span>
+                    <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe(idDeClave(mapa.origen.clave)))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe(idDeClave(mapa.origen.clave)))"></strong></span>
                   </div>
                   <div>
                     <h3 class="text-base font-extrabold text-white" x-text="mapa.origen.nombre"></h3>
@@ -2598,9 +2599,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div>
                               <h3 class="text-sm font-extrabold text-white" x-text="rama.nombre"></h3>
                               <p class="text-2xl font-mono font-extrabold mt-0.5" :style="'color:' + rama.color">
-                                <span x-text="obtenidasCorte(mapa, rama.corte)"></span>
-                                <span class="text-xs font-normal text-[#a0a0b8]">pzas hoy</span>
+                                <span x-text="formatNum(quedanDe(idDeClave(rama.corte.clave)))"></span>
+                                <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
                               </p>
+                              <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe(idDeClave(rama.corte.clave)))"></strong></p>
                             </div>
                             <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
                               <span class="text-xl font-extrabold" :style="'color:' + rama.color" x-text="formatNum(formulaCorte(idDeClave(rama.corte.clave), mapa, rama.corte).total)"></span>
@@ -2726,7 +2728,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="lg:w-56 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
             <div class="flex items-center justify-between gap-2">
               <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-              <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('panceta')))"></strong></span>
+              <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('panceta'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('panceta'))"></strong></span>
             </div>
             <div>
               <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
@@ -2860,7 +2862,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-52 bg-[#0a0a0f] border-2 border-[#d4af37]/80 rounded-xl p-3 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pescado_entero')))"></strong></span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pescado_entero'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('pescado_entero'))"></strong></span>
               </div>
               <span class="text-sm font-extrabold text-white block">Pescado</span>
               <p class="text-[11px] text-[#a0a0b8]">Pescados usados hoy:</p>
@@ -2945,7 +2947,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="lg:w-56 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
               <div class="flex items-center justify-between gap-2">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pota')))"></strong></span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pota'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('pota'))"></strong></span>
               </div>
               <div>
                 <h3 class="text-sm font-extrabold text-white">Pota entera cruda</h3>
@@ -3035,7 +3037,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-52 bg-[#0a0a0f] border border-[#d4af37]/60 rounded-xl p-3 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('carnero')))"></strong></span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('carnero'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('carnero'))"></strong></span>
               </div>
               <span class="text-sm font-bold text-white block">Carnero Crudo</span>
               <p class="text-[11px] text-[#a0a0b8]">Salen a pachamanca</p>
@@ -3100,7 +3102,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-52 bg-[#0a0a0f] border border-amber-500/60 rounded-xl p-3 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] uppercase font-bold text-amber-300">Origen Directo</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('chicharron_chancho')))"></strong></span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('chicharron_chancho'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('chicharron_chancho'))"></strong></span>
               </div>
               <span class="text-sm font-bold text-white block">Chicharrón de chancho crudo</span>
               <p class="text-[10px] text-[#a0a0b8]">No sale de la panceta. Ingreso directo por unidad.</p>
@@ -3139,7 +3141,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-52 bg-[#0a0a0f] border border-emerald-500/60 rounded-xl p-3 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] uppercase font-bold text-emerald-300">Origen Directo</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('cuy')))"></strong></span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('cuy'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('cuy'))"></strong></span>
               </div>
               <span class="text-sm font-bold text-white block">Cuy</span>
               <p class="text-[10px] text-[#a0a0b8]">No se transforma. El ingreso es por unidad.</p>
@@ -3191,7 +3193,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-52 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3.5 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen crudo</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('arroz')))"></strong></span>
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('arroz'))"></strong> · Quedan <strong class="text-white" x-text="formatNum(quedanDe('arroz'))"></strong></span>
               </div>
               <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
               <p class="text-[11px] text-[#a0a0b8]">A repartir</p>
@@ -3281,7 +3283,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="flex items-center justify-between gap-2">
                       <div>
                         <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
-                        <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-emerald-300 font-mono" x-text="formatNum(calcSaldoReal(getRow(corteId)))"></strong></span>
+                        <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-emerald-300 font-mono" x-text="formatNum(quedanDe(corteId))"></strong> · Quedan <strong class="text-white font-mono" x-text="formatNum(quedanDe(corteId))"></strong></span>
                       </div>
                       <div class="inline-flex items-center gap-0.5">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', -1)">−</button>
@@ -3333,7 +3335,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-2 flex items-center justify-between gap-1.5">
                     <div>
                       <span class="text-xs font-bold text-white block" x-text="getRow(trId).nombre"></span>
-                      <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-sky-300 font-mono" x-text="formatNum(calcSaldoReal(getRow(trId)))"></strong></span>
+                      <span class="text-[10px] text-[#a0a0b8]">Stock hoja: <strong class="text-sky-300 font-mono" x-text="formatNum(quedanDe(trId))"></strong> · Quedan <strong class="text-white font-mono" x-text="formatNum(quedanDe(trId))"></strong></span>
                     </div>
                     <div class="inline-flex items-center gap-0.5 shrink-0">
                       <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(trId, 'ingreso', -1)">−</button>
@@ -10489,6 +10491,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const cambio = next - actual;
           if (!cambio) return;
           row[campo] = next;
+          if (base === 'ingreso' && tipo !== 'cocido') {
+            if (!this.despiece.ingresoCorte) this.despiece.ingresoCorte = { pechuga: 0, pierna: 0 };
+            this.despiece.ingresoCorte[id] = next;
+          }
           const parteFresco = id === 'pollo_fresco' && base === 'ingreso';
           const pechuga = parteFresco ? this.filaReal('pechuga') : null;
           const pierna = parteFresco ? this.filaReal('pierna') : null;
@@ -11919,7 +11925,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if ((m.tipoProducto || 'crudo') !== 'crudo') return a;
               return a + (Number(m.cantidad) || 0);
             }, 0);
-            this.despiece.ingresoCorte[id] = Math.max(0, suma);
+            const previo = Math.max(0, Number(this.despiece.ingresoCorte[id]) || 0);
+            this.despiece.ingresoCorte[id] = suma > 0 ? suma : previo;
           });
         },
 
@@ -12123,23 +12130,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.calcSaldoTipo(row, 'crudo');
         },
 
+        // Lo que se puede transformar: el stock de hoja (incluye el ingreso independiente)
+        // o las piezas de esta sesión, el que sea mayor.
+        quedanDe(rowId) {
+          const hoja = Math.max(0, this.stockHojaCrudo(rowId));
+          let deSesion = 0;
+          if (rowId === 'pechuga') deSesion = this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga') - this.pechugasUsadas();
+          else if (rowId === 'pierna') deSesion = this.piernasObtenidas() + this.ingresoDirectoDe('pierna') - this.piernasUsadas();
+          else deSesion = this.ingresoDirectoDe(rowId);
+          return Math.max(hoja, deSesion);
+        },
+
         formulaCorte(rowOrId, mapa, corteObj) {
           const id = typeof rowOrId === 'string' ? rowOrId : (rowOrId && rowOrId.id);
           let total = 0;
           let usado = 0;
           if (id === 'pechuga' || id === 'pierna') {
             usado = id === 'pechuga' ? this.pechugasUsadas() : this.piernasUsadas();
-            const libreHoja = this.stockHojaCrudo(id);
+            const libreHoja = this.quedanDe(id);
             total = libreHoja + usado;
             return { total: total, usado: usado, libre: libreHoja };
-          } else if (id === 'pechuga_pato' || id === 'pierna_pato') {
-            total = this.origenMapa('pato-fresco') * 2;
-            const row = this.getRow(id);
+          } else if (id === 'pechuga_pato' || id === 'pierna_pato' || (mapa && corteObj)) {
+            const rowId = (id === 'pechuga_pato' || id === 'pierna_pato') ? id : this.idDeClave(corteObj.clave);
+            const row = this.filaReal(rowId);
             usado = row ? (Number(row.transformacion) || 0) : 0;
-          } else if (mapa && corteObj) {
-            total = this.obtenidasCorte(mapa, corteObj);
-            const row = this.getRow(this.idDeClave(corteObj.clave));
-            usado = row ? (Number(row.transformacion) || 0) : 0;
+            const libreHoja = this.quedanDe(rowId);
+            total = libreHoja + usado;
+            return { total: total, usado: usado, libre: libreHoja };
           }
           return { total: total, usado: usado, libre: Math.max(0, total - usado) };
         },
@@ -12301,11 +12318,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         piernasLibres() {
-          return this.stockHojaCrudo('pierna');
+          return this.quedanDe('pierna');
         },
 
         pechugasLibres() {
-          return this.stockHojaCrudo('pechuga');
+          return this.quedanDe('pechuga');
         },
 
         setPollosFrescosConvertir(val) {
