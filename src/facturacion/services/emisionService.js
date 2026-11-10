@@ -15,7 +15,7 @@ const Comprobante = require('../models/comprobante.model');
 const SerieComprobante = require('../models/serieComprobante.model');
 const motorTributario = require('./motorTributario');
 const { validarCliente, esRucValido } = require('./validacionCliente');
-const { reservarCorrelativo } = require('./serieService');
+const { reservarCorrelativo, asegurarSerie } = require('./serieService');
 const { obtenerConfiguracionFiscal } = require('./configuracionFiscal');
 const { encolarFirmarEnviar } = require('../jobs/queues');
 const { construir, nombreArchivo, partesLima } = require('./ublBuilder');
@@ -128,62 +128,69 @@ async function emitir(solicitud, deps = {}) {
 
     let doc;
     let qr = null;
+    const transaccion = () => ejecutarEnTransaccion(async (session) => {
+        const ticketId = solicitud.origen?.ticket;
+        if (ticketId && mongoose.isValidObjectId(ticketId)) {
+            let consulta = Modelo.findOne({
+                'origen.ticket': ticketId,
+                estado: { $nin: ['RECHAZADO', 'ANULADO_NC', 'DE_BAJA'] },
+            }).select('_id');
+            if (session) consulta = consulta.session(session);
+            const ya = await consulta.lean();
+            if (ya) throw new ErrorEmision('Este ticket ya tiene un comprobante emitido', 'TICKET_YA_FACTURADO', 409);
+        }
+        const correlativo = await reservarCorrelativo(
+            { ruc: cfg.emisor.ruc, tipo, serie, session, sinTransaccion: !session },
+            { Modelo: SerieModelo }
+        );
+        const borrador = {
+            ruc: cfg.emisor.ruc,
+            tipo,
+            serie: correlativo.serie,
+            numero: correlativo.numero,
+            idCompleto: correlativo.idCompleto,
+            sucursal: solicitud.sucursal || 'principal',
+            terminal: solicitud.terminal || null,
+            fechaEmision,
+            tipoOperacion: '0101',
+            moneda: 'PEN',
+            porcentajeIgv: calculo.porcentajeIgv,
+            preciosIncluyenIGV: calculo.preciosIncluyenIGV,
+            emisor: cfg.emisor,
+            receptor,
+            items: calculo.items,
+            descuentoGlobal: calculo.descuentoGlobal
+                ? { ...calculo.descuentoGlobal, motivo: solicitud.descuentoGlobal?.motivo || null }
+                : null,
+            cargosGlobales: calculo.cargosGlobales,
+            totales: calculo.totales,
+            leyendas: calculo.leyendas,
+            formaPago: calculo.formaPago,
+            mediosPago,
+            origen: solicitud.origen || {},
+            cajero: solicitud.cajero || null,
+            estado: ESTADO_COMPROBANTE.EMITIDO_LOCAL,
+            envio: { fechaLimite },
+            auditoria: [{ accion: 'EMITIDO_LOCAL', usuario, fecha: fechaEmision, detalle: { terminal: solicitud.terminal || null } }],
+        };
+        const firmar = deps.firmar || firmarLocal;
+        const firma = await firmar(borrador);
+        if (firma) {
+            borrador.hash = firma.hash;
+            borrador.xml = firma.xml;
+            qr = firma.qr;
+        }
+        const [creado] = await Modelo.create([borrador], session ? { session } : {});
+        doc = creado;
+    }, { iniciarSesion });
     try {
-        await ejecutarEnTransaccion(async (session) => {
-            const ticketId = solicitud.origen?.ticket;
-            if (ticketId && mongoose.isValidObjectId(ticketId)) {
-                let consulta = Modelo.findOne({
-                    'origen.ticket': ticketId,
-                    estado: { $nin: ['RECHAZADO', 'ANULADO_NC', 'DE_BAJA'] },
-                }).select('_id');
-                if (session) consulta = consulta.session(session);
-                const ya = await consulta.lean();
-                if (ya) throw new ErrorEmision('Este ticket ya tiene un comprobante emitido', 'TICKET_YA_FACTURADO', 409);
-            }
-            const correlativo = await reservarCorrelativo(
-                { ruc: cfg.emisor.ruc, tipo, serie, session, sinTransaccion: !session },
-                { Modelo: SerieModelo }
-            );
-            const borrador = {
-                ruc: cfg.emisor.ruc,
-                tipo,
-                serie: correlativo.serie,
-                numero: correlativo.numero,
-                idCompleto: correlativo.idCompleto,
-                sucursal: solicitud.sucursal || 'principal',
-                terminal: solicitud.terminal || null,
-                fechaEmision,
-                tipoOperacion: '0101',
-                moneda: 'PEN',
-                porcentajeIgv: calculo.porcentajeIgv,
-                preciosIncluyenIGV: calculo.preciosIncluyenIGV,
-                emisor: cfg.emisor,
-                receptor,
-                items: calculo.items,
-                descuentoGlobal: calculo.descuentoGlobal
-                    ? { ...calculo.descuentoGlobal, motivo: solicitud.descuentoGlobal?.motivo || null }
-                    : null,
-                cargosGlobales: calculo.cargosGlobales,
-                totales: calculo.totales,
-                leyendas: calculo.leyendas,
-                formaPago: calculo.formaPago,
-                mediosPago,
-                origen: solicitud.origen || {},
-                cajero: solicitud.cajero || null,
-                estado: ESTADO_COMPROBANTE.EMITIDO_LOCAL,
-                envio: { fechaLimite },
-                auditoria: [{ accion: 'EMITIDO_LOCAL', usuario, fecha: fechaEmision, detalle: { terminal: solicitud.terminal || null } }],
-            };
-            const firmar = deps.firmar || firmarLocal;
-            const firma = await firmar(borrador);
-            if (firma) {
-                borrador.hash = firma.hash;
-                borrador.xml = firma.xml;
-                qr = firma.qr;
-            }
-            const [creado] = await Modelo.create([borrador], session ? { session } : {});
-            doc = creado;
-        }, { iniciarSesion });
+        try {
+            await transaccion();
+        } catch (err) {
+            if (err?.codigo !== 'SERIE_NO_DISPONIBLE' || serie !== cfg.series[tipo]) throw err;
+            await asegurarSerie({ ruc: cfg.emisor.ruc, tipo, serie }, { Modelo: SerieModelo });
+            await transaccion();
+        }
     } catch (err) {
         if (err?.code === 11000) {
             throw new ErrorEmision('Correlativo duplicado detectado; reintente el cobro', 'CORRELATIVO_DUPLICADO', 409);
