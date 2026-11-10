@@ -9,6 +9,8 @@ const KARDEX = [
     { clave: 'pechuga-pollo', nombre: 'Pecho de Pollo' },
     { clave: 'pescado-origen', nombre: 'Pescado' },
     { clave: 'filete', nombre: 'Filete Pollo Crudo' },
+    { clave: 'octavo-pollo', nombre: 'Octavo de pollo' },
+    { clave: 'caldo-pollo', nombre: 'Caldo de pollo' },
     { clave: 'chicharron-pollo', nombre: 'Chicharrón de pollo' },
     { clave: 'pachamanca', nombre: 'Pachamanca', suma: ['pachamanca-pollo', 'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero'] },
     { clave: 'lomo-fino', nombre: 'Lomo Fino' },

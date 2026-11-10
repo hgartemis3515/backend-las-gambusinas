@@ -1,12 +1,13 @@
 'use strict';
 
-const MATERIAS = ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete'];
+const MATERIAS = ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete', 'octavo-pollo'];
 
 const NOMBRE_MATERIA = {
     'pollo-origen': 'Pollo fresco',
     'pechuga-pollo': 'Pecho de Pollo',
     'pierna-pollo': 'Pierna de Pollo',
-    filete: 'Filete de pollo'
+    filete: 'Filete de pollo',
+    'octavo-pollo': 'Octavo de pollo'
 };
 
 const SEMILLA = {
@@ -33,7 +34,10 @@ const SEMILLA = {
     'pierna-pato': { tieneCocido: true, reservaClave: '' },
     'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
     'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
-    'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' }
+    'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' },
+    'arroz-pollo': { tieneCocido: true, reservaClave: '' },
+    'pollo-olla': { tieneCocido: true, reservaClave: '' },
+    'caldo-pollo': { tieneCocido: false, reservaClave: '' }
 };
 
 function esMateria(clave) {

@@ -761,6 +761,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .cuadro-grupal-filete::before {
       background: #d4af37;
     }
+    .cuadro-grupal-octavo {
+      border-color: rgba(251, 191, 36, 0.7);
+    }
+    .cuadro-grupal-octavo::before {
+      background: #fbbf24;
+    }
 
     /* ===================================================================== */
     /* COLUMNA TRANSFORMACIÓN: CUADRO EN ROJO RESALTANTE (RESTA) + LUPA ROJA */
@@ -1963,7 +1969,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="px-2.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-xs uppercase tracking-wide">Flujo Izquierda → Derecha</span>
           </div>
           <p class="text-xs text-[#a0a0b8]">
-            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña, Sandwich y Menú pecho</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca pierna, Pierna a la leña, Pollada y Menú pierna</span>.
+            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña, Sandwich y Menú pecho</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca pierna, Pierna a la leña, Pollada y Menú pierna</span>. <span class="text-amber-200 font-semibold">2 Octavos de pollo = 1 Pecho o 1 Pierna</span>, y el octavo abarca Arroz con pollo, Pollo a la olla y Caldo de pollo.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
@@ -2135,6 +2141,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span>A Platos Pechuga:</span>
                           <span class="font-mono font-semibold text-sky-200" x-text="pechugasEnPlatosGrupo()"></span>
                         </div>
+                        <div class="flex justify-between text-[#a0a0b8]">
+                          <span>A Octavos:</span>
+                          <span class="font-mono font-semibold text-amber-200" x-text="formatNum(piezasPorOctavos('pechugas')) + ' pecho'"></span>
+                        </div>
                         <div class="flex justify-between font-bold pt-1 border-t border-[#26263a]/60">
                           <span class="text-white">Pechugas libres:</span>
                           <span class="font-mono" :class="pechugasLibres() < 0 ? 'text-amber-300' : 'text-emerald-300'" x-text="pechugasLibres()"></span>
@@ -2298,7 +2308,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
 
               <!-- RAMA PIERNA DE POLLO -->
-              <div class="arbol-hijo ultimo" style="--c:#34d399">
+              <div class="arbol-hijo" style="--c:#34d399">
                 <i class="arbol-punta"></i>
                 <div class="arbol">
                   <div class="w-[220px] arbol-nodo">
@@ -2310,9 +2320,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div>
                         <h3 class="text-sm font-extrabold text-white">Pierna de Pollo</h3>
                         <p class="text-2xl font-mono font-extrabold text-emerald-300 mt-0.5">
-                          <span x-text="piernasObtenidas()"></span>
-                          <span class="text-xs font-normal text-[#a0a0b8]">piernas</span>
+                          <span x-text="piernasLibres()"></span>
+                          <span class="text-xs font-normal text-[#a0a0b8]">quedan</span>
                         </p>
+                        <p class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pierna')))"></strong> · de <span x-text="piernasObtenidas()"></span> del fresco</p>
                       </div>
                       <div class="formula-corte-card" title="Total disponible ↓ Transformado en platos = Libre">
                         <span class="text-xl font-extrabold text-emerald-300" x-text="formatNum(formulaCorte('pierna').total)"></span>
@@ -2324,6 +2335,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex justify-between text-[#a0a0b8]">
                           <span>A Platos Pierna:</span>
                           <span class="font-mono font-semibold text-emerald-200" x-text="piernasEnPlatosGrupo()"></span>
+                        </div>
+                        <div class="flex justify-between text-[#a0a0b8]">
+                          <span>A Octavos:</span>
+                          <span class="font-mono font-semibold text-amber-200" x-text="formatNum(piezasPorOctavos('piernas')) + ' pierna'"></span>
                         </div>
                         <div x-show="hasFactorPiernaFilete()" class="flex justify-between text-[#a0a0b8]">
                           <span>A Filete:</span>
@@ -2374,7 +2389,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
                                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="moverIngresoPlato('pierna', ad.id, 'crudo', -1)">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="(despiece.aderezos[ad.id] && despiece.aderezos[ad.id].piernas) || 0" @change="updateAderezoCorte(ad.id, 'piernas', $event.target.value)">
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="piezasPiernaPlato(ad.id)" @change="updateAderezoCorte(ad.id, 'piernas', $event.target.value)">
                                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="moverIngresoPlato('pierna', ad.id, 'crudo', 1)">+</button>
                                 </div>
                               </div>
@@ -2392,6 +2407,95 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + ad.nombre + ' (Pierna)'" @click="pasarCrudoACocido(ad.id, -1)">−</button>
                                     <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pierna)'" :value="cocidoActualTransformar(ad.id)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
                                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + ad.nombre + ' (Pierna)'" @click="pasarCrudoACocido(ad.id, 1)">+</button>
+                                  </div>
+                                </div>
+                              </template>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PECHO O PIERNA → OCTAVO DE POLLO → ARROZ, OLLA Y CALDO -->
+              <div class="arbol-hijo ultimo" style="--c:#fbbf24">
+                <i class="arbol-punta"></i>
+                <div class="arbol">
+                  <div class="w-[250px] arbol-nodo">
+                    <div class="bg-[#0a0a0f] border-2 border-amber-400/80 rounded-xl p-3 space-y-2 shadow-md">
+                      <div class="flex items-center justify-between gap-1.5">
+                        <span class="px-1.5 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase">2 octavos = 1 pieza</span>
+                        <span class="font-mono text-xs font-bold text-amber-200" x-text="totalOctavos() + ' octavos'"></span>
+                      </div>
+                      <div>
+                        <h4 class="text-sm font-bold text-white">Octavo de pollo</h4>
+                        <p class="text-[11px] text-[#a0a0b8] mt-0.5">Elige si restas pecho o pierna. Cada 2 octavos restan 1 pieza.</p>
+                        <p class="text-[11px] text-[#a0a0b8]">Libres: <strong class="text-amber-200 font-mono" x-text="formatNum(octavosLibres())"></strong> · En platos: <strong class="text-white font-mono" x-text="octavosUsadosEnPlatos()"></strong></p>
+                      </div>
+                      <div class="space-y-1.5 pt-1.5 border-t border-[#26263a]">
+                        <div class="flex items-center justify-between gap-2 text-[11px]">
+                          <span class="text-sky-200">Desde pecho</span>
+                          <div class="inline-flex items-center gap-0.5">
+                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" aria-label="Restar octavos desde pecho" @click="updateOctavos('pechugas', octavosDe('pechugas') - 1)">−</button>
+                            <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" aria-label="Octavos desde pecho de pollo" :value="octavosDe('pechugas')" @change="updateOctavos('pechugas', $event.target.value)">
+                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" aria-label="Sumar octavos desde pecho" @click="updateOctavos('pechugas', octavosDe('pechugas') + 1)">+</button>
+                          </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 text-[11px]">
+                          <span class="text-emerald-200">Desde pierna</span>
+                          <div class="inline-flex items-center gap-0.5">
+                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" aria-label="Restar octavos desde pierna" @click="updateOctavos('piernas', octavosDe('piernas') - 1)">−</button>
+                            <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" aria-label="Octavos desde pierna de pollo" :value="octavosDe('piernas')" @change="updateOctavos('piernas', $event.target.value)">
+                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" aria-label="Sumar octavos desde pierna" @click="updateOctavos('piernas', octavosDe('piernas') + 1)">+</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="arbol-hijos" style="--rama:#fbbf24">
+                    <div class="arbol-hijo solo" style="--c:#fbbf24">
+                      <i class="arbol-punta"></i>
+                      <div class="cuadro-grupal-semantico cuadro-grupal-octavo">
+                        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-amber-400/30">
+                          <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase tracking-wider">CUADRO GRUPAL · OCTAVO</span>
+                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Arroz con pollo, Pollo a la olla y Caldo de pollo</h4>
+                          </div>
+                          <span class="text-[11px] font-mono text-amber-200">
+                            Octavos en este grupo: <strong class="text-white" x-text="octavosUsadosEnPlatos()"></strong>
+                          </span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          <template x-for="plato in platosDelOctavo()" :key="'map-octavo-' + plato.id">
+                            <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-amber-400/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
+                              <div class="flex items-center justify-between gap-2">
+                                <div class="min-w-0">
+                                  <span class="text-xs font-semibold text-white block truncate" x-text="plato.nombre"></span>
+                                  <span class="text-[10px] text-amber-200/90 font-mono">1 octavo → 1 pza</span>
+                                  <span x-show="!plato.cocido" class="text-[10px] text-[#a0a0b8] block">Solo crudo</span>
+                                  <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'crudo'))"></strong><span x-show="plato.cocido"> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'cocido'))"></strong></span></span>
+                                </div>
+                                <div class="inline-flex items-center gap-0.5 shrink-0">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar ' + plato.nombre" @click="updatePlatoOctavo(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id] || 0) - 1)">−</button>
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Porciones de ' + plato.nombre" :value="(despiece.platosOctavo && despiece.platosOctavo[plato.id]) || 0" @change="updatePlatoOctavo(plato.id, $event.target.value)">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Sumar ' + plato.nombre" @click="updatePlatoOctavo(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id] || 0) + 1)">+</button>
+                                </div>
+                              </div>
+                              <template x-if="plato.cocido">
+                                <div class="pt-1.5 border-t border-[#26263a]/80 flex items-center justify-between gap-2 text-[11px]">
+                                  <div class="flex flex-col">
+                                    <span class="font-bold text-[#d4af37]">Crudo → Cocido</span>
+                                    <span class="text-[10px] font-mono text-[#a0a0b8]">
+                                      Crudo: <strong class="text-emerald-300" x-text="formatNum(crudoActualTransformar(plato.id))"></strong>
+                                      · Cocido: <strong class="text-amber-300" x-text="formatNum(cocidoActualTransformar(plato.id))"></strong>
+                                    </span>
+                                  </div>
+                                  <div class="inline-flex items-center gap-0.5 shrink-0">
+                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + plato.nombre" @click="pasarCrudoACocido(plato.id, -1)">−</button>
+                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
+                                    <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + plato.nombre" @click="pasarCrudoACocido(plato.id, 1)">+</button>
                                   </div>
                                 </div>
                               </template>
@@ -7334,6 +7438,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 { id: 'mix_lena_pierna', nombre: 'Mix leña pierna', plato: true }
               ]
             },
+            {
+              id: 'octavo_pollo',
+              nombre: 'Octavo de pollo',
+              open: true,
+              children: [
+                { id: 'arroz_con_pollo', nombre: 'Arroz con pollo', plato: true },
+                { id: 'pollo_olla', nombre: 'Pollo a la olla', plato: true },
+                { id: 'caldo_pollo', nombre: 'Caldo de pollo', plato: true }
+              ]
+            },
             { id: 'pollo_baby', nombre: 'Pollo Baby', open: true }
           ]
         },
@@ -7488,8 +7602,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           piernasAFilete: 0,
           pechugasAFilete: 6,
           platosFilete: { filete_junior: 0, milanesa: 0 },
+          octavos: { pechugas: 0, piernas: 0 },
+          platosOctavo: { arroz_con_pollo: 0, pollo_olla: 0, caldo_pollo: 0 },
           aderezos: {
-            pollo_pachamanca: { piernas: 0, pechugas: 4 },
+            pollo_pachamanca: { piernas: 4, pechugas: 0 },
             pollo_lena: { piernas: 0, pechugas: 0 },
             mix_lena_pecho: { piernas: 0, pechugas: 0 },
             pollada: { piernas: 2, pechugas: 0 },
@@ -7638,6 +7754,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           pierna: 'pierna-pollo',
           pechuga: 'pechuga-pollo',
           filete: 'filete',
+          octavo_pollo: 'octavo-pollo',
+          arroz_con_pollo: 'arroz-pollo',
+          pollo_olla: 'pollo-olla',
+          caldo_pollo: 'caldo-pollo',
           filete_pollo: 'filete',
           filete_junior: 'filete',
           pollo_pachamanca: 'pachamanca-pollo',
@@ -7780,6 +7900,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.despiece.piernasAFilete = 0;
           this.despiece.pechugasAFilete = 0;
           this.despiece.platosFilete = { filete_junior: 0, milanesa: 0 };
+          this.despiece.octavos = { pechugas: 0, piernas: 0 };
+          this.despiece.platosOctavo = { arroz_con_pollo: 0, pollo_olla: 0, caldo_pollo: 0 };
           this.despiece.pancetasSalen = 0;
           this.despiece.tirasUsadas = 0;
           this.despiece.trozosPanceta = 0;
@@ -8737,7 +8859,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const extras = {
             pierna: ['pierna-pollo', 'pollada', 'pachamanca-pollo', 'pierna-lena', 'menu', 'menu-pierna'],
             arroz_blanco: ['arroz-blanco'],
-            arroz_pollo: ['arroz-tipo-pollo', 'arroz-pollo'],
+            arroz_pollo: ['arroz-tipo-pollo'],
             arroz_verde: ['arroz-verde'],
             arroz_pato: ['arroz-pato'],
             arroz_chaufa: ['arroz-chaufa'],
@@ -9593,6 +9715,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             piernasAFilete: 0,
             pechugasAFilete: 6,
             platosFilete: { 'filete-pollo': 0, 'filete-junior': 0, filete_junior: 0, milanesa: 0 },
+            octavos: { pechugas: 0, piernas: 0 },
+            platosOctavo: { arroz_con_pollo: 0, pollo_olla: 0, caldo_pollo: 0 },
             paseCocido: {
               pollada: 2,
               pollo_pachamanca: 8,
@@ -9609,7 +9733,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               filete_junior: 0
             },
             aderezos: {
-            pollo_pachamanca: { piernas: 0, pechugas: 4 },
+            pollo_pachamanca: { piernas: 4, pechugas: 0 },
             pollo_lena: { piernas: 0, pechugas: 0 },
             mix_lena_pecho: { piernas: 0, pechugas: 0 },
             sandwich: { piernas: 0, pechugas: 0 },
@@ -9650,6 +9774,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'menu_pecho', grupo: 'pollo', nombre: 'Menú pecho', detalle: 'Menú hecho con pecho', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'menu_pierna', grupo: 'pollo', nombre: 'Menú pierna', detalle: 'Menú hecho con pierna', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'sandwich', grupo: 'pollo', nombre: 'Sandwich', detalle: 'Pan con pollo. Sale de Pecho de Pollo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
+            { id: 'octavo_pollo', grupo: 'pollo', nombre: 'Octavo de pollo', detalle: '2 octavos salen de 1 pecho o de 1 pierna', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
+            { id: 'arroz_con_pollo', grupo: 'pollo', nombre: 'Arroz con pollo', detalle: 'Sale de octavo de pollo. Crudo y cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
+            { id: 'pollo_olla', grupo: 'pollo', nombre: 'Pollo a la olla', detalle: 'Sale de octavo de pollo. Crudo y cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
+            { id: 'caldo_pollo', grupo: 'pollo', nombre: 'Caldo de pollo', detalle: 'Sale de octavo de pollo. Solo crudo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'chi_pollo_bbq', grupo: 'pollo', nombre: 'Chi. pollo a la BBQ', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chi_pollo_acevichada', grupo: 'pollo', nombre: 'Chi. pollo acevichada', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chicharron_pollo', grupo: 'pollo', nombre: 'Chicharrón de pollo', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -10271,11 +10399,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         esMateriaClave(clave) {
-          return ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete'].indexOf(clave) !== -1;
+          return ['pollo-origen', 'pechuga-pollo', 'pierna-pollo', 'filete', 'octavo-pollo'].indexOf(clave) !== -1;
         },
 
         soloCrudoClave(clave) {
-          return ['milanesa', 'milanesa_junior', 'milanesa-junior', 'filete_junior', 'filete-junior', 'pollada', 'salt_pollo', 'salt-pollo', 'chaufa_pollo', 'chaufa-pollo', 'chicharron_pollo', 'chicharron-pollo', 'chi_pollo_bbq', 'chi-pollo-bbq', 'chi_pollo_acevichada', 'chi-pollo-acevichada'].indexOf(String(clave || '')) !== -1;
+          return ['milanesa', 'milanesa_junior', 'milanesa-junior', 'filete_junior', 'filete-junior', 'pollada', 'salt_pollo', 'salt-pollo', 'chaufa_pollo', 'chaufa-pollo', 'chicharron_pollo', 'chicharron-pollo', 'chi_pollo_bbq', 'chi-pollo-bbq', 'chi_pollo_acevichada', 'chi-pollo-acevichada', 'caldo-pollo', 'caldo_pollo'].indexOf(String(clave || '')) !== -1;
         },
 
         semillaCocido: {
@@ -10302,7 +10430,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           'pierna-pato': { tieneCocido: true, reservaClave: '' },
           'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
           'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
-          'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' }
+          'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' },
+          'arroz-pollo': { tieneCocido: true, reservaClave: '' },
+          'pollo-olla': { tieneCocido: true, reservaClave: '' },
+          'caldo-pollo': { tieneCocido: false, reservaClave: '' }
         },
 
         opcionCocidoDe(clave) {
@@ -10325,7 +10456,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             row.tieneCocido = !materia && !soloCrudo && base.tieneCocido === true;
             if (clave === 'pierna-lena' || row.id === 'pierna_lena') row.tieneCocido = true;
             if (clave === 'carnero' || row.id === 'carnero') row.tieneCocido = true;
-            if (clave === 'menu' || clave === 'menu-pecho' || clave === 'menu-pierna') row.tieneCocido = false;
+            if (clave === 'menu' || clave === 'menu-pecho' || clave === 'menu-pierna' || clave === 'caldo-pollo') row.tieneCocido = false;
+            if (clave === 'arroz-pollo' || row.id === 'arroz_con_pollo') row.tieneCocido = true;
+            if (clave === 'pollo-olla' || row.id === 'pollo_olla') row.tieneCocido = true;
             row.reservaClave = materia ? '' : (base.reservaClave || '');
             if (clave === 'pollada' || clave === 'pachamanca-pollo') row.reservaClave = 'pierna-pollo';
             if (clave === 'pollo-lena') row.reservaClave = '';
@@ -11252,7 +11385,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const corte = this.corteDeFamilia(padreId);
             if (!this.despiece.aderezos[platoId]) this.despiece.aderezos[platoId] = { piernas: 0, pechugas: 0 };
             const bolsa = this.despiece.aderezos[platoId];
-            this.updateAderezoCorte(platoId, corte, (Number(bolsa[corte]) || 0) + paso);
+            const actualCorte = corte === 'piernas' && this.esPlatoSoloPierna({ id: platoId })
+              ? this.piezasPiernaPlato(platoId)
+              : (Number(bolsa[corte]) || 0);
+            this.updateAderezoCorte(platoId, corte, actualCorte + paso);
           }
           const actual = this.filaReal(padreId);
           if (this.ingresoLupa && this.ingresoLupa.id === padreId && actual) this.abrirIngresoLupa(actual, true);
@@ -11600,6 +11736,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 makeDest(ad.id, '1 Pechuga → 1 pza', usadas, usadas, 'sky', false, 'Recibió ' + usadas + ' pechuga(s)')
               );
             });
+            const octPech = this.octavosDe('pechugas');
+            if (octPech > 0) info.destinos.push(makeDest('octavo_pollo', '1 Pecho → 2 Octavos', octPech / 2, octPech, 'gold', true, octPech + ' octavos salieron de pecho'));
           } else if (id === 'pierna') {
             info.origenPadreId = 'pollo_fresco';
             info.origenPadreNombre = 'Pollo fresco';
@@ -11612,11 +11750,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               );
             }
             this.aderezosDeCorte('piernas').forEach((ad) => {
-              const usadas = cantidadTransformadaEn(ad.id, this.despiece.aderezos?.[ad.id]?.piernas);
+              const usadas = cantidadTransformadaEn(ad.id, this.piezasPiernaPlato(ad.id));
               info.destinos.push(
                 makeDest(ad.id, '1 Pierna → 1 pza', usadas, usadas, 'emerald', false, 'Recibió ' + usadas + ' pierna(s)')
               );
             });
+            const octPier = this.octavosDe('piernas');
+            if (octPier > 0) info.destinos.push(makeDest('octavo_pollo', '1 Pierna → 2 Octavos', octPier / 2, octPier, 'gold', true, octPier + ' octavos salieron de pierna'));
           } else if (id === 'filete') {
             info.origenPadreId = 'pechuga';
             info.origenPadreNombre = 'Pecho de Pollo';
@@ -11631,6 +11771,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               info.destinos.push(
                 makeDest(rowId, 'Come ' + factor + ' filete', cant * factor, cant, 'gold', false)
               );
+            });
+          } else if (id === 'octavo_pollo') {
+            info.resumenConversion = transformado + ' octavo(s) repartidos en Arroz con pollo, Pollo a la olla y Caldo de pollo';
+            this.platosDelOctavo().forEach((plato) => {
+              const cant = Number(this.despiece.platosOctavo && this.despiece.platosOctavo[plato.id] || 0);
+              if (!(cant > 0)) return;
+              info.destinos.push(makeDest(plato.id, '1 octavo → 1 pza', cant, cant, 'gold', false, plato.cocido ? 'Crudo y cocido' : 'Solo crudo'));
             });
           } else if (id === 'panceta') {
             const sal = Number(this.despiece.pancetasSalen) || transformado;
@@ -11717,6 +11864,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               arroz_chaufa: 'arroz',
               arroz_mariscos: 'arroz',
               arroz_pollo: 'arroz',
+              arroz_con_pollo: 'octavo_pollo',
+              pollo_olla: 'octavo_pollo',
+              caldo_pollo: 'octavo_pollo',
               pechuga_pato: 'pato_fresco',
               pierna_pato: 'pato_fresco'
             };
@@ -12055,9 +12205,55 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         piernasEnPlatosGrupo() {
           let sum = 0;
           this.aderezosDeCorte('piernas').forEach((ad) => {
-            sum += Number(this.despiece.aderezos[ad.id] && this.despiece.aderezos[ad.id].piernas || 0);
+            sum += this.piezasPiernaPlato(ad.id);
           });
           return sum;
+        },
+
+        piezasPiernaPlato(id) {
+          const bolsa = (this.despiece.aderezos && this.despiece.aderezos[id]) || {};
+          const piernas = Number(bolsa.piernas) || 0;
+          if (!this.esPlatoSoloPierna({ id: id })) return piernas;
+          return piernas + (Number(bolsa.pechugas) || 0);
+        },
+
+        asegurarOctavos() {
+          if (!this.despiece.octavos) this.despiece.octavos = { pechugas: 0, piernas: 0 };
+          if (!this.despiece.platosOctavo) this.despiece.platosOctavo = {};
+        },
+
+        factorOctavosPorPieza() {
+          return 2;
+        },
+
+        platosDelOctavo() {
+          return [
+            { id: 'arroz_con_pollo', nombre: 'Arroz con pollo', cocido: true },
+            { id: 'pollo_olla', nombre: 'Pollo a la olla', cocido: true },
+            { id: 'caldo_pollo', nombre: 'Caldo de pollo', cocido: false }
+          ];
+        },
+
+        octavosDe(corte) {
+          this.asegurarOctavos();
+          return Math.max(0, Number(this.despiece.octavos[corte]) || 0);
+        },
+
+        piezasPorOctavos(corte) {
+          return this.octavosDe(corte) / this.factorOctavosPorPieza();
+        },
+
+        totalOctavos() {
+          return this.octavosDe('pechugas') + this.octavosDe('piernas');
+        },
+
+        octavosUsadosEnPlatos() {
+          this.asegurarOctavos();
+          return this.platosDelOctavo().reduce((sum, plato) => sum + Math.max(0, Number(this.despiece.platosOctavo[plato.id]) || 0), 0);
+        },
+
+        octavosLibres() {
+          return this.totalOctavos() - this.octavosUsadosEnPlatos();
         },
 
         filetesUsadosEnPlatos() {
@@ -12091,11 +12287,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         piernasUsadas() {
           const aFilete = this.hasFactorPiernaFilete() ? Number(this.despiece.piernasAFilete || 0) : 0;
-          return aFilete + this.piernasEnPlatosGrupo();
+          return aFilete + this.piernasEnPlatosGrupo() + this.piezasPorOctavos('piernas');
         },
 
         pechugasUsadas() {
-          return Number(this.despiece.pechugasAFilete || 0) + this.pechugasEnPlatosGrupo();
+          return Number(this.despiece.pechugasAFilete || 0) + this.pechugasEnPlatosGrupo() + this.piezasPorOctavos('pechugas');
         },
 
         piernasLibres() {
@@ -12152,12 +12348,56 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
+        updateOctavos(corte, val) {
+          this.asegurarOctavos();
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          const current = this.octavosDe(corte);
+          const diffPieza = (next - current) / this.factorOctavosPorPieza();
+          const otro = corte === 'piernas' ? this.octavosDe('pechugas') : this.octavosDe('piernas');
+          if (next + otro < this.octavosUsadosEnPlatos()) {
+            this.transformWarning = 'Aviso ámbar: esos octavos ya están en Arroz con pollo, Pollo a la olla o Caldo de pollo.';
+            return;
+          }
+          const libres = corte === 'piernas' ? this.piernasLibres() : this.pechugasLibres();
+          if (diffPieza > 0 && libres + 0.0001 < diffPieza) {
+            const nombre = corte === 'piernas' ? 'Pierna de Pollo' : 'Pecho de Pollo';
+            this.transformWarning = 'Aviso ámbar: ' + nombre + ' no alcanza. 2 octavos restan 1 pieza.';
+            return;
+          }
+          this.transformWarning = '';
+          this.despiece.octavos[corte] = next;
+          this.volcarTransformacionEnTabla();
+        },
+
+        updatePlatoOctavo(platoId, val) {
+          this.asegurarOctavos();
+          const next = Math.max(0, parseInt(val, 10) || 0);
+          const current = Number(this.despiece.platosOctavo[platoId] || 0);
+          const diff = next - current;
+          if (this.octavosLibres() - diff < -0.001) {
+            this.transformWarning = 'Aviso ámbar: no hay octavos libres. Agrega 2 octavos para restar 1 pecho o 1 pierna.';
+            return;
+          }
+          const plato = this.filaReal(platoId);
+          if (diff < 0 && plato && this.calcSaldoTipo(plato, 'crudo') < Math.abs(diff)) {
+            this.transformWarning = 'Aviso ámbar: ' + (plato.nombre || 'el plato') + ' no tiene tanto crudo para devolver.';
+            return;
+          }
+          this.transformWarning = '';
+          this.despiece.platosOctavo[platoId] = next;
+          if (this.despiece.paseCocido && this.despiece.paseCocido[platoId] > next) this.despiece.paseCocido[platoId] = next;
+          this.volcarTransformacionEnTabla();
+        },
+
         updateAderezoCorte(aderezoId, corte, val) {
           const next = Math.max(0, parseInt(val, 10) || 0);
           if (!this.despiece.aderezos[aderezoId]) {
             this.despiece.aderezos[aderezoId] = { piernas: 0, pechugas: 0 };
           }
-          const current = Number(this.despiece.aderezos[aderezoId][corte] || 0);
+          const soloPierna = corte === 'piernas' && this.esPlatoSoloPierna({ id: aderezoId });
+          const current = soloPierna
+            ? this.piezasPiernaPlato(aderezoId)
+            : Number(this.despiece.aderezos[aderezoId][corte] || 0);
           const diff = next - current;
 
           const padreId = corte === 'piernas' ? 'pierna' : 'pechuga';
@@ -12174,7 +12414,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
           this.transformWarning = '';
           if (!this.despiece.aportePintado) this.marcarAportePintado();
-          this.despiece.aderezos[aderezoId][corte] = next;
+          if (soloPierna) {
+            this.despiece.aderezos[aderezoId].piernas = next;
+            this.despiece.aderezos[aderezoId].pechugas = 0;
+          } else {
+            this.despiece.aderezos[aderezoId][corte] = next;
+          }
           this.volcarTransformacionEnTabla();
         },
 
@@ -12227,6 +12472,39 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               row.crudo = this.calcSaldoTipo(row, 'crudo');
               row.cocido = this.calcSaldoTipo(row, 'cocido');
             } else {
+              row.ingreso = totalBruto;
+              row.ingresoCocido = 0;
+              row.crudo = this.calcSaldo(row);
+              row.cocido = 0;
+            }
+            this.pulseRowTotal(row.id);
+          });
+
+          this.asegurarOctavos();
+          const rOctavo = this.filaReal('octavo_pollo');
+          if (rOctavo) {
+            this.aplicarDeltaPadre(rOctavo, 'ingreso', this.totalOctavos(), 'octavoIng');
+            this.aplicarDeltaPadre(rOctavo, 'transformacion', this.octavosUsadosEnPlatos(), 'octavoTrans');
+            rOctavo.tieneCocido = false;
+            rOctavo.crudo = this.calcSaldo(rOctavo);
+            rOctavo.cocido = 0;
+            this.pulseRowTotal('octavo_pollo');
+          }
+          if (!this.despiece.paseCocido) this.despiece.paseCocido = {};
+          this.platosDelOctavo().forEach((plato) => {
+            const row = this.filaReal(plato.id);
+            if (!row) return;
+            const totalBruto = Math.max(0, Number(this.despiece.platosOctavo[plato.id]) || 0);
+            row.tieneCocido = plato.cocido === true;
+            if (row.tieneCocido) {
+              const pase = Math.min(totalBruto, Math.max(0, Number(this.despiece.paseCocido[row.id] || 0)));
+              this.despiece.paseCocido[row.id] = pase;
+              row.ingreso = Math.max(0, totalBruto - pase);
+              row.ingresoCocido = pase;
+              row.crudo = this.calcSaldoTipo(row, 'crudo');
+              row.cocido = this.calcSaldoTipo(row, 'cocido');
+            } else {
+              this.despiece.paseCocido[row.id] = 0;
               row.ingreso = totalBruto;
               row.ingresoCocido = 0;
               row.crudo = this.calcSaldo(row);
@@ -12443,6 +12721,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const cant = Number(this.despiece.platosFilete && this.despiece.platosFilete[plato.id] || 0);
             if (rowId) sumar(this.claveDeFila[rowId], cant);
           });
+          this.platosDelOctavo().forEach((plato) => {
+            const cant = Number(this.despiece.platosOctavo && this.despiece.platosOctavo[plato.id] || 0);
+            sumar(this.claveDeFila[plato.id] || plato.id, cant);
+          });
           const destinos = {};
           Object.keys(piezas).forEach((clave) => { destinos[clave] = paseDe(clave, piezas[clave]); });
           const carnero = Number(this.despiece.carneroSalen || 0) * Number(this.config.factorCarneroPachamanca || 1);
@@ -12458,6 +12740,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             pechugasSalen: this.pechugasUsadas(),
             filetesEntran: this.totalFiletesGenerados(),
             filetesSalen: this.filetesUsadosEnPlatos(),
+            octavosEntran: this.totalOctavos(),
+            octavosSalen: this.octavosUsadosEnPlatos(),
             pancetaSale: Number(this.despiece.pancetasSalen || 0),
             tirasEntran: Number(this.despiece.pancetasSalen || 0) * 6,
             tirasSalen: Math.min(Number(this.despiece.pancetasSalen || 0) * 6, Math.max(0, Number(this.despiece.tirasUsadas || 0))),
@@ -12510,7 +12794,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           try {
             const antes = this.despieceAplicado || {
               frescoSale: 0, piernasEntran: 0, pechugasEntran: 0, piernasSalen: 0, pechugasSalen: 0,
-              filetesEntran: 0, filetesSalen: 0, pancetaSale: 0, tirasEntran: 0, tirasSalen: 0,
+              filetesEntran: 0, filetesSalen: 0, octavosEntran: 0, octavosSalen: 0, pancetaSale: 0, tirasEntran: 0, tirasSalen: 0,
               trozo: { crudo: 0, cocido: 0 }, pescadoSale: 0, piezasPescado: 0, potaSale: 0, piezasPota: 0, carneroSale: 0,
               carnero: { crudo: 0, cocido: 0 }, arrozSale: 0, arroz: {}, destinos: {}
             };
@@ -12529,6 +12813,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             await post(delta(ahora.pechugasSalen, antes.pechugasSalen) * -1, 'pechuga-pollo', 'crudo', 'Pasa a destinos');
             await post(delta(ahora.filetesEntran, antes.filetesEntran), 'filete', 'crudo', 'Sale de Pechuga');
             await post(delta(ahora.filetesSalen, antes.filetesSalen) * -1, 'filete', 'crudo', 'Pasa a platos');
+            await post(delta(ahora.octavosEntran, antes.octavosEntran), 'octavo-pollo', 'crudo', 'Sale de Pecho o Pierna');
+            await post(delta(ahora.octavosSalen, antes.octavosSalen) * -1, 'octavo-pollo', 'crudo', 'Pasa a platos');
             const claves = new Set(Object.keys(ahora.destinos).concat(Object.keys(antes.destinos || {})));
             for (const clave of claves) {
               const a = ahora.destinos[clave] || { crudo: 0, cocido: 0 };
@@ -12642,7 +12928,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             carne_pachamanca: ['Carne Pachamanca', 'Res de pachamanca'],
             carnero_pachamanca: ['Carnero pachamanca'],
             arroz_blanco: ['Arroz blanco'],
-            arroz_pollo: ['Arroz pollo', 'Arroz con pollo'],
+            arroz_pollo: ['Arroz pollo'],
+            arroz_con_pollo: ['Arroz con pollo'],
+            pollo_olla: ['Pollo a la olla'],
+            caldo_pollo: ['Caldo de pollo'],
+            octavo_pollo: ['Octavo de pollo'],
             arroz_verde: ['Arroz verde'],
             arroz_pato: ['Arroz pato'],
             arroz_chaufa: ['Arroz chaufa'],
@@ -14286,7 +14576,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             'pachamanca-res': 'carne_pachamanca',
             carne_pachamanca: 'carne_pachamanca',
             'pachamanca-cordero': 'carnero_pachamanca',
-            carnero_pachamanca: 'carnero_pachamanca'
+            carnero_pachamanca: 'carnero_pachamanca',
+            'octavo-pollo': 'octavo_pollo',
+            octavo_pollo: 'octavo_pollo',
+            'arroz-pollo': 'arroz_con_pollo',
+            arroz_con_pollo: 'arroz_con_pollo',
+            'pollo-olla': 'pollo_olla',
+            pollo_olla: 'pollo_olla',
+            'caldo-pollo': 'caldo_pollo',
+            caldo_pollo: 'caldo_pollo'
           };
           const alt = raw.indexOf('-') !== -1 ? raw.replace(/-/g, '_') : raw.replace(/_/g, '-');
           return mapa[raw] || mapa[alt] || (this.filaReal(raw) ? raw : (this.filaReal(alt) ? alt : ''));
@@ -14332,6 +14630,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             pierna_lena: 'pierna-lena',
             'pachamanca-pollo': 'pachamanca-pollo',
             pollo_pachamanca: 'pachamanca-pollo',
+            'octavo-pollo': 'octavo-pollo',
+            octavo_pollo: 'octavo-pollo',
+            'arroz-pollo': 'arroz-pollo',
+            arroz_con_pollo: 'arroz-pollo',
+            'pollo-olla': 'pollo-olla',
+            pollo_olla: 'pollo-olla',
+            'caldo-pollo': 'caldo-pollo',
+            caldo_pollo: 'caldo-pollo',
             'pachamanca-chancho': 'pachamanca-chancho',
             cerdo_pachamanca: 'pachamanca-chancho',
             'pachamanca-res': 'pachamanca-res',
@@ -14358,7 +14664,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             pechugaIng: this.pechugasObtenidas() + this.ingresoDirectoDe('pechuga'),
             pechugaTrans: this.pechugasUsadas(),
             fileteIng: this.totalFiletesGenerados(),
-            fileteTrans: this.filetesUsadosEnPlatos()
+            fileteTrans: this.filetesUsadosEnPlatos(),
+            octavoIng: this.totalOctavos(),
+            octavoTrans: this.octavosUsadosEnPlatos()
           };
         },
 
