@@ -1,6 +1,6 @@
 'use strict';
 
-const FILTRO_CIERRE_VIGENTE = { estado: { $ne: 'revertido' } };
+const FILTRO_CIERRE_VIGENTE = { estado: { $nin: ['revertido', 'fusionado'] } };
 
 function normalizarMotivoReversion(raw) {
   const motivo = String(raw ?? '').trim().replace(/\s+/g, ' ');

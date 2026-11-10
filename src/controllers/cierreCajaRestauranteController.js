@@ -19,6 +19,8 @@ const {
   obtenerUltimoCierreVigente
 } = require('../utils/cierreCajaReversion');
 const cajaAdicionalService = require('../services/cajaAdicional.service');
+const { ymdOperativo, boundsDiaOperativo } = require('../utils/diaOperativoRestaurante');
+const { etiquetaVisible, esCierreNoche, partesEtiqueta } = require('../utils/etiquetaCierreCaja');
 const { letraRevisionTicket } = require('../utils/comandasNumbers');
 const configuracionRepository = require('../repository/configuracion.repository');
 const {
@@ -450,12 +452,20 @@ router.get('/cierre-caja/historial', adminAuth, checkPermission('ver-cierre-caja
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
+    filtros.estado = { $ne: 'fusionado' };
+
     const cierres = await CierreCajaRestaurante.find(filtros)
       .sort({ fechaCierre: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select('fechaCierre periodoInicio periodoFin resumenFinanciero usuarioAdmin estado reversion')
+      .select('fechaCierre periodoInicio periodoFin resumenFinanciero usuarioAdmin estado reversion cajaAdicionalNumero etiquetasCaja')
       .lean();
+
+    const hermanos = await hermanosParaEtiqueta(cierres);
+    for (const c of cierres) {
+      c.etiquetaCaja = etiquetaVisible(c, hermanos);
+      c.puedeFusionar = c.estado === 'completado' && !esCierreNoche(c, hermanos);
+    }
     
     const total = await CierreCajaRestaurante.countDocuments(filtros);
     
@@ -757,6 +767,156 @@ router.put('/cierre-caja/verificacion/tickets/confirmar-todos', adminAuth, check
   } catch (error) {
     logger.error('Error al confirmar todos los tickets', { error: error.message });
     res.status(500).json({ success: false, error: 'Error al confirmar todos', message: error.message });
+  }
+});
+
+async function hermanosParaEtiqueta(cierres) {
+  const fechas = (cierres || []).map((c) => c.fechaCierre).filter(Boolean);
+  if (!fechas.length) return [];
+  const ymds = [...new Set(fechas.map((f) => ymdOperativo(f)))].sort();
+  const desde = boundsDiaOperativo(ymds[0]).inicio;
+  const hasta = boundsDiaOperativo(ymds[ymds.length - 1]).fin;
+  return CierreCajaRestaurante.find({ fechaCierre: { $gte: desde, $lte: hasta } })
+    .select('_id fechaCierre cajaAdicionalNumero etiquetasCaja estado')
+    .lean();
+}
+
+/**
+ * POST /api/cierre-caja/fusionar
+ * Une cierres CAJA 1 DIA / CAJA 2 / CAJA 3… del mismo día. NOCHE no entra.
+ */
+router.post('/cierre-caja/fusionar', adminAuth, checkPermission('ejecutar-cierre-caja'), async (req, res) => {
+  try {
+    const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String))].filter(Boolean);
+    if (ids.length < 2) {
+      return res.status(400).json({ success: false, message: 'Elige al menos dos cierres para fusionar' });
+    }
+    const docs = await CierreCajaRestaurante.find({ _id: { $in: ids } });
+    if (docs.length !== ids.length) {
+      return res.status(404).json({ success: false, message: 'No se encontraron todos los cierres' });
+    }
+    const hermanos = await hermanosParaEtiqueta(docs);
+    const ymd = ymdOperativo(docs[0].fechaCierre);
+    for (const doc of docs) {
+      if (doc.estado !== 'completado') {
+        return res.status(400).json({ success: false, message: 'Solo se fusionan cierres vigentes' });
+      }
+      if (ymdOperativo(doc.fechaCierre) !== ymd) {
+        return res.status(400).json({ success: false, message: 'Solo se fusionan cierres del mismo día' });
+      }
+      if (esCierreNoche(doc, hermanos)) {
+        return res.status(400).json({ success: false, message: 'No se puede fusionar el cierre de NOCHE' });
+      }
+    }
+
+    docs.sort((a, b) => new Date(a.fechaCierre) - new Date(b.fechaCierre));
+    const survivor = docs[0];
+    const absorbed = docs.slice(1);
+    const absorbedIds = absorbed.map((d) => d._id);
+    const todosIds = docs.map((d) => d._id);
+    const comandaIds = [...new Set(docs.flatMap((d) => (d.comandasIds || []).map((id) => String(id))))];
+
+    const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
+    const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
+
+    let comandas = [];
+    if (comandaIds.length) {
+      comandas = await Comanda.find({ _id: { $in: comandaIds } }).populate(POPULATE_COMANDAS_CIERRE).lean();
+    } else {
+      comandas = await Comanda.find({ incluidoEnCierre: { $in: todosIds } }).populate(POPULATE_COMANDAS_CIERRE).lean();
+    }
+    const vendidas = comandas.filter(esComandaVendida);
+    const periodoInicio = docs.reduce((m, d) => (d.periodoInicio < m ? d.periodoInicio : m), docs[0].periodoInicio);
+    const periodoFin = docs.reduce((m, d) => (d.periodoFin > m ? d.periodoFin : m), docs[0].periodoFin);
+    await cargarConfigMonedaEstadisticas();
+    const resumenFinanciero = calcularResumenFinanciero(comandas, periodoInicio, periodoFin);
+    resumenFinanciero.comandasEliminadas = docs.reduce((s, d) => s + (Number(d.resumenFinanciero?.comandasEliminadas) || 0), 0);
+    const productos = await analizarProductos(vendidas);
+    const guarniciones = analizarGuarniciones(vendidas);
+    const mozos = await analizarMozos(comandas);
+    const mesas = await analizarMesas(comandas);
+    const cocineros = await analizarCocineros(comandas, periodoInicio, periodoFin);
+    const clientes = analizarClientes(vendidas);
+    const etiquetas = [];
+    for (const doc of docs) {
+      for (const parte of partesEtiqueta(doc, hermanos)) {
+        if (!etiquetas.includes(parte)) etiquetas.push(parte);
+      }
+    }
+    const tramos = docs.flatMap((d) => (Array.isArray(d.tramos) && d.tramos.length
+      ? d.tramos
+      : [{ inicio: d.periodoInicio, fin: d.periodoFin }]));
+
+    survivor.periodoInicio = periodoInicio;
+    survivor.periodoFin = periodoFin;
+    survivor.resumenFinanciero = resumenFinanciero;
+    survivor.productos = productos;
+    survivor.guarniciones = guarniciones;
+    survivor.mozos = mozos;
+    survivor.mesas = mesas;
+    survivor.cocineros = cocineros;
+    survivor.clientes = clientes;
+    survivor.comandasIds = comandas.map((c) => c._id);
+    survivor.tramos = tramos;
+    survivor.etiquetasCaja = etiquetas;
+    survivor.cierresFusionados = [...(survivor.cierresFusionados || []), ...absorbedIds];
+    survivor.datosGraficos = generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocineros);
+    if (survivor.informacionOperativa?.horariosOperacion) {
+      survivor.informacionOperativa.horariosOperacion.inicio = periodoInicio;
+      survivor.informacionOperativa.horariosOperacion.fin = periodoFin;
+    }
+    await survivor.save();
+
+    if (absorbedIds.length) {
+      await Comanda.updateMany(
+        { incluidoEnCierre: { $in: absorbedIds } },
+        { $set: { incluidoEnCierre: survivor._id } }
+      );
+      await Promise.all([
+        ticketAprobacionModel.updateMany(
+          { 'verificacionCierre.incluidoEnCierre': { $in: absorbedIds } },
+          { $set: { 'verificacionCierre.incluidoEnCierre': survivor._id } }
+        ),
+        ticketPagoAdelantadoModel.updateMany(
+          { 'verificacionCierre.incluidoEnCierre': { $in: absorbedIds } },
+          { $set: { 'verificacionCierre.incluidoEnCierre': survivor._id } }
+        ),
+        CierreCajaRestaurante.updateMany(
+          { _id: { $in: absorbedIds } },
+          { $set: { estado: 'fusionado', fusionadoEn: survivor._id } }
+        ),
+      ]);
+    }
+
+    const usuarioNombre = (req.admin && (req.admin.nombre || req.admin.name || req.admin.usuario)) || 'admin';
+    try {
+      await AuditoriaAcciones.create({
+        accion: 'CIERRES_CAJA_FUSIONADOS',
+        entidadId: survivor._id,
+        entidadTipo: 'cierre_caja',
+        usuario: req.admin && (req.admin.id || req.admin.usuarioId),
+        usuarioNombre,
+        metadata: {
+          survivorId: survivor._id,
+          absorbidos: absorbedIds,
+          etiquetas,
+        },
+      });
+    } catch (auditErr) {
+      logger.warn('No se registró auditoría de fusión de cierres', { error: auditErr.message });
+    }
+
+    res.json({
+      success: true,
+      cierreId: survivor._id,
+      etiquetaCaja: etiquetas.join(' + '),
+    });
+  } catch (error) {
+    logger.error('Error al fusionar cierres de caja', { error: error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'No se pudieron fusionar los cierres',
+    });
   }
 });
 

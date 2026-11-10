@@ -3284,9 +3284,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="caja-stock">
                       <p class="caja-stock-etiq" x-text="tipoArrozDestino(d) === 'cocido' ? 'Stock actual (Cocido):' : 'Stock actual (Crudo):'"></p>
                       <div class="caja-stock-step">
-                        <button type="button" :aria-label="'Restar stock de ' + d.nombre" @click="fijarStockArrozTipo(d.campo, stockCuadro(d.id, tipoArrozDestino(d)) - (Number(config[d.factorKey]) || 1))">−</button>
-                        <input type="number" min="0" step="any" :aria-label="'Stock de ' + d.nombre" :value="stockCuadro(d.id, tipoArrozDestino(d))" @change="fijarStockArrozTipo(d.campo, $event.target.value)">
-                        <button type="button" :aria-label="'Sumar stock de ' + d.nombre" @click="fijarStockArrozTipo(d.campo, stockCuadro(d.id, tipoArrozDestino(d)) + (Number(config[d.factorKey]) || 1))">+</button>
+                        <button type="button" :aria-label="'Restar stock de ' + d.nombre" @click="fijarStockArrozTipo(d.campo, porcionesArroz(d) - (Number(config[d.factorKey]) || 1))">−</button>
+                        <input type="number" min="0" step="any" :aria-label="'Stock de ' + d.nombre" :value="porcionesArroz(d)" @change="fijarStockArrozTipo(d.campo, $event.target.value)">
+                        <button type="button" :aria-label="'Sumar stock de ' + d.nombre" @click="fijarStockArrozTipo(d.campo, porcionesArroz(d) + (Number(config[d.factorKey]) || 1))">+</button>
                       </div>
                       <p class="caja-stock-mas" x-show="textoIngreso(d.id, tipoArrozDestino(d))" x-text="textoIngreso(d.id, tipoArrozDestino(d))"></p>
                       <p class="caja-stock-menos" x-show="textoResto(d.id, tipoArrozDestino(d))" x-text="textoResto(d.id, tipoArrozDestino(d))"></p>
@@ -12832,6 +12832,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return d ? this.transformadoHoy('arroz', this.motivoHacia(d.id)) : 0;
         },
 
+        porcionesArroz(d) {
+          if (!d) return 0;
+          const mov = this.partesMovimiento(d.id, this.tipoArrozDestino(d));
+          return Math.max(0, this.redondear3((mov.ingreso || 0) - (mov.resto || 0)));
+        },
+
         abrirIngreso(id) {
           this.ingresoAbierto = Object.assign({}, this.ingresoAbierto, { [id]: true });
         },
@@ -13509,11 +13515,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         fijarStockArrozTipo(campo, valor) {
           const d = this.destinosArroz().find((x) => x.campo === campo);
           if (!d) return false;
-          const actual = this.stockCuadro(d.id, this.tipoArrozDestino(d));
+          const factor = Number(this.config[d.factorKey]) || 1;
+          const actual = this.porcionesArroz(d);
           const next = Math.max(0, this.redondear3(Number(valor) || 0));
           const deltaPorciones = this.redondear3(next - actual);
           if (!deltaPorciones) return false;
-          const factor = Number(this.config[d.factorKey]) || 1;
           return this.fijarArrozDestino(campo, this.arrozHacia(d) + deltaPorciones / factor);
         },
 

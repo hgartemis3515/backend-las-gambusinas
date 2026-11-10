@@ -44,6 +44,7 @@ const auditoriaSchema = new mongoose.Schema({
       'CIERRE_CAJA_EJECUTADO',
       'CIERRE_CAJA_REVERTIDO',
       'CAJA_ADICIONAL_HABILITADA',
+      'CIERRES_CAJA_FUSIONADOS',
       'TICKET_ANULADO_COCINA',
       // Solicitar Orden (Panel Gestión / KDS supervisor)
       'SOLICITUD_ORDEN_APROBADA',

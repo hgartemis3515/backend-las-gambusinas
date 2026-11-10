@@ -165,6 +165,12 @@ tailwind.config = {
         <div class="flex gap-2 items-center">
           <input type="date" x-model="fechaDesde" class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary w-[130px]">
           <input type="date" x-model="fechaHasta" class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary w-[130px]">
+          <button type="button" @click="fusionarCierres()" x-show="tienePermiso('ejecutar-cierre-caja')" x-cloak
+            :disabled="fusionSeleccion.length < 2"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+            :class="fusionSeleccion.length < 2 ? 'bg-bg-sidebar text-txt-muted cursor-not-allowed' : 'bg-emerald-600 text-white hover:brightness-110'">
+            Fusionar
+          </button>
           <button @click="loadCierresCaja()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] text-txt-secondary hover:text-gold hover:border-gold/40 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
             Actualizar
@@ -189,6 +195,7 @@ tailwind.config = {
         <table class="w-full text-sm">
           <thead><tr class="bg-bg-sidebar/50 text-txt-muted text-[10px] uppercase tracking-wider">
             <th class="text-left px-5 py-3 font-semibold">Fecha Cierre</th>
+            <th class="text-left px-5 py-3 font-semibold">Caja</th>
             <th class="text-left px-5 py-3 font-semibold">Período</th>
             <th class="text-right px-5 py-3 font-semibold">Comandas</th>
             <th class="text-right px-5 py-3 font-semibold">Monto Total</th>
@@ -202,6 +209,17 @@ tailwind.config = {
                 <td class="px-5 py-3">
                   <span class="text-white text-xs font-medium" x-text="formatFecha(c.fechaCierre)"></span>
                   <span x-show="c.estado === 'revertido'" class="block mt-1 text-[9px] px-1.5 py-0.5 rounded-full bg-st-pagado/15 text-st-pagado font-semibold w-fit">Revertido</span>
+                </td>
+                <td class="px-5 py-3">
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" x-show="c.puedeFusionar" x-cloak
+                      class="accent-emerald-500"
+                      :checked="fusionSeleccion.indexOf(String(c._id)) >= 0"
+                      @change="toggleFusion(c)">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded"
+                      :class="c.etiquetaCaja === 'NOCHE' ? 'bg-indigo-500/15 text-indigo-300' : 'bg-emerald-500/15 text-emerald-300'"
+                      x-text="c.etiquetaCaja || '—'"></span>
+                  </div>
                 </td>
                 <td class="px-5 py-3">
                   <span class="text-txt-secondary text-xs" x-text="formatPeriodo(c.periodoInicio, c.periodoFin)"></span>
@@ -550,6 +568,7 @@ function cierreApp() {
     cajaAbierta: null,
     siguienteCaja: 2,
     modalHabilitarCaja: false,
+    fusionSeleccion: [],
     motivoCajaAdicional: '',
     habilitandoCaja: false,
     modalDetalleAbierto: false,
@@ -626,12 +645,40 @@ function cierreApp() {
         if (this.fechaHasta) ep += '&fechaHasta=' + this.fechaHasta;
         const data = await apiGet(ep);
         this.cierres = data?.cierres || [];
+        this.fusionSeleccion = [];
       } catch (e) { console.error('Error loading cierres:', e); }
       this.loadingHistorial = false;
     },
 
+    toggleFusion(c) {
+      if (!c || !c.puedeFusionar) return;
+      const id = String(c._id);
+      if (this.fusionSeleccion.indexOf(id) >= 0) {
+        this.fusionSeleccion = this.fusionSeleccion.filter((x) => x !== id);
+      } else {
+        this.fusionSeleccion = this.fusionSeleccion.concat(id);
+      }
+    },
+
+    async fusionarCierres() {
+      if (this.fusionSeleccion.length < 2) return;
+      const nombres = (this.cierres || [])
+        .filter((c) => this.fusionSeleccion.indexOf(String(c._id)) >= 0)
+        .map((c) => c.etiquetaCaja)
+        .join(' + ');
+      if (!confirm('Se fusionarán ' + nombres + '. El cierre de NOCHE no se puede fusionar.')) return;
+      try {
+        const res = await apiPost('/cierre-caja/fusionar', { ids: this.fusionSeleccion });
+        if (!res || res.success === false || res.error) throw new Error(res?.message || res?.error || 'No se pudo fusionar');
+        this.showToast('Cierres fusionados: ' + (res.etiquetaCaja || nombres));
+        await Promise.all([this.loadEstadoActual(), this.loadCierresCaja()]);
+      } catch (e) {
+        this.showToast(e.message || 'No se pudo fusionar', 'error');
+      }
+    },
+
     puedeRevertirCierre(c) {
-      if (!c || c.estado === 'revertido') return false;
+      if (!c || c.estado !== 'completado') return false;
       if (!this.tienePermiso('ejecutar-cierre-caja')) return false;
       if (this.estado.ultimoCierreId) return String(c._id) === String(this.estado.ultimoCierreId);
       const vigente = (this.cierres || []).find((x) => x.estado !== 'revertido');

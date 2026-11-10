@@ -247,7 +247,7 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
   // Estado del cierre
   estado: {
     type: String,
-    enum: ['completado', 'error', 'revertido'],
+    enum: ['completado', 'error', 'revertido', 'fusionado'],
     default: 'completado',
     index: true
   },
@@ -257,6 +257,9 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
     ref: 'Comanda'
   }],
   cajaAdicionalNumero: { type: Number, default: null },
+  etiquetasCaja: [{ type: String }],
+  fusionadoEn: { type: mongoose.Schema.Types.ObjectId, ref: 'CierreCajaRestaurante', default: null },
+  cierresFusionados: [{ type: mongoose.Schema.Types.ObjectId, ref: 'CierreCajaRestaurante' }],
   tramos: [{
     inicio: Date,
     fin: Date,
