@@ -479,11 +479,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     }
 
     main .paso-num {
-      width: 2.4rem !important;
-      max-width: 2.4rem !important;
-      min-width: 0 !important;
-      padding: 0.1rem 0.15rem !important;
-      flex: 0 0 2.4rem;
+      box-sizing: border-box;
+      appearance: textfield;
+      -moz-appearance: textfield;
+      text-align: center;
+      line-height: 1.5rem;
+      height: 1.7rem;
+      width: calc(1.85rem + (var(--digitos, 1) - 1) * 0.7rem) !important;
+      min-width: 1.85rem !important;
+      max-width: 4.4rem !important;
+      padding: 0 0.2rem !important;
+      flex: 0 0 auto;
+    }
+    main .paso-num::-webkit-outer-spin-button,
+    main .paso-num::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
     main table.tabla-hoja input[type="number"] {
       width: 3.1rem !important;
@@ -492,11 +503,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     }
     /* Ingreso y Corrección: el cuadro del dígito crece con 1, 2 o 3 cifras (y el signo). */
     main table.tabla-hoja input.num-claro.caja-digitos {
-      width: calc(var(--digitos, 1) * 1ch + 0.6ch + 0.16rem + 2px) !important;
-      min-width: 1.6ch !important;
-      max-width: calc(4.6ch + 0.16rem + 2px) !important;
-      padding: 0.05rem 0.08rem !important;
+      box-sizing: border-box;
+      appearance: textfield;
+      -moz-appearance: textfield;
+      text-align: center;
+      width: calc(1.7rem + (var(--digitos, 1) - 1) * 0.65rem) !important;
+      min-width: 1.7rem !important;
+      max-width: 4.2rem !important;
+      padding: 0.1rem 0.15rem !important;
       flex: 0 0 auto;
+    }
+    main table.tabla-hoja input.num-claro.caja-digitos::-webkit-outer-spin-button,
+    main table.tabla-hoja input.num-claro.caja-digitos::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
     .ingreso-total-stack {
       display: flex;
@@ -1909,7 +1929,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <td class="text-center px-2 whitespace-nowrap">
                       <div x-show="fila.tieneCocido" class="inline-flex items-center gap-0.5 w-max mx-auto">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer shrink-0" @click="ajustarCrudoCampo(fila.id, 'cocido', -1)">−</button>
-                        <input type="number" min="0" class="paso-num text-center num-mono bg-[#0a0a0f] border border-[#26263a] rounded text-white" :value="fila.cocido" @change="fijarCrudoCampo(fila.id, 'cocido', $event.target.value)">
+                        <input type="number" min="0" class="paso-num text-center num-mono bg-[#0a0a0f] border border-[#26263a] rounded text-white" :value="fila.cocido" :style="'--digitos:' + digitosDe(fila.cocido)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoCampo(fila.id, 'cocido', $event.target.value)">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer shrink-0" @click="ajustarCrudoCampo(fila.id, 'cocido', 1)">+</button>
                       </div>
                       <span x-show="!fila.tieneCocido" class="text-[#5a5a7a]">—</span>
@@ -1917,7 +1937,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <td class="text-center px-2 whitespace-nowrap">
                       <div class="inline-flex items-center gap-0.5 w-max mx-auto">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer shrink-0" @click="ajustarCrudoCampo(fila.id, 'crudo', -1)">−</button>
-                        <input type="number" min="0" class="paso-num text-center num-mono bg-[#0a0a0f] border border-[#26263a] rounded text-white" :value="fila.crudo" @change="fijarCrudoCampo(fila.id, 'crudo', $event.target.value)">
+                        <input type="number" min="0" class="paso-num text-center num-mono bg-[#0a0a0f] border border-[#26263a] rounded text-white" :value="fila.crudo" :style="'--digitos:' + digitosDe(fila.crudo)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoCampo(fila.id, 'crudo', $event.target.value)">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer shrink-0" @click="ajustarCrudoCampo(fila.id, 'crudo', 1)">+</button>
                       </div>
                     </td>
@@ -1969,7 +1989,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="px-2.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-xs uppercase tracking-wide">Flujo Izquierda → Derecha</span>
           </div>
           <p class="text-xs text-[#a0a0b8]">
-            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña, Sandwich y Menú pecho</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca pierna, Pierna a la leña, Pollada y Menú pierna</span>. <span class="text-amber-200 font-semibold">2 Octavos de pollo = 1 Pecho o 1 Pierna</span>, y el octavo abarca Arroz con pollo, Pollo a la olla y Caldo de pollo.
+            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña y Sandwich</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca pierna, Pierna a la leña y Pollada</span>. <span class="text-amber-200 font-semibold">2 Octavos de pollo = 1 Pecho o 1 Pierna</span>, y el octavo abarca Arroz con pollo, Pollo a la olla y Caldo de pollo.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
@@ -2186,7 +2206,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               </div>
                               <div class="inline-flex items-center gap-0.5 bg-[#14141f] border border-[#26263a] rounded-lg p-1">
                                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePechugasAFilete((Number(despiece.pechugasAFilete) || 0) - 1)">−</button>
-                                <input type="number" min="0" aria-label="Pechugas a filete" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pechugasAFilete" @change="updatePechugasAFilete($event.target.value)">
+                                <input type="number" min="0" aria-label="Pechugas a filete" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pechugasAFilete" :style="'--digitos:' + digitosDe(despiece.pechugasAFilete)" @input="ajustarCajaDigitos($el)" @change="updatePechugasAFilete($event.target.value)">
                                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePechugasAFilete((Number(despiece.pechugasAFilete) || 0) + 1)">+</button>
                               </div>
                             </div>
@@ -2224,8 +2244,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                         <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'cocido'))"></strong></span>
                                       </div>
                                       <div class="inline-flex items-center gap-0.5 shrink-0">
-                                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePlatoFilete(plato.id, nudge((despiece.platosFilete && despiece.platosFilete[plato.id]) || 0, -1))">−</button>
-                                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Porciones de ' + plato.nombre" :value="(despiece.platosFilete && despiece.platosFilete[plato.id]) || 0" @change="updatePlatoFilete(plato.id, $event.target.value)">
+                                        <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="restarCrudoPlato('filete', plato.id)">−</button>
+                                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id, (despiece.platosFilete && despiece.platosFilete[plato.id]) || 0))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id, (despiece.platosFilete && despiece.platosFilete[plato.id]) || 0)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('filete', plato.id, $event.target.value)">
                                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="updatePlatoFilete(plato.id, nudge((despiece.platosFilete && despiece.platosFilete[plato.id]) || 0, 1))">+</button>
                                       </div>
                                     </div>
@@ -2241,7 +2261,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                         </div>
                                         <div class="inline-flex items-center gap-0.5 shrink-0">
                                           <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + plato.nombre" @click="pasarCrudoACocido(plato.id, -1)">−</button>
-                                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
+                                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(plato.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
                                           <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + plato.nombre" @click="pasarCrudoACocido(plato.id, 1)">+</button>
                                         </div>
                                       </div>
@@ -2262,7 +2282,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-sky-500/30">
                           <div class="flex items-center gap-2">
                             <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase tracking-wider">CUADRO GRUPAL · PECHUGA</span>
-                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pecho leña, Sandwich y Menú pecho</h4>
+                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pecho leña y Sandwich</h4>
                           </div>
                           <span class="text-[11px] font-mono text-sky-200">
                             Pechugas en este grupo: <strong class="text-white" x-text="pechugasEnPlatosGrupo()"></strong> pzas
@@ -2278,8 +2298,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="moverIngresoPlato('pechuga', ad.id, 'crudo', -1)">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="(despiece.aderezos[ad.id] && despiece.aderezos[ad.id].pechugas) || 0" @change="updateAderezoCorte(ad.id, 'pechugas', $event.target.value)">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="restarCrudoVisible(ad.id, 'pechugas')">−</button>
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleAderezo(ad.id, 'pechugas'))" :value="crudoVisibleAderezo(ad.id, 'pechugas')" @input="ajustarCajaDigitos($el)" @change="fijarCrudoVisible(ad.id, 'pechugas', $event.target.value)">
                                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="moverIngresoPlato('pechuga', ad.id, 'crudo', 1)">+</button>
                                 </div>
                               </div>
@@ -2294,7 +2314,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   </div>
                                   <div class="inline-flex items-center gap-0.5 shrink-0">
                                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + ad.nombre + ' (Pechuga)'" @click="pasarCrudoACocido(ad.id, -1)">−</button>
-                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pechuga)'" :value="cocidoActualTransformar(ad.id)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
+                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pechuga)'" :value="cocidoActualTransformar(ad.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(ad.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
                                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + ad.nombre + ' (Pechuga)'" @click="pasarCrudoACocido(ad.id, 1)">+</button>
                                   </div>
                                 </div>
@@ -2372,7 +2392,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-emerald-500/30">
                           <div class="flex items-center gap-2">
                             <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase tracking-wider">CUADRO GRUPAL · PIERNA</span>
-                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pollo pachamanca pierna, Pierna a la leña, Pollada y Menú</h4>
+                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pollo pachamanca pierna, Pierna a la leña y Pollada</h4>
                           </div>
                           <span class="text-[11px] font-mono text-emerald-200">
                             Piernas en este grupo: <strong class="text-white" x-text="piernasEnPlatosGrupo()"></strong> pzas
@@ -2389,8 +2409,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'crudo'))"></strong> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(ad.id, 'cocido'))"></strong></span>
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="moverIngresoPlato('pierna', ad.id, 'crudo', -1)">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="piezasPiernaPlato(ad.id)" @change="updateAderezoCorte(ad.id, 'piernas', $event.target.value)">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="restarCrudoVisible(ad.id, 'piernas')">−</button>
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleAderezo(ad.id, 'piernas'))" :value="crudoVisibleAderezo(ad.id, 'piernas')" @input="ajustarCajaDigitos($el)" @change="fijarCrudoVisible(ad.id, 'piernas', $event.target.value)">
                                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="moverIngresoPlato('pierna', ad.id, 'crudo', 1)">+</button>
                                 </div>
                               </div>
@@ -2406,7 +2426,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   </div>
                                   <div class="inline-flex items-center gap-0.5 shrink-0">
                                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + ad.nombre + ' (Pierna)'" @click="pasarCrudoACocido(ad.id, -1)">−</button>
-                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pierna)'" :value="cocidoActualTransformar(ad.id)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
+                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + ad.nombre + ' (Pierna)'" :value="cocidoActualTransformar(ad.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(ad.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(ad.id, $event.target.value)">
                                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + ad.nombre + ' (Pierna)'" @click="pasarCrudoACocido(ad.id, 1)">+</button>
                                   </div>
                                 </div>
@@ -2440,7 +2460,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span class="text-sky-200">Desde pecho</span>
                           <div class="inline-flex items-center gap-0.5">
                             <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" aria-label="Restar octavos desde pecho" @click="updateOctavos('pechugas', octavosDe('pechugas') - 1)">−</button>
-                            <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" aria-label="Octavos desde pecho de pollo" :value="octavosDe('pechugas')" @change="updateOctavos('pechugas', $event.target.value)">
+                            <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" aria-label="Octavos desde pecho de pollo" :value="octavosDe('pechugas')" :style="'--digitos:' + digitosDe(octavosDe('pechugas'))" @input="ajustarCajaDigitos($el)" @change="updateOctavos('pechugas', $event.target.value)">
                             <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" aria-label="Sumar octavos desde pecho" @click="updateOctavos('pechugas', octavosDe('pechugas') + 1)">+</button>
                           </div>
                         </div>
@@ -2448,7 +2468,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <span class="text-emerald-200">Desde pierna</span>
                           <div class="inline-flex items-center gap-0.5">
                             <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" aria-label="Restar octavos desde pierna" @click="updateOctavos('piernas', octavosDe('piernas') - 1)">−</button>
-                            <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" aria-label="Octavos desde pierna de pollo" :value="octavosDe('piernas')" @change="updateOctavos('piernas', $event.target.value)">
+                            <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" aria-label="Octavos desde pierna de pollo" :value="octavosDe('piernas')" :style="'--digitos:' + digitosDe(octavosDe('piernas'))" @input="ajustarCajaDigitos($el)" @change="updateOctavos('piernas', $event.target.value)">
                             <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" aria-label="Sumar octavos desde pierna" @click="updateOctavos('piernas', octavosDe('piernas') + 1)">+</button>
                           </div>
                         </div>
@@ -2479,8 +2499,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <span class="text-[10px] font-mono text-[#a0a0b8] block">Stock crudo <strong class="text-emerald-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'crudo'))"></strong><span x-show="plato.cocido"> · cocido <strong class="text-amber-300" x-text="formatNum(stockPlatoTransformar(plato.id, 'cocido'))"></strong></span></span>
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
-                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar ' + plato.nombre" @click="updatePlatoOctavo(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id] || 0) - 1)">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Porciones de ' + plato.nombre" :value="(despiece.platosOctavo && despiece.platosOctavo[plato.id]) || 0" @change="updatePlatoOctavo(plato.id, $event.target.value)">
+                                  <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar ' + plato.nombre" @click="restarCrudoPlato('octavo', plato.id)">−</button>
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id]) || 0))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id]) || 0)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('octavo', plato.id, $event.target.value)">
                                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-amber-300 font-bold cursor-pointer" :aria-label="'Sumar ' + plato.nombre" @click="updatePlatoOctavo(plato.id, (despiece.platosOctavo && despiece.platosOctavo[plato.id] || 0) + 1)">+</button>
                                 </div>
                               </div>
@@ -2495,7 +2515,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   </div>
                                   <div class="inline-flex items-center gap-0.5 shrink-0">
                                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + plato.nombre" @click="pasarCrudoACocido(plato.id, -1)">−</button>
-                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
+                                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(plato.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
                                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + plato.nombre" @click="pasarCrudoACocido(plato.id, 1)">+</button>
                                   </div>
                                 </div>
@@ -2632,7 +2652,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 </div>
                                 <div class="inline-flex items-center gap-0.5 shrink-0">
                                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + rama.nombre" @click="pasarCrudoACocido(idDeClave(rama.corte.clave), -1)">−</button>
-                                  <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + rama.nombre" :value="cocidoActualTransformar(idDeClave(rama.corte.clave))" @change="fijarPaseCrudoACocido(idDeClave(rama.corte.clave), $event.target.value)">
+                                  <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + rama.nombre" :value="cocidoActualTransformar(idDeClave(rama.corte.clave))" :style="'--digitos:' + digitosDe(cocidoActualTransformar(idDeClave(rama.corte.clave)))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(idDeClave(rama.corte.clave), $event.target.value)">
                                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + rama.nombre" @click="pasarCrudoACocido(idDeClave(rama.corte.clave), 1)">+</button>
                                 </div>
                               </div>
@@ -2736,7 +2756,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
             <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
               <button type="button" aria-label="Restar panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPancetasSalen((Number(despiece.pancetasSalen) || 0) - 1)">−</button>
-              <input type="number" min="0" aria-label="Pancetas que salen a tiras" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pancetasSalen" @change="fijarPancetasSalen($event.target.value)">
+              <input type="number" min="0" aria-label="Pancetas que salen a tiras" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pancetasSalen" :style="'--digitos:' + digitosDe(despiece.pancetasSalen)" @input="ajustarCajaDigitos($el)" @change="fijarPancetasSalen($event.target.value)">
               <button type="button" aria-label="Sumar panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPancetasSalen((Number(despiece.pancetasSalen) || 0) + 1)">+</button>
             </div>
             <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.panceta" x-transition @click="abrirIngreso('panceta')">Ingreso</button>
@@ -2747,7 +2767,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
               <div class="mt-2 inline-flex items-center gap-0.5">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de panceta" @click="stepField('panceta', 'ingreso', -1)">−</button>
-                <input type="number" min="0" aria-label="Ingreso de panceta" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('panceta').ingreso" @change="updateIngresoDirecto('panceta', $event.target.value)">
+                <input type="number" min="0" aria-label="Ingreso de panceta" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('panceta').ingreso" :style="'--digitos:' + digitosDe(getRow('panceta').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('panceta', $event.target.value)">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de panceta" @click="stepField('panceta', 'ingreso', 1)">+</button>
               </div>
             </div>
@@ -2772,7 +2792,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
               <div class="inline-flex items-center gap-0.5 shrink-0">
                 <button type="button" aria-label="Restar tiras usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarTirasUsadas((Number(despiece.tirasUsadas) || 0) - 1)">−</button>
-                <input type="number" min="0" aria-label="Tiras de panceta usadas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.tirasUsadas" @change="fijarTirasUsadas($event.target.value)">
+                <input type="number" min="0" aria-label="Tiras de panceta usadas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.tirasUsadas" :style="'--digitos:' + digitosDe(despiece.tirasUsadas)" @input="ajustarCajaDigitos($el)" @change="fijarTirasUsadas($event.target.value)">
                 <button type="button" aria-label="Sumar tiras usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarTirasUsadas((Number(despiece.tirasUsadas) || 0) + 1)">+</button>
               </div>
             </div>
@@ -2786,7 +2806,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
                 <div class="inline-flex items-center gap-0.5 shrink-0">
                   <button type="button" aria-label="Restar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarTrozosPanceta((Number(despiece.trozosPanceta) || 0) - 1)">−</button>
-                  <input type="number" min="0" aria-label="Trozos de panceta obtenidos" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.trozosPanceta" @change="fijarTrozosPanceta($event.target.value)">
+                  <input type="number" min="0" aria-label="Trozos de panceta obtenidos" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.trozosPanceta" :style="'--digitos:' + digitosDe(despiece.trozosPanceta)" @input="ajustarCajaDigitos($el)" @change="fijarTrozosPanceta($event.target.value)">
                   <button type="button" aria-label="Sumar trozos de panceta" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarTrozosPanceta((Number(despiece.trozosPanceta) || 0) + 1)">+</button>
                 </div>
               </div>
@@ -2803,7 +2823,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   </div>
                   <div class="inline-flex items-center gap-0.5 shrink-0">
                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Restar pase a cocido de Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', -1)">−</button>
-                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#0a0a0f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Trozo de panceta" :value="cocidoActualTransformar('trozo_panceta')" @change="fijarPaseCrudoACocido('trozo_panceta', $event.target.value)">
+                    <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#0a0a0f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Trozo de panceta" :value="cocidoActualTransformar('trozo_panceta')" :style="'--digitos:' + digitosDe(cocidoActualTransformar('trozo_panceta'))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido('trozo_panceta', $event.target.value)">
                     <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Pasar crudo a cocido en Trozo de panceta" @click="pasarCrudoACocido('trozo_panceta', 1)">+</button>
                   </div>
                 </div>
@@ -2868,7 +2888,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <p class="text-[11px] text-[#a0a0b8]">Pescados usados hoy:</p>
               <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
                 <button type="button" aria-label="Restar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(despiece.pescadosUsados) || 0) - 1)">−</button>
-                <input type="number" min="0" aria-label="Pescados usados" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pescadosUsados" @change="fijarPescadosUsados($event.target.value)">
+                <input type="number" min="0" aria-label="Pescados usados" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.pescadosUsados" :style="'--digitos:' + digitosDe(despiece.pescadosUsados)" @input="ajustarCajaDigitos($el)" @change="fijarPescadosUsados($event.target.value)">
                 <button type="button" aria-label="Sumar pescados usados" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPescadosUsados((Number(despiece.pescadosUsados) || 0) + 1)">+</button>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pescado_entero" x-transition @click="abrirIngreso('pescado_entero')">Ingreso</button>
@@ -2879,7 +2899,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
                 <div class="mt-2 inline-flex items-center gap-0.5">
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de pescado" @click="stepField('pescado_entero', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de pescado" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('pescado_entero').ingreso" @change="updateIngresoDirecto('pescado_entero', $event.target.value)">
+                  <input type="number" min="0" aria-label="Ingreso de pescado" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('pescado_entero').ingreso" :style="'--digitos:' + digitosDe(getRow('pescado_entero').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('pescado_entero', $event.target.value)">
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de pescado" @click="stepField('pescado_entero', 'ingreso', 1)">+</button>
                 </div>
               </div>
@@ -2906,7 +2926,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
                 <div class="inline-flex items-center gap-0.5 shrink-0">
                   <button type="button" aria-label="Restar piezas de pescado" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPiezasPescado((Number(despiece.piezasPescado) || 0) - 1)">−</button>
-                  <input type="number" min="0" aria-label="Piezas de pescado obtenidas" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.piezasPescado" @change="fijarPiezasPescado($event.target.value)">
+                  <input type="number" min="0" aria-label="Piezas de pescado obtenidas" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.piezasPescado" :style="'--digitos:' + digitosDe(despiece.piezasPescado)" @input="ajustarCajaDigitos($el)" @change="fijarPiezasPescado($event.target.value)">
                   <button type="button" aria-label="Sumar piezas de pescado" class="w-6 h-6 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" @click="fijarPiezasPescado((Number(despiece.piezasPescado) || 0) + 1)">+</button>
                 </div>
               </div>
@@ -2955,7 +2975,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
               <div class="flex items-center justify-between bg-[#14141f] border border-[#26263a] rounded-lg p-1.5">
                 <button type="button" aria-label="Restar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(despiece.potasUsadas) || 0) - 1)">−</button>
-                <input type="number" min="0" aria-label="Potas enteras usadas" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.potasUsadas" @change="fijarPotasUsadas($event.target.value)">
+                <input type="number" min="0" aria-label="Potas enteras usadas" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="despiece.potasUsadas" :style="'--digitos:' + digitosDe(despiece.potasUsadas)" @input="ajustarCajaDigitos($el)" @change="fijarPotasUsadas($event.target.value)">
                 <button type="button" aria-label="Sumar potas usadas" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarPotasUsadas((Number(despiece.potasUsadas) || 0) + 1)">+</button>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pota" x-transition @click="abrirIngreso('pota')">Ingreso</button>
@@ -2966,7 +2986,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
                 <div class="mt-2 inline-flex items-center gap-0.5">
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de pota" @click="stepField('pota', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de pota entera cruda" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('pota').ingreso" @change="updateIngresoDirecto('pota', $event.target.value)">
+                  <input type="number" min="0" aria-label="Ingreso de pota entera cruda" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('pota').ingreso" :style="'--digitos:' + digitosDe(getRow('pota').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('pota', $event.target.value)">
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de pota" @click="stepField('pota', 'ingreso', 1)">+</button>
                 </div>
               </div>
@@ -2988,7 +3008,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
                 <div class="inline-flex items-center gap-0.5 shrink-0">
                   <button type="button" aria-label="Restar piezas de pota" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarPiezasPota((Number(despiece.piezasPota) || 0) - 1)">−</button>
-                  <input type="number" min="0" aria-label="Piezas de pota obtenidas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.piezasPota" @change="fijarPiezasPota($event.target.value)">
+                  <input type="number" min="0" aria-label="Piezas de pota obtenidas" class="paso-num text-center num-mono text-white bg-[#0a0a0f] border border-[#26263a] rounded" :value="despiece.piezasPota" :style="'--digitos:' + digitosDe(despiece.piezasPota)" @input="ajustarCajaDigitos($el)" @change="fijarPiezasPota($event.target.value)">
                   <button type="button" aria-label="Sumar piezas de pota" class="w-6 h-6 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" @click="fijarPiezasPota((Number(despiece.piezasPota) || 0) + 1)">+</button>
                 </div>
               </div>
@@ -3054,7 +3074,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
                 <div class="mt-2 inline-flex items-center gap-0.5">
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de carnero" @click="stepField('carnero', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de carnero" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('carnero').ingreso" @change="updateIngresoDirecto('carnero', $event.target.value)">
+                  <input type="number" min="0" aria-label="Ingreso de carnero" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('carnero').ingreso" :style="'--digitos:' + digitosDe(getRow('carnero').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('carnero', $event.target.value)">
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de carnero" @click="stepField('carnero', 'ingreso', 1)">+</button>
                 </div>
               </div>
@@ -3088,7 +3108,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </div>
                     <div class="inline-flex items-center gap-0.5 shrink-0">
                       <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Restar pase a cocido de Carnero pachamanca" @click="pasarCrudoACocido('carnero_pachamanca', -1)">−</button>
-                      <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Carnero pachamanca" :value="cocidoActualTransformar('carnero_pachamanca')" @change="fijarPaseCrudoACocido('carnero_pachamanca', $event.target.value)">
+                      <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" aria-label="Pase Crudo a Cocido de Carnero pachamanca" :value="cocidoActualTransformar('carnero_pachamanca')" :style="'--digitos:' + digitosDe(cocidoActualTransformar('carnero_pachamanca'))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido('carnero_pachamanca', $event.target.value)">
                       <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" aria-label="Pasar crudo a cocido en Carnero pachamanca" @click="pasarCrudoACocido('carnero_pachamanca', 1)">+</button>
                     </div>
                   </div>
@@ -3110,7 +3130,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
                 <div class="inline-flex items-center gap-0.5">
                   <button type="button" aria-label="Restar ingreso de chicharrón de chancho crudo" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('chicharron_chancho', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de chicharrón de chancho crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('chicharron_chancho').ingreso" @change="updateIngresoDirecto('chicharron_chancho', $event.target.value)">
+                  <input type="number" min="0" aria-label="Ingreso de chicharrón de chancho crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('chicharron_chancho').ingreso" :style="'--digitos:' + digitosDe(getRow('chicharron_chancho').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('chicharron_chancho', $event.target.value)">
                   <button type="button" aria-label="Sumar ingreso de chicharrón de chancho crudo" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('chicharron_chancho', 'ingreso', 1)">+</button>
                 </div>
               </div>
@@ -3149,7 +3169,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[11px] text-[#a0a0b8]">Ingreso:</span>
                 <div class="inline-flex items-center gap-0.5">
                   <button type="button" aria-label="Restar ingreso de cuy" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('cuy', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de cuy" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('cuy').ingreso" @change="updateIngresoDirecto('cuy', $event.target.value)">
+                  <input type="number" min="0" aria-label="Ingreso de cuy" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('cuy').ingreso" :style="'--digitos:' + digitosDe(getRow('cuy').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('cuy', $event.target.value)">
                   <button type="button" aria-label="Sumar ingreso de cuy" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField('cuy', 'ingreso', 1)">+</button>
                 </div>
               </div>
@@ -3199,7 +3219,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <p class="text-[11px] text-[#a0a0b8]">A repartir</p>
               <div class="inline-flex items-center gap-0.5">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozCrudo(nudge(despiece.arrozCrudo, -1))">−</button>
-                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.arrozCrudo" @change="fijarArrozCrudo($event.target.value)">
+                <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="despiece.arrozCrudo" :style="'--digitos:' + digitosDe(despiece.arrozCrudo)" @input="ajustarCajaDigitos($el)" @change="fijarArrozCrudo($event.target.value)">
                 <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozCrudo(nudge(despiece.arrozCrudo, 1))">+</button>
               </div>
               <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz')">Ingreso</button>
@@ -3210,7 +3230,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
                 <div class="mt-2 inline-flex items-center gap-0.5">
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Restar ingreso de arroz crudo" @click="stepField('arroz', 'ingreso', -1)">−</button>
-                  <input type="number" min="0" aria-label="Ingreso de arroz crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('arroz').ingreso" @change="updateIngresoDirecto('arroz', $event.target.value)">
+                  <input type="number" min="0" aria-label="Ingreso de arroz crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('arroz').ingreso" :style="'--digitos:' + digitosDe(getRow('arroz').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('arroz', $event.target.value)">
                   <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" aria-label="Sumar ingreso de arroz crudo" @click="stepField('arroz', 'ingreso', 1)">+</button>
                 </div>
               </div>
@@ -3237,7 +3257,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </div>
                     <div class="inline-flex items-center gap-0.5">
                       <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, nudge(despiece[d.campo], -1))">−</button>
-                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Crudos a ' + d.nombre" :value="despiece[d.campo]" @change="fijarArrozDestino(d.campo, $event.target.value)">
+                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :aria-label="'Crudos a ' + d.nombre" :value="despiece[d.campo]" :style="'--digitos:' + digitosDe(despiece[d.campo])" @input="ajustarCajaDigitos($el)" @change="fijarArrozDestino(d.campo, $event.target.value)">
                       <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="fijarArrozDestino(d.campo, nudge(despiece[d.campo], 1))">+</button>
                     </div>
                   </div>
@@ -3287,7 +3307,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </div>
                       <div class="inline-flex items-center gap-0.5">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', -1)">−</button>
-                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow(corteId).ingreso" @change="updateIngresoDirecto(corteId, $event.target.value)">
+                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow(corteId).ingreso" :style="'--digitos:' + digitosDe(getRow(corteId).ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto(corteId, $event.target.value)">
                         <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(corteId, 'ingreso', 1)">+</button>
                       </div>
                     </div>
@@ -3302,7 +3322,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </div>
                         <div class="inline-flex items-center gap-0.5 shrink-0">
                           <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Restar pase a cocido de ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, -1)">−</button>
-                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + getRow(corteId).nombre" :value="cocidoActualTransformar(corteId)" @change="fijarPaseCrudoACocido(corteId, $event.target.value)">
+                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + getRow(corteId).nombre" :value="cocidoActualTransformar(corteId)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(corteId))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(corteId, $event.target.value)">
                           <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-amber-300 font-bold cursor-pointer" :aria-label="'Pasar crudo a cocido en ' + getRow(corteId).nombre" @click="pasarCrudoACocido(corteId, 1)">+</button>
                         </div>
                       </div>
@@ -3339,7 +3359,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </div>
                     <div class="inline-flex items-center gap-0.5 shrink-0">
                       <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(trId, 'ingreso', -1)">−</button>
-                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded text-xs" :value="getRow(trId).ingreso" @change="updateIngresoDirecto(trId, $event.target.value)">
+                      <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded text-xs" :value="getRow(trId).ingreso" :style="'--digitos:' + digitosDe(getRow(trId).ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto(trId, $event.target.value)">
                       <button type="button" class="w-5 h-5 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="stepField(trId, 'ingreso', 1)">+</button>
                     </div>
                   </div>
@@ -7409,8 +7429,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               children: [
                 { id: 'pollo_lena', nombre: 'Pecho Leña', plato: true },
                 { id: 'mix_lena_pecho', nombre: 'Mix leña pecho', plato: true },
-                { id: 'sandwich', nombre: 'Sandwich', plato: true },
-                { id: 'menu_pecho', nombre: 'Menú pecho', plato: true }
+                { id: 'sandwich', nombre: 'Sandwich', plato: true }
               ]
             },
             {
@@ -7435,7 +7454,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna', plato: true },
                 { id: 'pierna_lena', nombre: 'Pierna a la leña', plato: true },
                 { id: 'pollada', nombre: 'Pollada', alias: 'pollada-pierna', plato: true },
-                { id: 'menu_pierna', nombre: 'Menú pierna', plato: true },
                 { id: 'cuarto_lena_pierna', nombre: '1/4 pollo a la leña', plato: true },
                 { id: 'mix_lena_pierna', nombre: 'Mix leña pierna', plato: true }
               ]
@@ -7545,8 +7563,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'salt_pollo', nombre: 'Lomo saltado de pollo', aceptaPierna: false, aceptaPechuga: false },
             { id: 'chaufa_pollo', nombre: 'Chaufa de pollo', aceptaPierna: false, aceptaPechuga: false },
             { id: 'pierna_lena', nombre: 'Pierna a la leña', aceptaPierna: true, aceptaPechuga: false },
-            { id: 'menu_pecho', nombre: 'Menú pecho', aceptaPierna: false, aceptaPechuga: true },
-            { id: 'menu_pierna', nombre: 'Menú pierna', aceptaPierna: true, aceptaPechuga: false },
             { id: 'sandwich', nombre: 'Sandwich', aceptaPierna: false, aceptaPechuga: true }
           ],
           relaciones: [
@@ -9774,8 +9790,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'pierna_lena', grupo: 'pollo', nombre: 'Pierna a la leña', detalle: 'Pieza de pierna a la leña', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
             { id: 'pollada', grupo: 'pollo', nombre: 'Pollada', detalle: 'Si no hay cocido ni crudo, resta la pechuga fresca', unidad: 'pza', saldoAnterior: 0, ingreso: 2, ingresoCocido: 2, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 2, cocido: 2 },
             { id: 'menu', grupo: 'pollo', nombre: 'Menú', detalle: 'Stock anterior. Sin cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
-            { id: 'menu_pecho', grupo: 'pollo', nombre: 'Menú pecho', detalle: 'Menú hecho con pecho', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
-            { id: 'menu_pierna', grupo: 'pollo', nombre: 'Menú pierna', detalle: 'Menú hecho con pierna', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 5, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'sandwich', grupo: 'pollo', nombre: 'Sandwich', detalle: 'Pan con pollo. Sale de Pecho de Pollo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
             { id: 'octavo_pollo', grupo: 'pollo', nombre: 'Octavo de pollo', detalle: '2 octavos salen de 1 pecho o de 1 pierna', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'arroz_con_pollo', grupo: 'pollo', nombre: 'Arroz con pollo', detalle: 'Sale de octavo de pollo. Crudo y cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
@@ -10488,12 +10502,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (base !== 'correccion') next = Math.max(0, next);
           const campo = this.campoTipo(base, tipo);
           const actual = Number(row[campo]) || 0;
-          const cambio = next - actual;
+          let cambio = next - actual;
           if (!cambio) return;
           row[campo] = next;
+          let paseCrudo = 0;
+          const crudoAntes = Math.max(0, Number(row.ingreso) || 0);
+          if (base === 'ingreso' && tipo === 'cocido' && row.tieneCocido) {
+            if (cambio > crudoAntes) {
+              next = actual + crudoAntes;
+              cambio = next - actual;
+              row[campo] = next;
+            }
+            if (!cambio) {
+              row[campo] = actual;
+              this.toastMessage = row.nombre + ' no tiene crudo para pasar a cocido.';
+              return;
+            }
+            paseCrudo = -cambio;
+            row.ingreso = Math.max(0, crudoAntes + paseCrudo);
+          }
           if (base === 'ingreso' && tipo !== 'cocido') {
             if (!this.despiece.ingresoCorte) this.despiece.ingresoCorte = { pechuga: 0, pierna: 0 };
-            this.despiece.ingresoCorte[id] = next;
+            this.despiece.ingresoCorte[id] = Number(row.ingreso) || 0;
           }
           const parteFresco = id === 'pollo_fresco' && base === 'ingreso';
           const pechuga = parteFresco ? this.filaReal('pechuga') : null;
@@ -10522,6 +10552,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const fecha = base === 'saldoAnterior' ? this.rangoPeriodo().desde + 'T03:59:00-05:00' : undefined;
           try {
             await this.paso(clave, tipo, cambio, nombres[base] + ' ' + tipo, clase, row.nombre, fecha);
+            if (paseCrudo) await this.paso(clave, 'crudo', paseCrudo, 'Cocido desde crudo ' + row.nombre, 'ingreso', row.nombre, fecha);
             if (parteFresco && pechuga) {
               const deltaP = (Number(pechuga.ingreso) || 0) - prevPechuga;
               if (deltaP) await this.paso('pechuga-pollo', 'crudo', deltaP, 'Pollo fresco → pechuga', 'ingreso', pechuga.nombre, fecha);
@@ -10533,6 +10564,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             await this.cargarKardex();
           } catch (e) {
             row[campo] = actual;
+            if (paseCrudo) row.ingreso = crudoAntes;
             if (parteFresco) {
               if (pechuga) pechuga.ingreso = prevPechuga;
               if (pierna) pierna.ingreso = prevPierna;
@@ -12184,7 +12216,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         aderezosSinFiletes() {
-          return (this.config.aderezos || []).filter((ad) => ad.id !== 'filete');
+          return (this.config.aderezos || []).filter((ad) => ad.id !== 'filete' && ad.id !== 'menu_pecho' && ad.id !== 'menu_pierna' && ad.id !== 'menu');
         },
 
         esPlatoSoloPierna(ad) {
@@ -12200,13 +12232,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             ? [
                 { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna' },
                 { id: 'pierna_lena', nombre: 'Pierna a la leña' },
-                { id: 'pollada', nombre: 'Pollada' },
-                { id: 'menu_pierna', nombre: 'Menú pierna' }
+                { id: 'pollada', nombre: 'Pollada' }
               ]
             : [
                 { id: 'pollo_lena', nombre: 'Pecho Leña' },
-                { id: 'sandwich', nombre: 'Sandwich' },
-                { id: 'menu_pecho', nombre: 'Menú pecho' }
+                { id: 'sandwich', nombre: 'Sandwich' }
               ];
           const porId = {};
           (this.config.aderezos || []).forEach((ad) => { porId[ad.id] = ad; });
@@ -12410,6 +12440,43 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.despiece.platosOctavo[platoId] = next;
           if (this.despiece.paseCocido && this.despiece.paseCocido[platoId] > next) this.despiece.paseCocido[platoId] = next;
           this.volcarTransformacionEnTabla();
+        },
+
+        crudoVisibleTotal(id, total) {
+          return Math.max(0, (Number(total) || 0) - this.cocidoActualTransformar(id));
+        },
+
+        crudoVisibleAderezo(id, corte) {
+          const bolsa = (this.despiece.aderezos && this.despiece.aderezos[id]) || {};
+          const total = corte === 'piernas' ? this.piezasPiernaPlato(id) : (Number(bolsa.pechugas) || 0);
+          return this.crudoVisibleTotal(id, total);
+        },
+
+        fijarCrudoVisible(id, corte, val) {
+          const crudo = Math.max(0, parseInt(val, 10) || 0);
+          this.updateAderezoCorte(id, corte, crudo + this.cocidoActualTransformar(id));
+        },
+
+        restarCrudoVisible(id, corte) {
+          if (this.crudoVisibleAderezo(id, corte) <= 0) return;
+          const bolsa = (this.despiece.aderezos && this.despiece.aderezos[id]) || {};
+          const total = corte === 'piernas' ? this.piezasPiernaPlato(id) : (Number(bolsa.pechugas) || 0);
+          this.updateAderezoCorte(id, corte, total - 1);
+        },
+
+        fijarCrudoPlato(tipo, id, val) {
+          const crudo = Math.max(0, parseInt(val, 10) || 0);
+          const total = crudo + this.cocidoActualTransformar(id);
+          if (tipo === 'octavo') this.updatePlatoOctavo(id, total);
+          else this.updatePlatoFilete(id, total);
+        },
+
+        restarCrudoPlato(tipo, id) {
+          const bolsa = tipo === 'octavo' ? (this.despiece.platosOctavo || {}) : (this.despiece.platosFilete || {});
+          const total = Number(bolsa[id]) || 0;
+          if (this.crudoVisibleTotal(id, total) <= 0) return;
+          if (tipo === 'octavo') this.updatePlatoOctavo(id, total - 1);
+          else this.updatePlatoFilete(id, total - 1);
         },
 
         updateAderezoCorte(aderezoId, corte, val) {
@@ -13771,7 +13838,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   color: '#38bdf8',
                   factorTexto: 'Factor: 1 pollo = 2 Pechos de Pollo',
                   subFactorTexto: 'Factor: 1 pecho = 2 filetes',
-                  notaCorte: 'Del pecho cuelgan los platos de filete, chicharrón, chaufa, lomo saltado, Pecho a la leña y Menú pecho. También puede pasar a Octavo de pollo: 2 octavos = 1 pecho.',
+                  notaCorte: 'Del pecho cuelgan los platos de filete, chicharrón, chaufa, lomo saltado y Pecho a la leña. También puede pasar a Octavo de pollo: 2 octavos = 1 pecho.',
                   platos: [
                     { nombre: 'Filete de Pollo', complemento: 'A31', cantidad: 1, esAderezo: false },
                     { nombre: 'Milanesa de pollo', complemento: 'A32', cantidad: 1, esAderezo: false },
@@ -13782,8 +13849,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     { nombre: 'Chicharrón de pollo a la BBQ', complemento: 'A35', cantidad: 1, esAderezo: false },
                     { nombre: 'Chicharrón de pollo chico', complemento: 'A34', cantidad: 1, esAderezo: false },
                     { nombre: 'Lomo saltado de pollo', complemento: 'A50', cantidad: 1, esAderezo: false },
-                    { nombre: 'Pecho a la leña', complemento: 'Aderezo', cantidad: 1, esAderezo: true },
-                    { nombre: 'Menú pecho', complemento: 'Aderezo', cantidad: 1, esAderezo: true }
+                    { nombre: 'Pecho a la leña', complemento: 'Aderezo', cantidad: 1, esAderezo: true }
                   ]
                 },
                 {
@@ -13796,8 +13862,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   platos: [
                     { nombre: 'Pollo pachamanca pierna', complemento: 'Pachamanca', cantidad: 1, esAderezo: true },
                     { nombre: 'Pierna a la leña', complemento: 'Solo crudo', cantidad: 1, esAderezo: true },
-                    { nombre: 'Pollada', complemento: 'A37 · Crudo y cocido', cantidad: 1, esAderezo: true },
-                    { nombre: 'Menú pierna', complemento: 'Aderezo', cantidad: 1, esAderezo: true }
+                    { nombre: 'Pollada', complemento: 'A37 · Crudo y cocido', cantidad: 1, esAderezo: true }
                   ]
                 },
                 {
