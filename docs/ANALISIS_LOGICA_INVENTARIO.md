@@ -1,140 +1,120 @@
 # Análisis de la lógica de Inventario
 
-Fuentes: `docs/GUIA_INVENTARIO.md` y `public/inventario.html`.  
-Fecha: 9 de noviembre de 2026.
+Fuentes: `docs/GUIA_INVENTARIO.md`, `public/inventario.html`, `src/utils/inventarioKardex.js`, `src/utils/inventarioCascadaVenta.js`.  
+Fecha: 10 de noviembre de 2026.
 
-La guía describe la intención. Este documento dice qué hace el código de verdad, qué errores de lógica impiden transformar o esconden la resta, y qué falta hacer.
+La guía describe cómo se usa la pantalla. Este documento dice cómo está armada la cuenta que corre hoy. El modelo anterior (contadores de sesión que se volcaban al pulsar «Pasar a la hoja») ya no existe.
 
-## Cómo está armada la lógica
+## Una sola hoja
 
-Hay un solo saldo por producto. Vive en la fila de Inventario Tabla.
+El saldo vive en la fila de Inventario Tabla. Transformar, Stock, el gráfico y la relación de platos leen esas filas y los movimientos del kardex. No hay un almacén paralelo.
+
+El día operativo es de 04:00 a 04:00 (Lima). La hoja usa el período elegido. Las etiquetas **ingreso** / **resto** del cuadro de Transformar usan el turno de ese cuadro (`movimientosTurno`): el día operativo, o el tramo día/noche si el período es un tramo.
 
 ```
 Ingreso total = Saldo anterior + Ingreso + Corrección
-Saldo         = Ingreso total − Venta + Cubierta − Transformación
-Saldo real    = Conteo de cámara, si alguien contó; si no, el Saldo
+Saldo         = Ingreso total − Venta − Transformación + Cubierta
+Saldo real    = Conteo, si la fila tiene conteo; si no, el Saldo
 ```
 
-Transformar no tiene almacén propio. El botón **+** solo debe subir la transformación del origen y el ingreso del destino. El stock de hoja del origen es `Saldo` crudo (`calcSaldoTipo`), no el número grande de la columna Queda.
+Esa fórmula es por tipo (`crudo` / `cocido`) en `calcSaldoTipo`. Una fila sin cocido pliega el bucket cocido dentro del crudo al pintar el kardex.
 
-Ese número grande (`saldoRealColumna`) suma el saldo del producto **más el saldo de los platos que cuelgan de él**. Por eso pecho leña, pachamanca, pollada o arroz con pollo pueden hacer que el padre “siga en 13” aunque la pieza ya se movió.
+## Dos lecturas de la misma fila
 
-El mapa de Transformar, además, guarda contadores de sesión (`despiece`: frescos, pechos a filete, octavos, aderezos). Esos contadores se ponen en cero al abrir la página. El kardex no los reconstruye. La hoja sí recuerda los movimientos ya guardados.
+| Lectura | Función | Qué suma | Quién la usa |
+| --- | --- | --- | --- |
+| Stock de hoja | `quedanDe` / `stockCuadro` | `calcSaldoTipo` de esa fila, con piso 0. Sin hijos y sin conteo. | Caja de Transformar y tope del pase. |
+| Queda | `saldoRealColumna` | Saldo real de la fila + saldo real de los platos directos. | Columna Queda, Estado y pestaña Stock. |
+| Saldo del gráfico | `calcSaldo` | Saldo de la fila + saldo de todos los platos que cuelgan, en cualquier nivel. | Tarjeta y serie del gráfico. |
 
-## Dónde se traba la transformación
+`filaPachamancaIndependiente` corta el rollup: en la vista Pachamanca, Pecho pachamanca y Pollo pachamanca pierna muestran solo su propia fila.
 
-### 1. El botón mira un saldo y la pantalla enseña otro
+El conteo reemplaza el saldo real de la fila contada. No cambia el tope de Transformar. Por eso se puede contar 10 en cámara y seguir sin poder pasar a filete si el saldo de fórmula del crudo es 0.
 
-| Lo que ve la persona | Función | Qué incluye |
-| --- | --- | --- |
-| Columna Queda y pestaña Stock | `saldoRealColumna` | Saldo del producto + platos hijos. Si hay conteo, el conteo. |
-| Stock de hoja en la tarjeta de pecho o pierna | `stockHojaCrudo` | Solo el saldo crudo del producto, sin hijos y sin el conteo. |
-| Tope de filete, octavos y aderezos | ese mismo saldo crudo | Si da 0, el **+** no avanza. |
+Mix leña pecho no es otra fila de stock: `mix_lena_pecho` apunta a la clave `pollo-lena`. Mix leña pierna y los cuartos de leña no tienen fila propia. `esPlatoRepetidoDeLena` los deja fuera del rollup para que el padre no los sume dos veces.
 
-Si Queda o Stock dicen 13 porque el 13 está en los platos hijos, o porque hay un conteo de cámara, el botón sigue viendo 0 y no transforma.
+## Cómo se guarda un pase
 
-Al transformar hacia un hijo (pachamanca, pecho leña, pollada, arroz con pollo), la columna Queda del padre no baja: lo que sale del padre vuelve a sumarse en el hijo. La persona lee “no restó el stock”.
+`transferir` escribe en el momento, con la hora real. No hay contador de sesión.
 
-**Falta:** un solo número, el saldo crudo del producto, en la tarjeta, en Queda y en el tope del botón. Los platos hijos se listan aparte, no se suman al stock que se puede transformar. El conteo de cámara no debe tapar ese saldo mientras se transforma.
+- Origen: movimiento `clase: ingreso`, cantidad negativa, motivo `Pasa a {destino}`.
+- Destino: movimiento `clase: ingreso`, cantidad positiva, motivo `Sale de {origen}` (el octavo agrega `· pecho` o `· pierna`).
+- Tope al salir: `calcSaldoTipo` crudo del origen. Si no alcanza, aviso ámbar y no se escribe.
+- Tope al devolver: no más de lo que `transformadoHoy` registró con ese motivo en el período, y no más stock del tipo que el destino tenga.
 
-### 2. El primer clic no escribe la fila
+`aplicarKardex` separa la salida al pintar:
 
-`aplicarDeltaPadre` guarda el valor y **sale sin tocar la fila** la primera vez que ve una clave. Si `marcarPadresPintados` no corrió antes, el primer pecho a filete, la primera pierna a pachamanca o el primer octavo no restan nada. El segundo clic sí.
+1. Suma los `Pasa a …` negativos (salvo el pase crudo ↔ cocido, que `esPaseEntreTipos` excluye).
+2. Esa suma es la columna **Transformación**.
+3. El mismo monto se vuelve a sumar a **Ingreso**, porque el kardex ya lo había metido como ingreso negativo. Ingreso queda en bruto (compras y entradas). Transformación queda en el neto que salió. El saldo baja una sola vez.
 
-**Falta:** aplicar el delta también en esa primera vez, o pintar las claves antes de cualquier volcado.
+`transformadoHoy`, `frescosHoy`, `octavosDe` y los filetes del período se reconstruyen de esos motivos. Al recargar, el mapa y la hoja cuentan la misma historia.
 
-### 3. Filete comprado no se puede repartir
+`Pasar a la hoja` espera la cola de guardado (`_colaTransformar`), recarga el kardex y abre la tabla. No copia números de la pantalla a las columnas.
 
-Los platos de filete solo aceptan filetes generados en esta sesión (`pechugasAFilete` × factor). Si el filete entró por compra y el stock de hoja del filete es 13, el grupo de platos dice que no hay filetes generados y no deja armar milanesa, chaufa ni el resto.
+### La caja del cuadro
 
-**Falta:** el tope de esos platos debe ser el stock de hoja del filete, no solo los filetes nacidos hoy del pecho.
+`stockCuadro` es el saldo de fórmula de esa fila y ese tipo.
 
-### 4. Octavo de un día anterior no alimenta los platos
+- Subir o bajar el crudo de un origen llama a `fijarStockDirecto`. El delta va a Ingreso si el ingreso del período puede absorberlo; si la resta se pasa del ingreso, el resto va a Corrección.
+- La caja de cocido llama a `pasarCrudoACocido`. No crea unidades.
+- La caja de filete llama a `transferir` desde el pecho, con el factor. No es un ingreso suelto.
+- La caja de un plato llama a `moverIngresoPlato`.
 
-Arroz con pollo, pollo a la olla y caldo solo salen de los octavos anotados ahora (`despiece.octavos`). Si el octavo ya está en la hoja y el contador de sesión está en 0, el **+** del plato se niega: “no hay octavos libres”.
+`partesMovimiento` suma ingreso y regulación del turno y se queda con el neto. Neto positivo: «+N ingreso hoy». Neto negativo: «−N resto hoy». Neto 0: ninguna de las dos líneas. Sumar 1 y devolver 1 no deja rastro en la etiqueta, y el stock vuelve al número anterior.
 
-**Falta:** el mismo criterio que el pecho. Si hay stock de hoja de octavo, se puede convertir en esos tres platos, y cada porción resta un octavo de la hoja.
+`formulaCorte` (pecho y pierna) arma tres cifras de la misma cuenta: stock antes = queda + transformación del período; lo transformado; lo que queda.
 
-### 5. Arroz, panceta, pescado, pota y carnero no usan el stock de hoja
+## Cómo cae una venta
 
-| Cuadro | Qué limita el botón | Qué ignora |
-| --- | --- | --- |
-| Arroz | El número escrito en “arroz crudo” del mapa | El stock de hoja del arroz |
-| Panceta | Nada al sacar pancetas. Las tiras se limitan a `pancetas × 6` | El stock de hoja de panceta o de tira |
-| Pescado y pota | Nada | El stock de hoja del entero |
-| Carnero | Nada | El stock de hoja del carnero |
-| Mapas sueltos (pato y los nuevos) | Nada | El stock de hoja del origen |
+`atribuirVentas` ordena movimientos y ventas por hora. Cada venta se reparte contra el saldo que los movimientos anteriores dejaron. Una venta de las 10:00 ve el cocido pasado a las 9:00.
 
-Con arroz en hoja y el casillero del mapa en 0, no se puede repartir a blanco, verde, pato, chaufa ni mariscos. En panceta, pescado, pota y carnero el fallo es el contrario: se puede anotar más de lo que hay, y el saldo queda negativo o el ingreso viejo se pisa.
+Cadena de una comanda (`cadenaDe`). Si el primer eslabón no es cocido, se antepone el cocido del plato aunque la fila esté marcada solo crudo:
 
-En los mapas sueltos, `volcarMapasDinamicosEnFilas` **reemplaza** el ingreso del corte por lo generado en el mapa. Una compra que ya estaba en la hoja desaparece.
+1. Cocido del plato.
+2. Crudo del plato.
+3. Reserva. Si es materia (`pollo-origen`, `pechuga-pollo`, `pierna-pollo`, `filete`, `octavo-pollo`), crudo de esa pieza. Si es carnero, cocido del carnero y después crudo.
 
-**Falta:** el origen no puede pasar de su stock de hoja. El destino suma el resultado; no borra el ingreso que ya tenía.
+La venta manual (`cadenaDeFila`) usa los mismos eslabones, y el cocido entra solo cuando la fila tiene cocido. En las dos, el último eslabón se lleva lo que falte aunque el saldo no alcance. La pieza puede quedar negativa.
 
-### 6. El + de un plato falla en silencio
+Cadenas fijas:
 
-En pecho leña, sandwich, pachamanca, pollada y el resto, `moverIngresoPlato` hace `return` sin aviso si:
-
-- el plato no tiene fila,
-- el id lleva la palabra `mix` (`platoConTransformacion` lo rechaza),
-- el saldo crudo del padre es 0 o menos.
-
-El botón parece muerto. Mix leña no entra por este camino aunque esté dibujado en el árbol.
-
-**Falta:** el mismo aviso ámbar que ya tiene el filete, y dejar pasar el mix con la misma regla de 1 pieza.
-
-### 7. Pierna a filete se apaga sin decir nada
-
-Si en Configuración el factor pierna → filete está vacío, el control pone el valor en 0 y termina. No hay aviso. La pierna con stock de hoja no puede volverse filete, que es lo pedido, pero la pantalla no lo explica.
-
-**Falta:** mostrar el factor y, si está vacío, el texto “Pierna a filete está apagada en Configuración”.
-
-### 8. La resta se guarda y al recargar se esconde en dos columnas
-
-El kardex mete el pase negativo dentro de Ingresos. Al pintar la hoja, el panel **suma otra vez** ese pase al ingreso y lo anota también en Transformación. El saldo final sí baja, pero Ingreso e Ingreso total suben en la misma cantidad que Transformación. La flecha de ingreso y la de transformación se anulan a la vista, y parece que el stock de hoja no se movió.
-
-Los contadores del mapa no se guardan. Al refrescar, pechos a filete, pachamanca y octavos vuelven a 0 aunque la hoja ya tenga el movimiento.
-
-**Falta:** el pase solo debe vivir en Transformación, no sumarse de nuevo al Ingreso. Al abrir Transformar, los contadores del día deben salir de esos movimientos, no de cero.
-
-### 9. La fórmula de la tarjeta suma de más
-
-En pecho y pierna, el cuadro `total ↓ usado = libre` arma el total como stock de hoja **más** todo lo usado en la sesión. El stock de hoja ya restó la transformación. Si los dos números no son el mismo movimiento, el total queda inflado y el “↓” no coincide con lo que bajó la hoja.
-
-**Falta:** mostrar tres cifras de la misma cuenta: stock antes, lo que se resta ahora, stock después.
-
-## Qué dice la guía y el código no cumple
-
-La guía dice que todos los cuadros de Transformar topan con el stock de hoja. En el código eso solo está en pecho y pierna (filete, aderezos y octavos de esos dos). Arroz, panceta, pescado, pota, carnero y los mapas sueltos no.
-
-La guía dice que Pasar a la hoja escribe salida en Transformación e entrada en Ingreso. Eso ocurre, y además el ingreso del origen se infla con el mismo pase (error 8).
-
-## Orden de lo que falta hacer
-
-1. Unificar el número. El botón, la tarjeta y la columna Queda del producto suelto usan el saldo crudo, sin hijos y sin que el conteo lo tape.
-2. Hacer que el primer clic sí reste (`aplicarDeltaPadre`).
-3. Dejar de sumar el pase otra vez al Ingreso al cargar el kardex.
-4. Filete, octavo y arroz: poder transformar el stock de hoja aunque el contador de sesión esté en 0.
-5. Panceta, pescado, pota, carnero y mapas sueltos: no pasar del stock de hoja y no borrar el ingreso ya cargado.
-6. Aviso ámbar en todo **+** que hoy no hace nada (mix, fila inexistente, pierna a filete apagada).
-7. Al abrir el día, reconstruir los contadores de Transformar desde los movimientos, para que el mapa y la hoja cuenten la misma historia.
-
-Sin el punto 1 y el 3, pecho con “13” en Queda o en Stock puede seguir sin pasar a filete, y la pierna puede transformarse a pachamanca sin que esa columna baje.
-
-## Estado al 10 de noviembre de 2026
-
-Se cambió el modelo de Transformar: ya no hay contadores de sesión que se vuelcan a la hoja. Cada **+** / **−** guarda el pase al instante (origen −, destino +) y los cuadros leen esos movimientos.
-
-| Punto | Estado |
+| Venta | Cadena |
 | --- | --- |
-| 1. Un solo número | El tope y la caja usan el saldo crudo de la fila (`quedanDe`), sin platos hijos ni conteo. La columna Queda de la tabla sigue sumando los platos hijos, como pide la guía. |
-| 2. Primer clic no restaba | Resuelto. `aplicarDeltaPadre` ya no interviene; el pase se guarda en el clic. |
-| 3. Filete comprado | Resuelto. El tope es el stock de hoja del filete. |
-| 4. Octavo de días anteriores | Resuelto. El tope es el stock de hoja del octavo. |
-| 5. Arroz, panceta, pescado, pota, carnero, pato | Resuelto. Todos topan con el stock de hoja y suman al ingreso del destino sin pisarlo. Se quitó el reposteo acumulado de los mapas del editor (`guardarMapasDinamicos` duplicaba el pase en cada guardado). |
-| 6. + que falla en silencio | Resuelto. Todo + que no puede avanzar muestra el aviso ámbar. |
-| 7. Pierna a filete apagada | Muestra "Pierna a filete está apagada en Configuración". |
-| 8. Ingreso inflado | La transformación es el neto de los pases "Pasa a …" (las devoluciones restan). El ingreso recupera el bruto, sin duplicar. |
-| 9. Fórmula de la tarjeta | Stock antes = queda + transformación del período; ↓ transformación; = queda. |
+| `pachamanca-pollo` | Cocido pierna pachamanca, cocido pecho pachamanca, crudo pierna, crudo pecho, crudo de Pierna de Pollo. |
+| Mix de pecho a la leña | Cocido de `pollo-lena`, crudo de `pollo-lena`, crudo de `pechuga-pollo`. |
+| Seco de carnero | Cocido y crudo del seco, luego cocido y crudo de `carnero`, por la reserva. |
 
-Además: los movimientos se guardan con la hora real (antes todos a las 12:00), que era lo que hacía que una venta de la mañana restara crudo aunque ya hubiera cocido.
+Lo que sale de otro rubro se anota también en el plato con `sinSaldo`. Al pintar, eso es la **cubierta**: entra en Venta y se resta en la fórmula, así el plato no baja dos veces. La columna Venta del padre (`ventaColumna`) muestra la venta neta propia (venta − cubierta) más la de los platos directos. En la vista Pachamanca independiente, la columna es solo la venta de esa fila.
+
+Filete de la carta se pinta como filete crudo, 1 por plato. Filete junior, 0,5. `milanesa-junior` y el código `T643` no entran al kardex de la hoja.
+
+## Qué lee cada pestaña
+
+| Pestaña | Lectura |
+| --- | --- |
+| Inventario Tabla | Fórmula de la fila. Saldo anterior, ingreso total, venta, saldo y Queda suman los platos directos. Transformación es solo de la fila. |
+| Transformar | Stock de hoja y pases del período. Las etiquetas ingreso/resto son el neto del turno. |
+| Relación de platos | No mueve stock. La venta usa el vínculo y la reserva. |
+| Stock | `saldoRealColumna`. El mismo número que Queda. |
+| Gráfico | Ingreso y venta de la fila (`sumarBase`). El saldo usa `calcSaldo`, con todos los descendientes. La serie dibuja como máximo 14 días. |
+| Bloqueo | Estado local del navegador. No se guarda y no llega a los mozos. |
+
+## Qué cambió respecto al modelo de contadores
+
+| Antes | Ahora |
+| --- | --- |
+| Contadores de sesión (`despiece`) que se volcaban al pasar a la hoja y se ponían en 0 al recargar. | Cada **+** / **−** guarda el pase. Al abrir, los contadores salen de los movimientos. |
+| El primer clic a veces no escribía la fila (`aplicarDeltaPadre`). | El clic llama a `transferir` o a `fijarStockDirecto`. |
+| Filete, octavo y arroz solo aceptaban lo generado en la sesión. | El tope es el stock de hoja, aunque haya entrado por compra o en un día anterior. |
+| Panceta, pescado, pota, carnero y los mapas del editor no topaban, y el editor podía pisar el ingreso. | Topan con el stock de hoja. El destino suma. |
+| El pase negativo se veía otra vez dentro de Ingreso. | Ingreso queda en bruto y Transformación se lleva el neto. |
+| La etiqueta del cuadro sumaba altas y bajas por separado. | Muestra el neto del turno. Si se anulan, no sale ni ingreso ni resto. |
+| Queda y el botón miraban números distintos sin decirlo. | Siguen mirando números distintos, y ahora cada uno tiene un papel: el botón mueve la pieza suelta; Queda dice cuánto queda contando los platos. |
+
+## Límites que siguen
+
+- El último eslabón de la cascada puede dejar la pieza en negativo. No hay un piso en cero para esa resta.
+- Queda, el gráfico y Transformar no muestran el mismo alcance de hijos. Queda suma platos directos; el gráfico suma todos los niveles; Transformar no suma hijos.
+- El conteo de cámara cambia Queda y Stock, y no cambia el tope para transformar.
+- Bloqueo de inventario sigue en el navegador. Aplicar bloqueo no persiste y los mozos no lo consultan.

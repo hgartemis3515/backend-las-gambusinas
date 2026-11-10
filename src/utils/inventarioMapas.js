@@ -66,7 +66,7 @@ const SEMILLA = [
     },
     {
         id: 'carnes-directo',
-        nombre: 'Carnes, trucha y pescado entero',
+        nombre: 'Carnes y trucha',
         tipo: 'directo',
         origen: { clave: 'bisteck', nombre: 'Carnes' },
         cortes: [],
@@ -74,9 +74,9 @@ const SEMILLA = [
     },
     {
         id: 'pescado-trans',
-        nombre: 'Pescado',
-        tipo: 'despiece',
-        origen: { clave: 'pescado-entero', nombre: 'Pescado' },
+        nombre: 'Pieza de pescado',
+        tipo: 'directo',
+        origen: { clave: 'pieza-pescado', nombre: 'Pieza de pescado' },
         cortes: [],
         platos: []
     },
@@ -96,12 +96,10 @@ const SEMILLA = [
     },
     {
         id: 'pota',
-        nombre: 'Pota entera cruda',
-        tipo: 'manual',
-        origen: { clave: 'pota', nombre: 'Pota entera cruda' },
-        cortes: [
-            { clave: 'pieza-pota', nombre: 'Pieza de pota', factor: 0, factorDesde: '' }
-        ],
+        nombre: 'Pieza de pota',
+        tipo: 'directo',
+        origen: { clave: 'pieza-pota', nombre: 'Pieza de pota' },
+        cortes: [],
         platos: [
             { id: 'chicharron_pota', nombre: 'Chicharrón de pota', complemento: '', cuelgaDe: 'pieza-pota', cantidad: 1, venta: true, aliases: ['chicharron de pota'] },
             { id: 'ceviche_pota', nombre: 'Ceviche con chicharrón de pota', complemento: '', cuelgaDe: 'pieza-pota', cantidad: 1, venta: true, aliases: ['ceviche de chicharron de pota', 'ceviche con chicharron de pota', 'ceviche chicharron pota'] }
