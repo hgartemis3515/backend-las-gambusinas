@@ -49,7 +49,9 @@ function armarKardex(platos, movimientos, desde, hasta) {
         } else {
             bucket.balance += aporte(m.clase, m.cantidad);
             if (enVentana) {
-                if (m.clase === 'ingreso') bucket.ingresos += Number(m.cantidad) || 0;
+                const apertura = String(m.motivo || '').indexOf('Saldo anterior') === 0;
+                if (apertura) bucket.antes += Number(m.cantidad) || 0;
+                else if (m.clase === 'ingreso') bucket.ingresos += Number(m.cantidad) || 0;
                 else if (m.clase === 'egreso') bucket.egreso += Number(m.cantidad) || 0;
                 else bucket.regulacion += Number(m.cantidad) || 0;
             }

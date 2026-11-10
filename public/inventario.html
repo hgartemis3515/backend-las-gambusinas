@@ -8686,6 +8686,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (clave && m.rubro !== clave) return;
             const dia = this.ymdOperativo(new Date(m.fecha));
             const n = Number(m.cantidad) || 0;
+            if (String(m.motivo || '').indexOf('Saldo anterior') === 0) return;
             if (m.clase === 'ingreso') {
               ingresoRaw[dia] = (ingresoRaw[dia] || 0) + n;
               const pasa = String(m.motivo || '').indexOf('Pasa a ') === 0 && n < 0;
@@ -11065,6 +11066,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         textoOperacionAuditoria(mov) {
           const motivo = String(mov && mov.motivo || '');
+          if (motivo.indexOf('Saldo anterior') === 0) return 'Saldo anterior';
           if (motivo.indexOf('Venta manual') === 0) return 'Venta manual';
           if (!mov) return '';
           if (mov.clase === 'correccion') return 'Corrección (opcional)';
@@ -11202,7 +11204,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.editarStock.abierto = false;
         },
 
-        abrirEditarStock(id) {
+        motivoSaldoAnterior(texto) {
+          const extra = String(texto || '').trim();
+          if (!extra || extra === 'Ajuste de stock') return 'Saldo anterior';
+          return 'Saldo anterior · ' + extra;
+        },
+
+        abrirEditarStock(id, desdeTabla) {
           const rowId = this.filaReal(id) ? id : (this.filaIdDePlatoTransformar(id) || id);
           const row = this.filaReal(rowId);
           if (!row) {
@@ -11222,7 +11230,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cocido: tiene ? Math.max(0, Math.round(this.calcSaldoTipo(row, 'cocido'))) : 0,
             pecho: 0,
             pierna: 0,
-            motivo: ''
+            motivo: '',
+            desdeTabla: !!desdeTabla
           };
         },
 
@@ -11240,7 +11249,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         abrirEditarStockFila(row) {
           if (!row) return;
           const hijos = this.filasTransformacionDe(row);
-          if (!hijos.length) return this.abrirEditarStock(row.id);
+          if (!hijos.length) return this.abrirEditarStock(row.id, true);
           this.editarStock = {
             abierto: true,
             id: row.id,
@@ -11253,7 +11262,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cocido: 0,
             pecho: 0,
             pierna: 0,
-            motivo: ''
+            motivo: '',
+            desdeTabla: true
           };
         },
 
@@ -11281,7 +11291,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         async guardarEditarStockGrupo() {
           const f = this.editarStock;
-          const motivo = (f.motivo || '').trim() || 'Ajuste de stock';
+          const motivo = this.motivoSaldoAnterior(f.motivo);
           const lineas = f.lineas || [];
           let cambios = 0;
           try {
@@ -11297,7 +11307,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 const actual = this.redondear3(this.calcSaldoTipo(row, tipo));
                 const delta = this.redondear3(nuevo - actual);
                 if (!delta) continue;
-                await this.paso(clave, tipo, delta, motivo, 'regulacion', row.nombre);
+                await this.paso(clave, tipo, delta, motivo, 'ingreso', row.nombre);
                 cambios += 1;
               }
             }
@@ -11314,7 +11324,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const row = this.filaReal(f.id);
           const clave = row && this.claveDeFila[row.id];
           if (!row || !clave) return;
-          const motivo = (f.motivo || '').trim() || 'Ajuste de stock';
+          const motivo = f.desdeTabla ? this.motivoSaldoAnterior(f.motivo) : ((f.motivo || '').trim() || 'Ajuste de stock');
+          const clase = f.desdeTabla ? 'ingreso' : 'regulacion';
           const tipos = f.tieneCocido ? ['crudo', 'cocido'] : ['crudo'];
           try {
             for (let i = 0; i < tipos.length; i++) {
@@ -11322,7 +11333,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const nuevo = Math.max(0, Math.round(Number(f[tipo]) || 0));
               const actual = Math.round(this.calcSaldoTipo(row, tipo));
               const delta = nuevo - actual;
-              if (delta) await this.paso(clave, tipo, delta, motivo, 'regulacion', row.nombre);
+              if (delta) await this.paso(clave, tipo, delta, motivo, clase, row.nombre);
             }
             await this.cargarKardex();
             this.editarStock.abierto = false;

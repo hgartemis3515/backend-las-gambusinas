@@ -31,6 +31,18 @@ test('saldo final es antes de la regulación y lo que baja abre el día siguient
     });
 });
 
+test('un ajuste de saldo anterior del día sube el saldo inicial y el ingreso total, sin ir a ingresos', () => {
+    const movs = [
+        { plato: 'arroz', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 10, fecha: dia('2026-10-06', '10:00:00') },
+        { plato: 'arroz', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 5, motivo: 'Saldo anterior', fecha: dia('2026-10-07', '18:00:00') }
+    ];
+    const fila = armarKardex(platos, movs, dia('2026-10-07', '00:00:00'), dia('2026-10-07', '23:59:59'))
+        .find((f) => f.plato === 'arroz' && f.tipoProducto === 'crudo');
+    expect(fila).toMatchObject({
+        saldoInicial: 15, ingresos: 0, total: 15, regulacion: 0, baja: 15
+    });
+});
+
 test('ingreso 10 deja saldo final y baja en 10', () => {
     const fila = filaDesdeSumas(0, 10, 0, 0);
     expect(fila).toMatchObject({ total: 10, saldoFinal: 10, baja: 10 });
