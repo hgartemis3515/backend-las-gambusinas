@@ -17,7 +17,7 @@ const SEMILLA = {
     'menu-pierna': { tieneCocido: false, reservaClave: '' },
     sandwiches: { tieneCocido: true, reservaClave: 'pechuga-pollo' },
     'pollo-lena': { tieneCocido: true, reservaClave: '' },
-    'pierna-lena': { tieneCocido: true, reservaClave: 'pierna-pollo' },
+    'pierna-lena': { tieneCocido: true, reservaClave: '' },
     'pachamanca-pollo': { tieneCocido: true, reservaClave: 'pierna-pollo' },
     'pachamanca-chancho': { tieneCocido: true, reservaClave: '' },
     'pachamanca-res': { tieneCocido: true, reservaClave: '' },
@@ -31,9 +31,10 @@ const SEMILLA = {
     'filete-pollo': { tieneCocido: false, reservaClave: 'filete' },
     'filete-junior': { tieneCocido: false, reservaClave: 'filete' },
     'chicharron-pollo': { tieneCocido: false, reservaClave: 'filete' },
-    'trozo-panceta': { tieneCocido: true, reservaClave: '' },
+    'trozo-panceta': { tieneCocido: false, reservaClave: '' },
     'pechuga-pato': { tieneCocido: true, reservaClave: '' },
     'pierna-pato': { tieneCocido: true, reservaClave: '' },
+    'pollo-baby': { tieneCocido: true, reservaClave: '' },
     'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
     'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
     'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' },
@@ -85,6 +86,9 @@ function cadenaMixPechoLena() {
 function cadenaDe(rubro, opciones) {
     const op = opciones || {};
     if (esMateria(rubro)) return [{ rubro: rubro, tipo: 'crudo' }];
+    // Pierna a la leña solo gasta su cocido. No baja el crudo de Pierna de Pollo.
+    if (rubro === 'pierna-lena') return [{ rubro: 'pierna-lena', tipo: 'cocido' }];
+    if (rubro === 'trozo-panceta') return [{ rubro: 'trozo-panceta', tipo: 'cocido' }];
     const cadena = [];
     if (op.tieneCocido) cadena.push({ rubro: rubro, tipo: 'cocido' });
     cadena.push({ rubro: rubro, tipo: 'crudo' });

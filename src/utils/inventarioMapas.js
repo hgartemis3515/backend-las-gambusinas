@@ -35,7 +35,7 @@ const SEMILLA = [
         nombre: 'Panceta',
         tipo: 'manual',
         origen: { clave: 'panceta', nombre: 'Panceta entera' },
-        cortes: [{ clave: 'trozo-panceta', nombre: 'Trozo de panceta', factor: 0, factorDesde: '' }],
+        cortes: [{ clave: 'trozo-panceta', nombre: 'Pieza de panceta', factor: 0, factorDesde: '' }],
         platos: []
     },
     {

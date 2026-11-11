@@ -179,7 +179,7 @@ El **editor de mapas** crea o ajusta familias nuevas. Esas familias usan la mism
 
 Dice qué plato de la carta come qué producto del inventario, y cuánto. No mueve el stock por sí sola. La venta de la comanda descuenta según esa relación y según la reserva crudo/cocido.
 
-Al abrir la pestaña, los platos activos de la carta se vinculan solos por el nombre. Lo que falte se puede agregar a mano.
+Al abrir la pestaña, los platos activos de la carta que todavía no tienen vínculo se proponen solos por el nombre. Lo que se agrega, se edita o se quita a mano queda guardado en el servidor. Recargar la hoja no lo borra. Un vínculo quitado no vuelve a aparecer solo; solo regresa si se vuelve a vincular.
 
 ### Tres vistas
 

@@ -201,6 +201,24 @@ router.get('/inventario/mapas', adminAuth, checkPermission('ver-inventario'), as
     }
 });
 
+router.get('/inventario/relaciones', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const data = await inventario.leerRelaciones();
+        res.json({ success: true, manuales: data.manuales, quitadas: data.quitadas });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
+router.put('/inventario/relaciones', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const data = await inventario.guardarRelaciones(req.body || {});
+        res.json({ success: true, manuales: data.manuales, quitadas: data.quitadas });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
 router.put('/inventario/mapas', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
     try {
         const mapas = await inventario.guardarMapas((req.body && req.body.mapas) || null);

@@ -4,6 +4,7 @@ const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
 const { claveDe, clavesGuardables, filasDeRubros, extrasDeVentas, carta } = require('../utils/inventarioRubros');
 const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventarioMapas');
+const { sanearGuardado } = require('../../public/assets/js/inventarioRelaciones');
 const MapaSemantico = require('../database/models/inventarioMapa.model');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
@@ -242,17 +243,18 @@ async function opcionesCocido() {
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
         const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'pollada', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada', 'caldo-pollo'];
-        const conCocido = ['trozo-panceta', 'pechuga-pato', 'pierna-pato', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'seco-cordero', 'pachamanca-pollo-pecho'];
+        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'seco-cordero', 'pachamanca-pollo-pecho'];
         if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
             if (!esMateria(d.clave) && !reservaClave) reservaClave = 'pechuga-pollo';
         }
-        if (d.clave === 'pierna-lena') reservaClave = 'pierna-pollo';
+        if (d.clave === 'pierna-lena') reservaClave = '';
         if (d.clave === 'pollada' || d.clave === 'pachamanca-pollo') reservaClave = 'pierna-pollo';
         if (d.clave === 'pachamanca-pollo-pecho') reservaClave = 'pechuga-pollo';
         if (d.clave === 'seco-cordero') reservaClave = 'carnero';
         if (d.clave === 'pollo-lena' || d.clave === 'caldo-pollo') reservaClave = '';
         if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
+        if (d.clave === 'trozo-panceta') tieneCocido = false;
         if (d.clave === 'menu' || d.clave === 'menu-pecho' || d.clave === 'menu-pierna') tieneCocido = false;
         return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
     });
@@ -428,6 +430,22 @@ async function leerMapas() {
     return leerGuardados();
 }
 
+async function leerRelaciones() {
+    const doc = await MapaSemantico.findOne({ clave: 'relaciones' }).lean();
+    if (!doc) return { manuales: [], quitadas: [] };
+    return sanearGuardado({ manuales: doc.relaciones, quitadas: doc.quitadas });
+}
+
+async function guardarRelaciones(body) {
+    const guardado = sanearGuardado(body || {});
+    await MapaSemantico.findOneAndUpdate(
+        { clave: 'relaciones' },
+        { $set: { relaciones: guardado.manuales, quitadas: guardado.quitadas } },
+        { upsert: true, new: true }
+    );
+    return guardado;
+}
+
 async function guardarMapas(lista) {
     if (!Array.isArray(lista)) {
         const err = new Error('El cuerpo debe traer la lista de mapas');
@@ -571,6 +589,8 @@ module.exports = {
     guardarUmbralRubro,
     leerMapas,
     guardarMapas,
+    leerRelaciones,
+    guardarRelaciones,
     eliminarHoy,
     ponerEnCero,
     avisarAlertas

@@ -174,7 +174,7 @@ test('10 leñas del reporte son 10 de salida de pollo leña', () => {
     expect(porRubro.ceviche).toBeUndefined();
 });
 
-test('el mixto vendido como pierna baja pierna de pollo y el de pecho baja pecho a la leña', () => {
+test('el mixto de pierna baja pierna a la leña y el de pecho baja pecho a la leña', () => {
     const { armarContadorPlatos } = require('../src/utils/contadorPlatosReporte');
     const cuarto = {
         _id: 'c14',
@@ -214,14 +214,14 @@ test('el mixto vendido como pierna baja pierna de pollo y el de pecho baja pecho
     expect(porRubro['trozo-panceta']).toBe(6);
 });
 
-test('el cuarto pierna va a pierna de pollo y el mix pierna a pierna a la leña', () => {
+test('el cuarto pierna y el mix pierna van a pierna a la leña, no a pierna de pollo', () => {
     const porRubro = aplicarMapa([
         { nombre: '1/4 pollo a la leña', cantidad: 3, cortes: { Pec: 2, Pie: 1 } },
         { nombre: 'Mixto leña 1/4 pollo', cantidad: 2, cortes: { Pec: 1, Pie: 1 } }
     ]);
     expect(porRubro['pollo-lena']).toBe(3);
-    expect(porRubro['pierna-pollo']).toBe(1);
-    expect(porRubro['pierna-lena']).toBe(1);
+    expect(porRubro['pierna-lena']).toBe(2);
+    expect(porRubro['pierna-pollo']).toBeUndefined();
     expect(porRubro['trozo-panceta']).toBe(6);
 });
 

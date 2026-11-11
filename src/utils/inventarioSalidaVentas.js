@@ -188,7 +188,8 @@ function partirLeñaPorCorte(fila) {
     if (!pecho && !pierna && !resto) return null;
     const out = [];
     if (pecho) out.push({ rubro: 'pollo-lena', unidades: pecho });
-    if (pierna) out.push({ rubro: esMix ? 'pierna-lena' : 'pierna-pollo', unidades: pierna });
+    // La presa pierna del 1/4 y del mix sale de Pierna a la leña. El cocido lo resuelve la cascada.
+    if (pierna) out.push({ rubro: 'pierna-lena', unidades: pierna });
     if (resto) out.push({ rubro: 'pollo-lena', unidades: resto });
     if (esMix) {
         const piezas = pecho + pierna + resto;
