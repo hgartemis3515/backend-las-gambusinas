@@ -1,7 +1,7 @@
 # Análisis de la lógica de Inventario
 
 Fuentes: `docs/GUIA_INVENTARIO.md`, `public/inventario.html`, `src/utils/inventarioKardex.js`, `src/utils/inventarioCascadaVenta.js`.  
-Fecha: 10 de noviembre de 2026.
+Fecha: 11 de noviembre de 2026.
 
 La guía describe cómo se usa la pantalla. Este documento dice cómo está armada la cuenta que corre hoy. El modelo anterior (contadores de sesión que se volcaban al pulsar «Pasar a la hoja») ya no existe.
 
@@ -50,7 +50,34 @@ Mix leña pecho no es otra fila de stock: `mix_lena_pecho` apunta a la clave `po
 
 `transformadoHoy`, `frescosHoy`, `octavosDe` y los filetes del período se reconstruyen de esos motivos. Al recargar, el mapa y la hoja cuentan la misma historia.
 
+El ingreso de **Pollo fresco** en la tabla no convierte el stock entero. `fijarCampo`, si la fila es `pollo_fresco` y la base es ingreso crudo, guarda el delta y llama a `setPollosFrescosConvertir(frescosHoy() + cambio)`. Solo esos pollos pasan a piezas: pecho `cambio × factorPechugasPorFresco` y pierna `cambio × factorPiernasPorFresco` (por defecto 2 y 2). El motivo del origen es `Pasa a piezas`. Si la transformación no estaba guardada, un cálculo del tipo «ingreso nuevo − transformación» volvía a cortar todo el ingreso; ese cálculo ya no se usa.
+
+`fijarStockPolloFresco` (el + del cuadro) suma el delta al stock y convierte ese mismo delta. El + chico del factor solo convierte, sin tocar el ingreso de compra.
+
 `Pasar a la hoja` espera la cola de guardado (`_colaTransformar`), recarga el kardex y abre la tabla. No copia números de la pantalla a las columnas.
+
+### Guardado y recarga
+
+Todo lo que escribe stock desde un clic o una caja pasa por la misma cola: `transferir`, `pasarCrudoACocido`, `fijarStockDirecto` y `fijarCampo`.
+
+1. La fila cambia en pantalla al instante, y el movimiento se anota en `movimientosPeriodo` / `movimientosTurno` (`anotarMovs`), así las etiquetas «+N ingreso hoy» ya lo muestran.
+2. `encolarMovimientos` guarda los `POST /movimientos` en orden, uno detrás de otro. Lleva la cuenta en `_escriturasPendientes`.
+3. `programarRecargaKardex` recarga una sola vez, 600 ms después del último clic y con la cola vacía.
+4. `cargarKardex` corre de a una. Si alguien pide otra recarga mientras corre, se hace una más al terminar. Kardex y movimientos se piden en paralelo. Una respuesta que llega con escrituras pendientes, o con otro período elegido, no se pinta.
+
+Si el servidor rechaza un movimiento, sale el aviso y la recarga trae lo guardado. Ya no hay vuelta atrás fila por fila.
+
+Antes, cada clic esperaba su `POST` y una recarga completa. Con varios clics seguidos, las recargas se cruzaban y la caja saltaba a un número viejo.
+
+Lecturas con índice (se rehacen solo cuando cambia la lista que leen):
+
+| Función | Índice |
+| --- | --- |
+| `transformadoHoy` / `ingresadoHoy` | `indiceMotivosPeriodo`: suma por rubro y motivo. |
+| `partesMovimiento` | `indiceTurnoCuadro`: movimientos del turno por rubro y tipo, ya filtrados por hora. |
+| `idDeClave` / `filaPorClave` | `idDeClaveExacto`: clave → id. |
+| `nodoInventario` | `_idxNodos`: id → nodo de los árboles fijos. |
+| `detalleVentasPlatos` | Por fila, mientras no cambien las ventas ni la hoja. |
 
 ### La caja del cuadro
 
@@ -60,6 +87,7 @@ Mix leña pecho no es otra fila de stock: `mix_lena_pecho` apunta a la clave `po
 - La caja de cocido llama a `pasarCrudoACocido`. No crea unidades.
 - La caja de filete llama a `transferir` desde el pecho, con el factor. No es un ingreso suelto.
 - La caja de un plato llama a `moverIngresoPlato`.
+- El lápiz, en Transformar y en la tabla, llama a `fijarSaldoTipo`: pone el saldo de fórmula (`calcSaldoTipo`) en el número escrito, con un ingreso o una corrección del día. No usa la fecha de saldo anterior. El lápiz de octavos sigue en `guardarEditarOctavo` → `fijarOctavosStock`.
 
 `partesMovimiento` suma ingreso y regulación del turno y se queda con el neto. Neto positivo: «+N ingreso hoy». Neto negativo: «−N resto hoy». Neto 0: ninguna de las dos líneas. Sumar 1 y devolver 1 no deja rastro en la etiqueta, y el stock vuelve al número anterior.
 
@@ -98,7 +126,7 @@ Filete de la carta se pinta como filete crudo, 1 por plato. Filete junior, 0,5. 
 | Relación de platos | No mueve stock. La venta usa el vínculo y la reserva. |
 | Stock | `saldoRealColumna`. El mismo número que Queda. |
 | Gráfico | Ingreso y venta de la fila (`sumarBase`). El saldo usa `calcSaldo`, con todos los descendientes. La serie dibuja como máximo 14 días. |
-| Bloqueo | Estado local del navegador. No se guarda y no llega a los mozos. |
+| Bloqueo | `GET`/`PUT /api/inventario/bloqueo`. También queda en `localStorage` (`inventario-bloqueo`). |
 
 ## Qué cambió respecto al modelo de contadores
 
@@ -117,4 +145,22 @@ Filete de la carta se pinta como filete crudo, 1 por plato. Filete junior, 0,5. 
 - El último eslabón de la cascada puede dejar la pieza en negativo. No hay un piso en cero para esa resta.
 - Queda, el gráfico y Transformar no muestran el mismo alcance de hijos. Queda suma platos directos; el gráfico suma todos los niveles; Transformar no suma hijos.
 - El conteo de cámara cambia Queda y Stock, y no cambia el tope para transformar.
-- Bloqueo de inventario sigue en el navegador. Aplicar bloqueo no persiste y los mozos no lo consultan.
+- La reserva de un producto no quita el plato de la carta. Solo baja el tope para transformar ese producto. El plato deja de salir en la carta cuando el bloqueo es del plato.
+- Si al abrir la hoja `GET /api/inventario/relaciones` falla, no se reintenta el guardado ni sale el aviso. El vínculo local se conserva. El aviso de la hoja (`toastMessage`) está fijo abajo a la izquierda y se borra a los 7 segundos.
+
+## Funciones que mueven el stock
+
+| Función | Qué hace |
+| --- | --- |
+| `calcSaldoTipo` | Saldo de una fila y un tipo: anterior + ingreso + corrección − venta − transformación + cubierta. |
+| `stockCuadro` / `quedanDe` | Saldo de fórmula con piso 0. Es el número de la caja y el tope del pase. |
+| `saldoRealColumna` | Queda: saldo real de la fila más el de los platos directos. |
+| `transferir` | Pase origen → destinos. Niega el pase si el origen está bloqueado o si el stock menos la reserva no alcanza. |
+| `fijarStockDirecto` | Deja el crudo de la caja en el número escrito. El cocido no se crea: llama a `pasarCrudoACocido`. |
+| `fijarSaldoTipo` | Lo mismo para el lápiz, en crudo o en cocido, guardado en el día. |
+| `fijarCampo` | Edita una columna de la tabla. En el ingreso de pollo fresco, convierte solo el delta. |
+| `setPollosFrescosConvertir` | Lleva el neto «Pasa a piezas» al número pedido. |
+| `pasarCrudoACocido` | Mueve crudo ↔ cocido de la misma fila. No entra en Transformación. |
+| `confirmarVentaManual` | Resta por unidad o por plato. Se detiene si el producto está bloqueado. |
+| `aplicarKardex` | Pinta columnas desde el kardex y separa los `Pasa a …` en Transformación. |
+| `aplicarBloqueo` / `filtrarCartaBloqueada` | Guarda el bloqueo. La carta del mozo no incluye los platos bloqueados. |

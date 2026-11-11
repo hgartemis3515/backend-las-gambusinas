@@ -51,7 +51,8 @@ Hoja de producción del período. Es la fuente de verdad.
 - Buscar por nombre y filtrar por categoría. El filtro **Pachamanca** deja solo los sabores (pollo, carne, carnero, cerdo y humita).
 - Abrir o cerrar los grupos. Imprimir la hoja. Abrir el reporte del día. Poner en cero los movimientos de hoy (el saldo anterior se conserva).
 - Abrir **Bloqueo de inventario** (icono de candado). Ver la sección 6.
-- Entrar a Configuración (factores de pollo, arroz, carnero y aderezos) y al color de fondo de las filas.
+- Entrar a Configuración (factores de pollo, arroz, carnero, aderezos y columnas de la hoja) y al color de fondo de las filas.
+- El lápiz de una fila abre el mismo editor de stock que el lápiz de Transformar. El número que se guarda es el saldo que se ve en las dos pantallas.
 
 ### Columnas
 
@@ -69,6 +70,10 @@ Hoja de producción del período. Es la fuente de verdad.
 | Queda (Saldo real) | El número para saber si hay o no hay, con los platos directos incluidos. |
 | Diferencia | Conteo contra saldo de la fila. Se puede ocultar. |
 | Estado | Normal, bajo o crítico, según Queda. Se puede ocultar. |
+
+En Configuración → Tabla, **Ocultar** empieza marcado en Saldo y Conteo, Diferencia, Estado y Corrección. Queda sigue visible. Si en este equipo ya se dejó alguna columna visible, se respeta. Cada opción se guarda en el navegador.
+
+Al sumar o restar el **Ingreso** de Pollo fresco, solo se convierte ese cambio: 1 pollo que entra sale en Transformación y entran 2 pechos y 2 piernas. No se vuelve a cortar el ingreso que ya estaba. Al bajar el ingreso, se devuelve esa misma cantidad si esos pollos se habían convertido.
 
 Mix leña pecho usa la misma fila que Pecho leña. Mix leña pierna y los cuartos de leña no se suman otra vez al padre.
 
@@ -133,7 +138,18 @@ En pecho y pierna, la cuenta del cuadro es la misma historia: stock antes = qued
 
 1 pollo fresco = **2 pechos** + **2 piernas** (los factores se cambian en Configuración). Pierna y pecho no se suman entre sí. Si el pollo se compra ya cortado, el ingreso se anota directo en Pecho o en Pierna y no hace falta convertir fresco.
 
-El **+** chico junto al factor convierte un fresco del período en cortes. El **−** devuelve un fresco ya convertido.
+- El **+** del stock de Pollo fresco suma ese pollo y, en el mismo paso, lo convierte: el saldo de fresco no se queda con el ave entera y además con las piezas. Pecho +2 y pierna +2.
+- El **+** / **−** chico junto al factor convierte o devuelve un fresco del período, sin cambiar el ingreso de compra.
+- En la tabla, el **+** / **−** del Ingreso de Pollo fresco convierte solo los pollos de ese clic. No multiplica otra vez todo el stock.
+
+### Lápiz de stock
+
+El mismo modal sirve en Transformar y en Inventario Tabla.
+
+- El número escrito es el saldo de esa fila (crudo, y cocido si la fila lo tiene).
+- La diferencia se guarda en el día, en Ingreso o en Corrección. No se anota como saldo anterior de un día pasado.
+- El lápiz de octavos ajusta los octavos que salen de pecho y de pierna, con la misma regla de 2 octavos = 1 pieza.
+- Un producto bloqueado se puede corregir con el lápiz. No se puede transformar ni vender en manual mientras siga bloqueado.
 
 ### Pecho de pollo
 
@@ -212,15 +228,19 @@ Ingreso, ventas y saldo del período, día por día. Se puede ver toda la hoja o
 
 El saldo de esta pestaña suma también los platos que cuelgan más abajo de la fila. Queda, en la tabla, suma solo los platos directos. Por eso los dos números pueden diferir en un padre con varios niveles (fresco → pecho → filete → milanesa).
 
-## 6. Bloqueo de inventario (bosquejo)
+## 6. Bloqueo de inventario
 
-Icono de candado en la barra de Inventario Tabla. El conteo por fila sigue en la columna Conteo.
+Icono de candado en la barra. **Aplicar bloqueo** guarda la lista en el servidor y en este navegador. El conteo por fila sigue en la columna Conteo.
 
-Todavía no guarda ni llega a los mozos. El botón **Aplicar bloqueo** está desactivado.
-
-- Pestaña **Productos**: cada fila con lo que queda, una caja **Reservar** y un interruptor **Bloquear**.
-- Pestaña **Platos de la carta**: un interruptor **Bloquear** por plato.
+- Pestaña **Productos**: lo que queda, una caja **Reservar** y un interruptor **Bloquear**. La fila bloqueada se marca en la tabla.
+- Pestaña **Platos de la carta**: un interruptor **Bloquear** por plato. Ese plato deja de salir en la carta de los mozos.
+- **Reservar** aparta unidades. Esa cantidad no se puede transformar: el tope del pase es el stock de hoja menos la reserva.
+- **Bloquear** un producto impide transformarlo y venderlo en manual desde la hoja. El lápiz sigue pudiendo corregir el saldo.
 - Abajo: motivo, hora hasta la que dura y el resumen.
+
+## Avisos
+
+Los mensajes de la hoja (vínculo guardado, stock actualizado, bloqueo, error de guardado) salen abajo a la izquierda y se cierran solos a los 7 segundos. No empujan la hoja de producción. El panel de notificaciones del menú superior es otro sistema: avisos del restaurante, no estos mensajes de inventario.
 
 ## Cómo se conectan
 

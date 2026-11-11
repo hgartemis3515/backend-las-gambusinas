@@ -18,6 +18,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
 6. Por qué el texto blanco no va encima del oro brillante:
    El acento oro (#d4af37) tiene alta luminancia relativa (~0.45). Colocar texto blanco (#ffffff) sobre #d4af37 da un contraste insuficiente (~2.1:1, ilegible en monitores de mostrador con reflejos). Por eso, todo botón, insignia, celda destellando o encabezado con fondo oro brillante (#d4af37) usa texto oscuro (#1a1200), mientras que los nombres de sección y pestañas usan texto blanco puro (#ffffff) sobre el fondo oscuro (#0a0a0f / #14141f).
+
+7. Cómo queda el inventario después de los ajustes de noviembre de 2026:
+   - Pollo fresco: 1 ave = 2 pechos + 2 piernas. En la tabla, fijarCampo solo convierte el delta del ingreso (setPollosFrescosConvertir). No se vuelve a cortar el stock ya convertido.
+   - El + del cuadro de pollo fresco suma y convierte ese mismo delta. El + chico del factor solo convierte.
+   - El lápiz (fijarSaldoTipo) deja el saldo de fórmula en el número escrito, en Transformar y en la tabla, con un ingreso o una corrección de hoy. El lápiz de octavos sigue en fijarOctavosStock.
+   - Los avisos de la hoja (toastMessage) van fijos abajo a la izquierda y se cierran a los 7 s. No empujan la hoja.
+   - Configuración → Tabla: Saldo y Conteo, Diferencia, Estado y Corrección arrancan ocultos. Queda siempre se ve.
+   - Bloqueo: PUT /api/inventario/bloqueo. Un producto bloqueado no se transforma ni se vende en manual; la reserva resta el tope del pase. Un plato bloqueado no sale en la carta del mozo (filtrarCartaBloqueada).
 -->
 <!DOCTYPE html>
 <html lang="es-PE" class="dark">
@@ -1122,6 +1130,121 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         font-weight: 700;
       }
     }
+
+    /* ===================================================================== */
+    /* MODAL DE BLOQUEO: columnas fijas para que Reservar no tape Queda.      */
+    /* La regla "main input[type=number] { width:auto }" le daba ~170px al    */
+    /* cuadro y se salía de su columna hacia la izquierda.                    */
+    /* ===================================================================== */
+    .bloq-fila {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 6.5rem 6rem 4.5rem;
+      align-items: center;
+      column-gap: 0.75rem;
+    }
+    .bloq-fila > * { min-width: 0; }
+    .bloq-cabecera { padding-top: 0; padding-bottom: 0.25rem; }
+    main .bloq-fila input.bloq-reserva-input {
+      width: 4.75rem !important;
+      max-width: 100%;
+      padding: 0.3rem 0.4rem !important;
+      font-size: 0.8rem;
+      text-align: center;
+      background-color: #14141f !important;
+      border-radius: 0.5rem;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    main .bloq-fila input.bloq-reserva-input:focus {
+      outline: none;
+      border-color: #d4af37 !important;
+      box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25);
+    }
+    @media (max-width: 639px) {
+      .bloq-cabecera { display: none; }
+      .bloq-fila {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        row-gap: 0.5rem;
+      }
+      .bloq-fila .bloq-producto { grid-column: 1 / -1; }
+      .bloq-fila .bloq-queda { text-align: left; }
+    }
+
+    /* ===================================================================== */
+    /* MODAL DE VENTAS (lupa de Venta comandas)                               */
+    /* ===================================================================== */
+    @keyframes ventaFondoIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes ventaPanelIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes ventaPanelOut {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 0; transform: translateY(12px) scale(0.98); }
+    }
+    @keyframes ventaLineaIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes ventaBarraCrece { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+    @keyframes ventaLupaPulso {
+      0% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.55); }
+      100% { box-shadow: 0 0 0 10px rgba(251, 113, 133, 0); }
+    }
+    .venta-fondo { animation: ventaFondoIn 200ms ease both; backdrop-filter: blur(3px); }
+    .venta-fondo.cerrando { animation: ventaFondoIn 180ms ease reverse both; }
+    .venta-panel { animation: ventaPanelIn 300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .venta-fondo.cerrando .venta-panel { animation: ventaPanelOut 180ms ease both; }
+    .venta-kpi {
+      border: 1px solid #26263a;
+      background: linear-gradient(160deg, #191927 0%, #101018 100%);
+      border-radius: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      animation: ventaPanelIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .venta-barra { display: flex; height: 0.5rem; border-radius: 999px; overflow: hidden; background: #26263a; transform-origin: left center; animation: ventaBarraCrece 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both; }
+    .venta-barra > span { height: 100%; transition: flex-grow 300ms ease; }
+    .venta-chip {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.3rem 0.65rem; border-radius: 999px; font-size: 11px; font-weight: 700;
+      border: 1px solid #26263a; background: #0a0a0f; color: #a0a0b8; cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease;
+    }
+    .venta-chip:hover { color: #fff; border-color: #3a3a55; }
+    .venta-chip:active { transform: scale(0.96); }
+    .venta-chip.activo { background: #d4af37; color: #1a1200; border-color: #d4af37; }
+    .venta-chip .punto { width: 0.45rem; height: 0.45rem; border-radius: 999px; }
+    .venta-linea {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.25rem 0.75rem;
+      align-items: center;
+      padding: 0.6rem 0.75rem 0.6rem 0.9rem;
+      border: 1px solid #26263a;
+      border-radius: 0.65rem;
+      background: #0e0e16;
+      animation: ventaLineaIn 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation-delay: calc(var(--i, 0) * 26ms);
+      transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+    }
+    .venta-linea:hover { border-color: rgba(212, 175, 55, 0.45); background: #13131d; transform: translateY(-1px); }
+    .venta-linea::before {
+      content: ''; position: absolute; left: 0; top: 0.5rem; bottom: 0.5rem; width: 3px; border-radius: 3px;
+      background: var(--barra, #34d399);
+    }
+    .venta-cant { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+    .btn-lupa-venta {
+      transition: background-color 160ms ease, transform 160ms ease, border-color 160ms ease, color 160ms ease;
+    }
+    .btn-lupa-venta:hover { transform: scale(1.08); border-color: rgba(251, 113, 133, 0.7); color: #fda4af; }
+    .btn-lupa-venta:active { transform: scale(0.94); }
+    .btn-lupa-venta.con-venta { border-color: rgba(251, 113, 133, 0.45); }
+    .btn-lupa-venta.pulso { animation: ventaLupaPulso 600ms ease-out; }
+    @media (prefers-reduced-motion: reduce) {
+      .venta-fondo, .venta-panel, .venta-kpi, .venta-barra, .venta-linea, .btn-lupa-venta.pulso,
+      .venta-fondo.cerrando, .venta-fondo.cerrando .venta-panel { animation: none !important; }
+      .venta-linea:hover, .btn-lupa-venta:hover { transform: none; }
+    }
   </style>
 </head>
 <body class="min-h-screen bg-bg-primary text-white font-sans antialiased select-none" x-data="inventarioApp()" x-cloak>
@@ -1830,7 +1953,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             </div>
                           </template>
                         </div>
-                        <button type="button" class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="abrirVentaFila(row)">
+                        <button type="button" class="btn-lupa-venta w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :class="ventaColumna(row) > 0 ? 'con-venta' : ''" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="$el.classList.remove('pulso'); void $el.offsetWidth; $el.classList.add('pulso'); abrirVentaFila(row)">
                           <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                         </button>
                         <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: resta cocido, luego crudo y luego la reserva" @click="abrirVentaManual(row)">−</button>
@@ -6775,51 +6898,103 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </template>
 
   <template x-if="ventaAbierta && ventaInfo">
-    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaAbierta = false" @keydown.escape.window="ventaAbierta = false" role="dialog" aria-modal="true" aria-label="Ventas del producto">
-      <div class="w-full max-w-4xl bg-[#14141f] border border-[#d4af37] p-5 max-h-[90vh] overflow-y-auto rounded-xl">
-        <div class="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <h3 class="text-lg font-semibold text-[#d4af37]" x-text="'Ventas de ' + ventaInfo.nombre"></h3>
-            <p class="text-xs text-[#a0a0b8] mt-1">Cada fila dice si restó cocido, crudo o el producto que agrupa. Ver abre esa comanda. En una venta manual, eliminarla devuelve el stock.</p>
+    <div class="venta-fondo fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-3 sm:p-4" :class="ventaCerrando ? 'cerrando' : ''" @click.self="cerrarVenta()" @keydown.escape.window="cerrarVenta()" role="dialog" aria-modal="true" aria-label="Ventas del producto">
+      <div class="venta-panel w-full max-w-4xl max-h-[92vh] flex flex-col bg-[#14141f] border border-[#d4af37]/70 rounded-2xl overflow-hidden shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
+
+        <!-- Cabecera -->
+        <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-[#26263a] bg-gradient-to-b from-[#1b1b29] to-[#14141f]">
+          <div class="flex items-start gap-3 min-w-0">
+            <span class="shrink-0 w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-400/40 text-rose-300 inline-flex items-center justify-center" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L21 7H6"/><circle cx="10" cy="20.5" r="1.2"/><circle cx="18" cy="20.5" r="1.2"/></svg>
+            </span>
+            <div class="min-w-0">
+              <p class="text-[10px] uppercase tracking-wider font-bold text-[#5a5a7a]">Venta comandas</p>
+              <h3 class="text-lg font-semibold text-[#d4af37] truncate" x-text="ventaInfo.nombre"></h3>
+              <p class="text-[11px] text-[#a0a0b8] mt-0.5">Qué restó cada venta: cocido, crudo o la pieza de reserva. <span class="text-white">Ver</span> abre la comanda; eliminar una venta manual devuelve el stock.</p>
+            </div>
           </div>
-          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ventaAbierta = false" aria-label="Cerrar">×</button>
+          <button type="button" class="shrink-0 w-8 h-8 rounded-lg text-[#a0a0b8] hover:text-white hover:bg-[#26263a] text-xl leading-none transition" @click="cerrarVenta()" aria-label="Cerrar">×</button>
         </div>
-        <p class="text-sm mb-3">Total: <strong class="font-mono text-rose-200" x-text="ventaInfo.total"></strong></p>
-        <div class="overflow-x-auto rounded-lg border border-[#26263a]">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="bg-[#0a0a0f] text-[#5a5a7a] uppercase text-[11px]">
-                <th class="text-left px-3 py-2">Plato</th>
-                <th class="text-left px-3 py-2">Comanda</th>
-                <th class="text-left px-3 py-2">Hora</th>
-                <th class="text-left px-3 py-2">Motivo</th>
-                <th class="text-left px-3 py-2">Restó</th>
-                <th class="text-right px-3 py-2">Platos × uso</th>
-                <th class="text-right px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="(l, i) in ventaInfo.lineas" :key="'venta-' + i">
-                <tr class="border-t border-[#26263a]">
-                  <td class="px-3 py-1.5 font-semibold" x-text="l.nombre"></td>
-                  <td class="px-3 py-1.5 font-mono text-[#d4af37]" x-text="l.comanda || '—'"></td>
-                  <td class="px-3 py-1.5 font-mono text-[#a0a0b8]" x-text="horaVenta(l.hora)"></td>
-                  <td class="px-3 py-1.5 text-[#a0a0b8]" x-text="l.motivo || '—'"></td>
-                  <td class="px-3 py-1.5">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase" :class="claseUsoVenta(l.uso)" x-text="l.uso || 'Crudo'"></span>
-                  </td>
-                  <td class="px-3 py-1.5 text-right font-mono font-bold text-rose-200 whitespace-nowrap" x-text="textoUsoVenta(l)"></td>
-                  <td class="px-3 py-1.5 text-right whitespace-nowrap">
-                    <button type="button" x-show="l.manual" class="px-2.5 py-1 rounded-lg border border-[#ff0000] text-[#ff0000] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="ventaEliminando" @click="eliminarVentaManual(l)">Eliminar venta manual</button>
-                    <button type="button" x-show="!l.manual" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-[#1a1200] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="!l.comandaId" @click="verComandaVenta(l)">Ver</button>
-                  </td>
-                </tr>
+
+        <!-- Resumen -->
+        <div class="px-5 pt-4 pb-3 space-y-3 border-b border-[#26263a]">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div class="venta-kpi" style="animation-delay:0ms">
+              <p class="text-[10px] uppercase font-bold text-[#5a5a7a]">Total restado</p>
+              <p class="venta-cant text-2xl font-bold text-rose-200" x-text="formatNum(ventaContador)"></p>
+            </div>
+            <div class="venta-kpi" style="animation-delay:50ms">
+              <p class="text-[10px] uppercase font-bold text-[#5a5a7a]">Comandas</p>
+              <p class="venta-cant text-2xl font-bold text-white" x-text="resumenVenta().comandas"></p>
+            </div>
+            <div class="venta-kpi" style="animation-delay:100ms">
+              <p class="text-[10px] uppercase font-bold text-[#5a5a7a]">Platos distintos</p>
+              <p class="venta-cant text-2xl font-bold text-white" x-text="resumenVenta().platos"></p>
+            </div>
+            <div class="venta-kpi" style="animation-delay:150ms">
+              <p class="text-[10px] uppercase font-bold text-[#5a5a7a]">Última venta</p>
+              <p class="venta-cant text-base font-bold text-white mt-1.5" x-text="resumenVenta().ultima ? horaVenta(resumenVenta().ultima) : '—'"></p>
+            </div>
+          </div>
+
+          <div x-show="resumenVenta().total > 0">
+            <div class="venta-barra" role="img" :aria-label="'Reparto: ' + textoRepartoVenta()">
+              <template x-for="u in usosVenta" :key="'barra-' + u.id">
+                <span :style="'flex-grow:' + resumenVenta().porUso[u.id] + ';background:' + u.color" :title="u.nombre + ': ' + formatNum(resumenVenta().porUso[u.id])"></span>
               </template>
-              <tr x-show="ventaInfo.lineas.length === 0">
-                <td class="px-3 py-3 text-[#5a5a7a]" colspan="7">Este período no tiene ventas de este producto.</td>
-              </tr>
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="venta-chip" :class="ventaFiltroUso === 'todos' ? 'activo' : ''" @click="filtrarVenta('todos')">
+              Todos <span class="venta-cant" x-text="ventaInfo.lineas.length"></span>
+            </button>
+            <template x-for="u in usosVenta" :key="'chip-' + u.id">
+              <button type="button" class="venta-chip" x-show="resumenVenta().cuenta[u.id] > 0" :class="ventaFiltroUso === u.id ? 'activo' : ''" @click="filtrarVenta(u.id)">
+                <span class="punto" :style="'background:' + u.color"></span>
+                <span x-text="u.nombre"></span>
+                <span class="venta-cant opacity-80" x-text="formatNum(resumenVenta().porUso[u.id])"></span>
+              </button>
+            </template>
+            <input type="search" x-model.debounce.150ms="ventaBusqueda" placeholder="Buscar plato o comanda" aria-label="Buscar en ventas" class="ml-auto flex-1 min-w-[10rem] sm:max-w-[16rem] rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#d4af37]">
+          </div>
+        </div>
+
+        <!-- Lista -->
+        <div class="flex-1 overflow-y-auto px-5 py-3 space-y-1.5">
+          <template x-for="(l, i) in lineasVentaVista()" :key="'venta-' + ventaFiltroUso + '-' + i">
+            <div class="venta-linea" :style="'--i:' + Math.min(i, 14) + ';--barra:' + colorUsoVenta(l)">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span class="text-[13px] font-semibold text-white truncate" x-text="l.nombre"></span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" :class="claseUsoVenta(l.uso)" x-text="l.uso || 'Crudo'"></span>
+                </div>
+                <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[#a0a0b8]">
+                  <span class="inline-flex items-center gap-1">
+                    <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+                    <span class="font-mono" :class="l.manual ? 'text-[#ff6b6b]' : 'text-[#d4af37]'" x-text="l.comanda || '—'"></span>
+                  </span>
+                  <span class="inline-flex items-center gap-1">
+                    <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <span class="font-mono" x-text="horaVenta(l.hora)"></span>
+                  </span>
+                  <span x-show="l.motivo" class="italic truncate max-w-[18rem]" x-text="l.motivo"></span>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="text-right leading-tight">
+                  <p class="venta-cant text-lg font-bold text-rose-200" x-text="'−' + formatNum(l.cantidad)"></p>
+                  <p class="venta-cant text-[10px] text-[#5a5a7a]" x-show="Number(l.factor) !== 1" x-text="textoUsoVenta(l)"></p>
+                </div>
+                <button type="button" x-show="l.manual" class="px-2.5 py-1.5 rounded-lg border border-[#ff0000] text-[#ff0000] text-[11px] font-extrabold cursor-pointer hover:bg-[#ff0000]/10 transition disabled:opacity-40" :disabled="ventaEliminando" @click="eliminarVentaManual(l)">Eliminar</button>
+                <button type="button" x-show="!l.manual" class="px-3 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] text-[11px] font-extrabold cursor-pointer hover:brightness-110 transition disabled:opacity-30 disabled:cursor-default" :disabled="!l.comandaId" @click="verComandaVenta(l)">Ver</button>
+              </div>
+            </div>
+          </template>
+          <div x-show="lineasVentaVista().length === 0" class="py-10 text-center">
+            <svg viewBox="0 0 24 24" class="w-8 h-8 mx-auto text-[#3a3a55]" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <p class="mt-2 text-xs text-[#5a5a7a]" x-text="ventaInfo.lineas.length ? 'Ninguna venta coincide con el filtro.' : 'Este período no tiene ventas de este producto.'"></p>
+          </div>
         </div>
       </div>
     </div>
@@ -6925,25 +7100,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="flex-1 overflow-y-auto px-5 py-3">
           <!-- Productos del inventario -->
           <div x-show="bloqueo.tab === 'productos'" class="space-y-1.5">
-            <div class="hidden sm:grid grid-cols-12 gap-2 px-3 text-[10px] uppercase font-bold text-[#5a5a7a]">
-              <span class="col-span-5">Producto</span>
-              <span class="col-span-2 text-right">Queda</span>
-              <span class="col-span-3 text-center">Reservar</span>
-              <span class="col-span-2 text-center">Bloquear</span>
+            <div class="bloq-fila bloq-cabecera px-3 text-[10px] uppercase font-bold text-[#5a5a7a]">
+              <span>Producto</span>
+              <span class="text-right">Queda</span>
+              <span class="text-center">Reservar</span>
+              <span class="text-center">Bloquear</span>
             </div>
             <template x-for="f in filasBloqueo()" :key="'bloq-p-' + f.id">
-              <div class="grid grid-cols-12 items-center gap-2 rounded-lg border px-3 py-2 transition" :class="lineaBloqueo('p:' + f.id).bloqueado ? 'border-[#ff0000]/60 bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f]'">
-                <div class="col-span-12 sm:col-span-5 min-w-0">
-                  <span class="block text-xs font-semibold text-white truncate" x-text="f.nombre"></span>
-                  <span class="block text-[10px] text-[#a0a0b8]" x-text="f.grupo || 'Fila sola'"></span>
+              <div class="bloq-fila rounded-lg border px-3 py-2 transition" :class="verLineaBloqueo('p:' + f.id).bloqueado ? 'border-[#ff0000]/60 bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f]'">
+                <div class="bloq-producto min-w-0">
+                  <span class="block text-xs font-semibold text-white truncate" :title="f.nombre" x-text="f.nombre"></span>
+                  <span class="block text-[10px] text-[#a0a0b8] truncate" x-text="f.grupo || 'Fila sola'"></span>
                 </div>
-                <span class="col-span-4 sm:col-span-2 text-right text-xs font-mono text-white" x-text="formatNum(f.stock) + ' ' + f.unidad"></span>
-                <div class="col-span-5 sm:col-span-3 flex justify-center">
-                  <input type="number" min="0" step="1" :aria-label="'Reservar de ' + f.nombre" :value="lineaBloqueo('p:' + f.id).reserva" @change="fijarReservaBloqueo('p:' + f.id, $event.target.value)" class="w-20 text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1 text-xs">
+                <div class="bloq-queda text-right leading-tight">
+                  <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a]">Queda</span>
+                  <span class="block text-sm font-mono font-bold whitespace-nowrap" :class="f.stock <= 0 ? 'text-[#ff6b6b]' : 'text-white'" x-text="formatNum(f.stock)"></span>
+                  <span class="block text-[10px] text-[#a0a0b8] whitespace-nowrap" x-text="f.unidad"></span>
+                  <span class="block text-[10px] font-semibold whitespace-nowrap text-amber-300" x-show="verLineaBloqueo('p:' + f.id).reserva > 0" x-text="'Libre ' + formatNum(Math.max(0, f.stock - verLineaBloqueo('p:' + f.id).reserva))"></span>
                 </div>
-                <div class="col-span-3 sm:col-span-2 flex justify-center">
-                  <button type="button" role="switch" :aria-checked="lineaBloqueo('p:' + f.id).bloqueado" :aria-label="'Bloquear ' + f.nombre" @click="alternarBloqueo('p:' + f.id)" class="relative w-10 h-5 rounded-full transition cursor-pointer" :class="lineaBloqueo('p:' + f.id).bloqueado ? 'bg-[#ff0000]' : 'bg-[#26263a]'">
-                    <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" :class="lineaBloqueo('p:' + f.id).bloqueado ? 'left-5' : 'left-0.5'"></span>
+                <div class="bloq-reservar flex flex-col items-center">
+                  <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a] mb-0.5">Reservar</span>
+                  <input type="number" min="0" step="1" inputmode="numeric" :aria-label="'Reservar de ' + f.nombre" :value="verLineaBloqueo('p:' + f.id).reserva" @change="fijarReservaBloqueo('p:' + f.id, $event.target.value)" @focus="$el.select()" class="bloq-reserva-input">
+                </div>
+                <div class="bloq-bloquear flex flex-col items-center">
+                  <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a] mb-1">Bloquear</span>
+                  <button type="button" role="switch" :aria-checked="verLineaBloqueo('p:' + f.id).bloqueado" :aria-label="'Bloquear ' + f.nombre" @click="alternarBloqueo('p:' + f.id)" class="relative w-10 h-5 rounded-full transition cursor-pointer" :class="verLineaBloqueo('p:' + f.id).bloqueado ? 'bg-[#ff0000]' : 'bg-[#26263a]'">
+                    <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" :class="verLineaBloqueo('p:' + f.id).bloqueado ? 'left-5' : 'left-0.5'"></span>
                   </button>
                 </div>
               </div>
@@ -6954,13 +7136,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <!-- Platos de la carta -->
           <div x-show="bloqueo.tab === 'platos'" x-cloak class="space-y-1.5">
             <template x-for="p in platosBloqueo()" :key="'bloq-c-' + (p.clave || p.nombre)">
-              <div class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition" :class="lineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'border-[#ff0000]/60 bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f]'">
+              <div class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition" :class="verLineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'border-[#ff0000]/60 bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f]'">
                 <div class="min-w-0">
                   <span class="block text-xs font-semibold text-white truncate" x-text="p.nombre"></span>
                   <span class="block text-[10px] text-[#a0a0b8]" x-text="(p.codigo ? p.codigo + ' · ' : '') + (p.categoria || '')"></span>
                 </div>
-                <button type="button" role="switch" :aria-checked="lineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado" :aria-label="'Bloquear ' + p.nombre" @click="alternarBloqueo('c:' + (p.clave || p.nombre))" class="relative shrink-0 w-10 h-5 rounded-full transition cursor-pointer" :class="lineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'bg-[#ff0000]' : 'bg-[#26263a]'">
-                  <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" :class="lineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'left-5' : 'left-0.5'"></span>
+                <button type="button" role="switch" :aria-checked="verLineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado" :aria-label="'Bloquear ' + p.nombre" @click="alternarBloqueo('c:' + (p.clave || p.nombre))" class="relative shrink-0 w-10 h-5 rounded-full transition cursor-pointer" :class="verLineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'bg-[#ff0000]' : 'bg-[#26263a]'">
+                  <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" :class="verLineaBloqueo('c:' + (p.clave || p.nombre)).bloqueado ? 'left-5' : 'left-0.5'"></span>
                 </button>
               </div>
             </template>
@@ -8209,8 +8391,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this._relacionesManuales = [];
           this._relacionesQuitadas = [];
           let remoto = null;
+          let servidorOk = false;
           try {
             const data = await this.api('/inventario/relaciones');
+            servidorOk = true;
             if (data && (Array.isArray(data.manuales) || Array.isArray(data.quitadas))) remoto = data;
           } catch (e) {
             remoto = null;
@@ -8222,7 +8406,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const limpio = lib.sanearGuardado(cuerpo || {});
           this._relacionesManuales = limpio.manuales;
           this._relacionesQuitadas = limpio.quitadas;
-          if (!tieneRemoto && (limpio.manuales.length || limpio.quitadas.length)) {
+          if (servidorOk && !tieneRemoto && (limpio.manuales.length || limpio.quitadas.length)) {
             this.persistirRelaciones();
           }
         },
@@ -8561,6 +8745,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaCargando: false,
         reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
         ventaAbierta: false,
+        ventaCerrando: false,
+        ventaFiltroUso: 'todos',
+        ventaBusqueda: '',
+        ventaContador: 0,
+        usosVenta: [
+          { id: 'cocido', nombre: 'Cocido', color: '#d4af37' },
+          { id: 'crudo', nombre: 'Crudo', color: '#34d399' },
+          { id: 'reserva', nombre: 'Reserva', color: '#60a5fa' },
+          { id: 'manual', nombre: 'Manual', color: '#ff4d4d' }
+        ],
         ventaFiltro: null,
         ventaDesdeReporte: false,
         ventaEliminando: false,
@@ -9375,6 +9569,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               body: JSON.stringify(linea.lote ? { lote: linea.lote } : { ids: linea.ids || [] })
             });
             this.toastMessage = 'Venta manual eliminada. El stock volvió.';
+            this.sonarVenta('borrar');
             await this.cargarKardex();
             if (desdeReporte && this.reporteDiaAbierto) await this.cargarReporteDia();
             if (!filtro) return;
@@ -9459,20 +9654,193 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             return c || String(a.nombre).localeCompare(String(b.nombre), 'es');
           });
           const totalLineas = lineas.reduce((a, l) => a + (Number(l.cantidad) || 0), 0);
+          const yaAbierta = this.ventaAbierta && !this.ventaCerrando;
+          clearTimeout(this._ventaCierreTimer);
           this.ventaInfo = {
             nombre: f.nombre,
             total: totalLineas || f.venta,
             lineas: lineas
           };
+          this.ventaCerrando = false;
           this.ventaAbierta = true;
+          if (!yaAbierta) {
+            this.ventaFiltroUso = 'todos';
+            this.ventaBusqueda = '';
+            this.sonarVenta('abrir');
+          }
+          this.animarContadorVenta(this.ventaInfo.total, yaAbierta ? this.ventaContador : 0);
         },
 
-        async cargarKardex() {
+        cerrarVenta() {
+          if (!this.ventaAbierta || this.ventaCerrando) return;
+          this.ventaCerrando = true;
+          this.sonarVenta('cerrar');
+          const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          clearTimeout(this._ventaCierreTimer);
+          this._ventaCierreTimer = setTimeout(() => {
+            this.ventaAbierta = false;
+            this.ventaCerrando = false;
+          }, reducido ? 0 : 170);
+        },
+
+        filtrarVenta(id) {
+          if (this.ventaFiltroUso === id) return;
+          this.ventaFiltroUso = id;
+          this.sonarVenta('filtro');
+        },
+
+        categoriaUsoVenta(l) {
+          if (!l) return 'crudo';
+          if (l.manual) return 'manual';
+          const u = String(l.uso || '');
+          if (u.indexOf('Principal') === 0) return 'reserva';
+          if (u.indexOf('Cocido') === 0) return 'cocido';
+          return 'crudo';
+        },
+
+        colorUsoVenta(l) {
+          const id = this.categoriaUsoVenta(l);
+          const u = this.usosVenta.find((x) => x.id === id);
+          return u ? u.color : '#34d399';
+        },
+
+        // Se pide varias veces por pintado (tarjetas, barra, chips): se guarda mientras no cambie ventaInfo.
+        resumenVenta() {
+          const info = this.ventaInfo;
+          if (this._resumenVenta && this._resumenVenta.info === info) return this._resumenVenta.res;
+          const lineas = (info && info.lineas) || [];
+          const porUso = { cocido: 0, crudo: 0, reserva: 0, manual: 0 };
+          const cuenta = { cocido: 0, crudo: 0, reserva: 0, manual: 0 };
+          const comandas = new Set();
+          const platos = new Set();
+          let ultima = null;
+          let total = 0;
+          lineas.forEach((l) => {
+            const n = Number(l.cantidad) || 0;
+            const cat = this.categoriaUsoVenta(l);
+            porUso[cat] += n;
+            cuenta[cat] += 1;
+            total += n;
+            if (l.comandaId) comandas.add(String(l.comandaId));
+            else if (!l.manual && l.comanda && l.comanda !== '—') comandas.add(String(l.comanda));
+            if (l.nombre) platos.add(this.norm(l.nombre));
+            const t = l.hora ? new Date(l.hora).getTime() : NaN;
+            if (!Number.isNaN(t) && (ultima === null || t > new Date(ultima).getTime())) ultima = l.hora;
+          });
+          const res = { total, porUso, cuenta, comandas: comandas.size, platos: platos.size, ultima };
+          this._resumenVenta = { info, res };
+          return res;
+        },
+
+        textoRepartoVenta() {
+          const r = this.resumenVenta();
+          return this.usosVenta.filter((u) => r.porUso[u.id] > 0).map((u) => u.nombre + ' ' + this.formatNum(r.porUso[u.id])).join(', ');
+        },
+
+        // Lista visible: filtro por uso + búsqueda, lo más reciente arriba.
+        lineasVentaVista() {
+          const info = this.ventaInfo;
+          const filtro = this.ventaFiltroUso;
+          const q = this.norm(this.ventaBusqueda || '').trim();
+          const c = this._vistaVenta;
+          if (c && c.info === info && c.filtro === filtro && c.q === q) return c.list;
+          const list = ((info && info.lineas) || [])
+            .filter((l) => filtro === 'todos' || this.categoriaUsoVenta(l) === filtro)
+            .filter((l) => !q || this.norm((l.nombre || '') + ' ' + (l.comanda || '') + ' ' + (l.motivo || '')).includes(q))
+            .slice()
+            .sort((a, b) => {
+              const ta = a.hora ? new Date(a.hora).getTime() : 0;
+              const tb = b.hora ? new Date(b.hora).getTime() : 0;
+              return (tb || 0) - (ta || 0);
+            });
+          this._vistaVenta = { info, filtro, q, list };
+          return list;
+        },
+
+        // Cuenta de 0 al total en ~0,5 s. Sin animación si el sistema pide menos movimiento.
+        animarContadorVenta(destino, desde) {
+          const fin = Number(destino) || 0;
+          const inicio = Number(desde) || 0;
+          if (this._ventaRaf) cancelAnimationFrame(this._ventaRaf);
+          const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (reducido || typeof requestAnimationFrame !== 'function' || inicio === fin) {
+            this.ventaContador = fin;
+            return;
+          }
+          const dur = 520;
+          const t0 = performance.now();
+          const paso = (t) => {
+            const p = Math.min(1, (t - t0) / dur);
+            const e = 1 - Math.pow(1 - p, 3);
+            this.ventaContador = p >= 1 ? fin : Math.round((inicio + (fin - inicio) * e) * 100) / 100;
+            if (p < 1) this._ventaRaf = requestAnimationFrame(paso);
+          };
+          this._ventaRaf = requestAnimationFrame(paso);
+        },
+
+        // Sonidos cortos con Web Audio (sin archivos). Respetan el interruptor de sonido de Configuración.
+        sonarVenta(tipo) {
+          if (!this.soundEnabled) return;
+          try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            if (!this._audioCtx) this._audioCtx = new Ctx();
+            const ctx = this._audioCtx;
+            if (ctx.state === 'suspended') ctx.resume();
+            const notas = {
+              abrir: [{ f: 523.25, t: 0, d: 0.12 }, { f: 659.25, t: 0.07, d: 0.12 }, { f: 783.99, t: 0.14, d: 0.2 }],
+              cerrar: [{ f: 587.33, t: 0, d: 0.08 }, { f: 440, t: 0.06, d: 0.12 }],
+              filtro: [{ f: 880, t: 0, d: 0.05 }],
+              borrar: [{ f: 392, t: 0, d: 0.1 }, { f: 293.66, t: 0.08, d: 0.16 }]
+            }[tipo] || [{ f: 660, t: 0, d: 0.08 }];
+            const vol = tipo === 'filtro' ? 0.035 : 0.06;
+            const ahora = ctx.currentTime;
+            notas.forEach((n) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = tipo === 'borrar' ? 'triangle' : 'sine';
+              osc.frequency.setValueAtTime(n.f, ahora + n.t);
+              gain.gain.setValueAtTime(0.0001, ahora + n.t);
+              gain.gain.exponentialRampToValueAtTime(vol, ahora + n.t + 0.015);
+              gain.gain.exponentialRampToValueAtTime(0.0001, ahora + n.t + n.d);
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.start(ahora + n.t);
+              osc.stop(ahora + n.t + n.d + 0.02);
+            });
+          } catch (e) {}
+        },
+
+        // Una sola recarga a la vez. Si piden otra mientras corre, se hace una más al terminar (no N en paralelo).
+        cargarKardex() {
+          if (this._kardexEnCurso) {
+            this._kardexOtraVez = true;
+            return this._kardexEnCurso;
+          }
+          this._kardexEnCurso = (async () => {
+            try {
+              do {
+                this._kardexOtraVez = false;
+                await this.cargarKardexUnaVez();
+              } while (this._kardexOtraVez);
+            } finally {
+              this._kardexEnCurso = null;
+            }
+          })();
+          return this._kardexEnCurso;
+        },
+
+        async cargarKardexUnaVez() {
           try {
             const r = this.rangoPeriodo();
             const q = this.queryRango(r);
-            const k = await this.api('/inventario/kardex?carta=1&' + q);
-            const movs = await this.api('/inventario/movimientos?' + q);
+            const [k, movs] = await Promise.all([
+              this.api('/inventario/kardex?carta=1&' + q),
+              this.api('/inventario/movimientos?' + q)
+            ]);
+            // Respuesta vieja: cambió el período o hay clics sin guardar. Pintarla haría saltar los números.
+            if (q !== this.queryRango(this.rangoPeriodo())) { this._kardexOtraVez = true; return; }
+            if ((this._escriturasPendientes || 0) > 0) { this.programarRecargaKardex(); return; }
             this.ventasPeriodo = k.ventas || [];
             this.cocidoOpciones = k.cocidoOpciones || [];
             this.movimientosPeriodo = movs.movimientos || [];
@@ -9873,6 +10241,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return (this.platosCarta || [])
             .filter((p) => p && p.nombre && (!q || this.norm(p.nombre).includes(q)))
             .slice(0, 60);
+        },
+
+        // Solo lectura, para la plantilla. Crear la línea mientras se pinta escribía estado reactivo
+        // en cada fila de la lista (60 escrituras por pintado) y volvía a disparar el pintado.
+        verLineaBloqueo(key) {
+          return (this.bloqueo.lineas && this.bloqueo.lineas[key]) || { bloqueado: false, reserva: 0 };
         },
 
         lineaBloqueo(key) {
@@ -10913,7 +11287,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return c === null ? null : c - this.calcSaldoTipo(row, tipo);
         },
 
+        // id → nodo del árbol. Los árboles (arbolPollo, arbolesGrupo) son fijos: se indexan una vez.
+        // Antes cada platosDirectosDe/platosOcultosDe hacía una búsqueda recursiva, varias veces por fila y por pintado.
         nodoInventario(id) {
+          const pollo = this.arbolPollo;
+          const grupos = this.arbolesGrupo || {};
+          let cache = this._idxNodos;
+          if (!cache || cache.pollo !== pollo || cache.grupos !== grupos) {
+            const map = new Map();
+            const walk = (nodo) => {
+              if (!nodo) return;
+              if (nodo.id != null && !map.has(nodo.id)) map.set(nodo.id, nodo);
+              (nodo.children || []).forEach(walk);
+            };
+            walk(pollo);
+            Object.keys(grupos).forEach((k) => walk(grupos[k]));
+            cache = { pollo, grupos, map };
+            this._idxNodos = cache;
+          }
+          if (cache.map.has(id)) return cache.map.get(id);
+          return this.nodoInventarioBuscar(id);
+        },
+
+        nodoInventarioBuscar(id) {
           const buscar = (nodo) => {
             if (!nodo) return null;
             if (nodo.id === id) return nodo;
@@ -11090,7 +11486,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return propio + this.ventaDePlatos(row);
         },
 
+        // Se pide en el title de cada celda de Venta: se guarda por fila mientras no cambien las ventas ni la hoja.
         detalleVentasPlatos(row) {
+          const ventas = this.ventasPeriodo || [];
+          const rev = this._revHoja || 0;
+          let cache = this._cacheVentaPlatos;
+          if (!cache || cache.ventas !== ventas || cache.len !== ventas.length || cache.rev !== rev) {
+            cache = { ventas, len: ventas.length, rev, map: new Map() };
+            this._cacheVentaPlatos = cache;
+          }
+          const id = row && row.id;
+          if (cache.map.has(id)) return cache.map.get(id);
+          const out = this.detalleVentasPlatosSinCache(row);
+          cache.map.set(id, out);
+          return out;
+        },
+
+        detalleVentasPlatosSinCache(row) {
           const propio = row && this.claveDeFila[row.id];
           const claves = new Set(this.clavesVentaDe(row));
           const map = {};
@@ -11202,7 +11614,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         filaPorClave(clave) {
-          const id = Object.keys(this.claveDeFila).find((k) => this.claveDeFila[k] === clave);
+          const id = this.idDeClaveExacto(clave);
           return id ? this.filaReal(id) : null;
         },
 
@@ -11252,19 +11664,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const nombres = { ingreso: 'Ingreso', correccion: 'Corrección', saldoAnterior: 'Saldo anterior' };
           const clase = base === 'correccion' ? 'regulacion' : 'ingreso';
           const fecha = base === 'saldoAnterior' ? this.rangoPeriodo().desde + 'T03:59:00-05:00' : undefined;
-          try {
-            await this.paso(clave, tipo, cambio, nombres[base] + ' ' + tipo, clase, row.nombre, fecha);
-            if (paseCrudo) await this.paso(clave, 'crudo', paseCrudo, 'Cocido desde crudo ' + row.nombre, 'ingreso', row.nombre, fecha);
-            await this.cargarKardex();
-            if (parteFresco) {
-              this.setPollosFrescosConvertir(this.redondear3(this.frescosHoy() + cambio));
-              await (this._colaTransformar || Promise.resolve());
-            }
-          } catch (e) {
-            row[campo] = actual;
-            if (paseCrudo) row.ingreso = crudoAntes;
-            this.toastMessage = e.message || 'No se guardó';
-          }
+          const ahora = new Date().toISOString();
+          const movs = [{ rubro: clave, clase: clase, tipoProducto: tipo, cantidad: cambio, motivo: nombres[base] + ' ' + tipo, fecha: fecha || ahora, fechaFija: fecha, nombre: row.nombre }];
+          if (paseCrudo) movs.push({ rubro: clave, clase: 'ingreso', tipoProducto: 'crudo', cantidad: paseCrudo, motivo: 'Cocido desde crudo ' + row.nombre, fecha: fecha || ahora, fechaFija: fecha, nombre: row.nombre });
+          // El número ya está en la fila. Las etiquetas «+N ingreso hoy» leen estos movimientos al instante.
+          if (!fecha) this.anotarMovs(movs);
+          // Misma cola que Transformar: el ingreso se guarda antes que el pase a piezas que viene detrás.
+          this.encolarMovimientos(movs);
+          if (parteFresco) this.setPollosFrescosConvertir(this.redondear3(this.frescosHoy() + cambio));
         },
 
 
@@ -12854,22 +13261,60 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         transformadoHoy(origenId, motivo) {
           const clave = this.claveDeFila[origenId];
           if (!clave) return 0;
-          const total = (this.movimientosPeriodo || []).reduce((a, m) => {
-            if (!m || m.rubro !== clave || m.clase !== 'ingreso' || String(m.motivo || '') !== motivo) return a;
-            return a - (Number(m.cantidad) || 0);
-          }, 0);
-          return Math.max(0, this.redondear3(total));
+          const total = this.indiceMotivosPeriodo().get(clave + '\u0000' + String(motivo || '')) || 0;
+          return Math.max(0, this.redondear3(-total));
         },
 
         // Lo que entró al destino con ese motivo en el período.
         ingresadoHoy(destinoId, motivo) {
           const clave = this.claveDeFila[destinoId];
           if (!clave) return 0;
-          const total = (this.movimientosPeriodo || []).reduce((a, m) => {
-            if (!m || m.rubro !== clave || m.clase !== 'ingreso' || String(m.motivo || '') !== motivo) return a;
-            return a + (Number(m.cantidad) || 0);
-          }, 0);
+          const total = this.indiceMotivosPeriodo().get(clave + '\u0000' + String(motivo || '')) || 0;
           return Math.max(0, this.redondear3(total));
+        },
+
+        // Suma de ingresos por (rubro, motivo) del período. Se arma una vez por cada lista de movimientos:
+        // anotarMovs y cargarKardex crean una lista nueva, así que el índice se rehace solo cuando cambia.
+        indiceMotivosPeriodo() {
+          const lista = this.movimientosPeriodo || [];
+          const cache = this._idxMotivos;
+          if (cache && cache.lista === lista && cache.len === lista.length) return cache.map;
+          const map = new Map();
+          for (let i = 0; i < lista.length; i++) {
+            const m = lista[i];
+            if (!m || m.clase !== 'ingreso') continue;
+            const key = m.rubro + '\u0000' + String(m.motivo || '');
+            map.set(key, (map.get(key) || 0) + (Number(m.cantidad) || 0));
+          }
+          this._idxMotivos = { lista, len: lista.length, map };
+          return map;
+        },
+
+        // Movimientos del turno del cuadro agrupados por rubro|tipo, ya filtrados por hora.
+        // Antes cada caja recorría todos los movimientos y armaba fechas por cada uno, en cada pintado.
+        indiceTurnoCuadro() {
+          const lista = this.movimientosTurno || [];
+          const r = this.rangoTurnoCuadro();
+          const firma = r.desde + '|' + r.hasta;
+          const cache = this._idxTurno;
+          if (cache && cache.lista === lista && cache.len === lista.length && cache.firma === firma) return cache.map;
+          const desde = new Date(r.desde).getTime();
+          const hasta = new Date(r.hasta).getTime();
+          const map = new Map();
+          for (let i = 0; i < lista.length; i++) {
+            const m = lista[i];
+            if (!m || (m.clase !== 'ingreso' && m.clase !== 'regulacion')) continue;
+            if (m.fecha) {
+              const t = new Date(m.fecha).getTime();
+              if (!Number.isNaN(t) && (t < desde || t > hasta)) continue;
+            }
+            const key = m.rubro + '|' + (m.tipoProducto || 'crudo');
+            let arr = map.get(key);
+            if (!arr) { arr = []; map.set(key, arr); }
+            arr.push({ motivo: String(m.motivo || ''), cantidad: Number(m.cantidad) || 0 });
+          }
+          this._idxTurno = { lista, len: lista.length, firma, map };
+          return map;
         },
 
         anotarMovs(movs) {
@@ -12934,14 +13379,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
           const busca = filtro ? String(filtro) : '';
           let neto = 0;
-          (this.movimientosTurno || []).forEach((m) => {
-            if (!m || m.rubro !== clave) return;
-            if (m.clase !== 'ingreso' && m.clase !== 'regulacion') return;
-            if ((m.tipoProducto || 'crudo') !== tipoOk) return;
-            if (busca && String(m.motivo || '').indexOf(busca) === -1) return;
-            if (!this.enTurnoCuadro(m)) return;
-            neto += Number(m.cantidad) || 0;
-          });
+          const lista = clave ? (this.indiceTurnoCuadro().get(clave + '|' + tipoOk) || []) : [];
+          for (let i = 0; i < lista.length; i++) {
+            if (busca && lista[i].motivo.indexOf(busca) === -1) continue;
+            neto += lista[i].cantidad;
+          }
           neto = this.redondear3(neto);
           if (neto > 0) return { ingreso: neto, resto: 0 };
           if (neto < 0) return { ingreso: 0, resto: this.redondear3(-neto) };
@@ -12992,17 +13434,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const mov = { rubro: clave, clase: clase, tipoProducto: 'crudo', cantidad: delta, motivo: motivo, fecha: new Date().toISOString(), nombre: row.nombre };
           this.anotarMovs([mov]);
           this.pulseRowTotal(row.id);
-          try {
-            await this.paso(clave, 'crudo', delta, motivo, clase, row.nombre);
-            await this.cargarKardex();
-          } catch (e) {
-            row[campo] = previo;
-            row.crudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
-            this.movimientosPeriodo = (this.movimientosPeriodo || []).filter((m) => m !== mov);
-            this.movimientosTurno = (this.movimientosTurno || []).filter((m) => m !== mov);
-            this.toastMessage = e.message || 'No se guardó';
-            return false;
-          }
+          // Sin await: el número ya cambió en pantalla. La cola guarda en orden y recarga una vez al final.
+          // Si el servidor rechaza, la recarga trae el saldo guardado y el aviso lo dice.
+          this.encolarMovimientos([mov]);
           return true;
         },
 
@@ -13246,14 +13680,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Guarda los movimientos en orden, uno detrás de otro, y recarga la hoja al final.
+        // Cada clic pinta al instante (optimista) y el guardado corre aquí, en serie.
+        // La hoja se recarga una sola vez cuando la cola queda vacía: diez clics = diez POST + 1 recarga.
         encolarMovimientos(movs) {
           const lista = (movs || []).slice();
+          if (!lista.length) return;
+          this._escriturasPendientes = (this._escriturasPendientes || 0) + 1;
           this._colaTransformar = (this._colaTransformar || Promise.resolve()).then(async () => {
             for (const m of lista) {
-              await this.paso(m.rubro, m.tipoProducto, m.cantidad, m.motivo, 'ingreso', m.nombre);
+              await this.paso(m.rubro, m.tipoProducto, m.cantidad, m.motivo, m.clase || 'ingreso', m.nombre, m.fechaFija);
             }
           }).catch((e) => {
-            this.toastMessage = (e && e.message) || 'No se guardó el pase. La hoja se recarga.';
+            this.toastMessage = (e && e.message) || 'No se guardó el cambio. La hoja se recarga con lo guardado.';
+          }).finally(() => {
+            this._escriturasPendientes = Math.max(0, (this._escriturasPendientes || 0) - 1);
           });
           this.programarRecargaKardex();
         },
@@ -13262,6 +13702,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           clearTimeout(this._recargaKardexTimer);
           this._recargaKardexTimer = setTimeout(async () => {
             await (this._colaTransformar || Promise.resolve());
+            // Si entró otro clic mientras se guardaba, ese clic ya programó su propia recarga.
+            if ((this._escriturasPendientes || 0) > 0) return;
             await this.cargarKardex();
             if (this.ingresoLupa && this.ingresoLupa.id) {
               const fila = this.filaReal(this.ingresoLupa.id);
@@ -16303,8 +16745,31 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         idDeClave(clave) {
-          const id = Object.keys(this.claveDeFila).find((k) => this.claveDeFila[k] === clave);
+          const id = this.idDeClaveExacto(clave);
           return id || String(clave || '').replace(/-/g, '_');
+        },
+
+        // clave → id con índice inverso. Antes era Object.keys().find() en cada llamada (cientos por pintado).
+        // claveDeFila solo agrega claves nuevas (nunca cambia el valor de una existente), así que basta
+        // rehacer el índice cuando cambia la cantidad de claves. Un acierto se verifica igual.
+        idDeClaveExacto(clave) {
+          if (!clave) return '';
+          const fuente = this.claveDeFila || {};
+          const ids = Object.keys(fuente);
+          let cache = this._idxClaves;
+          if (!cache || cache.len !== ids.length) {
+            const map = new Map();
+            for (let i = 0; i < ids.length; i++) {
+              if (!map.has(fuente[ids[i]])) map.set(fuente[ids[i]], ids[i]);
+            }
+            cache = { len: ids.length, map };
+            this._idxClaves = cache;
+          }
+          const id = cache.map.get(clave);
+          if (id === undefined) return '';
+          if (fuente[id] === clave) return id;
+          this._idxClaves = null;
+          return ids.find((x) => fuente[x] === clave) || '';
         },
 
         filaReal(id) {
