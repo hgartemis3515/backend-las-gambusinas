@@ -57,7 +57,6 @@ const KARDEX = [
     { clave: 'evento-arroz', nombre: 'Arroz Evento' },
     { clave: 'evento-papa', nombre: 'Papa Evento' },
     { clave: 'arroz', nombre: 'Arroz crudo' },
-    { clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo' },
     { clave: 'arroz-blanco', nombre: 'Arroz blanco' },
     { clave: 'arroz-verde', nombre: 'Arroz verde' },
     { clave: 'arroz-pato', nombre: 'Arroz pato' },

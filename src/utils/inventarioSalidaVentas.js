@@ -80,16 +80,37 @@ function indiceBebidas(catalogo) {
     return map;
 }
 
+/**
+ * Guarnición elegida por el mozo → producto del inventario.
+ * Ensalada, frijol y zarza no tienen fila.
+ */
+function rubroDeGuarnicion(nombre) {
+    const n = norm(nombre);
+    if (!n || n.includes('ensalada') || n.includes('zarza') || n.includes('frijol') || n.includes('frejol')) return null;
+    if (n.includes('yuca')) return { rubro: 'yuca', factor: 1 };
+    if (n.includes('papa')) return { rubro: 'papas', factor: 1 };
+    if (n.includes('tamal')) return { rubro: 'tamal', factor: 1 };
+    if (n.includes('arroz') && n.includes('verde')) return { rubro: 'arroz-verde', factor: 1 };
+    if (n.includes('arroz') && n.includes('marisco')) return { rubro: 'arroz-mariscos', factor: 1 };
+    if (n.includes('chaufa')) return { rubro: 'arroz-chaufa', factor: 1 };
+    if (n === 'arroz' || n.startsWith('arroz ')) return { rubro: 'arroz-blanco', factor: 1 };
+    return null;
+}
+
 function filasDelContador(contador) {
     if (!contador) return [];
     const bebidas = (contador.guarniciones || [])
         .filter((g) => g && claveBebida(g.nombre))
         .map((g) => ({ nombre: g.nombre, cantidad: g.cantidad }));
+    const guarniciones = (contador.guarniciones || [])
+        .filter((g) => g && !claveBebida(g.nombre) && rubroDeGuarnicion(g.nombre))
+        .map((g) => ({ nombre: g.nombre, cantidad: g.cantidad, esGuarnicion: true }));
     return []
         .concat(contador.pollos || [])
         .concat(contador.carnes || [])
         .concat(contador.platos || [])
-        .concat(bebidas);
+        .concat(bebidas)
+        .concat(guarniciones);
 }
 
 function partirSalida(filas, comanda, mapasVenta, meta) {
@@ -210,6 +231,10 @@ function rubroMenuDe(n) {
 }
 
 function rubrosDeFila(fila, mapas, bebidas) {
+    if (fila && fila.esGuarnicion) {
+        const g = rubroDeGuarnicion(fila.nombre);
+        return g ? [{ rubro: g.rubro, factor: g.factor || 1 }] : [];
+    }
     const partido = partirLeñaPorCorte(fila);
     if (partido) return partido;
     const nombre = fila && fila.nombre;
@@ -269,7 +294,8 @@ function rubrosDeFila(fila, mapas, bebidas) {
     if ((n.includes('salchipapa') || n.includes('hotdog') || n.includes('hot dog')) && !lista.some((x) => x.rubro === 'hotdog')) add('hotdog');
     const humitas = factorHumita(n);
     if (humitas && !lista.some((x) => x.rubro === 'humita')) add('humita', humitas);
-    if (consumeYuca(n) && !lista.some((x) => x.rubro === 'yuca')) add('yuca');
+    const opcional = !!(fila && fila.guarnicionOpcional);
+    if (!opcional && consumeYuca(n) && !lista.some((x) => x.rubro === 'yuca')) add('yuca');
     if (consumeInca300(n) && !lista.some((x) => x.rubro === 'gaseosa-inca-kola-300ml')) add('gaseosa-inca-kola-300ml');
     // Seco de carnero: gasta su propio cocido y crudo; si no hay, el Carnero Crudo (cascada de venta).
     if (consumeCarneroCrudo(n) && !lista.some((x) => x.rubro === 'seco-cordero' || x.rubro === 'carnero')) add('seco-cordero');
@@ -279,15 +305,14 @@ function rubrosDeFila(fila, mapas, bebidas) {
     if (esPlatoBistec(n) && !lista.some((x) => x.rubro === 'bisteck')) add('bisteck');
     if ((n === 'delicia' || n.includes('delicias')) && !lista.some((x) => x.rubro === 'delicias')) add('delicias');
     if (/\bhelados?\b/.test(n) && !lista.some((x) => x.rubro === 'helados')) add('helados');
-    if ((n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
-    if (n.includes('arroz con pollo')) add('arroz-tipo-pollo');
-    else if (n.includes('arroz verde')) add('arroz-verde');
+    if (!opcional && (n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
+    if (n.includes('arroz verde')) add('arroz-verde');
     else if (n.includes('arroz con mariscos') || n.includes('arroz de mariscos') || n.includes('arroz mariscos')) add('arroz-mariscos');
     else if ((n.includes('arroz chaufa') || n.includes('chaufa de arroz')) && !n.includes('pollo')) add('arroz-chaufa');
     else if (n.includes('arroz blanco')) add('arroz-blanco');
     else if (n.includes('arroz con pato') || n.includes('arroz de pato')) {
         if (!lista.some((x) => x.rubro === 'arroz-pato')) add('arroz-pato');
-    } else if (/\barroz\b/.test(n) && !n.includes('chaufa') && !lista.some((x) => x.rubro === 'arroz-blanco')) {
+    } else if (!opcional && /\barroz\b/.test(n) && !n.includes('chaufa') && !n.includes('arroz con pollo') && !lista.some((x) => x.rubro === 'arroz-blanco')) {
         add('arroz-blanco');
     }
     const menu = rubroMenuDe(n);
@@ -514,6 +539,7 @@ module.exports = {
     MAPA_SALIDA,
     norm,
     aplicarMapa,
+    rubroDeGuarnicion,
     rubrosDeNombre,
     partirSalida,
     filasDelContador,

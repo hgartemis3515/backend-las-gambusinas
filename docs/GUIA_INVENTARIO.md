@@ -170,7 +170,7 @@ Sale del fresco o de un ingreso directo.
 | Pieza de pescado | Entra directo. Ocupa el lugar del origen en el mapa. Los platos vinculados restan la pieza. |
 | Pieza de pota | Entra directo. Ocupa el lugar del origen en el mapa. Los platos vinculados restan la pieza. |
 | Carnero | **Carnero pachamanca** (1 carnero = el factor configurado, por defecto 1) y **Seco de carnero** (1 a 1). Los dos tienen crudo y cocido. El tope es el stock de hoja del carnero. |
-| Arroz crudo | Cada **+** resta 1 arroz crudo y suma blanco (8), verde (6), pato (4), chaufa (4), con mariscos (4) o arroz pollo (1). El tope es el stock de hoja del arroz. El factor se cambia en Configuración. |
+| Arroz crudo | Cada **+** resta 1 arroz crudo y suma blanco (8), verde (6), pato (2), chaufa (2) o con mariscos (2). El tope es el stock de hoja del arroz. El factor se cambia en Configuración. |
 | Carnes, trucha, cuy, papas y similares | Entran directo. No se despiezan en este mapa. |
 
 El **editor de mapas** crea o ajusta familias nuevas. Esas familias usan la misma regla: el origen no pasa de su stock de hoja y el destino suma, sin borrar el ingreso que ya tenía. El mapa de pollo fresco de esta pantalla es el mapa fijo descrito arriba.
@@ -180,6 +180,8 @@ El **editor de mapas** crea o ajusta familias nuevas. Esas familias usan la mism
 Dice qué plato de la carta come qué producto del inventario, y cuánto. No mueve el stock por sí sola. La venta de la comanda descuenta según esa relación y según la reserva crudo/cocido.
 
 Al abrir la pestaña, los platos activos de la carta que todavía no tienen vínculo se proponen solos por el nombre. Lo que se agrega, se edita o se quita a mano queda guardado en el servidor. Recargar la hoja no lo borra. Un vínculo quitado no vuelve a aparecer solo; solo regresa si se vuelve a vincular.
+
+Una guarnición (yuca, papa, arroz) solo resta inventario si el mozo la eligió en la comanda. En la relación se lee «Solo si el mozo elige Yuca frita». Si elige arroz y papa, baja arroz y papa, y la yuca no se mueve. Si el plato trae la yuca escrita en el nombre y no es una guarnición para elegir, sí resta siempre.
 
 ### Tres vistas
 

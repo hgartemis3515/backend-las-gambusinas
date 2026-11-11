@@ -323,8 +323,9 @@ function asegurarFila(map, piezaRow) {
   const row = map.get(key);
   row.cantidad += Number(piezaRow.cantidad) || 0;
   row.soles = round2(row.soles + (Number(piezaRow.soles) || 0));
-  row.delMixto += Number(piezaRow.delMixto) || 0;
-  for (const [k, v] of Object.entries(piezaRow.cortes || {})) row.cortes[k] = (row.cortes[k] || 0) + v;
+    row.delMixto += Number(piezaRow.delMixto) || 0;
+    if (piezaRow.guarnicionOpcional) row.guarnicionOpcional = true;
+    for (const [k, v] of Object.entries(piezaRow.cortes || {})) row.cortes[k] = (row.cortes[k] || 0) + v;
   for (const [k, v] of Object.entries(piezaRow.fuentes || {})) row.fuentes[k] = (row.fuentes[k] || 0) + v;
   for (const [k, v] of Object.entries(piezaRow.notas || {})) row.notas[k] = (row.notas[k] || 0) + v;
   return row;
@@ -352,6 +353,7 @@ function filasDeMapa(map, bloque, totalSoles) {
       soles: round2(r.soles),
       detalle: textoDetalle(r),
       cortes: r.cortes && Object.keys(r.cortes).length ? r.cortes : null,
+      guarnicionOpcional: !!r.guarnicionOpcional,
       porcentaje: totalSoles > 0 ? Math.round((r.soles / totalSoles) * 1000) / 10 : 0,
     }))
     .sort((a, b) => b.cantidad - a.cantidad || a.nombre.localeCompare(b.nombre, 'es'));
@@ -421,8 +423,14 @@ function armarContadorPlatos(lineas, catalogo) {
   for (const linea of lineas || []) {
     if (!linea || linea.eliminado || linea.anulado) continue;
     const ficha = fichaParaLinea(linea, catalogoPorId);
+    const idPlato = linea && (linea.platoId || (linea.plato && (linea.plato._id || linea.plato)));
+    const cat = idPlato != null ? catalogoPorId.get(String(idPlato)) : null;
+    const tieneGuarnicion = gruposDe(cat).some((g) => norm(g && g.grupo).includes('guarnicion'));
     soles = round2(soles + solesLinea(linea));
-    for (const p of piezasDeLinea(ficha, linea)) asegurarFila(piezasMap, p);
+    for (const p of piezasDeLinea(ficha, linea)) {
+      if (tieneGuarnicion) p.guarnicionOpcional = true;
+      asegurarFila(piezasMap, p);
+    }
     sumarGuarniciones(linea, ficha, guarniMap);
   }
 

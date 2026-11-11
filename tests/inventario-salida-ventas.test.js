@@ -7,7 +7,7 @@ function dia(ymd, hora) {
 
 test('arroz con pollo, caldo y olla salen del menu pecho o pierna', () => {
     const arroz = aplicarMapa([{ nombre: 'Arroz con pollo Pec', cantidad: 2 }]);
-    expect(arroz['arroz-tipo-pollo']).toBe(2);
+    expect(arroz['arroz-tipo-pollo']).toBeUndefined();
     expect(arroz['menu-pecho']).toBe(2);
     expect(arroz['pechuga-pollo']).toBeUndefined();
     const caldo = aplicarMapa([{ nombre: 'Caldo de pollo Pie', cantidad: 2 }]);
@@ -341,6 +341,42 @@ test('el medio pollo a la leña baby solo descuenta 0.5 de pollo baby', () => {
     ]);
     expect(porRubro['pollo-baby']).toBe(3);
     expect(porRubro['pollo-lena']).toBeUndefined();
+});
+
+test('la yuca del chicharrón BBQ solo baja si el mozo la elige', () => {
+    const { armarContadorPlatos } = require('../src/utils/contadorPlatosReporte');
+    const plato = {
+        _id: 'bbq',
+        nombre: 'Chicharron de pollo a la BBQ + arroz + papas fritas',
+        categoria: 'CHICHARRONES',
+        complementos: [{
+            grupo: 'GUARNICIONES',
+            opciones: [{ nombre: 'Arroz' }, { nombre: 'Papa Frita' }, { nombre: 'Yuca Frita' }, { nombre: 'Yuca Sancochada' }]
+        }]
+    };
+    const linea = (opciones) => ({
+        platoId: 'bbq',
+        nombre: plato.nombre,
+        cantidad: 1,
+        soles: 40,
+        complementos: opciones.map((opcion) => ({ grupo: 'GUARNICIONES', opcion, cantidad: 1 }))
+    });
+    const conYuca = aplicarMapa(filasDelContador(armarContadorPlatos([linea(['Yuca Frita'])], [plato])));
+    expect(conYuca.yuca).toBe(1);
+    expect(conYuca.papas).toBeUndefined();
+    expect(conYuca['arroz-blanco']).toBeUndefined();
+    expect(conYuca['chi-pollo-bbq']).toBe(1);
+    const conArrozPapa = aplicarMapa(filasDelContador(armarContadorPlatos([
+        linea(['Arroz', 'Papa Frita'])
+    ], [plato])));
+    expect(conArrozPapa.yuca).toBeUndefined();
+    expect(conArrozPapa.papas).toBe(1);
+    expect(conArrozPapa['arroz-blanco']).toBe(1);
+    const dosYucas = aplicarMapa(filasDelContador(armarContadorPlatos([
+        linea(['Yuca Frita']),
+        linea(['Yuca Sancochada'])
+    ], [plato])));
+    expect(dosYucas.yuca).toBe(2);
 });
 
 test('yuca, inca 300, carnero, frugos y pizza descuentan su fila', () => {

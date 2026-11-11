@@ -6399,7 +6399,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <h3 class="sec-title text-sm">Arroz — Factores por 1 unidad de Arroz Crudo</h3>
               <span class="text-xs text-[#a0a0b8]">Rendimiento según olla o preparación</span>
             </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs">
               <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
                 <span class="text-[#a0a0b8] block mb-1">Blanco</span>
                 <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozBlanco" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
@@ -6419,10 +6419,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
                 <span class="text-[#a0a0b8] block mb-1">Mariscos</span>
                 <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozMariscos" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
-              </label>
-              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
-                <span class="text-[#a0a0b8] block mb-1">Pollo</span>
-                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPollo" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
               </label>
             </div>
           </div>
@@ -7621,7 +7617,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           { id: 'carnes', nombre: 'Grupo Carnes', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'trucha', nombre: 'Trucha', open: true, staggerKey: 1, nota: 'Cada corte entra directo' },
           { id: 'carnero', nombre: 'Carnero', open: true, staggerKey: 1, nota: '1 a 1 a Carnero pachamanca y a Seco de carnero' },
-          { id: 'arroz', nombre: 'Arroz crudo', open: true, staggerKey: 1, nota: '1 crudo nace 8 blanco, 6 verde, 4 pato, 4 chaufa o 4 con mariscos' },
+          { id: 'arroz', nombre: 'Arroz crudo', open: true, staggerKey: 1, nota: '1 crudo nace 8 blanco, 6 verde, 2 pato, 2 chaufa o 2 con mariscos' },
           { id: 'gaseosas', nombre: 'Gaseosas', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'licores', nombre: 'Licores', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'bebidas', nombre: 'Bebidas', open: true, staggerKey: 1, nota: 'Aguas de la carta', sinDatos: true }
@@ -7723,8 +7719,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               { id: 'arroz_verde', nombre: 'Arroz verde' },
               { id: 'arroz_pato', nombre: 'Arroz pato' },
               { id: 'arroz_chaufa', nombre: 'Arroz chaufa' },
-              { id: 'arroz_mariscos', nombre: 'Arroz con mariscos' },
-              { id: 'arroz_pollo', nombre: 'Arroz pollo' }
+              { id: 'arroz_mariscos', nombre: 'Arroz con mariscos' }
             ]
           }
         },
@@ -7756,12 +7751,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorFiletesPorPechuga: 1,
           factorFiletesPorPierna: '', // Vacío por defecto
           factorCarneroPachamanca: 1,
-          factorArrozPollo: 1,
           factorArrozBlanco: 8,
           factorArrozVerde: 6,
-          factorArrozPato: 4,
-          factorArrozChaufa: 4,
-          factorArrozMariscos: 4,
+          factorArrozPato: 2,
+          factorArrozChaufa: 2,
+          factorArrozMariscos: 2,
           aderezos: [
             { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: false },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna', aceptaPierna: true, aceptaPechuga: false },
@@ -7794,7 +7788,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 13, rubro: 'Pierna a la leña', plato: 'Mix a la leña', complemento: 'Parte pierna. Solo cocido', cantidad: 1, unidadNota: 'pierna' },
             { id: 5, rubro: 'Pollo pachamanca pierna', plato: 'Pachamanca 1 sabor', complemento: 'Sabor: Pollo', cantidad: 1, unidadNota: 'pieza de Pollo pachamanca pierna' },
             { id: 6, rubro: 'Papas', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'Guarnición: papa fritas', cantidad: 1, unidadNota: 'papa fritas' },
-            { id: 7, rubro: 'Arroz pollo', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'Guarnición: arroz ya transformado', cantidad: '—', unidadNota: 'por completar' },
             { id: 8, rubro: 'Papas', plato: '1/4 pollo + papas fritas + ensalada', complemento: 'Guarnición: papa fritas', cantidad: 1, unidadNota: 'papa fritas' },
             { id: 9, rubro: 'Tamal', plato: 'Tamal', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'tamal' },
             { id: 14, rubro: 'Humita', plato: 'Humita', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'humita' },
@@ -7813,12 +7806,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorFiletesPorPechuga: 1,
           factorFiletesPorPierna: '',
           factorCarneroPachamanca: 1,
-          factorArrozPollo: 1,
           factorArrozBlanco: 8,
           factorArrozVerde: 6,
-          factorArrozPato: 4,
-          factorArrozChaufa: 4,
-          factorArrozMariscos: 4,
+          factorArrozPato: 2,
+          factorArrozChaufa: 2,
+          factorArrozMariscos: 2,
           aderezos: [],
           relaciones: []
         },
@@ -7849,7 +7841,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           piezasPota: 0,
           carneroSalen: 3,
           arrozCrudo: 0,
-          arrozPollo: 0,
           arrozBlanco: 0,
           arrozVerde: 0,
           arrozPato: 0,
@@ -8031,7 +8022,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           seco_carnero: 'seco-cordero',
           pecho_pachamanca: 'pachamanca-pollo-pecho',
           arroz: 'arroz',
-          arroz_pollo: 'arroz-tipo-pollo',
           arroz_blanco: 'arroz-blanco',
           arroz_verde: 'arroz-verde',
           arroz_pato: 'arroz-pato',
@@ -8159,12 +8149,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         factoresArrozBase() {
           return {
-            factorArrozPollo: 1,
             factorArrozBlanco: 8,
             factorArrozVerde: 6,
-            factorArrozPato: 4,
-            factorArrozChaufa: 4,
-            factorArrozMariscos: 4
+            factorArrozPato: 2,
+            factorArrozChaufa: 2,
+            factorArrozMariscos: 2
           };
         },
 
@@ -8172,15 +8161,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const base = this.factoresArrozBase();
           if (!(Number(this.config.factorArrozVerde) > 0)) {
             Object.keys(base).forEach((k) => { this.config[k] = base[k]; });
-            return;
+          } else {
+            Object.keys(base).forEach((k) => {
+              if (!(Number(this.config[k]) > 0)) this.config[k] = base[k];
+            });
           }
-          Object.keys(base).forEach((k) => {
-            if (!(Number(this.config[k]) > 0)) this.config[k] = base[k];
+          ['factorArrozPato', 'factorArrozChaufa', 'factorArrozMariscos'].forEach((k) => {
+            if (Number(this.config[k]) === 4) this.config[k] = 2;
           });
+          delete this.config.factorArrozPollo;
         },
 
         camposArroz() {
-          return ['arrozBlanco', 'arrozVerde', 'arrozPato', 'arrozChaufa', 'arrozMariscos', 'arrozPollo'];
+          return ['arrozBlanco', 'arrozVerde', 'arrozPato', 'arrozChaufa', 'arrozMariscos'];
         },
 
         destinosArroz() {
@@ -8189,8 +8182,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { campo: 'arrozVerde', id: 'arroz_verde', clave: 'arroz-verde', nombre: 'Arroz verde', factorKey: 'factorArrozVerde' },
             { campo: 'arrozPato', id: 'arroz_pato', clave: 'arroz-pato', nombre: 'Arroz pato', factorKey: 'factorArrozPato' },
             { campo: 'arrozChaufa', id: 'arroz_chaufa', clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factorKey: 'factorArrozChaufa' },
-            { campo: 'arrozMariscos', id: 'arroz_mariscos', clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factorKey: 'factorArrozMariscos' },
-            { campo: 'arrozPollo', id: 'arroz_pollo', clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo', factorKey: 'factorArrozPollo' }
+            { campo: 'arrozMariscos', id: 'arroz_mariscos', clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factorKey: 'factorArrozMariscos' }
           ];
         },
 
@@ -8300,6 +8292,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const m = String(n || '').match(/pachamanca\s+(\d+)\s+sabor/);
           const k = m ? Number(m[1]) : 0;
           return k >= 1 ? k : 0;
+        },
+
+        rubroDeGuarnicion(nombre) {
+          const n = this.norm(nombre);
+          if (!n || n.includes('ensalada') || n.includes('zarza') || n.includes('frijol') || n.includes('frejol')) return null;
+          if (n.includes('yuca')) return { rubro: 'Yuca', nota: 'yuca' };
+          if (n.includes('papa')) return { rubro: 'Papas', nota: 'papa' };
+          if (n.includes('tamal')) return { rubro: 'Tamal', nota: 'tamal' };
+          if (n.includes('arroz') && n.includes('verde')) return { rubro: 'Arroz verde', nota: 'arroz verde' };
+          if (n.includes('arroz') && n.includes('marisco')) return { rubro: 'Arroz con mariscos', nota: 'arroz mariscos' };
+          if (n.includes('chaufa')) return { rubro: 'Arroz chaufa', nota: 'arroz chaufa' };
+          if (n === 'arroz' || n.startsWith('arroz ')) return { rubro: 'Arroz blanco', nota: 'arroz' };
+          return null;
         },
 
         consumeYuca(n) {
@@ -8412,10 +8417,24 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const guarnicion = (extra) => (p.complemento ? p.complemento + ' · ' : '') + extra;
               const ya = (rubro) => relaciones.some((r) => r.plato === p.nombre && r.rubro === rubro);
               const esChaufa = n.includes('chaufa');
-              if (/papa frita|papas fritas/.test(texto) && !ya('Papas')) {
+              const opcionesGuarni = p.guarniciones || [];
+              const porGuarni = {};
+              opcionesGuarni.forEach((g) => {
+                const dest = this.rubroDeGuarnicion(g);
+                if (!dest) return;
+                if (!porGuarni[dest.rubro]) porGuarni[dest.rubro] = { nota: dest.nota, opciones: [] };
+                porGuarni[dest.rubro].opciones.push(g);
+              });
+              Object.keys(porGuarni).forEach((rubro) => {
+                if (ya(rubro)) return;
+                const info = porGuarni[rubro];
+                push(p, rubro, 1, info.nota, 'Solo si el mozo elige ' + info.opciones.join(' o '));
+              });
+              const tieneGuarni = opcionesGuarni.length > 0;
+              if (!tieneGuarni && /papa frita|papas fritas/.test(texto) && !ya('Papas')) {
                 push(p, 'Papas', 1, 'papa fritas', guarnicion('Guarnición: papa fritas'));
               }
-              if (/\barroz\b/.test(texto) && !esChaufa && !n.includes('arroz con pollo') && !n.includes('arroz con pato') && !n.includes('arroz de pato') && !ya('Arroz blanco') && !ya('Arroz pato')) {
+              if (!tieneGuarni && /\barroz\b/.test(texto) && !esChaufa && !n.includes('arroz con pollo') && !n.includes('arroz con pato') && !n.includes('arroz de pato') && !ya('Arroz blanco') && !ya('Arroz pato')) {
                 push(p, 'Arroz blanco', '—', 'por completar', guarnicion('Guarnición: arroz blanco'));
               }
               if (/\btamal\b/.test(texto) && !ya('Tamal')) {
@@ -8454,7 +8473,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               }
               const tipoBebidaPlato = this.tipoBebida(p);
               if (tipoBebidaPlato && !ya(p.nombre)) push(p, p.nombre, 1, tipoBebidaPlato);
-              if (this.consumeYuca(n) && !ya('Yuca')) push(p, 'Yuca', 1, 'yuca');
+              if (!opcionesGuarni.some((g) => this.norm(g).includes('yuca')) && this.consumeYuca(n) && !ya('Yuca')) push(p, 'Yuca', 1, 'yuca');
               if (this.consumeInca300(n) && !ya('Inca Kola 300ml')) push(p, 'Inca Kola 300ml', 1, 'inca kola 300ml');
               if (this.consumeCarnero(n) && !ya('Carnero Crudo')) push(p, 'Carnero Crudo', 1, 'carnero crudo');
               if (n.includes('frugos') && !ya('Frugos 1.5L')) push(p, 'Frugos 1.5L', 1, 'frugos');
@@ -9204,7 +9223,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const extras = {
             pierna: ['pierna-pollo', 'pollada', 'pachamanca-pollo', 'pierna-lena', 'menu', 'menu-pierna'],
             arroz_blanco: ['arroz-blanco'],
-            arroz_pollo: ['arroz-tipo-pollo'],
             arroz_verde: ['arroz-verde'],
             arroz_pato: ['arroz-pato'],
             arroz_chaufa: ['arroz-chaufa'],
@@ -10121,7 +10139,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Panceta', [['panceta', 'Panceta'], ['trozo_panceta', 'Pieza de panceta']]),
             cuadro('Carnes', [['carne_bistec', 'Carne Bistec'], ['lomo_fino', 'Lomo Fino'], ['carne_guiso', 'Seco de Res']]),
             cuadro('Trucha', [['trucha_entera', 'Trucha entera'], ['filete_trucha', 'Filete de trucha']]),
-            cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos'], ['arroz_pollo', 'Arroz pollo']]),
+            cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pecho de Pato'], ['pierna_pato', 'Pierna de pato']]),
             cuadro('Pota', [['pieza_pota', 'Pieza de pota']]),
             cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal'], ['humita', 'Humita'], ['yuca', 'Yuca']]),
@@ -10249,7 +10267,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             piezasPota: 0,
             carneroSalen: 3,
             arrozCrudo: 20,
-            arrozPollo: 8,
             arrozBlanco: 6,
             arrozVerde: 0,
             arrozPato: 4,
@@ -10316,7 +10333,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             // FILAS SOLAS (Directas en la tabla, sin grupo de despiece)
             { id: 'cerdo_pachamanca', grupo: null, nombre: 'Cerdo pachamanca', detalle: 'Sabor de pachamanca. La venta de Cerdo de pachamanca resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'arroz', grupo: 'arroz', nombre: 'Arroz crudo', detalle: 'Lo que ingresa', unidad: 'unid', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 18, destinoTrans: '→ tipos', inventario: null, crudo: 2, cocido: 0 },
-            { id: 'arroz_pollo', grupo: 'arroz', nombre: 'Arroz pollo', detalle: 'Desde arroz crudo', unidad: 'unid', saldoAnterior: 0, ingreso: 8, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 8 },
             { id: 'arroz_blanco', grupo: 'arroz', nombre: 'Arroz blanco', detalle: '1 crudo = 8', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 6 },
             { id: 'arroz_verde', grupo: 'arroz', nombre: 'Arroz verde', detalle: '1 crudo = 6', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'arroz_pato', grupo: 'arroz', nombre: 'Arroz pato', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 4, correccion: 0, venta: 0, ritmoVentaDiario: 3, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 4 },
@@ -12565,7 +12581,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               arroz_pato: 'arroz',
               arroz_chaufa: 'arroz',
               arroz_mariscos: 'arroz',
-              arroz_pollo: 'arroz',
               arroz_con_pollo: 'octavo_pollo',
               pollo_olla: 'octavo_pollo',
               caldo_pollo: 'octavo_pollo',
@@ -13839,7 +13854,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             seco_carnero: ['Seco de carnero', 'Seco de cordero'],
             pecho_pachamanca: ['Pecho pachamanca', 'Pollo pachamanca pecho'],
             arroz_blanco: ['Arroz blanco'],
-            arroz_pollo: ['Arroz pollo'],
             arroz_con_pollo: ['Arroz con pollo'],
             pollo_olla: ['Pollo a la olla'],
             caldo_pollo: ['Caldo de pollo'],
@@ -14775,16 +14789,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               tipoLabel: 'Despiece',
               origenNombre: 'Arroz crudo',
               origenClave: 'arroz',
-              origenSubtexto: 'Se reparte en 6 arroces cocidos con su propio factor',
-              resumenRegla: 'De Arroz crudo salen seis productos cocidos, cada uno con su propio factor por porción.',
+              origenSubtexto: 'Se reparte en 5 arroces cocidos con su propio factor',
+              resumenRegla: 'De Arroz crudo salen cinco productos cocidos, cada uno con su propio factor por porción.',
               notaNoSuma: 'Factores por 1 unidad de arroz crudo',
               ramas: [
                 { clave: 'arroz-blanco', nombre: 'Arroz blanco', color: '#38bdf8', factorTexto: 'Factor: 8', subFactorTexto: 'Guarnición general', notaCorte: '', platos: [{ nombre: 'Platos con guarnición de arroz blanco', complemento: 'Carta', cantidad: 1, esAderezo: false }] },
                 { clave: 'arroz-verde', nombre: 'Arroz verde', color: '#34d399', factorTexto: 'Factor: 6', subFactorTexto: 'Cocido', notaCorte: '', platos: [] },
-                { clave: 'arroz-pato', nombre: 'Arroz pato', color: '#d4af37', factorTexto: 'Factor: 4', subFactorTexto: 'Cocido', notaCorte: '', platos: [{ nombre: 'Arroz con pato a la chiclayana', complemento: 'A48', cantidad: 1, esAderezo: false }] },
-                { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', color: '#f472b6', factorTexto: 'Factor: 4', subFactorTexto: 'Cocido', notaCorte: '', platos: [] },
-                { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', color: '#a78bfa', factorTexto: 'Factor: 4', subFactorTexto: 'Cocido', notaCorte: '', platos: [{ nombre: 'Arroz con mariscos', complemento: 'A79', cantidad: 1, esAderezo: false }] },
-                { clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo', color: '#fb923c', factorTexto: 'Factor: 1', subFactorTexto: 'Cocido', notaCorte: '', platos: [{ nombre: 'Arroz con pollo', complemento: 'A99', cantidad: 1, esAderezo: false }] }
+                { clave: 'arroz-pato', nombre: 'Arroz pato', color: '#d4af37', factorTexto: 'Factor: 2', subFactorTexto: 'Cocido', notaCorte: '', platos: [{ nombre: 'Arroz con pato a la chiclayana', complemento: 'A48', cantidad: 1, esAderezo: false }] },
+                { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', color: '#f472b6', factorTexto: 'Factor: 2', subFactorTexto: 'Cocido', notaCorte: '', platos: [] },
+                { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', color: '#a78bfa', factorTexto: 'Factor: 2', subFactorTexto: 'Cocido', notaCorte: '', platos: [{ nombre: 'Arroz con mariscos', complemento: 'A79', cantidad: 1, esAderezo: false }] }
               ]
             };
           }
@@ -15835,10 +15848,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               cortes: [
                 { clave: 'arroz-blanco', nombre: 'Arroz blanco', factor: 8, factorDesde: '' },
                 { clave: 'arroz-verde', nombre: 'Arroz verde', factor: 6, factorDesde: '' },
-                { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 4, factorDesde: '' },
-                { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factor: 4, factorDesde: '' },
-                { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factor: 4, factorDesde: '' },
-                { clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo', factor: 1, factorDesde: '' }
+                { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 2, factorDesde: '' },
+                { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factor: 2, factorDesde: '' },
+                { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factor: 2, factorDesde: '' }
               ],
               platos: []
             },

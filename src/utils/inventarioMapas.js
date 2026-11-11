@@ -57,10 +57,9 @@ const SEMILLA = [
         cortes: [
             { clave: 'arroz-blanco', nombre: 'Arroz blanco', factor: 8, factorDesde: '' },
             { clave: 'arroz-verde', nombre: 'Arroz verde', factor: 6, factorDesde: '' },
-            { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 4, factorDesde: '' },
-            { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factor: 4, factorDesde: '' },
-            { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factor: 4, factorDesde: '' },
-            { clave: 'arroz-tipo-pollo', nombre: 'Arroz pollo', factor: 1, factorDesde: '' }
+            { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 2, factorDesde: '' },
+            { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factor: 2, factorDesde: '' },
+            { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factor: 2, factorDesde: '' }
         ],
         platos: []
     },
@@ -224,6 +223,19 @@ function aplicarGruposPollo(mapas) {
     return mapas;
 }
 
+const FACTOR_ARROZ = { 'arroz-pato': 2, 'arroz-chaufa': 2, 'arroz-mariscos': 2 };
+
+function aplicarArroz(mapas) {
+    (mapas || []).forEach((m) => {
+        if (!m || m.id !== 'arroz') return;
+        m.cortes = (m.cortes || []).filter((c) => c.clave !== 'arroz-tipo-pollo');
+        m.cortes.forEach((c) => {
+            if (FACTOR_ARROZ[c.clave] && Number(c.factor) === 4) c.factor = FACTOR_ARROZ[c.clave];
+        });
+    });
+    return mapas;
+}
+
 function sanearLista(lista) {
     const vistos = new Set();
     const out = [];
@@ -233,7 +245,7 @@ function sanearLista(lista) {
         vistos.add(mapa.id);
         out.push(mapa);
     });
-    return aplicarGruposPollo(out);
+    return aplicarArroz(aplicarGruposPollo(out));
 }
 
 function clavesExtra(mapas) {
