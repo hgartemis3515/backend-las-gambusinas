@@ -253,13 +253,14 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     const cant = Number(p.cantidad) || 1;
     const unit = Number(p.precio ?? p.precioUnitario) || 0;
     const line = montoLinea(p);
-    if (!p.lineaAnulada) bruto += line;
+    const esAnulacionComanda = !p.lineaAnulada && !!d.anulacion;
+    if (!p.lineaAnulada && !esAnulacionComanda) bruto += line;
     const cuadro = esCocina
       ? `<td style="width:18px;padding:3px 2px;vertical-align:middle;">
         <span style="display:inline-block;width:${CUADRO_PX}px;height:${CUADRO_PX}px;border:1.6px solid #000;box-sizing:border-box;"></span>
       </td>`
       : '';
-    const marcaLinea = p.lineaAnulada || (!p.lineaAnulada && d.anulacion);
+    const marcaLinea = p.lineaAnulada || esAnulacionComanda;
     const cambioG = esCocina ? htmlCambioGuarnicion(p) : '';
     const nombreBase = marcaLinea
       ? htmlNombreEliminado(nombreProducto(p), (p.lineaAnulada && p.lineaAnulada.usuario) || (d.anulacion && d.anulacion.usuario))
@@ -275,10 +276,13 @@ export function generarHtmlTicketCocina({ datos, cocina = true }) {
     </tr>`;
   }
 
-  const desc = Number(d.montoDescuento) || 0;
-  const neto = Number.isFinite(Number(d.total)) && Number(d.total) > 0
-    ? Number(d.total)
-    : Math.max(0, bruto - desc);
+  const anulacionCompleta = !!d.anulacion && d.sinTotal !== true;
+  const desc = anulacionCompleta ? 0 : (Number(d.montoDescuento) || 0);
+  const neto = anulacionCompleta
+    ? 0
+    : (Number.isFinite(Number(d.total)) && Number(d.total) > 0
+      ? Number(d.total)
+      : Math.max(0, bruto - desc));
 
   let html = '';
   const esReserva = d.reserva === true;

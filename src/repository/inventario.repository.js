@@ -102,6 +102,7 @@ async function listarMovimientos({ plato, tipo, desde, hasta, ciclo }) {
         comanda: d.comanda || null,
         usuario: d.usuario && d.usuario.name ? d.usuario.name : '',
         rubro: d.rubro || '',
+        lote: d.lote || '',
         fecha: d.fecha
     }));
 }
@@ -174,6 +175,10 @@ async function crearMovimiento(data, usuarioId) {
         }
     }
     const antes = await alertasActuales();
+    const lotePedido = String(data.lote || '').trim();
+    const lote = clase === 'egreso' && motivo.indexOf('Venta manual') === 0 && /^vm-[a-z0-9]{4,12}-[a-z0-9]{4,12}$/.test(lotePedido)
+        ? lotePedido
+        : '';
     const doc = await Movimiento.create({
         plato: plato ? plato._id : null,
         platoId: plato ? plato.id : 0,
@@ -183,6 +188,7 @@ async function crearMovimiento(data, usuarioId) {
         clase,
         cantidad,
         motivo,
+        lote,
         comanda: data.comanda && mongoose.Types.ObjectId.isValid(data.comanda) ? data.comanda : null,
         usuario: usuarioId && mongoose.Types.ObjectId.isValid(usuarioId) ? usuarioId : null,
         fecha: fechaMovimiento(data.fecha)
@@ -566,6 +572,41 @@ async function ponerEnCero(usuarioId) {
     return { puestos: docs.length };
 }
 
+async function eliminarVentaManual({ lote, ids }) {
+    const filtro = { clase: 'egreso', motivo: /^Venta manual/ };
+    const loteLimpio = String(lote || '').trim();
+    if (loteLimpio) {
+        if (!/^vm-[a-z0-9]{4,12}-[a-z0-9]{4,12}$/.test(loteLimpio)) {
+            const err = new Error('Esa venta manual no se puede eliminar');
+            err.statusCode = 400;
+            throw err;
+        }
+        filtro.lote = loteLimpio;
+    } else {
+        const lista = (Array.isArray(ids) ? ids : [])
+            .map((id) => String(id || '').trim())
+            .filter((id) => mongoose.Types.ObjectId.isValid(id));
+        if (!lista.length || lista.length > 40) {
+            const err = new Error('Esa venta manual no se puede eliminar');
+            err.statusCode = 400;
+            throw err;
+        }
+        filtro._id = { $in: lista };
+    }
+    const docs = await Movimiento.find(filtro)
+        .select('nombre rubro tipoProducto clase cantidad motivo lote fecha')
+        .lean();
+    if (!docs.length) {
+        const err = new Error('Esa venta manual ya no está');
+        err.statusCode = 404;
+        throw err;
+    }
+    await Movimiento.deleteMany({ _id: { $in: docs.map((d) => d._id) } });
+    const despues = await alertasActuales();
+    emitirAlerta({ alertas: despues, cambio: null });
+    return { eliminados: docs.length, movimientos: docs };
+}
+
 async function eliminarHoy() {
     const { desde, hasta } = hoy();
     const docs = await Movimiento.find({ fecha: { $gte: desde, $lte: hasta } })
@@ -592,6 +633,7 @@ module.exports = {
     leerRelaciones,
     guardarRelaciones,
     eliminarHoy,
+    eliminarVentaManual,
     ponerEnCero,
     avisarAlertas
 };

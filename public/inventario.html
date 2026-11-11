@@ -2440,10 +2440,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <p class="caja-stock-mas" x-show="totalOctavosLibres() > 0" x-text="'+' + formatNum(totalOctavosLibres()) + ' ingreso ' + etiquetaTurnoCuadro()"></p>
                       </div>
                       <div class="space-y-2 pt-1.5 border-t border-[#26263a]">
+                        <p class="text-[10px] text-amber-200" x-show="!octavosSeparados() && totalOctavosLibres() > 0">Este stock todavía no está separado. Pecho y pierna muestran el mismo disponible.</p>
                         <div>
                           <p class="caja-stock-corte text-sky-200">Desde pecho</p>
-                          <p class="caja-stock-etiq">Stock pecho: <strong class="text-white" x-text="formatNum(octavosStockCorte('pechugas'))"></strong></p>
-                          <p class="caja-stock-etiq">Stock pierna: <strong class="text-white" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
+                          <p class="caja-stock-etiq">Octavos de pecho: <strong class="text-white" x-text="formatNum(octavosStockCorte('pechugas'))"></strong></p>
                           <div class="caja-stock-step">
                             <button type="button" aria-label="Restar octavos desde pecho" @click="fijarOctavosStock('pechugas', octavosStockCorte('pechugas') - 1)">−</button>
                             <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosStockCorte('pechugas')" @change="fijarOctavosStock('pechugas', $event.target.value)">
@@ -2452,8 +2452,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </div>
                         <div>
                           <p class="caja-stock-corte text-emerald-200">Desde pierna</p>
-                          <p class="caja-stock-etiq">Stock pecho: <strong class="text-white" x-text="formatNum(octavosStockCorte('pechugas'))"></strong></p>
-                          <p class="caja-stock-etiq">Stock pierna: <strong class="text-white" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
+                          <p class="caja-stock-etiq">Octavos de pierna: <strong class="text-white" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
                           <div class="caja-stock-step">
                             <button type="button" aria-label="Restar octavos desde pierna" @click="fijarOctavosStock('piernas', octavosStockCorte('piernas') - 1)">−</button>
                             <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosStockCorte('piernas')" @change="fijarOctavosStock('piernas', $event.target.value)">
@@ -3173,7 +3172,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="pb-2 border-b border-[#26263a] flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['arroz'])"></span>. Mapa Semántico Horizontal — Familia Arroz</h2>
-              <p class="text-xs text-[#a0a0b8]">1 arroz crudo nace 8 blanco, 6 verde, 4 pato, 4 chaufa o 4 con mariscos.</p>
+              <p class="text-xs text-[#a0a0b8]">1 arroz crudo nace 8 blanco, 6 verde + pato, o beata según su factor.</p>
             </div>
             <span class="px-2.5 py-1 rounded bg-[#0a0a0f] border border-[#26263a] text-xs font-mono text-white">
               Crudo libre: <strong class="text-emerald-300" x-text="arrozLibre()"></strong>
@@ -3227,7 +3226,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[11px] text-[#a0a0b8]">El número es cuántos crudos pasan. Nacen según el factor.</span>
               </div>
 
-              <div class="space-y-2">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <template x-for="d in destinosArroz()" :key="'arroz-dest-' + d.campo">
                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1">
                     <span class="flex items-center justify-between gap-1">
@@ -6399,26 +6398,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <h3 class="sec-title text-sm">Arroz — Factores por 1 unidad de Arroz Crudo</h3>
               <span class="text-xs text-[#a0a0b8]">Rendimiento según olla o preparación</span>
             </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
                 <span class="text-[#a0a0b8] block mb-1">Blanco</span>
                 <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozBlanco" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
               </label>
               <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
-                <span class="text-[#a0a0b8] block mb-1">Verde</span>
+                <span class="text-[#a0a0b8] block mb-1">Verde + Pato</span>
                 <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozVerde" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
               </label>
               <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
-                <span class="text-[#a0a0b8] block mb-1">Pato</span>
-                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozPato" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
-              </label>
-              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
-                <span class="text-[#a0a0b8] block mb-1">Chaufa</span>
-                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozChaufa" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
-              </label>
-              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
-                <span class="text-[#a0a0b8] block mb-1">Mariscos</span>
-                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozMariscos" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
+                <span class="text-[#a0a0b8] block mb-1">Beata</span>
+                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozBeata" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
               </label>
             </div>
           </div>
@@ -6782,11 +6773,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
   <template x-if="ventaAbierta && ventaInfo">
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaAbierta = false" @keydown.escape.window="ventaAbierta = false" role="dialog" aria-modal="true" aria-label="Ventas del producto">
-      <div class="w-full max-w-2xl bg-[#14141f] border border-[#d4af37] p-5 max-h-[90vh] overflow-y-auto rounded-xl">
+      <div class="w-full max-w-4xl bg-[#14141f] border border-[#d4af37] p-5 max-h-[90vh] overflow-y-auto rounded-xl">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div>
             <h3 class="text-lg font-semibold text-[#d4af37]" x-text="'Ventas de ' + ventaInfo.nombre"></h3>
-            <p class="text-xs text-[#a0a0b8] mt-1">Cada fila dice si restó cocido, crudo o el producto que agrupa. Ver abre esa comanda.</p>
+            <p class="text-xs text-[#a0a0b8] mt-1">Cada fila dice si restó cocido, crudo o el producto que agrupa. Ver abre esa comanda. En una venta manual, eliminarla devuelve el stock.</p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ventaAbierta = false" aria-label="Cerrar">×</button>
         </div>
@@ -6798,6 +6789,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <th class="text-left px-3 py-2">Plato</th>
                 <th class="text-left px-3 py-2">Comanda</th>
                 <th class="text-left px-3 py-2">Hora</th>
+                <th class="text-left px-3 py-2">Motivo</th>
                 <th class="text-left px-3 py-2">Restó</th>
                 <th class="text-right px-3 py-2">Platos × uso</th>
                 <th class="text-right px-3 py-2"></th>
@@ -6809,17 +6801,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <td class="px-3 py-1.5 font-semibold" x-text="l.nombre"></td>
                   <td class="px-3 py-1.5 font-mono text-[#d4af37]" x-text="l.comanda || '—'"></td>
                   <td class="px-3 py-1.5 font-mono text-[#a0a0b8]" x-text="horaVenta(l.hora)"></td>
+                  <td class="px-3 py-1.5 text-[#a0a0b8]" x-text="l.motivo || '—'"></td>
                   <td class="px-3 py-1.5">
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase" :class="claseUsoVenta(l.uso)" x-text="l.uso || 'Crudo'"></span>
                   </td>
                   <td class="px-3 py-1.5 text-right font-mono font-bold text-rose-200 whitespace-nowrap" x-text="textoUsoVenta(l)"></td>
-                  <td class="px-3 py-1.5 text-right">
-                    <button type="button" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-[#1a1200] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="!l.comandaId" @click="verComandaVenta(l)">Ver</button>
+                  <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                    <button type="button" x-show="l.manual" class="px-2.5 py-1 rounded-lg border border-[#ff0000] text-[#ff0000] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="ventaEliminando" @click="eliminarVentaManual(l)">Eliminar venta manual</button>
+                    <button type="button" x-show="!l.manual" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-[#1a1200] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="!l.comandaId" @click="verComandaVenta(l)">Ver</button>
                   </td>
                 </tr>
               </template>
               <tr x-show="ventaInfo.lineas.length === 0">
-                <td class="px-3 py-3 text-[#5a5a7a]" colspan="6">Este período no tiene ventas de este producto.</td>
+                <td class="px-3 py-3 text-[#5a5a7a]" colspan="7">Este período no tiene ventas de este producto.</td>
               </tr>
             </tbody>
           </table>
@@ -6843,8 +6837,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <button type="button" role="tab" :aria-selected="ventaManualModo === 'unidad'" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition" :class="ventaManualModo === 'unidad' ? 'bg-[#ff0000] text-white' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a] hover:text-white'" @click="ventaManualModo = 'unidad'">Por unidad</button>
           <button type="button" role="tab" :aria-selected="ventaManualModo === 'plato'" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition" :class="ventaManualModo === 'plato' ? 'bg-[#ff0000] text-white' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a] hover:text-white'" @click="ventaManualModo = 'plato'">Por plato vinculado</button>
         </div>
+        <div x-show="ventaManualPideCorte()" class="space-y-2">
+          <p class="text-xs font-semibold text-white">Tipo de octavo</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer" :class="ventaManualCorte === 'pechugas' ? 'bg-sky-400 text-[#0a0a0f]' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a]'" @click="ventaManualCorte = 'pechugas'">Pecho</button>
+            <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer" :class="ventaManualCorte === 'piernas' ? 'bg-emerald-400 text-[#0a0a0f]' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a]'" @click="ventaManualCorte = 'piernas'">Pierna</button>
+          </div>
+          <p class="text-[11px] text-[#a0a0b8]" x-text="ventaManualCorte === 'piernas' ? 'Estos octavos salen de pierna.' : (ventaManualCorte === 'pechugas' ? 'Estos octavos salen de pecho.' : 'Elige pecho o pierna antes de restar.')"></p>
+        </div>
         <div x-show="ventaManualModo === 'unidad'" class="space-y-2">
-          <p class="text-[11px] text-[#a0a0b8]">Resta en orden: cocido, crudo y al final la pieza de reserva.</p>
+          <p class="text-[11px] text-[#a0a0b8]" x-text="esFilaOctavo(ventaManualFila) ? 'Resta octavos de este tipo. No es una comanda.' : 'Resta en orden: cocido, crudo y al final la pieza de reserva.'"></p>
           <div class="inline-flex items-center gap-2">
             <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = Math.max(1, (Number(ventaManualCantidad) || 1) - 1)">−</button>
             <input type="number" min="1" step="1" x-model.number="ventaManualCantidad" aria-label="Unidades a restar" class="w-24 text-center num-mono text-white bg-[#0a0a0f] border border-[#ff0000] rounded-lg px-2 py-2">
@@ -6879,7 +6881,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <label class="block text-xs text-[#a0a0b8]">Motivo <span class="text-[#5a5a7a]">(opcional)</span>
           <textarea x-model="ventaManualMotivo" maxlength="180" rows="2" placeholder="Si quieres, anota por qué se resta" aria-label="Motivo de la venta manual" class="mt-1 w-full rounded-lg border border-[#ff0000]/50 bg-[#0a0a0f] px-3 py-2 text-sm text-white focus:outline-none"></textarea>
         </label>
-        <button type="button" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando || (ventaManualModo === 'plato' && !platoVentaManualElegido())" @click="confirmarVentaManual()">Restar</button>
+        <button type="button" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando || (ventaManualModo === 'plato' && !platoVentaManualElegido()) || (ventaManualPideCorte() && !ventaManualCorte)" @click="confirmarVentaManual()">Restar</button>
       </div>
     </div>
   </template>
@@ -7617,7 +7619,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           { id: 'carnes', nombre: 'Grupo Carnes', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'trucha', nombre: 'Trucha', open: true, staggerKey: 1, nota: 'Cada corte entra directo' },
           { id: 'carnero', nombre: 'Carnero', open: true, staggerKey: 1, nota: '1 a 1 a Carnero pachamanca y a Seco de carnero' },
-          { id: 'arroz', nombre: 'Arroz crudo', open: true, staggerKey: 1, nota: '1 crudo nace 8 blanco, 6 verde, 2 pato, 2 chaufa o 2 con mariscos' },
+          { id: 'arroz', nombre: 'Arroz crudo', open: true, staggerKey: 1, nota: '1 crudo nace 8 blanco, 6 verde + pato, o beata según su factor' },
           { id: 'gaseosas', nombre: 'Gaseosas', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'licores', nombre: 'Licores', open: true, staggerKey: 1, nota: '', sinDatos: true },
           { id: 'bebidas', nombre: 'Bebidas', open: true, staggerKey: 1, nota: 'Aguas de la carta', sinDatos: true }
@@ -7716,10 +7718,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             open: true,
             children: [
               { id: 'arroz_blanco', nombre: 'Arroz blanco' },
-              { id: 'arroz_verde', nombre: 'Arroz verde' },
-              { id: 'arroz_pato', nombre: 'Arroz pato' },
-              { id: 'arroz_chaufa', nombre: 'Arroz chaufa' },
-              { id: 'arroz_mariscos', nombre: 'Arroz con mariscos' }
+              { id: 'arroz_verde', nombre: 'Arroz verde + Pato' },
+              { id: 'arroz_beata', nombre: 'Arroz Beata' }
             ]
           }
         },
@@ -7753,9 +7753,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorCarneroPachamanca: 1,
           factorArrozBlanco: 8,
           factorArrozVerde: 6,
-          factorArrozPato: 2,
-          factorArrozChaufa: 2,
-          factorArrozMariscos: 2,
+          factorArrozBeata: 1,
           aderezos: [
             { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: false },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna', aceptaPierna: true, aceptaPechuga: false },
@@ -7808,9 +7806,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorCarneroPachamanca: 1,
           factorArrozBlanco: 8,
           factorArrozVerde: 6,
-          factorArrozPato: 2,
-          factorArrozChaufa: 2,
-          factorArrozMariscos: 2,
+          factorArrozBeata: 1,
           aderezos: [],
           relaciones: []
         },
@@ -8024,9 +8020,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           arroz: 'arroz',
           arroz_blanco: 'arroz-blanco',
           arroz_verde: 'arroz-verde',
-          arroz_pato: 'arroz-pato',
-          arroz_chaufa: 'arroz-chaufa',
-          arroz_mariscos: 'arroz-mariscos',
+          arroz_beata: 'arroz-beata',
           papas: 'papas',
           tamal: 'tamal',
           humita: 'humita',
@@ -8151,9 +8145,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return {
             factorArrozBlanco: 8,
             factorArrozVerde: 6,
-            factorArrozPato: 2,
-            factorArrozChaufa: 2,
-            factorArrozMariscos: 2
+            factorArrozBeata: 1
           };
         },
 
@@ -8166,23 +8158,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (!(Number(this.config[k]) > 0)) this.config[k] = base[k];
             });
           }
-          ['factorArrozPato', 'factorArrozChaufa', 'factorArrozMariscos'].forEach((k) => {
-            if (Number(this.config[k]) === 4) this.config[k] = 2;
-          });
           delete this.config.factorArrozPollo;
+          delete this.config.factorArrozPato;
+          delete this.config.factorArrozChaufa;
+          delete this.config.factorArrozMariscos;
         },
 
         camposArroz() {
-          return ['arrozBlanco', 'arrozVerde', 'arrozPato', 'arrozChaufa', 'arrozMariscos'];
+          return ['arrozBlanco', 'arrozVerde', 'arrozBeata'];
         },
 
         destinosArroz() {
           return [
             { campo: 'arrozBlanco', id: 'arroz_blanco', clave: 'arroz-blanco', nombre: 'Arroz blanco', factorKey: 'factorArrozBlanco' },
-            { campo: 'arrozVerde', id: 'arroz_verde', clave: 'arroz-verde', nombre: 'Arroz verde', factorKey: 'factorArrozVerde' },
-            { campo: 'arrozPato', id: 'arroz_pato', clave: 'arroz-pato', nombre: 'Arroz pato', factorKey: 'factorArrozPato' },
-            { campo: 'arrozChaufa', id: 'arroz_chaufa', clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factorKey: 'factorArrozChaufa' },
-            { campo: 'arrozMariscos', id: 'arroz_mariscos', clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factorKey: 'factorArrozMariscos' }
+            { campo: 'arrozVerde', id: 'arroz_verde', clave: 'arroz-verde', nombre: 'Arroz verde + Pato', factorKey: 'factorArrozVerde' },
+            { campo: 'arrozBeata', id: 'arroz_beata', clave: 'arroz-beata', nombre: 'Arroz Beata', factorKey: 'factorArrozBeata' }
           ];
         },
 
@@ -8300,9 +8290,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (n.includes('yuca')) return { rubro: 'Yuca', nota: 'yuca' };
           if (n.includes('papa')) return { rubro: 'Papas', nota: 'papa' };
           if (n.includes('tamal')) return { rubro: 'Tamal', nota: 'tamal' };
-          if (n.includes('arroz') && n.includes('verde')) return { rubro: 'Arroz verde', nota: 'arroz verde' };
-          if (n.includes('arroz') && n.includes('marisco')) return { rubro: 'Arroz con mariscos', nota: 'arroz mariscos' };
-          if (n.includes('chaufa')) return { rubro: 'Arroz chaufa', nota: 'arroz chaufa' };
+          if (n.includes('arroz') && n.includes('verde')) return { rubro: 'Arroz verde + Pato', nota: 'arroz verde' };
+          if (n.includes('arroz') && (n.includes('pato'))) return { rubro: 'Arroz verde + Pato', nota: 'arroz pato' };
+          if (n.includes('arroz') && n.includes('beata')) return { rubro: 'Arroz Beata', nota: 'arroz beata' };
+          if (n.includes('marisco') || n.includes('chaufa')) return null;
           if (n === 'arroz' || n.startsWith('arroz ')) return { rubro: 'Arroz blanco', nota: 'arroz' };
           return null;
         },
@@ -8405,7 +8396,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               else if (n.includes('milanesa')) push(p, 'Milanesa', 1, 'milanesa');
               else if (n.includes('pan con pollo') || (n.includes('sandwich') && n.includes('pollo'))) push(p, 'Sandwich', 1, 'pechuga');
               else if (n.includes('pollada')) push(p, 'Pollada', 1, 'pollada');
-              else if (n.includes('arroz con pato') || n.includes('arroz de pato')) push(p, 'Arroz pato', 1, 'arroz pato');
+              else if (n.includes('arroz beata') || (n.includes('beata') && n.includes('arroz'))) push(p, 'Arroz Beata', 1, 'beata');
+              else if (n.includes('arroz verde') || n.includes('arroz con pato') || n.includes('arroz de pato')) push(p, 'Arroz verde + Pato', 1, 'verde + pato');
               else if (n.includes('arroz con pollo')) push(p, 'Arroz con pollo', 1, 'octavo', 'Sale de Octavo de pollo');
               else if (n.includes('pollo a la olla') || (n.includes('pollo') && /\bolla\b/.test(n))) push(p, 'Pollo a la olla', 1, 'octavo', 'Sale de Octavo de pollo');
               else if (n.includes('caldo') && n.includes('pollo')) push(p, 'Caldo de pollo', 1, 'octavo', 'Sale de Octavo de pollo. Solo crudo');
@@ -8434,8 +8426,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (!tieneGuarni && /papa frita|papas fritas/.test(texto) && !ya('Papas')) {
                 push(p, 'Papas', 1, 'papa fritas', guarnicion('Guarnición: papa fritas'));
               }
-              if (!tieneGuarni && /\barroz\b/.test(texto) && !esChaufa && !n.includes('arroz con pollo') && !n.includes('arroz con pato') && !n.includes('arroz de pato') && !ya('Arroz blanco') && !ya('Arroz pato')) {
-                push(p, 'Arroz blanco', '—', 'por completar', guarnicion('Guarnición: arroz blanco'));
+              if (!tieneGuarni && /\barroz\b/.test(texto) && !esChaufa && !n.includes('marisco') && !n.includes('beata') && !n.includes('arroz verde') && !n.includes('arroz con pollo') && !n.includes('arroz con pato') && !n.includes('arroz de pato') && !ya('Arroz blanco') && !ya('Arroz verde + Pato') && !ya('Arroz Beata')) {
+                push(p, 'Arroz blanco', 1, 'arroz blanco', guarnicion('Guarnición: arroz blanco'));
               }
               if (/\btamal\b/.test(texto) && !ya('Tamal')) {
                 push(p, 'Tamal', 1, 'tamal', guarnicion('Guarnición: tamal'));
@@ -8516,6 +8508,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.config.relaciones = lib
               ? lib.fusionarRelaciones(relaciones, { manuales: this._relacionesManuales || [], quitadas: this._relacionesQuitadas || [] })
               : relaciones;
+            this.normalizarRelacionesArroz();
             this.asegurarRelacionesDeTabla();
             if (this.platosCarta[0]) this.nuevaRelacion.plato = this.platosCarta[0].nombre;
             this.sincronizarBebidas();
@@ -8527,6 +8520,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 quitadas: this._relacionesQuitadas || []
               });
             }
+            this.normalizarRelacionesArroz();
             this.asegurarRelacionesDeTabla();
             this.toastMessage = 'No se pudieron cargar los platos: ' + e.message;
           }
@@ -8555,6 +8549,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaCargando: false,
         reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
         ventaAbierta: false,
+        ventaFiltro: null,
+        ventaDesdeReporte: false,
+        ventaEliminando: false,
         ingresoLupa: null,
         ventaManualAbierta: false,
         ventaManualFila: null,
@@ -8564,6 +8561,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ventaManualModo: 'unidad',
         ventaManualPlatoKey: '',
         ventaManualPlatos: 1,
+        ventaManualCorte: '',
         bloqueo: { abierto: false, tab: 'productos', busqueda: '', motivo: '', hasta: '', lineas: {} },
         ingresoAbierto: {},
         ventasPeriodo: [],
@@ -9223,17 +9221,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const extras = {
             pierna: ['pierna-pollo', 'pollada', 'pachamanca-pollo', 'pierna-lena', 'menu', 'menu-pierna'],
             arroz_blanco: ['arroz-blanco'],
-            arroz_verde: ['arroz-verde'],
-            arroz_pato: ['arroz-pato'],
-            arroz_chaufa: ['arroz-chaufa'],
-            arroz_mariscos: ['arroz-mariscos'],
+            arroz_verde: ['arroz-verde', 'arroz-pato'],
+            arroz_beata: ['arroz-beata'],
             trozo_panceta: ['trozo-panceta', 'chancho-lena', 'chancho-lena-bbq', 'chaufa-chancho', 'mix-lena'],
             chicharron_chancho: ['chicharron-chancho', 'fuente-chicharron-chancho', 'medio-chicharron-chancho', 'desayuno-criollo'],
             pieza_pescado: ['pieza-pescado', 'duo-marino', 'ceviche', 'ceviche-pescado', 'chicharron-pescado', 'jalea-pescado', 'pescado-frito'],
             pieza_pota: ['pieza-pota', 'ceviche-pota', 'chicharron-pota'],
             cuy: ['cuy', 'cuy-entero', 'medio-cuy'],
             pechuga_pato: ['pechuga-pato'],
-            pierna_pato: ['pierna-pato']
+            pierna_pato: ['pierna-pato'],
+            octavo_pollo: ['octavo-pollo', 'arroz-pollo', 'pollo-olla', 'caldo-pollo']
           };
           const hijos = row ? this.platosOcultosDe(row.id).map((n) => this.claveDeFila[n.id]).filter(Boolean) : [];
           return [clave].concat(hijos, extras[row && row.id] || []).filter(Boolean);
@@ -9287,7 +9284,102 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           window.location.href = '/comandas.html?' + q.toString();
         },
 
-        abrirVenta(f, pack) {
+        motivoEscritoVenta(motivo) {
+          let s = String(motivo || '').trim();
+          if (s.indexOf('Venta manual') !== 0) return '';
+          s = s.slice('Venta manual'.length);
+          const placa = s.match(/^\s*·\s*.+?\s×\s*\d+\s*/);
+          if (placa) s = s.slice(placa[0].length);
+          const corte = s.match(/^\s*·\s*(pecho|pierna)\s*(?=·|$)/i);
+          if (corte) s = s.slice(corte[0].length);
+          return s.replace(/^\s*·\s*/, '').trim();
+        },
+
+        loteVentaManual() {
+          const a = Date.now().toString(36).slice(-10);
+          const b = (Math.random().toString(36).slice(2) + '000000').slice(0, 6);
+          return 'vm-' + a + '-' + b;
+        },
+
+        lineasDeVentaManual(movimientos, claves, f) {
+          const todas = (movimientos || []).filter((m) => m && m.clase === 'egreso' && String(m.motivo || '').indexOf('Venta manual') === 0);
+          const grupos = [];
+          const porLote = new Map();
+          const sueltos = [];
+          todas.forEach((m) => {
+            const lote = String(m.lote || '').trim();
+            if (lote) {
+              if (!porLote.has(lote)) porLote.set(lote, []);
+              porLote.get(lote).push(m);
+            } else sueltos.push(m);
+          });
+          porLote.forEach((lista, lote) => grupos.push({ lote, movs: lista }));
+          sueltos.forEach((m) => grupos.push({ lote: '', movs: [m] }));
+          const lineas = [];
+          grupos.forEach((g) => {
+            const visibles = g.movs.filter((m) => claves.has(m.rubro));
+            const cantidad = visibles.reduce((a, m) => a + (Number(m.cantidad) || 0), 0);
+            if (!cantidad) return;
+            const primero = visibles.slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0];
+            const usos = [];
+            visibles.forEach((m) => {
+              const tipo = m.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
+              const esPrincipal = m.rubro === (f && f.clave);
+              const uso = esPrincipal
+                ? ('Principal — ' + (f.nombre || m.nombre || m.rubro))
+                : (tipo + ' — ' + (m.nombre || m.rubro));
+              if (usos.indexOf(uso) < 0) usos.push(uso);
+            });
+            const escrito = g.movs.map((m) => this.motivoEscritoVenta(m.motivo)).find((t) => t) || '';
+            lineas.push({
+              nombre: primero.nombre || (f && f.nombre) || 'Venta manual',
+              cantidad,
+              platos: cantidad,
+              factor: 1,
+              comanda: 'Venta manual',
+              comandaId: '',
+              hora: primero.fecha,
+              uso: usos.join(' · '),
+              manual: true,
+              motivo: escrito,
+              nota: escrito,
+              lote: g.lote || '',
+              ids: g.movs.map((m) => String(m._id))
+            });
+          });
+          return lineas;
+        },
+
+        async eliminarVentaManual(linea) {
+          if (!linea || !linea.manual || this.ventaEliminando) return;
+          const cual = linea.nota ? (linea.nombre + ' · ' + linea.nota) : linea.nombre;
+          if (!window.confirm('¿Eliminar esta venta manual de ' + cual + '? Se devuelve el stock que restó.')) return;
+          const filtro = this.ventaFiltro;
+          const desdeReporte = this.ventaDesdeReporte;
+          this.ventaEliminando = true;
+          try {
+            await this.api('/inventario/venta-manual/eliminar', {
+              method: 'POST',
+              body: JSON.stringify(linea.lote ? { lote: linea.lote } : { ids: linea.ids || [] })
+            });
+            this.toastMessage = 'Venta manual eliminada. El stock volvió.';
+            await this.cargarKardex();
+            if (desdeReporte && this.reporteDiaAbierto) await this.cargarReporteDia();
+            if (!filtro) return;
+            const pack = desdeReporte
+              ? { ventas: this.reporteDiaVista.ventas, movimientos: this.reporteDiaVista.movimientos }
+              : { ventas: this.ventasPeriodo || [], movimientos: this.movimientosPeriodo || [] };
+            this.abrirVenta(filtro, pack, desdeReporte);
+          } catch (e) {
+            this.toastMessage = e.message || 'No se pudo eliminar la venta manual';
+          } finally {
+            this.ventaEliminando = false;
+          }
+        },
+
+        abrirVenta(f, pack, desdeReporte) {
+          this.ventaFiltro = f || null;
+          this.ventaDesdeReporte = desdeReporte === true || !!(pack && pack === this.reporteDiaVista);
           const claves = new Set((f && f.claves) || [f && f.clave]);
           const ventas = pack && pack.ventas ? pack.ventas : [];
           const movimientos = pack && pack.movimientos ? pack.movimientos : [];
@@ -9342,15 +9434,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           (movimientos || []).forEach((m) => {
             if (!claves.has(m.rubro) || m.clase !== 'egreso') return;
             const motivo = String(m.motivo || '');
-            if (motivo.indexOf('Venta') !== 0) return;
+            if (motivo.indexOf('Venta') !== 0 || motivo.indexOf('Venta manual') === 0) return;
             const tipo = m.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
             const esPrincipal = m.rubro === (f && f.clave);
             const uso = esPrincipal
               ? ('Principal — ' + (f.nombre || m.nombre || m.rubro))
               : (tipo + ' — ' + (m.nombre || m.rubro));
-            sumar(m.nombre || f.nombre || 'Venta manual', m.cantidad, 'Venta manual', { hora: m.fecha, factor: 1, platos: m.cantidad }, uso);
+            sumar(m.nombre || f.nombre || motivo, m.cantidad, motivo, { hora: m.fecha, factor: 1, platos: m.cantidad }, uso);
           });
-          const lineas = Object.keys(map).map((key) => map[key]).sort((a, b) => {
+          const lineas = Object.keys(map).map((key) => map[key]).concat(this.lineasDeVentaManual(movimientos, claves, f)).sort((a, b) => {
             const c = String(a.comanda).localeCompare(String(b.comanda), 'es');
             return c || String(a.nombre).localeCompare(String(b.nombre), 'es');
           });
@@ -9510,7 +9602,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
-        async paso(rubro, tipo, cantidad, motivo, clase, nombre, fecha) {
+        async paso(rubro, tipo, cantidad, motivo, clase, nombre, fecha, lote) {
           const n = Number(cantidad) || 0;
           const claseFinal = clase || 'ingreso';
           if (!n && claseFinal !== 'inventario') return;
@@ -9525,6 +9617,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           // quedaba después de una venta de las 10:00 y la venta restaba crudo.
           if (fecha) body.fecha = fecha;
           if (nombre) body.nombre = nombre;
+          if (lote) body.lote = lote;
           await this.api('/inventario/movimientos', {
             method: 'POST',
             body: JSON.stringify(body)
@@ -9541,7 +9634,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.ventaManualPlatos = 1;
           const lista = this.platosVentaManual(row);
           this.ventaManualPlatoKey = lista.length ? lista[0].key : '';
+          this.ventaManualCorte = '';
           this.ventaManualAbierta = true;
+        },
+
+        esFilaOctavo(row) {
+          if (!row) return false;
+          return row.id === 'octavo_pollo' || this.claveDeFila[row.id] === 'octavo-pollo';
+        },
+
+        esPlatoOctavo(p) {
+          if (!p) return false;
+          if (p.filaId === 'arroz_con_pollo' || p.filaId === 'pollo_olla' || p.filaId === 'caldo_pollo') return true;
+          const n = this.norm(p.nombre);
+          return n.includes('arroz con pollo') || n.includes('pollo a la olla') || n.includes('pollo olla') || (n.includes('caldo') && n.includes('pollo'));
+        },
+
+        ventaManualPideCorte() {
+          if (this.esFilaOctavo(this.ventaManualFila)) return true;
+          return this.ventaManualModo === 'plato' && this.esPlatoOctavo(this.platoVentaManualElegido());
         },
 
         // Platos que se pueden restar desde la venta manual de un producto:
@@ -9635,12 +9746,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const partes = porPlato ? this.partesVentaManualPlato() : this.repartirVentaManual(clave, row, n);
           const nota = String(this.ventaManualMotivo || '').trim();
           const base = porPlato ? ('Venta manual · ' + plato.nombre + ' ×' + n) : 'Venta manual';
-          const motivo = nota ? (base + ' · ' + nota) : base;
+          if (this.ventaManualPideCorte() && this.ventaManualCorte !== 'pechugas' && this.ventaManualCorte !== 'piernas') {
+            this.toastMessage = 'Elige si el octavo es de pecho o de pierna.';
+            return;
+          }
+          const marca = this.ventaManualPideCorte() ? (' · ' + this.marcaCorte(this.ventaManualCorte)) : '';
+          const motivo = nota ? (base + marca + ' · ' + nota) : (base + marca);
           this.ventaManualGuardando = true;
+          const lote = this.loteVentaManual();
           try {
             await (this._colaTransformar || Promise.resolve());
             for (const p of partes) {
-              await this.paso(p.rubro, p.tipo, p.cantidad, motivo, 'egreso', p.nombre);
+              await this.paso(p.rubro, p.tipo, p.cantidad, motivo, 'egreso', p.nombre, null, lote);
             }
             this.ventaManualAbierta = false;
             this.toastMessage = porPlato
@@ -10139,7 +10256,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Panceta', [['panceta', 'Panceta'], ['trozo_panceta', 'Pieza de panceta']]),
             cuadro('Carnes', [['carne_bistec', 'Carne Bistec'], ['lomo_fino', 'Lomo Fino'], ['carne_guiso', 'Seco de Res']]),
             cuadro('Trucha', [['trucha_entera', 'Trucha entera'], ['filete_trucha', 'Filete de trucha']]),
-            cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde'], ['arroz_pato', 'Arroz pato'], ['arroz_chaufa', 'Arroz chaufa'], ['arroz_mariscos', 'Arroz con mariscos']]),
+            cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde + Pato'], ['arroz_beata', 'Arroz Beata']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pecho de Pato'], ['pierna_pato', 'Pierna de pato']]),
             cuadro('Pota', [['pieza_pota', 'Pieza de pota']]),
             cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal'], ['humita', 'Humita'], ['yuca', 'Yuca']]),
@@ -10334,10 +10451,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'cerdo_pachamanca', grupo: null, nombre: 'Cerdo pachamanca', detalle: 'Sabor de pachamanca. La venta de Cerdo de pachamanca resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'arroz', grupo: 'arroz', nombre: 'Arroz crudo', detalle: 'Lo que ingresa', unidad: 'unid', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 18, destinoTrans: '→ tipos', inventario: null, crudo: 2, cocido: 0 },
             { id: 'arroz_blanco', grupo: 'arroz', nombre: 'Arroz blanco', detalle: '1 crudo = 8', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 6 },
-            { id: 'arroz_verde', grupo: 'arroz', nombre: 'Arroz verde', detalle: '1 crudo = 6', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'arroz_pato', grupo: 'arroz', nombre: 'Arroz pato', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 4, correccion: 0, venta: 0, ritmoVentaDiario: 3, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 4 },
-            { id: 'arroz_chaufa', grupo: 'arroz', nombre: 'Arroz chaufa', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'arroz_mariscos', grupo: 'arroz', nombre: 'Arroz con mariscos', detalle: '1 crudo = 4', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'arroz_verde', grupo: 'arroz', nombre: 'Arroz verde + Pato', detalle: '1 crudo = 6. El pato sale de este mismo arroz', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'arroz_beata', grupo: 'arroz', nombre: 'Arroz Beata', detalle: '1 crudo = el factor de Beata', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'tamal', grupo: null, nombre: 'Tamal', detalle: 'Guarnición y plato', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'humita', grupo: null, nombre: 'Humita', detalle: '1 sabor = 1, 2 sabores = 2, 3 = 3, 4 = 4. La pieza no cambia la cuenta', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -12578,9 +12693,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               carnero_pachamanca: 'carnero',
               arroz_blanco: 'arroz',
               arroz_verde: 'arroz',
-              arroz_pato: 'arroz',
-              arroz_chaufa: 'arroz',
-              arroz_mariscos: 'arroz',
+              arroz_beata: 'arroz',
               arroz_con_pollo: 'octavo_pollo',
               pollo_olla: 'octavo_pollo',
               caldo_pollo: 'octavo_pollo',
@@ -12819,16 +12932,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return corte === 'piernas' || corte === 'pierna' ? 'pierna' : 'pecho';
         },
 
+        motivoEsCorte(motivo, corte) {
+          const m = this.norm(motivo);
+          const pecho = m.includes('pecho') || m.includes('pechuga');
+          const pierna = m.includes('pierna');
+          if (corte === 'piernas' || corte === 'pierna') return pierna && !pecho;
+          return pecho && !pierna;
+        },
+
         netoMarcado(platoId, corte, tipo) {
           const rowId = this.filaIdDePlatoTransformar(platoId) || platoId;
           const clave = this.claveDeFila[rowId];
-          const marca = '· ' + this.marcaCorte(corte);
           const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
           const total = (this.movimientosPeriodo || []).reduce((a, m) => {
-            if (!m || m.rubro !== clave || m.clase !== 'ingreso') return a;
+            if (!m || m.rubro !== clave || !this.motivoEsCorte(m.motivo, corte)) return a;
             if ((m.tipoProducto || 'crudo') !== tipoOk) return a;
-            if (String(m.motivo || '').indexOf(marca) === -1) return a;
-            return a + (Number(m.cantidad) || 0);
+            const n = Number(m.cantidad) || 0;
+            if (m.clase === 'egreso') return a - Math.abs(n);
+            if (m.clase === 'ingreso' || m.clase === 'regulacion') return a + n;
+            return a;
           }, 0);
           return this.redondear3(total);
         },
@@ -12850,12 +12972,51 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(pecho);
         },
 
-        octavosStockCorte(corte) {
-          const creados = this.octavosDe(corte);
+        octavosTagLibre(corte) {
+          const clave = this.claveDeFila.octavo_pollo;
+          let ingresos = 0;
+          let egresos = 0;
+          (this.movimientosPeriodo || []).forEach((m) => {
+            if (!m || m.rubro !== clave || !this.motivoEsCorte(m.motivo, corte)) return;
+            const n = Math.abs(Number(m.cantidad) || 0);
+            if (m.clase === 'egreso') egresos += n;
+            else if (m.clase === 'ingreso' || m.clase === 'regulacion') ingresos += Number(m.cantidad) || 0;
+          });
+          const creados = Math.max(this.octavosDe(corte), Math.max(0, this.redondear3(ingresos)));
           const usados = this.platosDelOctavo().reduce((a, p) => {
             return a + Math.max(0, this.netoMarcado(p.id, corte, 'crudo')) + Math.max(0, this.netoMarcado(p.id, corte, 'cocido'));
           }, 0);
-          return Math.max(0, this.redondear3(creados - usados));
+          return Math.max(0, this.redondear3(creados - usados - egresos));
+        },
+
+        octavosSeparados() {
+          const real = this.stockCuadro('octavo_pollo', 'crudo');
+          const sum = this.octavosTagLibre('pechugas') + this.octavosTagLibre('piernas');
+          return sum > 0.5 && sum + 0.5 >= real * 0.5;
+        },
+
+        octavosStockCorte(corte) {
+          const real = this.stockCuadro('octavo_pollo', 'crudo');
+          if (!(real > 0)) return 0;
+          const pecho = this.octavosTagLibre('pechugas');
+          const pierna = this.octavosTagLibre('piernas');
+          const sum = this.redondear3(pecho + pierna);
+          if (!this.octavosSeparados()) return real;
+          let p = pecho;
+          let l = pierna;
+          if (sum > real + 0.0001) {
+            const f = real / sum;
+            p *= f;
+            l *= f;
+          } else if (real > sum + 0.0001) {
+            const extra = real - sum;
+            if (p > 0 && l > 0) {
+              p += extra * (p / sum);
+              l += extra * (l / sum);
+            } else if (p > 0) l = extra;
+            else p = extra;
+          }
+          return this.redondear3(corte === 'pechugas' ? p : l);
         },
 
         fijarOctavosStock(corte, valor) {
@@ -12863,7 +13024,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const next = Math.max(0, Math.round(Number(valor) || 0));
           const delta = next - actual;
           if (!delta) return false;
-          return this.updateOctavos(corte, this.octavosDe(corte) + delta);
+          const padre = corte === 'piernas' ? 'pierna' : 'pechuga';
+          return this.transferir({
+            origenId: padre,
+            salen: this.redondear3(delta / this.factorOctavosPorPieza()),
+            destinos: [{ id: 'octavo_pollo', entran: delta }],
+            motivo: this.motivoHacia('octavo_pollo'),
+            motivoDestino: this.motivoDesde(padre),
+            historial: this.nombreFila(padre) + ' → Octavos (2 = 1 pieza)'
+          });
         },
 
         fijarOctavoPlato(platoId, corte, tipo, valor) {
@@ -13431,7 +13600,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         octavosDe(corte) {
           const padre = corte === 'piernas' ? 'pierna' : 'pechuga';
-          return this.redondear3(this.transformadoHoy(padre, this.motivoHacia('octavo_pollo')) * this.factorOctavosPorPieza());
+          const clave = this.claveDeFila[padre];
+          if (!clave) return 0;
+          const exacto = this.motivoHacia('octavo_pollo');
+          const piezas = (this.movimientosPeriodo || []).reduce((a, m) => {
+            if (!m || m.rubro !== clave || m.clase !== 'ingreso') return a;
+            const motivo = String(m.motivo || '');
+            const esOctavo = motivo === exacto || (motivo.indexOf('Pasa a ') === 0 && this.norm(motivo).includes('octavo'));
+            if (!esOctavo) return a;
+            return a - (Number(m.cantidad) || 0);
+          }, 0);
+          return Math.max(0, this.redondear3(piezas * this.factorOctavosPorPieza()));
         },
 
         piezasPorOctavos(corte) {
@@ -13443,7 +13622,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         totalOctavosLibres() {
-          return this.redondear3(this.octavosStockCorte('pechugas') + this.octavosStockCorte('piernas'));
+          return this.stockCuadro('octavo_pollo', 'crudo');
         },
 
 
@@ -13828,6 +14007,29 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Relación de platos
+        normalizarRelacionesArroz() {
+          const nuevo = {
+            'arroz pato': 'Arroz verde + Pato',
+            'arroz verde': 'Arroz verde + Pato',
+            'arroz con pato': 'Arroz verde + Pato',
+            'arroz beata': 'Arroz Beata'
+          };
+          const quitar = {
+            'arroz chaufa': true,
+            'arroz con mariscos': true,
+            'arroz mariscos': true,
+            'arroz pollo': true,
+            'arroz tipo pollo': true
+          };
+          this.config.relaciones = (this.config.relaciones || []).filter((r) => {
+            if (!r) return false;
+            const n = this.norm(r.rubro);
+            if (quitar[n]) return false;
+            if (nuevo[n]) r.rubro = nuevo[n];
+            return true;
+          });
+        },
+
         rubrosRelacionDeFila(rowId) {
           const mapa = {
             pechuga: ['Pechuga de Pollo', 'Pechuga de pollo', 'Pecho de Pollo', 'Pecho de pollo'],
@@ -13858,10 +14060,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             pollo_olla: ['Pollo a la olla'],
             caldo_pollo: ['Caldo de pollo'],
             octavo_pollo: ['Octavo de pollo'],
-            arroz_verde: ['Arroz verde'],
-            arroz_pato: ['Arroz pato'],
-            arroz_chaufa: ['Arroz chaufa'],
-            arroz_mariscos: ['Arroz con mariscos'],
+            arroz_verde: ['Arroz verde + Pato', 'Arroz verde', 'Arroz pato', 'Arroz con pato'],
+            arroz_beata: ['Arroz Beata'],
             trozo_panceta: ['Pieza de panceta', 'Trozo de panceta', 'Panceta'],
             chicharron_chancho: ['Chicharrón de chancho crudo', 'Chicharrón de chancho'],
             pechuga_pato: ['Pechuga de pato', 'Pecho de Pato', 'Pato'],
@@ -14789,15 +14989,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               tipoLabel: 'Despiece',
               origenNombre: 'Arroz crudo',
               origenClave: 'arroz',
-              origenSubtexto: 'Se reparte en 5 arroces cocidos con su propio factor',
-              resumenRegla: 'De Arroz crudo salen cinco productos cocidos, cada uno con su propio factor por porción.',
+              origenSubtexto: 'Se reparte en blanco, verde + pato y beata',
+              resumenRegla: 'De 1 arroz crudo salen 8 blanco o 6 verde + pato. Beata usa su factor.',
               notaNoSuma: 'Factores por 1 unidad de arroz crudo',
               ramas: [
                 { clave: 'arroz-blanco', nombre: 'Arroz blanco', color: '#38bdf8', factorTexto: 'Factor: 8', subFactorTexto: 'Guarnición general', notaCorte: '', platos: [{ nombre: 'Platos con guarnición de arroz blanco', complemento: 'Carta', cantidad: 1, esAderezo: false }] },
-                { clave: 'arroz-verde', nombre: 'Arroz verde', color: '#34d399', factorTexto: 'Factor: 6', subFactorTexto: 'Cocido', notaCorte: '', platos: [] },
-                { clave: 'arroz-pato', nombre: 'Arroz pato', color: '#d4af37', factorTexto: 'Factor: 2', subFactorTexto: 'Cocido', notaCorte: '', platos: [{ nombre: 'Arroz con pato a la chiclayana', complemento: 'A48', cantidad: 1, esAderezo: false }] },
-                { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', color: '#f472b6', factorTexto: 'Factor: 2', subFactorTexto: 'Cocido', notaCorte: '', platos: [] },
-                { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', color: '#a78bfa', factorTexto: 'Factor: 2', subFactorTexto: 'Cocido', notaCorte: '', platos: [{ nombre: 'Arroz con mariscos', complemento: 'A79', cantidad: 1, esAderezo: false }] }
+                { clave: 'arroz-verde', nombre: 'Arroz verde + Pato', color: '#34d399', factorTexto: 'Factor: 6', subFactorTexto: '1 crudo = 6', notaCorte: '', platos: [{ nombre: 'Arroz con pato', complemento: 'Sale de este arroz', cantidad: 1, esAderezo: false }] },
+                { clave: 'arroz-beata', nombre: 'Arroz Beata', color: '#d4af37', factorTexto: 'Factor: 1', subFactorTexto: 'Según configuración', notaCorte: '', platos: [] }
               ]
             };
           }
@@ -15847,10 +16045,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               origen: { clave: 'arroz', nombre: 'Arroz crudo' },
               cortes: [
                 { clave: 'arroz-blanco', nombre: 'Arroz blanco', factor: 8, factorDesde: '' },
-                { clave: 'arroz-verde', nombre: 'Arroz verde', factor: 6, factorDesde: '' },
-                { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 2, factorDesde: '' },
-                { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factor: 2, factorDesde: '' },
-                { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factor: 2, factorDesde: '' }
+                { clave: 'arroz-verde', nombre: 'Arroz verde + Pato', factor: 6, factorDesde: '' },
+                { clave: 'arroz-beata', nombre: 'Arroz Beata', factor: 1, factorDesde: '' }
               ],
               platos: []
             },

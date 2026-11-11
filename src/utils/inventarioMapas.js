@@ -56,10 +56,8 @@ const SEMILLA = [
         origen: { clave: 'arroz', nombre: 'Arroz crudo' },
         cortes: [
             { clave: 'arroz-blanco', nombre: 'Arroz blanco', factor: 8, factorDesde: '' },
-            { clave: 'arroz-verde', nombre: 'Arroz verde', factor: 6, factorDesde: '' },
-            { clave: 'arroz-pato', nombre: 'Arroz pato', factor: 2, factorDesde: '' },
-            { clave: 'arroz-chaufa', nombre: 'Arroz chaufa', factor: 2, factorDesde: '' },
-            { clave: 'arroz-mariscos', nombre: 'Arroz con mariscos', factor: 2, factorDesde: '' }
+            { clave: 'arroz-verde', nombre: 'Arroz verde + Pato', factor: 6, factorDesde: '' },
+            { clave: 'arroz-beata', nombre: 'Arroz Beata', factor: 1, factorDesde: '' }
         ],
         platos: []
     },
@@ -223,15 +221,23 @@ function aplicarGruposPollo(mapas) {
     return mapas;
 }
 
-const FACTOR_ARROZ = { 'arroz-pato': 2, 'arroz-chaufa': 2, 'arroz-mariscos': 2 };
+const CORTES_ARROZ_QUITADOS = new Set(['arroz-tipo-pollo', 'arroz-pato', 'arroz-chaufa', 'arroz-mariscos']);
 
 function aplicarArroz(mapas) {
     (mapas || []).forEach((m) => {
         if (!m || m.id !== 'arroz') return;
-        m.cortes = (m.cortes || []).filter((c) => c.clave !== 'arroz-tipo-pollo');
-        m.cortes.forEach((c) => {
-            if (FACTOR_ARROZ[c.clave] && Number(c.factor) === 4) c.factor = FACTOR_ARROZ[c.clave];
-        });
+        m.cortes = (m.cortes || []).filter((c) => !CORTES_ARROZ_QUITADOS.has(c.clave));
+        const tiene = (clave) => m.cortes.some((c) => c.clave === clave);
+        if (!tiene('arroz-verde')) {
+            m.cortes.push({ clave: 'arroz-verde', nombre: 'Arroz verde + Pato', factor: 6, factorDesde: '' });
+        } else {
+            m.cortes.forEach((c) => {
+                if (c.clave === 'arroz-verde') c.nombre = 'Arroz verde + Pato';
+            });
+        }
+        if (!tiene('arroz-beata')) {
+            m.cortes.push({ clave: 'arroz-beata', nombre: 'Arroz Beata', factor: 1, factorDesde: '' });
+        }
     });
     return mapas;
 }

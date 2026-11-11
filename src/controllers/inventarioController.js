@@ -83,6 +83,37 @@ async function auditarPuestaEnCero(req, data) {
     }
 }
 
+async function auditarVentaManualAnulada(req, data) {
+    try {
+        const admin = req.admin || {};
+        const lista = (data.movimientos || []).map((m) => ({
+            producto: m.nombre,
+            rubro: m.rubro || '',
+            tipoProducto: m.tipoProducto,
+            cantidad: m.cantidad,
+            motivo: m.motivo,
+            lote: m.lote || ''
+        }));
+        const n = data.eliminados || 0;
+        await AuditoriaAcciones.create({
+            accion: 'INVENTARIO_VENTA_MANUAL_ANULADA',
+            entidadTipo: 'inventario',
+            usuario: objectIdUsuarioOrNull(admin.id),
+            usuarioNombre: admin.name || null,
+            motivo: 'Eliminó una venta manual',
+            ip: req.ip || null,
+            datosAntes: { eliminados: n, movimientos: lista },
+            metadata: {
+                resumen: 'Venta manual eliminada · ' + n + (n === 1 ? ' movimiento' : ' movimientos'),
+                eliminados: n,
+                movimientos: lista
+            }
+        });
+    } catch (error) {
+        logger.warn('No se registró auditoría al eliminar la venta manual', { error: error.message });
+    }
+}
+
 async function auditarDiaBorrado(req, data) {
     try {
         const admin = req.admin || {};
@@ -165,6 +196,16 @@ router.post('/inventario/poner-en-cero', adminAuth, checkPermission('ver-inventa
         const data = await inventario.ponerEnCero(req.admin && req.admin.id);
         await auditarPuestaEnCero(req, data);
         res.json({ success: true, puestos: data.puestos });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
+router.post('/inventario/venta-manual/eliminar', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const data = await inventario.eliminarVentaManual(req.body || {});
+        await auditarVentaManualAnulada(req, data);
+        res.json({ success: true, eliminados: data.eliminados });
     } catch (error) {
         errorHttp(error, res);
     }

@@ -63,7 +63,8 @@ const auditoriaSchema = new mongoose.Schema({
       'INVENTARIO_INGRESO',
       'INVENTARIO_EGRESO',
       'INVENTARIO_DIA_BORRADO',
-      'INVENTARIO_PUESTA_EN_CERO'
+      'INVENTARIO_PUESTA_EN_CERO',
+      'INVENTARIO_VENTA_MANUAL_ANULADA'
     ],
     index: true
   },

@@ -8,12 +8,15 @@ function dia(ymd, hora) {
 test('arroz con pollo, caldo y olla salen del menu pecho o pierna', () => {
     const arroz = aplicarMapa([{ nombre: 'Arroz con pollo Pec', cantidad: 2 }]);
     expect(arroz['arroz-tipo-pollo']).toBeUndefined();
-    expect(arroz['menu-pecho']).toBe(2);
+    expect(arroz['arroz-pollo']).toBe(2);
+    expect(arroz['menu-pecho']).toBeUndefined();
     expect(arroz['pechuga-pollo']).toBeUndefined();
     const caldo = aplicarMapa([{ nombre: 'Caldo de pollo Pie', cantidad: 2 }]);
-    expect(caldo['menu-pierna']).toBe(2);
+    expect(caldo['caldo-pollo']).toBe(2);
+    expect(caldo['menu-pierna']).toBeUndefined();
     const olla = aplicarMapa([{ nombre: 'Pollo a la olla', cantidad: 4 }]);
-    expect(olla['menu-pecho']).toBe(4);
+    expect(olla['pollo-olla']).toBe(4);
+    expect(olla['menu-pecho']).toBeUndefined();
 });
 
 test('cada tipo de arroz descuenta su fila y el chaufa de pollo no', () => {
@@ -25,8 +28,8 @@ test('cada tipo de arroz descuenta su fila y el chaufa de pollo no', () => {
         { nombre: 'Arroz chaufa de pollo', cantidad: 1 }
     ]);
     expect(porRubro['arroz-verde']).toBe(2);
-    expect(porRubro['arroz-mariscos']).toBe(1);
-    expect(porRubro['arroz-chaufa']).toBe(3);
+    expect(porRubro['arroz-mariscos']).toBeUndefined();
+    expect(porRubro['arroz-chaufa']).toBeUndefined();
     expect(porRubro['arroz-blanco']).toBe(1);
     expect(porRubro['chaufa-pollo']).toBe(1);
     expect(porRubro.filete).toBeUndefined();
@@ -299,7 +302,7 @@ test('el arroz con pato de pecho come pechuga y el de pierna come pierna', () =>
     const pecho = aplicarMapa([{ nombre: 'Arroz con pato pecho', cantidad: 2 }]);
     expect(pecho['pechuga-pato']).toBe(2);
     expect(pecho['pierna-pato']).toBeUndefined();
-    expect(pecho['arroz-pato']).toBe(2);
+    expect(pecho['arroz-verde']).toBe(2);
     const partido = aplicarMapa([{
         nombre: 'Arroz con pato',
         cantidad: 3,
@@ -307,10 +310,10 @@ test('el arroz con pato de pecho come pechuga y el de pierna come pierna', () =>
     }]);
     expect(partido['pechuga-pato']).toBe(2);
     expect(partido['pierna-pato']).toBe(1);
-    expect(partido['arroz-pato']).toBe(3);
+    expect(partido['arroz-verde']).toBe(3);
     const sinCorte = aplicarMapa([{ nombre: 'Arroz con pato', cantidad: 1 }]);
     expect(sinCorte['pechuga-pato']).toBeUndefined();
-    expect(sinCorte['arroz-pato']).toBe(1);
+    expect(sinCorte['arroz-verde']).toBe(1);
 });
 
 test('la pota solo sale en ceviche de chicharrón de pota y en chicharrón de pota', () => {

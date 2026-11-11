@@ -9,6 +9,7 @@ const inventarioMovimientoSchema = new mongoose.Schema({
     clase: { type: String, required: true, enum: ['ingreso', 'egreso', 'regulacion', 'inventario'] },
     cantidad: { type: Number, required: true },
     motivo: { type: String, required: true, trim: true, maxlength: 200 },
+    lote: { type: String, default: '', trim: true, maxlength: 40 },
     comanda: { type: mongoose.Schema.Types.ObjectId, ref: 'Comanda', default: null },
     usuario: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
     fecha: { type: Date, required: true, default: Date.now }

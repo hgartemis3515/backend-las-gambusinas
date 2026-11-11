@@ -91,8 +91,9 @@ function rubroDeGuarnicion(nombre) {
     if (n.includes('papa')) return { rubro: 'papas', factor: 1 };
     if (n.includes('tamal')) return { rubro: 'tamal', factor: 1 };
     if (n.includes('arroz') && n.includes('verde')) return { rubro: 'arroz-verde', factor: 1 };
-    if (n.includes('arroz') && n.includes('marisco')) return { rubro: 'arroz-mariscos', factor: 1 };
-    if (n.includes('chaufa')) return { rubro: 'arroz-chaufa', factor: 1 };
+    if (n.includes('arroz') && n.includes('pato')) return { rubro: 'arroz-verde', factor: 1 };
+    if (n.includes('arroz') && n.includes('beata')) return { rubro: 'arroz-beata', factor: 1 };
+    if (n.includes('marisco') || n.includes('chaufa')) return null;
     if (n === 'arroz' || n.startsWith('arroz ')) return { rubro: 'arroz-blanco', factor: 1 };
     return null;
 }
@@ -219,15 +220,11 @@ function partirLeñaPorCorte(fila) {
     return out;
 }
 
-function rubroMenuDe(n) {
-    const es = (n.includes('caldo') && n.includes('pollo'))
-        || n.includes('arroz con pollo')
-        || n.includes('pollo a la olla')
-        || (n.includes('pollo') && /\bolla\b/.test(n));
-    if (!es) return '';
-    if (/(^| )pec$/.test(n)) return 'menu-pecho';
-    if (/(^| )pie$/.test(n)) return 'menu-pierna';
-    return 'menu-pecho';
+function rubroOctavoDe(n) {
+    if (n.includes('caldo') && n.includes('pollo')) return 'caldo-pollo';
+    if (n.includes('arroz con pollo')) return 'arroz-pollo';
+    if (n.includes('pollo a la olla') || (n.includes('pollo') && /\bolla\b/.test(n))) return 'pollo-olla';
+    return '';
 }
 
 function rubrosDeFila(fila, mapas, bebidas) {
@@ -306,17 +303,16 @@ function rubrosDeFila(fila, mapas, bebidas) {
     if ((n === 'delicia' || n.includes('delicias')) && !lista.some((x) => x.rubro === 'delicias')) add('delicias');
     if (/\bhelados?\b/.test(n) && !lista.some((x) => x.rubro === 'helados')) add('helados');
     if (!opcional && (n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
-    if (n.includes('arroz verde')) add('arroz-verde');
-    else if (n.includes('arroz con mariscos') || n.includes('arroz de mariscos') || n.includes('arroz mariscos')) add('arroz-mariscos');
-    else if ((n.includes('arroz chaufa') || n.includes('chaufa de arroz')) && !n.includes('pollo')) add('arroz-chaufa');
-    else if (n.includes('arroz blanco')) add('arroz-blanco');
-    else if (n.includes('arroz con pato') || n.includes('arroz de pato')) {
-        if (!lista.some((x) => x.rubro === 'arroz-pato')) add('arroz-pato');
-    } else if (!opcional && /\barroz\b/.test(n) && !n.includes('chaufa') && !n.includes('arroz con pollo') && !lista.some((x) => x.rubro === 'arroz-blanco')) {
+    if (n.includes('arroz verde') || n.includes('arroz con pato') || n.includes('arroz de pato')) {
+        if (!lista.some((x) => x.rubro === 'arroz-verde')) add('arroz-verde');
+    } else if (n.includes('arroz beata') || (n.includes('beata') && n.includes('arroz'))) {
+        if (!lista.some((x) => x.rubro === 'arroz-beata')) add('arroz-beata');
+    } else if (n.includes('arroz blanco')) add('arroz-blanco');
+    else if (!opcional && /\barroz\b/.test(n) && !n.includes('chaufa') && !n.includes('marisco') && !n.includes('arroz con pollo') && !n.includes('beata') && !lista.some((x) => x.rubro === 'arroz-blanco')) {
         add('arroz-blanco');
     }
-    const menu = rubroMenuDe(n);
-    if (menu && !lista.some((x) => x.rubro === menu)) add(menu);
+    const octavo = rubroOctavoDe(n);
+    if (octavo && !lista.some((x) => x.rubro === octavo)) add(octavo);
     return lista;
 }
 

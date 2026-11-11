@@ -159,7 +159,7 @@ Sale del fresco o de un ingreso directo.
 | Pollo a la olla | Crudo y cocido |
 | Caldo de pollo | Solo crudo |
 
-1 octavo = 1 porción de esos platos. El stock de cada plato se reparte entre lo que vino de pecho y lo que vino de pierna.
+1 octavo = 1 porción de esos platos. La venta de Arroz con pollo, Pollo a la olla y Caldo de pollo se ve en la columna Venta comandas de Octavo de pollo, y también en la fila de cada plato. El stock de cada plato se reparte entre lo que vino de pecho y lo que vino de pierna.
 
 ### Otras familias
 
@@ -170,7 +170,7 @@ Sale del fresco o de un ingreso directo.
 | Pieza de pescado | Entra directo. Ocupa el lugar del origen en el mapa. Los platos vinculados restan la pieza. |
 | Pieza de pota | Entra directo. Ocupa el lugar del origen en el mapa. Los platos vinculados restan la pieza. |
 | Carnero | **Carnero pachamanca** (1 carnero = el factor configurado, por defecto 1) y **Seco de carnero** (1 a 1). Los dos tienen crudo y cocido. El tope es el stock de hoja del carnero. |
-| Arroz crudo | Cada **+** resta 1 arroz crudo y suma blanco (8), verde (6), pato (2), chaufa (2) o con mariscos (2). El tope es el stock de hoja del arroz. El factor se cambia en Configuración. |
+| Arroz crudo | Tres cuadros: blanco (8), verde + pato (6) y beata (su factor). Cada **+** resta 1 arroz crudo y suma esa cantidad. Ya no hay arroz pollo, chaufa ni mariscos en esta familia. |
 | Carnes, trucha, cuy, papas y similares | Entran directo. No se despiezan en este mapa. |
 
 El **editor de mapas** crea o ajusta familias nuevas. Esas familias usan la misma regla: el origen no pasa de su stock de hoja y el destino suma, sin borrar el ingreso que ya tenía. El mapa de pollo fresco de esta pantalla es el mapa fijo descrito arriba.
