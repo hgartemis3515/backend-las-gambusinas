@@ -10890,25 +10890,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!this.despiece.ingresoCorte) this.despiece.ingresoCorte = { pechuga: 0, pierna: 0 };
             this.despiece.ingresoCorte[id] = Number(row.ingreso) || 0;
           }
-          const parteFresco = id === 'pollo_fresco' && base === 'ingreso';
-          const pechuga = parteFresco ? this.filaReal('pechuga') : null;
-          const pierna = parteFresco ? this.filaReal('pierna') : null;
-          const prevPechuga = pechuga ? (Number(pechuga.ingreso) || 0) : 0;
-          const prevPierna = pierna ? (Number(pierna.ingreso) || 0) : 0;
-          const prevTrans = parteFresco ? (Number(row.transformacion) || 0) : 0;
-          if (parteFresco) {
-            const fp = Number(this.config.factorPechugasPorFresco) || 2;
-            const fl = Number(this.config.factorPiernasPorFresco) || 2;
-            if (pechuga) pechuga.ingreso = prevPechuga + (next - prevTrans) * fp;
-            if (pierna) pierna.ingreso = prevPierna + (next - prevTrans) * fl;
-            row.transformacion = next;
-            this.despiece.frescos = next;
-            if (this.despiece.padresPintados) {
-              this.despiece.padresPintados.fresco = next;
-              this.despiece.padresPintados.pechugaIng = next * fp + this.ingresoDirectoDe('pechuga');
-              this.despiece.padresPintados.piernaIng = next * fl + this.ingresoDirectoDe('pierna');
-            }
-          }
+          // Solo el pollo que acaba de entrar o salir. 1 fresco = 2 pechos y 2 piernas.
+          // No usar (ingreso nuevo − transformación): si la transformación no estaba guardada, volvía a cortar todo el stock.
+          const parteFresco = id === 'pollo_fresco' && base === 'ingreso' && tipo !== 'cocido';
           this.pulseRowTotal(row.id);
           const clave = this.claveDeFila[row.id];
           if (!clave) return;
@@ -10918,23 +10902,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           try {
             await this.paso(clave, tipo, cambio, nombres[base] + ' ' + tipo, clase, row.nombre, fecha);
             if (paseCrudo) await this.paso(clave, 'crudo', paseCrudo, 'Cocido desde crudo ' + row.nombre, 'ingreso', row.nombre, fecha);
-            if (parteFresco && pechuga) {
-              const deltaP = (Number(pechuga.ingreso) || 0) - prevPechuga;
-              if (deltaP) await this.paso('pechuga-pollo', 'crudo', deltaP, 'Pollo fresco → pechuga', 'ingreso', pechuga.nombre, fecha);
-            }
-            if (parteFresco && pierna) {
-              const deltaL = (Number(pierna.ingreso) || 0) - prevPierna;
-              if (deltaL) await this.paso('pierna-pollo', 'crudo', deltaL, 'Pollo fresco → pierna', 'ingreso', pierna.nombre, fecha);
-            }
             await this.cargarKardex();
+            if (parteFresco) {
+              this.setPollosFrescosConvertir(this.redondear3(this.frescosHoy() + cambio));
+              await (this._colaTransformar || Promise.resolve());
+            }
           } catch (e) {
             row[campo] = actual;
             if (paseCrudo) row.ingreso = crudoAntes;
-            if (parteFresco) {
-              if (pechuga) pechuga.ingreso = prevPechuga;
-              if (pierna) pierna.ingreso = prevPierna;
-              row.transformacion = prevTrans;
-            }
             this.toastMessage = e.message || 'No se guardó';
           }
         },
