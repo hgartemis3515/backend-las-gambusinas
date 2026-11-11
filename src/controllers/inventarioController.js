@@ -251,6 +251,24 @@ router.get('/inventario/relaciones', adminAuth, checkPermission('ver-inventario'
     }
 });
 
+router.get('/inventario/bloqueo', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const data = await inventario.leerBloqueo();
+        res.json({ success: true, ...data });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
+router.put('/inventario/bloqueo', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const data = await inventario.guardarBloqueo(req.body || {});
+        res.json({ success: true, ...data });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
 router.put('/inventario/relaciones', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
     try {
         const data = await inventario.guardarRelaciones(req.body || {});

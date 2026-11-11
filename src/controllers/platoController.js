@@ -21,6 +21,7 @@ const {
 const logger = require("../utils/logger");
 const { handleError } = require("../utils/errorHandler");
 const { listarCategoriasLigero } = require("../repository/categoriaPlato.repository");
+const inventario = require("../repository/inventario.repository");
 
 router.get("/platos", async (req, res) => {
     try {
@@ -30,7 +31,7 @@ router.get("/platos", async (req, res) => {
         }
         if (req.query.carta === '1' || req.query.carta === 'true') {
             const data = await listarPlatosCartaMozo();
-            return res.json(data);
+            return res.json(await inventario.filtrarCartaBloqueada(data));
         }
         const tipo = req.query.tipo != null ? String(req.query.tipo).trim() : null;
         const isActive = req.query.isActive !== 'false';
@@ -99,7 +100,7 @@ router.get("/platos/categoria/:categoria", async (req, res) => {
 router.get("/platos/carta-mozo", async (req, res) => {
     try {
         const data = await listarPlatosCartaMozo();
-        res.json(data);
+        res.json(await inventario.filtrarCartaBloqueada(data));
     } catch (error) {
         logger.error('Error al listar carta mozo', { error: error.message });
         handleError(error, res, logger);

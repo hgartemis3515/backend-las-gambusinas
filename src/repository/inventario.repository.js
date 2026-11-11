@@ -452,6 +452,64 @@ async function guardarRelaciones(body) {
     return guardado;
 }
 
+function sanearBloqueo(body) {
+    const src = body || {};
+    const lineas = (Array.isArray(src.lineas) ? src.lineas : []).slice(0, 400).map((l) => ({
+        tipo: l && l.tipo === 'plato' ? 'plato' : 'producto',
+        id: String(l && l.id || '').slice(0, 80),
+        nombre: String(l && l.nombre || '').slice(0, 120),
+        bloqueado: !!(l && l.bloqueado),
+        reserva: Math.max(0, Number(l && l.reserva) || 0)
+    })).filter((l) => l.id && (l.bloqueado || l.reserva > 0));
+    return {
+        motivo: String(src.motivo || '').slice(0, 120),
+        hasta: String(src.hasta || '').slice(0, 8),
+        lineas
+    };
+}
+
+async function leerBloqueo() {
+    const doc = await MapaSemantico.findOne({ clave: 'bloqueo' }).lean();
+    if (!doc || !doc.bloqueo) return { motivo: '', hasta: '', lineas: [] };
+    return sanearBloqueo(doc.bloqueo);
+}
+
+async function guardarBloqueo(body) {
+    const guardado = sanearBloqueo(body);
+    await MapaSemantico.findOneAndUpdate(
+        { clave: 'bloqueo' },
+        { $set: { bloqueo: guardado } },
+        { upsert: true, new: true }
+    );
+    try {
+        require('./plato.repository').invalidatePlatoMenuCache('plato-carta normal');
+    } catch (e) { /* la carta se filtra igual en cada lectura */ }
+    return guardado;
+}
+
+async function filtrarCartaBloqueada(lista) {
+    let bloqueo;
+    try {
+        bloqueo = await leerBloqueo();
+    } catch (e) {
+        return lista || [];
+    }
+    const ids = new Set();
+    const nombres = new Set();
+    (bloqueo.lineas || []).forEach((l) => {
+        if (!l.bloqueado || l.tipo !== 'plato') return;
+        ids.add(l.id);
+        if (l.nombre) nombres.add(l.nombre.toLowerCase());
+    });
+    if (!ids.size && !nombres.size) return lista || [];
+    return (lista || []).filter((p) => {
+        const id = String((p && (p._id || p.id)) || '');
+        if (ids.has(id) || ids.has('plato-' + id)) return false;
+        const nombre = String(p && p.nombre || '').toLowerCase();
+        return !nombre || !nombres.has(nombre);
+    });
+}
+
 async function guardarMapas(lista) {
     if (!Array.isArray(lista)) {
         const err = new Error('El cuerpo debe traer la lista de mapas');
@@ -632,6 +690,9 @@ module.exports = {
     guardarMapas,
     leerRelaciones,
     guardarRelaciones,
+    leerBloqueo,
+    guardarBloqueo,
+    filtrarCartaBloqueada,
     eliminarHoy,
     eliminarVentaManual,
     ponerEnCero,

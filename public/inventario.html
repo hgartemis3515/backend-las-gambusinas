@@ -1281,17 +1281,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </div>
     </header>
 
-    <!-- BANNER DE ESTADO / CONFIRMACIÓN RÁPIDA -->
+    <!-- Aviso flotante: abajo a la izquierda, no empuja la hoja -->
     <div
       x-show="toastMessage"
-      class="no-print bg-[#14141f] border-l-4 border-[#d4af37] px-4 py-3 rounded-lg flex items-center justify-between text-sm shadow"
       x-cloak
+      class="no-print fixed bottom-4 left-4 z-[90] max-w-sm w-[min(24rem,calc(100vw-2rem))] bg-[#14141f] border border-[#d4af37] border-l-4 px-4 py-3 rounded-xl flex items-start gap-3 text-sm shadow-2xl"
       x-transition:enter="transition ease-out duration-200"
-      x-transition:enter-start="opacity-0 -translate-y-2"
+      x-transition:enter-start="opacity-0 translate-y-2"
       x-transition:enter-end="opacity-100 translate-y-0"
+      role="status"
     >
-      <span class="font-medium text-white" x-text="toastMessage"></span>
-      <button type="button" @click="toastMessage = ''" class="text-xs text-[#a0a0b8] hover:text-white px-2 py-1">Cerrar</button>
+      <span class="font-medium text-white leading-snug" x-text="toastMessage"></span>
+      <button type="button" @click="toastMessage = ''" class="shrink-0 text-xs text-[#a0a0b8] hover:text-white px-2 py-1" aria-label="Cerrar aviso">Cerrar</button>
     </div>
 
     <!-- =================================================================== -->
@@ -1674,6 +1675,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             >▼</button>
                           </span>
                           <span class="font-semibold text-white whitespace-nowrap" x-text="item.nombre"></span>
+                          <span x-show="productoBloqueado(row.id)" class="px-1.5 py-0.5 rounded bg-[#ff0000]/20 border border-[#ff0000]/50 text-[10px] font-extrabold text-red-200" title="Bloqueado para los mozos">Bloqueado</span>
                           <span x-show="item.hasChildren" class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200] tracking-wide">GRUPO</span>
                           <button
                             type="button"
@@ -1700,6 +1702,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="nombre-producto-fila">
                       <span class="w-6 h-6 shrink-0" aria-hidden="true"></span>
                       <span class="text-white font-bold whitespace-nowrap" x-text="row.nombre"></span>
+                      <span x-show="productoBloqueado(row.id)" class="px-1.5 py-0.5 rounded bg-[#ff0000]/20 border border-[#ff0000]/50 text-[10px] font-extrabold text-red-200" title="Bloqueado para los mozos">Bloqueado</span>
                       <button
                         type="button"
                         @click.stop="abrirModalAuditoria(row)"
@@ -6887,7 +6890,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </template>
 
   <!-- ===================================================================== -->
-  <!-- MODAL: BLOQUEO DE INVENTARIO (BOSQUEJO, TODAVÍA NO GUARDA)            -->
+  <!-- MODAL: BLOQUEO DE INVENTARIO                                            -->
   <!-- Reserva y bloquea productos y platos para que los mozos no los vendan -->
   <!-- ===================================================================== -->
   <template x-if="bloqueo.abierto">
@@ -6898,9 +6901,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="flex flex-wrap items-center gap-2">
               <svg viewBox="0 0 24 24" class="w-5 h-5 text-[#d4af37]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
               <h3 class="text-lg font-semibold text-[#d4af37]">Bloqueo de inventario</h3>
-              <span class="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-amber-200 text-[10px] font-bold uppercase tracking-wide">Bosquejo · aún no activo</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-bold uppercase tracking-wide" x-show="resumenBloqueo().bloqueados">Activo</span>
             </div>
-            <p class="text-xs text-[#a0a0b8] mt-1">Aparta unidades o bloquea un producto o plato para que los mozos no lo puedan pedir. Los mozos verían “Reservado” o “Bloqueado” en su app.</p>
+            <p class="text-xs text-[#a0a0b8] mt-1">Aparta unidades o bloquea un producto. Un plato bloqueado desaparece de la carta de los mozos. La reserva resta lo que se puede transformar o vender en esta hoja.</p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="cerrarBloqueo()" aria-label="Cerrar">×</button>
         </div>
@@ -6981,7 +6984,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </span>
             <div class="flex items-center gap-2">
               <button type="button" class="px-4 py-2 rounded-lg border border-[#26263a] text-[#a0a0b8] hover:text-white text-sm font-semibold cursor-pointer" @click="cerrarBloqueo()">Cerrar</button>
-              <button type="button" disabled title="Próximamente: todavía no se guarda ni llega a los mozos" class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-sm font-extrabold opacity-50 cursor-not-allowed">Aplicar bloqueo</button>
+              <button type="button" class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-sm font-extrabold cursor-pointer hover:brightness-110" @click="aplicarBloqueo()">Aplicar bloqueo</button>
             </div>
           </div>
         </div>
@@ -7557,10 +7560,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
         sidebarOpen: false,
         pageTitle: 'Inventario',
-        mostrarSaldoYConteo: true,
-        mostrarDiferencia: true,
-        mostrarEstado: true,
-        mostrarCorreccion: true,
+        mostrarSaldoYConteo: false,
+        mostrarDiferencia: false,
+        mostrarEstado: false,
+        mostrarCorreccion: false,
         compactView: false,
         soundEnabled: true,
         busqueda: '',
@@ -8040,6 +8043,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             return;
           }
           this.initSoundClip();
+          this.$watch('toastMessage', (msg) => {
+            clearTimeout(this._toastTimer);
+            if (!msg) return;
+            this._toastTimer = setTimeout(() => {
+              if (this.toastMessage === msg) this.toastMessage = '';
+            }, 7000);
+          });
+          this.cargarBloqueoLocal();
           this.restaurarEjemploDespiece(true);
           this.vaciarNumeros();
           this.activarSkeletonTabla(260);
@@ -8050,6 +8061,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           await this.cargarPlatos();
           await this.refrescarTurnos(false);
           await this.cargarKardex();
+          this.cargarBloqueo();
           this.marcarAportePintado();
           this.marcarPadresPintados();
           this.despieceAplicado = this.fotoTransformacion();
@@ -9733,6 +9745,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.toastMessage = porPlato ? 'Escribe cuántos platos se vendieron.' : 'Escribe las unidades a restar.';
             return;
           }
+          if (this.productoBloqueado(row.id)) {
+            this.toastMessage = row.nombre + ' está bloqueado. No se puede vender desde la hoja.';
+            return;
+          }
           const clave = this.claveDeFila[row.id];
           if (!clave) {
             this.toastMessage = 'Este producto no tiene clave de inventario.';
@@ -9833,8 +9849,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
 
-        // ===== Bloqueo de inventario (bosquejo) =====
-        // Solo arma el borrador en pantalla. Todavía no guarda ni bloquea nada para los mozos.
+        // ===== Bloqueo de inventario =====
         abrirBloqueo() {
           this.bloqueo = Object.assign({}, this.bloqueo, { abierto: true, busqueda: '' });
         },
@@ -9875,6 +9890,81 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const l = this.lineaBloqueo(key);
           l.reserva = Math.max(0, Number(val) || 0);
           this.bloqueo.lineas = Object.assign({}, this.bloqueo.lineas);
+        },
+
+        productoBloqueado(id) {
+          const l = this.bloqueo.lineas && this.bloqueo.lineas['p:' + id];
+          return !!(l && l.bloqueado);
+        },
+
+        reservaDe(id) {
+          const l = this.bloqueo.lineas && this.bloqueo.lineas['p:' + id];
+          return l ? Math.max(0, Number(l.reserva) || 0) : 0;
+        },
+
+        aplicarLineasBloqueo(cuerpo) {
+          const lineas = {};
+          (cuerpo && cuerpo.lineas || []).forEach((l) => {
+            if (!l || !l.id) return;
+            const key = (l.tipo === 'plato' ? 'c:' : 'p:') + l.id;
+            lineas[key] = { bloqueado: !!l.bloqueado, reserva: Math.max(0, Number(l.reserva) || 0), nombre: l.nombre || '' };
+          });
+          this.bloqueo = Object.assign({}, this.bloqueo, {
+            motivo: (cuerpo && cuerpo.motivo) || '',
+            hasta: (cuerpo && cuerpo.hasta) || '',
+            lineas
+          });
+        },
+
+        cargarBloqueoLocal() {
+          try {
+            const raw = localStorage.getItem('inventario-bloqueo');
+            if (raw) this.aplicarLineasBloqueo(JSON.parse(raw));
+          } catch (e) {}
+        },
+
+        async cargarBloqueo() {
+          try {
+            const data = await this.api('/inventario/bloqueo');
+            const localTiene = Object.keys(this.bloqueo.lineas || {}).length > 0;
+            if (data && Array.isArray(data.lineas) && (data.lineas.length || !localTiene)) {
+              this.aplicarLineasBloqueo(data);
+              try { localStorage.setItem('inventario-bloqueo', JSON.stringify({ motivo: data.motivo || '', hasta: data.hasta || '', lineas: data.lineas })); } catch (e) {}
+            }
+          } catch (e) {}
+        },
+
+        cuerpoBloqueo() {
+          const lineas = [];
+          Object.keys(this.bloqueo.lineas || {}).forEach((key) => {
+            const l = this.bloqueo.lineas[key];
+            if (!l || (!l.bloqueado && !(Number(l.reserva) > 0))) return;
+            const tipo = key.indexOf('c:') === 0 ? 'plato' : 'producto';
+            const id = key.slice(2);
+            let nombre = l.nombre || '';
+            if (tipo === 'producto') {
+              const row = this.filaReal(id);
+              if (row && row.nombre) nombre = row.nombre;
+            } else {
+              const p = (this.platosCarta || []).find((x) => x.clave === id);
+              if (p) nombre = p.nombre || nombre;
+            }
+            lineas.push({ tipo, id, nombre, bloqueado: !!l.bloqueado, reserva: Math.max(0, Number(l.reserva) || 0) });
+          });
+          return { motivo: this.bloqueo.motivo || '', hasta: this.bloqueo.hasta || '', lineas };
+        },
+
+        async aplicarBloqueo() {
+          const cuerpo = this.cuerpoBloqueo();
+          try { localStorage.setItem('inventario-bloqueo', JSON.stringify(cuerpo)); } catch (e) {}
+          try {
+            const data = await this.api('/inventario/bloqueo', { method: 'PUT', body: JSON.stringify(cuerpo) });
+            this.aplicarLineasBloqueo(data);
+            this.cerrarBloqueo();
+            this.toastMessage = 'Bloqueo aplicado. Los platos bloqueados salen de la carta de los mozos.';
+          } catch (e) {
+            this.toastMessage = 'El bloqueo quedó en este navegador. No se pudo guardar en el servidor.';
+          }
         },
 
         resumenBloqueo() {
@@ -11554,31 +11644,49 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(this.totalCrudoEditar() + this.totalCocidoEditar());
         },
 
+        // El número del lápiz es el saldo que se ve en Transformar y en la tabla.
+        async fijarSaldoTipo(id, tipo, valor) {
+          const rowId = this.filaIdDePlatoTransformar(id) || id;
+          const row = this.filaReal(rowId);
+          if (!row) return false;
+          const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
+          if (tipoOk === 'cocido' && !row.tieneCocido && !row.soloCocido) return false;
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const actual = this.redondear3(this.calcSaldoTipo(row, tipoOk));
+          const delta = this.redondear3(next - actual);
+          if (!delta) return true;
+          const clave = this.claveDeFila[row.id];
+          if (!clave) {
+            this.toastMessage = row.nombre + ' no tiene fila en la hoja.';
+            return false;
+          }
+          const ingreso = Number(this.valorTipo(row, 'ingreso', tipoOk)) || 0;
+          const base = (delta > 0 || ingreso + delta >= -0.0001) ? 'ingreso' : 'correccion';
+          const clase = base === 'correccion' ? 'regulacion' : 'ingreso';
+          await this.paso(clave, tipoOk, delta, (base === 'ingreso' ? 'Ingreso' : 'Corrección') + ' ' + tipoOk, clase, row.nombre);
+          await this.cargarKardex();
+          return true;
+        },
+
         async guardarEditarStockGrupo() {
           const f = this.editarStock;
-          const motivo = this.motivoSaldoAnterior(f.motivo);
           const lineas = f.lineas || [];
           let cambios = 0;
           try {
             for (let i = 0; i < lineas.length; i++) {
               const linea = lineas[i];
-              const row = this.filaReal(linea.id);
-              const clave = row && this.claveDeFila[row.id];
-              if (!row || !clave) continue;
               const tipos = linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
               for (let t = 0; t < tipos.length; t++) {
                 const tipo = tipos[t];
-                const nuevo = this.redondear3(Math.max(0, Number(linea[tipo]) || 0));
-                const actual = this.redondear3(this.calcSaldoTipo(row, tipo));
-                const delta = this.redondear3(nuevo - actual);
-                if (!delta) continue;
-                await this.paso(clave, tipo, delta, motivo, 'ingreso', row.nombre, this.fechaSaldoAnterior());
-                cambios += 1;
+                const antes = this.calcSaldoTipo(this.filaReal(linea.id) || {}, tipo);
+                const ok = await this.fijarSaldoTipo(linea.id, tipo, linea[tipo]);
+                if (ok === false) return;
+                if (this.redondear3((Number(linea[tipo]) || 0) - antes)) cambios += 1;
               }
             }
-            if (cambios) await this.cargarKardex();
+            await this.cargarKardex();
             this.editarStock.abierto = false;
-            this.toastMessage = cambios ? ('Stock de ' + f.nombre + ' actualizado. Quedó en Auditoría.') : 'Sin cambios de stock';
+            this.toastMessage = cambios ? ('Stock de ' + f.nombre + ' actualizado.') : 'Sin cambios de stock';
           } catch (e) {
             this.toastMessage = e.message || 'No se guardó el stock';
           }
@@ -11587,21 +11695,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         async guardarEditarStock() {
           const f = this.editarStock;
           const row = this.filaReal(f.id);
-          const clave = row && this.claveDeFila[row.id];
-          if (!row || !clave) return;
-          const motivo = this.motivoSaldoAnterior(f.motivo);
+          if (!row) return;
           const tipos = f.soloCocido ? ['cocido'] : (f.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
           try {
             for (let i = 0; i < tipos.length; i++) {
-              const tipo = tipos[i];
-              const nuevo = this.redondear3(Math.max(0, Number(f[tipo]) || 0));
-              const actual = this.redondear3(this.calcSaldoTipo(row, tipo));
-              const delta = this.redondear3(nuevo - actual);
-              if (delta) await this.paso(clave, tipo, delta, motivo, 'ingreso', row.nombre, this.fechaSaldoAnterior());
+              const ok = await this.fijarSaldoTipo(f.id, tipos[i], f[tipos[i]]);
+              if (ok === false) return;
             }
             await this.cargarKardex();
             this.editarStock.abierto = false;
-            this.toastMessage = 'Stock de ' + row.nombre + ' actualizado. Quedó en Auditoría.';
+            this.toastMessage = 'Stock de ' + row.nombre + ' actualizado.';
           } catch (e) {
             this.toastMessage = e.message || 'No se guardó el stock';
           }
@@ -11836,10 +11939,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         cargarVistaTablaLocal() {
           try {
-            if (localStorage.getItem('inventario-tabla-saldo-conteo') === '0') this.mostrarSaldoYConteo = false;
-            if (localStorage.getItem('inventario-tabla-diferencia') === '0') this.mostrarDiferencia = false;
-            if (localStorage.getItem('inventario-tabla-estado') === '0') this.mostrarEstado = false;
-            if (localStorage.getItem('inventario-tabla-correccion') === '0') this.mostrarCorreccion = false;
+            const ver = (key) => localStorage.getItem(key) === '1';
+            this.mostrarSaldoYConteo = ver('inventario-tabla-saldo-conteo');
+            this.mostrarDiferencia = ver('inventario-tabla-diferencia');
+            this.mostrarEstado = ver('inventario-tabla-estado');
+            this.mostrarCorreccion = ver('inventario-tabla-correccion');
           } catch (e) {}
         },
 
@@ -13096,8 +13200,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             destinos.push({ row, clave, entran, tipo: d.tipo === 'cocido' && row.tieneCocido ? 'cocido' : 'crudo' });
           }
           if (!salen && !destinos.length) return false;
+          if (salen > 0 && this.productoBloqueado(op.origenId)) {
+            return this.avisoTransformar('Aviso ámbar: ' + origen.nombre + ' está bloqueado.');
+          }
           if (salen > 0) {
-            const stock = this.redondear3(this.calcSaldoTipo(origen, 'crudo'));
+            const stock = this.redondear3(this.calcSaldoTipo(origen, 'crudo') - this.reservaDe(op.origenId));
             if (stock + 0.0001 < salen) {
               return this.avisoTransformar('Aviso ámbar: ' + origen.nombre + ' no tiene stock de hoja para pasar ' + this.formatNum(salen) + '. Quedan ' + this.formatNum(Math.max(0, stock)) + '.');
             }
