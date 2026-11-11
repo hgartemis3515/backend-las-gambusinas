@@ -2158,8 +2158,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                   <div class="caja-stock-step">
                     <button type="button" aria-label="Restar stock de pollo fresco" @click="fijarStockDirecto('pollo_fresco', 'crudo', stockCuadro('pollo_fresco', 'crudo') - 1)">−</button>
-                    <input type="number" min="0" step="any" aria-label="Stock actual de pollo fresco" :value="stockCuadro('pollo_fresco', 'crudo')" @change="fijarStockDirecto('pollo_fresco', 'crudo', $event.target.value)">
-                    <button type="button" aria-label="Sumar stock de pollo fresco" @click="fijarStockDirecto('pollo_fresco', 'crudo', stockCuadro('pollo_fresco', 'crudo') + 1)">+</button>
+                    <input type="number" min="0" step="any" aria-label="Stock actual de pollo fresco" :value="stockCuadro('pollo_fresco', 'crudo')" @change="fijarStockPolloFresco($event.target.value)">
+                    <button type="button" aria-label="Sumar stock de pollo fresco" @click="fijarStockPolloFresco(stockCuadro('pollo_fresco', 'crudo') + 1)">+</button>
                   </div>
                   <p class="caja-stock-mas" x-show="textoIngreso('pollo_fresco', 'crudo')" x-text="textoIngreso('pollo_fresco', 'crudo')"></p>
                   <p class="caja-stock-menos" x-show="textoResto('pollo_fresco', 'crudo')" x-text="textoResto('pollo_fresco', 'crudo')"></p>
@@ -13365,18 +13365,31 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
 
         setPollosFrescosConvertir(val) {
-          const next = Math.max(0, parseInt(val, 10) || 0);
-          const delta = next - this.frescosHoy();
+          const next = Math.max(0, this.redondear3(Number(val) || 0));
+          const delta = this.redondear3(next - this.frescosHoy());
           if (!delta) return false;
           const fp = Number(this.config.factorPechugasPorFresco) || 2;
           const fl = Number(this.config.factorPiernasPorFresco) || 2;
           return this.transferir({
             origenId: 'pollo_fresco',
             salen: delta,
-            destinos: [{ id: 'pechuga', entran: delta * fp }, { id: 'pierna', entran: delta * fl }],
+            destinos: [
+              { id: 'pechuga', entran: this.redondear3(delta * fp) },
+              { id: 'pierna', entran: this.redondear3(delta * fl) }
+            ],
             motivo: 'Pasa a piezas',
             historial: 'Pollo fresco → Pecho y Pierna'
           });
+        },
+
+        async fijarStockPolloFresco(valor) {
+          const actual = this.stockCuadro('pollo_fresco', 'crudo');
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const delta = this.redondear3(next - actual);
+          if (!(delta > 0)) return this.fijarStockDirecto('pollo_fresco', 'crudo', next);
+          const ok = await this.fijarStockDirecto('pollo_fresco', 'crudo', next);
+          if (ok === false) return false;
+          return this.setPollosFrescosConvertir(this.frescosHoy() + delta);
         },
 
 
