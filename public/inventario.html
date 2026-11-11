@@ -751,6 +751,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       flex-shrink: 0;
     }
     .btn-lapiz-stock:hover { background: #1c1c2b; }
+    .modal-editar-stock {
+      max-height: calc(100vh - 2rem);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-editar-stock-lista {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      min-height: 0;
+      flex: 1 1 auto;
+      max-height: calc(100vh - 16rem);
+      padding-right: 0.25rem;
+    }
     .caja-stock { margin-top: 6px; }
     .caja-stock-etiq { font-size: 11px; color: #c8c8d8; margin: 0 0 4px; }
     .caja-stock-corte { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; margin: 8px 0 0; }
@@ -1725,7 +1739,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <span x-show="row.tieneCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo)"></span>
                             <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, -1)">−</button>
-                              <input type="number" min="0" step="any" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
+                              <input type="number" step="any" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
                               <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] font-bold text-xs active:scale-95 transition cursor-pointer" @click="moverCampo(row.id, 'ingreso', tipo, 1)">+</button>
                             </div>
                           </div>
@@ -5902,15 +5916,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70"
     @keydown.escape.window="editarStock.abierto = false"
   >
-    <div class="w-full bg-[#14141f] border border-[#d4af37]/50 rounded-xl p-5 space-y-4 shadow-2xl" :class="editarStock.grupo ? 'max-w-lg' : 'max-w-md'" @click.outside="editarStock.abierto = false">
-      <div class="flex items-start justify-between gap-3">
+    <div class="modal-editar-stock w-full bg-[#14141f] border border-[#d4af37]/50 rounded-xl shadow-2xl" :class="editarStock.grupo ? 'max-w-lg' : 'max-w-md'" @click.outside="editarStock.abierto = false">
+      <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-3 shrink-0">
         <div>
           <h2 class="text-base font-extrabold text-white">Editar stock</h2>
           <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="editarStock.nombre"></p>
         </div>
         <button type="button" class="text-[#a0a0b8] hover:text-white cursor-pointer" aria-label="Cerrar" @click="editarStock.abierto = false">✕</button>
       </div>
-      <div class="space-y-3" x-show="editarStock.octavo">
+      <div class="space-y-3 px-5" x-show="editarStock.octavo">
         <p class="text-xs text-[#a0a0b8]">Stock pecho: <strong class="text-sky-200" x-text="formatNum(octavosStockCorte('pechugas'))"></strong> · Stock pierna: <strong class="text-emerald-200" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
         <label class="block text-xs text-[#a0a0b8]">
           <span class="font-bold text-sky-200">Cantidad de pecho</span>
@@ -5922,8 +5936,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </label>
         <p class="text-[11px] text-[#a0a0b8]">Bajar el número devuelve la pieza al pecho o a la pierna. 2 octavos son 1 pieza.</p>
       </div>
-      <div class="space-y-3" x-show="editarStock.grupo">
-        <div class="max-h-[55vh] overflow-y-auto space-y-2 pr-1">
+      <div class="modal-editar-stock-lista space-y-2 px-5" x-show="editarStock.grupo">
           <template x-for="linea in editarStock.lineas" :key="'edit-linea-' + linea.id">
             <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-2">
               <div class="flex items-center justify-between gap-2">
@@ -5942,7 +5955,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
             </div>
           </template>
-        </div>
+      </div>
+      <div class="space-y-3 px-5 pt-3 shrink-0" x-show="editarStock.grupo">
         <div class="rounded-lg border border-[#d4af37]/40 bg-[#101018] px-3 py-2 text-xs font-mono space-y-1">
           <p class="flex justify-between"><span class="text-[#a0a0b8]">Total crudo</span><strong class="text-emerald-300" x-text="formatNum(totalCrudoEditar())"></strong></p>
           <p class="flex justify-between" x-show="hayCocidoEditar()"><span class="text-[#a0a0b8]">Total cocido</span><strong class="text-amber-300" x-text="formatNum(totalCocidoEditar())"></strong></p>
@@ -5953,21 +5967,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <input type="text" maxlength="200" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#d4af37]" x-model="editarStock.motivo" placeholder="Ej. Merma, conteo de cámara, ajuste de corte" aria-label="Motivo del ajuste">
         </label>
       </div>
-      <div class="space-y-3" x-show="!editarStock.octavo && !editarStock.grupo">
+      <div class="space-y-3 px-5" x-show="!editarStock.octavo && !editarStock.grupo">
         <label class="block text-xs text-[#a0a0b8]">
           <span class="font-bold text-emerald-300" x-text="editarStock.tieneCocido ? 'Stock crudo' : 'Stock'"></span>
-          <input type="number" min="0" step="1" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.crudo" aria-label="Nuevo stock crudo">
+          <input type="number" min="0" step="any" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.crudo" aria-label="Nuevo stock crudo">
         </label>
         <label class="block text-xs text-[#a0a0b8]" x-show="editarStock.tieneCocido">
           <span class="font-bold text-amber-300">Stock cocido</span>
-          <input type="number" min="0" step="1" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.cocido" aria-label="Nuevo stock cocido">
+          <input type="number" min="0" step="any" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.cocido" aria-label="Nuevo stock cocido">
         </label>
         <label class="block text-xs text-[#a0a0b8]">
           <span class="font-bold text-white">Motivo <span class="font-normal text-[#71718a]">(opcional)</span></span>
           <input type="text" maxlength="200" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#d4af37]" x-model="editarStock.motivo" placeholder="Ej. Merma, conteo de cámara, ajuste de corte" aria-label="Motivo del ajuste">
         </label>
       </div>
-      <div class="flex justify-end gap-2">
+      <div class="flex justify-end gap-2 px-5 pt-3 pb-5 shrink-0">
         <button type="button" class="px-3 py-2 rounded-lg bg-[#1c1c2b] text-[#a0a0b8] hover:text-white cursor-pointer" @click="editarStock.abierto = false">Cancelar</button>
         <button type="button" class="px-3 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold cursor-pointer" @click="editarStock.octavo ? guardarEditarOctavo() : (editarStock.grupo ? guardarEditarStockGrupo() : guardarEditarStock())">Guardar</button>
       </div>
@@ -10851,7 +10865,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const escrito = Number(valor);
           if (!Number.isFinite(escrito)) return;
           let next = this.redondear3(escrito);
-          if (base !== 'correccion') next = Math.max(0, next);
           const campo = this.campoTipo(base, tipo);
           const actual = Number(row[campo]) || 0;
           let cambio = this.redondear3(next - actual);
@@ -11210,6 +11223,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return 'Saldo anterior · ' + extra;
         },
 
+        fechaSaldoAnterior() {
+          const desde = String((this.rangoPeriodo() && this.rangoPeriodo().desde) || this.fechaHoy() || '');
+          if (desde.indexOf('T') !== -1) {
+            const t = new Date(desde).getTime();
+            if (Number.isFinite(t)) return new Date(t - 1000).toISOString();
+          }
+          return desde.slice(0, 10) + 'T03:59:00-05:00';
+        },
+
         abrirEditarStock(id, desdeTabla) {
           const rowId = this.filaReal(id) ? id : (this.filaIdDePlatoTransformar(id) || id);
           const row = this.filaReal(rowId);
@@ -11226,8 +11248,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             octavo: false,
             grupo: false,
             lineas: [],
-            crudo: Math.max(0, Math.round(this.calcSaldoTipo(row, 'crudo'))),
-            cocido: tiene ? Math.max(0, Math.round(this.calcSaldoTipo(row, 'cocido'))) : 0,
+            crudo: this.redondear3(Math.max(0, this.calcSaldoTipo(row, 'crudo'))),
+            cocido: tiene ? this.redondear3(Math.max(0, this.calcSaldoTipo(row, 'cocido'))) : 0,
             pecho: 0,
             pierna: 0,
             motivo: '',
@@ -11307,7 +11329,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 const actual = this.redondear3(this.calcSaldoTipo(row, tipo));
                 const delta = this.redondear3(nuevo - actual);
                 if (!delta) continue;
-                await this.paso(clave, tipo, delta, motivo, 'ingreso', row.nombre);
+                await this.paso(clave, tipo, delta, motivo, 'ingreso', row.nombre, this.fechaSaldoAnterior());
                 cambios += 1;
               }
             }
@@ -11324,16 +11346,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const row = this.filaReal(f.id);
           const clave = row && this.claveDeFila[row.id];
           if (!row || !clave) return;
-          const motivo = f.desdeTabla ? this.motivoSaldoAnterior(f.motivo) : ((f.motivo || '').trim() || 'Ajuste de stock');
-          const clase = f.desdeTabla ? 'ingreso' : 'regulacion';
+          const motivo = this.motivoSaldoAnterior(f.motivo);
           const tipos = f.tieneCocido ? ['crudo', 'cocido'] : ['crudo'];
           try {
             for (let i = 0; i < tipos.length; i++) {
               const tipo = tipos[i];
-              const nuevo = Math.max(0, Math.round(Number(f[tipo]) || 0));
-              const actual = Math.round(this.calcSaldoTipo(row, tipo));
-              const delta = nuevo - actual;
-              if (delta) await this.paso(clave, tipo, delta, motivo, clase, row.nombre);
+              const nuevo = this.redondear3(Math.max(0, Number(f[tipo]) || 0));
+              const actual = this.redondear3(this.calcSaldoTipo(row, tipo));
+              const delta = this.redondear3(nuevo - actual);
+              if (delta) await this.paso(clave, tipo, delta, motivo, 'ingreso', row.nombre, this.fechaSaldoAnterior());
             }
             await this.cargarKardex();
             this.editarStock.abierto = false;
@@ -13138,11 +13159,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         updateIngresoDirecto(rowId, val) {
-          return this.fijarCampo(rowId, 'ingreso', 'crudo', parseInt(val, 10) || 0);
+          return this.fijarCampo(rowId, 'ingreso', 'crudo', this.redondear3(Number(val) || 0));
         },
 
         updateCorreccion(rowId, val) {
-          return this.fijarCampo(rowId, 'correccion', 'crudo', parseInt(val, 10) || 0);
+          return this.fijarCampo(rowId, 'correccion', 'crudo', this.redondear3(Number(val) || 0));
         },
 
         adjustCrudoCocido(rowId, field, newVal) {

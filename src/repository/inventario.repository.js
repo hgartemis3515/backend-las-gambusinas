@@ -64,7 +64,7 @@ async function movimientosHasta(platoIds, hasta, extra) {
     const filtro = { plato: { $in: platoIds }, fecha: { $lte: hasta } };
     if (extra && extra.tipo) filtro.tipoProducto = extra.tipo;
     if (extra && extra.plato) filtro.plato = extra.plato;
-    return Movimiento.find(filtro).select('plato tipoProducto clase cantidad fecha').lean();
+    return Movimiento.find(filtro).select('plato tipoProducto clase cantidad fecha motivo').lean();
 }
 
 async function kardex(desdeStr, hastaStr, ciclo) {
@@ -268,7 +268,7 @@ async function filasCartaEn(desde, hasta) {
     const mapas = await leerGuardados().catch(() => []);
     const [guardados, ventasPack, umbrales, opciones] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
-            .select('rubro tipoProducto clase cantidad fecha')
+            .select('rubro tipoProducto clase cantidad fecha motivo')
             .lean(),
         egresosVentaHasta(hasta),
         umbralesRubro(),
@@ -495,7 +495,7 @@ async function alertasRubro() {
     const hasta = new Date();
     const [guardados, ventasPack, umbrales, opciones, mapas] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] } })
-            .select('rubro tipoProducto clase cantidad fecha')
+            .select('rubro tipoProducto clase cantidad fecha motivo')
             .lean(),
         egresosVentaHasta(hasta),
         umbralesRubro(),

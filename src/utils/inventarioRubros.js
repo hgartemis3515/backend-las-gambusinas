@@ -204,7 +204,8 @@ function filasDeRubros(movimientos, desde, hasta, umbralPorClave, extras) {
         tipoProducto: m.tipoProducto,
         clase: m.clase,
         cantidad: m.cantidad,
-        fecha: m.fecha
+        fecha: m.fecha,
+        motivo: m.motivo
     }));
     return armarKardex(platos, movs, desde, hasta).map((f) => ({ ...f, rubro: f.plato }));
 }

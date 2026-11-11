@@ -43,6 +43,15 @@ test('un ajuste de saldo anterior del día sube el saldo inicial y el ingreso to
     });
 });
 
+test('la hoja usa el motivo y deja el ajuste en saldo anterior', () => {
+    const filas = filasDeRubros([
+        { rubro: 'arroz', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 10, motivo: 'Compra', fecha: dia('2026-10-06', '10:00:00') },
+        { rubro: 'arroz', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 5, motivo: 'Saldo anterior', fecha: dia('2026-10-07', '18:00:00') }
+    ], dia('2026-10-07', '00:00:00'), dia('2026-10-07', '23:59:59'));
+    const fila = filas.find((f) => f.rubro === 'arroz' && f.tipoProducto === 'crudo');
+    expect(fila).toMatchObject({ saldoInicial: 15, ingresos: 0, regulacion: 0, baja: 15 });
+});
+
 test('ingreso 10 deja saldo final y baja en 10', () => {
     const fila = filaDesdeSumas(0, 10, 0, 0);
     expect(fila).toMatchObject({ total: 10, saldoFinal: 10, baja: 10 });
