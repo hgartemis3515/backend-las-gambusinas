@@ -760,19 +760,110 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       flex-shrink: 0;
     }
     .btn-lapiz-stock:hover { background: #1c1c2b; }
-    .modal-editar-stock {
-      max-height: calc(100vh - 2rem);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+    .stock-editor-overlay {
+      position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center;
+      padding: 20px; background: rgba(3, 3, 9, 0.8); backdrop-filter: blur(7px);
     }
-    .modal-editar-stock-lista {
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      min-height: 0;
-      flex: 1 1 auto;
-      max-height: calc(100vh - 16rem);
-      padding-right: 0.25rem;
+    .modal-editar-stock {
+      width: 100%; max-width: 660px; max-height: calc(100dvh - 40px);
+      display: flex; flex-direction: column; overflow: hidden; color: #eeeef6;
+      border: 1px solid #53452b; border-radius: 24px; background: #111119;
+      box-shadow: 0 30px 100px #0009, 0 0 0 1px #d4af3708;
+    }
+    .stock-editor-fade { transition: opacity 180ms ease; }
+    .stock-editor-fade-from { opacity: 0; }
+    .stock-editor-fade-to { opacity: 1; }
+    .stock-editor-enter { transition: opacity 260ms ease, transform 260ms cubic-bezier(.22, 1, .36, 1); }
+    .stock-editor-leave { transition: opacity 170ms ease, transform 170ms ease; }
+    .stock-editor-from { opacity: 0; transform: translateY(20px) scale(.97); }
+    .stock-editor-to { opacity: 1; transform: translateY(0) scale(1); }
+    .stock-editor-header { display: flex; align-items: flex-start; gap: 14px; padding: 24px 24px 18px; flex-shrink: 0; }
+    .stock-editor-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #d4af3740; border-radius: 14px; color: #e7c766; background: linear-gradient(140deg, #d4af3726, #d4af3705); }
+    .stock-editor-icon svg { width: 22px; height: 22px; }
+    .stock-editor-heading { min-width: 0; flex: 1; }
+    .stock-editor-kicker { color: #d4af37; font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .stock-editor-heading h2 { margin-top: 4px; font-size: 20px; font-weight: 800; line-height: 1.25; }
+    .stock-editor-heading p { margin-top: 6px; color: #a0a0b8; font-size: 12px; line-height: 1.5; }
+    .stock-editor-close { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border: 1px solid #303041; border-radius: 10px; background: #1b1b28; color: #aaaabd; cursor: pointer; transition: background 160ms, color 160ms; }
+    .stock-editor-close:hover { background: #303041; color: #fff; }
+    .stock-editor-body { min-height: 0; padding: 0 24px 22px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #4e4330 transparent; }
+    .stock-editor-preview { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding-bottom: 20px; }
+    .stock-editor-stat { min-width: 0; border: 1px solid #292939; border-radius: 14px; background: #1a1a26; padding: 12px; }
+    .stock-editor-stat span { display: block; font-size: 10px; color: #a8a8bc; margin-bottom: 5px; }
+    .stock-editor-stat strong { font: 700 21px 'JetBrains Mono', monospace; overflow-wrap: anywhere; }
+    .stock-editor-stat-new { background: linear-gradient(135deg, #d4af3719, #1a1a26); border-color: #d4af3755; color: #f3d781; }
+    .stock-editor-positive { color: #6ee7b7; }
+    .stock-editor-negative { color: #fda4af; }
+    .stock-editor-neutral { color: #c4c4d4; }
+    .stock-editor-section { margin-bottom: 14px; }
+    .stock-editor-section-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; font-weight: 800; }
+    .stock-editor-section-title small { color: #a0a0b8; font-size: 10px; font-weight: 500; }
+    .stock-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .stock-editor-grid-single { grid-template-columns: minmax(0, 1fr); }
+    .stock-editor-card { min-width: 0; padding: 14px; border: 1px solid #2b2b3d; border-radius: 15px; background: #171722; transition: border-color 180ms, background 180ms; }
+    .stock-editor-card:focus-within { border-color: #d4af3790; background: #1c1c29; }
+    .stock-editor-card[data-cut="pecho"] { border-top: 2px solid #7dd3fc99; }
+    .stock-editor-card[data-cut="pierna"] { border-top: 2px solid #6ee7b799; }
+    .stock-editor-cut-title { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; font-size: 13px; font-weight: 800; }
+    .stock-editor-dot { width: 7px; height: 7px; border-radius: 50%; background: #6ee7b7; box-shadow: 0 0 10px #6ee7b730; }
+    [data-cut="pecho"] .stock-editor-dot { background: #7dd3fc; box-shadow: 0 0 10px #7dd3fc30; }
+    .stock-editor-field { display: block; min-width: 0; }
+    .stock-editor-field + .stock-editor-field { margin-top: 12px; }
+    .stock-editor-field-label { display: flex; justify-content: space-between; gap: 4px; margin-bottom: 6px; color: #b9b9cb; font-size: 11px; font-weight: 600; }
+    .stock-editor-stepper { display: flex; align-items: center; border: 1px solid #373749; background: #0d0d15; border-radius: 10px; overflow: hidden; transition: border-color 160ms, box-shadow 160ms; }
+    .stock-editor-stepper:focus-within { border-color: #d4af37; box-shadow: 0 0 0 3px #d4af3714; }
+    .stock-editor-stepper button { width: 32px; min-height: 44px; flex-shrink: 0; background: transparent; color: #a5a5ba; font-size: 19px; cursor: pointer; transition: background 160ms, color 160ms; }
+    .stock-editor-stepper button:hover { color: #f3d781; background: #d4af3717; }
+    .stock-editor-stepper input { width: 100%; min-width: 0; padding: 9px 2px; text-align: center; outline: none; border: 0; background: transparent; color: #fff; font: 700 19px 'JetBrains Mono', monospace; appearance: textfield; -moz-appearance: textfield; }
+    .stock-editor-stepper input::-webkit-inner-spin-button, .stock-editor-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .stock-editor-note { margin-top: 10px; font-size: 11px; line-height: 1.6; color: #9494ad; }
+    .stock-editor-notice { margin: 10px 0; padding: 10px 12px; border: 1px solid #d4af3733; border-radius: 10px; background: #d4af370a; font-size: 11px; line-height: 1.6; color: #dfca8d; }
+    .modal-editar-stock-lista { display: grid; gap: 12px; }
+    .stock-editor-line { border: 1px solid #2b2b3d; border-radius: 16px; background: #14141e; padding: 14px; animation: stockEditorLineIn 300ms ease both; }
+    .stock-editor-line-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .stock-editor-line-head h3 { font-size: 13px; font-weight: 700; line-height: 1.4; }
+    .stock-editor-line-head small { display: block; color: #85859f; font-size: 10px; margin-top: 3px; }
+    .stock-editor-line-total { flex-shrink: 0; padding: 4px 8px; background: #d4af3710; border-radius: 7px; color: #e5c96f; font: 600 11px 'JetBrains Mono', monospace; }
+    .stock-editor-reason { display: block; margin-top: 18px; font-size: 12px; font-weight: 700; }
+    .stock-editor-reason span { color: #85859f; font-size: 10px; font-weight: 400; }
+    .stock-editor-reason input { margin-top: 8px; width: 100%; padding: 11px 13px; border: 1px solid #303043; border-radius: 11px; background: #0d0d15; color: #eeeef6; font-size: 12px; outline: none; transition: border-color 180ms, box-shadow 180ms; }
+    .stock-editor-reason input:focus { border-color: #d4af37; box-shadow: 0 0 0 3px #d4af3714; }
+    .stock-editor-error { margin-top: 12px; padding: 10px 12px; border: 1px solid #fb718540; border-radius: 10px; color: #fda4af; background: #fb718510; font-size: 12px; line-height: 1.5; }
+    .stock-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; flex-shrink: 0; border-top: 1px solid #2b2b3d; background: #171721; }
+    .stock-editor-footer-note { max-width: 180px; color: #85859f; font-size: 10px; line-height: 1.5; }
+    .stock-editor-actions { display: flex; gap: 8px; }
+    .stock-editor-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 15px; border: 1px solid #373749; border-radius: 11px; background: #222231; color: #d6d6e4; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms, transform 160ms, box-shadow 160ms; }
+    .stock-editor-button:hover { background: #2e2e41; transform: translateY(-1px); }
+    .stock-editor-save { border-color: #e0bd52; background: linear-gradient(135deg, #ebca68, #c9a029); color: #211900; box-shadow: 0 3px 12px #d4af3718; }
+    .stock-editor-save:hover { background: linear-gradient(135deg, #f5d77c, #d4af37); box-shadow: 0 4px 18px #d4af3730; }
+    .stock-editor-button:disabled, .stock-editor-close:disabled { cursor: wait; opacity: .55; transform: none; }
+    .modal-editar-stock :focus-visible { outline: 2px solid #e5c96f; outline-offset: 3px; }
+    .stock-editor-spinner { width: 13px; height: 13px; border: 2px solid #21190040; border-top-color: #211900; border-radius: 50%; animation: stockEditorSpin 650ms linear infinite; }
+    @keyframes stockEditorLineIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes stockEditorSpin { to { transform: rotate(360deg); } }
+    @media (max-width: 520px) {
+      .stock-editor-overlay { padding: 10px; }
+      .modal-editar-stock { max-height: calc(100dvh - 20px); border-radius: 18px; }
+      .stock-editor-header { padding: 18px 16px 14px; gap: 10px; }
+      .stock-editor-icon { width: 36px; height: 36px; border-radius: 11px; }
+      .stock-editor-heading h2 { font-size: 17px; }
+      .stock-editor-body { padding: 0 16px 16px; }
+      .stock-editor-preview { gap: 6px; padding-bottom: 16px; }
+      .stock-editor-stat { padding: 10px 8px; border-radius: 11px; }
+      .stock-editor-stat strong { font-size: 18px; }
+      .stock-editor-grid { gap: 8px; }
+      .stock-editor-card, .stock-editor-line { padding: 10px; }
+      .stock-editor-footer { padding: 12px 16px; }
+      .stock-editor-footer-note { display: none; }
+      .stock-editor-actions { width: 100%; }
+      .stock-editor-button { flex: 1; }
+    }
+    @media (max-width: 360px) {
+      .stock-editor-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stock-editor-overlay *, .stock-editor-overlay { animation: none !important; transition-duration: .01ms !important; }
+      .stock-editor-button:hover { transform: none; }
     }
     .caja-stock { margin-top: 6px; }
     .caja-stock-etiq { font-size: 11px; color: #c8c8d8; margin: 0 0 4px; }
@@ -6362,92 +6453,129 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   <div
     x-show="editarStock.abierto"
     x-cloak
-    class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70"
-    @keydown.escape.window="editarStock.abierto = false"
+    class="stock-editor-overlay"
+    x-transition:enter="stock-editor-fade" x-transition:enter-start="stock-editor-fade-from" x-transition:enter-end="stock-editor-fade-to"
+    x-transition:leave="stock-editor-fade" x-transition:leave-start="stock-editor-fade-to" x-transition:leave-end="stock-editor-fade-from"
+    @click.self="cerrarEditarStock()" @keydown.escape.window="if (editarStock.abierto) cerrarEditarStock()"
   >
-    <div class="modal-editar-stock w-full bg-[#14141f] border border-[#d4af37]/50 rounded-xl shadow-2xl" :class="(editarStock.grupo || (editarStock.lineas && editarStock.lineas.length)) ? 'max-w-lg' : 'max-w-md'" @click.outside="editarStock.abierto = false">
-      <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-3 shrink-0">
-        <div>
-          <h2 class="text-base font-extrabold text-white">Editar stock</h2>
-          <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="editarStock.nombre"></p>
+    <div class="modal-editar-stock" x-ref="modalEditarStock" role="dialog" aria-modal="true" aria-labelledby="stock-editor-title" aria-describedby="stock-editor-description" tabindex="-1"
+      :aria-busy="!!editarStock.guardando" x-show="editarStock.abierto"
+      x-transition:enter="stock-editor-enter" x-transition:enter-start="stock-editor-from" x-transition:enter-end="stock-editor-to"
+      x-transition:leave="stock-editor-leave" x-transition:leave-start="stock-editor-to" x-transition:leave-end="stock-editor-from"
+      @keydown.tab="atraparFocoEditarStock($event)"
+    >
+      <div class="stock-editor-header">
+        <div class="stock-editor-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9M7.5 5.5l9 5"/></svg></div>
+        <div class="stock-editor-heading">
+          <span class="stock-editor-kicker">Editar stock</span>
+          <h2 id="stock-editor-title" x-text="editarStock.nombre"></h2>
+          <p id="stock-editor-description" x-text="editarStock.cortes ? 'Ajusta las cantidades de pierna y pecho de este plato.' : (editarStock.grupo ? 'Revisa y ajusta el stock de cada producto del grupo.' : 'Ingresa la cantidad real que tienes en cocina.')"></p>
         </div>
-        <button type="button" class="text-[#a0a0b8] hover:text-white cursor-pointer" aria-label="Cerrar" @click="editarStock.abierto = false">✕</button>
+        <button type="button" class="stock-editor-close" aria-label="Cerrar edición de stock" :disabled="editarStock.guardando" @click="cerrarEditarStock()">✕</button>
       </div>
-      <div class="space-y-3 px-5" x-show="editarStock.octavo">
-        <p class="text-xs text-[#a0a0b8]">Stock actual: <strong class="text-white" x-text="formatNum(editarStock.realAntes || 0)"></strong> octavos · pecho <strong class="text-sky-200" x-text="formatNum(editarStock.pechoAntes || 0)"></strong> · pierna <strong class="text-emerald-200" x-text="formatNum(editarStock.piernaAntes || 0)"></strong></p>
-        <p class="text-[11px] text-amber-200" x-show="!editarStock.separados && (editarStock.realAntes || 0) > 0">El stock todavía no estaba separado: lo que no tiene marca aparece en pierna. Escribe cuánto es de cada uno.</p>
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block text-xs text-[#a0a0b8]">
-            <span class="font-bold text-sky-200">Octavos de pecho</span>
-            <input type="number" min="0" step="1" inputmode="numeric" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.pecho" @keydown.enter.prevent="guardarEditarOctavo()" @input="editarStock.error = ''" aria-label="Octavos de pecho">
-          </label>
-          <label class="block text-xs text-[#a0a0b8]">
-            <span class="font-bold text-emerald-200">Octavos de pierna</span>
-            <input type="number" min="0" step="1" inputmode="numeric" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.pierna" @keydown.enter.prevent="guardarEditarOctavo()" @input="editarStock.error = ''" aria-label="Octavos de pierna">
-          </label>
+      <div class="stock-editor-body" @input="editarStock.error = ''">
+        <div class="stock-editor-preview" aria-label="Resumen del ajuste">
+          <div class="stock-editor-stat"><span>Stock actual</span><strong x-text="formatNum(stockEditarAntes())"></strong></div>
+          <div class="stock-editor-stat stock-editor-stat-new"><span>Nuevo stock</span><strong x-text="formatNum(stockEditarNuevo())"></strong></div>
+          <div class="stock-editor-stat" :class="stockEditarNuevo() > stockEditarAntes() ? 'stock-editor-positive' : (stockEditarNuevo() < stockEditarAntes() ? 'stock-editor-negative' : 'stock-editor-neutral')"><span>Ajuste total</span><strong x-text="(stockEditarNuevo() > stockEditarAntes() ? '+' : '') + formatNum(redondear3(stockEditarNuevo() - stockEditarAntes()))"></strong></div>
         </div>
-        <div class="rounded-lg border border-[#d4af37]/40 bg-[#101018] px-3 py-2 text-xs font-mono">
-          <p class="flex justify-between"><span class="text-[#a0a0b8]">Total octavos</span><strong class="text-[#d4af37]" x-text="formatNum(totalOctavosEditar())"></strong></p>
-          <p class="flex justify-between" x-show="Math.abs(totalOctavosEditar() - (editarStock.realAntes || 0)) > 0.0005"><span class="text-[#a0a0b8]">Cambio</span><strong :class="totalOctavosEditar() >= (editarStock.realAntes || 0) ? 'text-emerald-300' : 'text-rose-300'" x-text="(totalOctavosEditar() >= (editarStock.realAntes || 0) ? '+' : '−') + formatNum(Math.abs(totalOctavosEditar() - (editarStock.realAntes || 0)))"></strong></p>
-        </div>
-        <p class="text-[11px] text-[#a0a0b8]">Deja el stock en este número con un ingreso o una corrección de hoy. No resta piezas de Pecho ni de Pierna: para pasar piezas a octavos usa − / + del cuadro.</p>
-        <p class="text-[11px] font-semibold text-[#d4af37]" x-show="editarStock.lineas && editarStock.lineas.length">Platos del octavo</p>
-      </div>
-      <div class="modal-editar-stock-lista space-y-2 px-5" :class="editarStock.octavo ? 'pt-2' : ''" x-show="editarStock.grupo || (editarStock.octavo && editarStock.lineas && editarStock.lineas.length)">
-          <template x-for="linea in editarStock.lineas" :key="'edit-linea-' + linea.id">
-            <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-2">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-sm font-bold text-white" x-text="linea.nombre"></span>
-                <span class="text-[11px] font-mono text-[#d4af37]">Total <span x-text="formatNum(totalLineaEditar(linea))"></span></span>
-              </div>
-              <div class="grid gap-2" :class="linea.tieneCocido ? 'grid-cols-2' : 'grid-cols-1'">
-                <label class="block text-xs text-[#a0a0b8]" x-show="!linea.soloCocido">
-                  <span class="font-bold text-emerald-300" x-text="linea.tieneCocido ? 'Crudo' : 'Stock'"></span>
-                  <input type="number" min="0" step="any" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1.5 text-white num-mono font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="linea.crudo" :aria-label="'Stock crudo de ' + linea.nombre">
-                </label>
-                <label class="block text-xs text-[#a0a0b8]" x-show="linea.tieneCocido || linea.soloCocido">
-                  <span class="font-bold text-amber-300">Cocido</span>
-                  <input type="number" min="0" step="any" class="mt-1 w-full bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1.5 text-white num-mono font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="linea.cocido" :aria-label="'Stock cocido de ' + linea.nombre">
-                </label>
-              </div>
+        <fieldset :disabled="editarStock.guardando" style="min-width:0">
+          <div class="stock-editor-section" x-show="editarStock.octavo">
+            <div class="stock-editor-section-title">Octavos disponibles <small>Por tipo de presa</small></div>
+            <div class="stock-editor-notice" x-show="!editarStock.separados && (editarStock.realAntes || 0) > 0">El stock sin identificar aparece en pierna. Ajusta la distribución según tu conteo.</div>
+            <div class="stock-editor-grid">
+              <template x-for="corte in ['pierna', 'pecho']" :key="'octavo-editor-' + corte">
+                <div class="stock-editor-card" :data-cut="corte">
+                  <p class="stock-editor-cut-title"><i class="stock-editor-dot" aria-hidden="true"></i><span x-text="corte === 'pierna' ? 'Pierna' : 'Pecho'"></span></p>
+                  <div class="stock-editor-field">
+                    <label class="stock-editor-field-label" :for="'stock-editor-octavo-' + corte">Octavos</label>
+                    <span class="stock-editor-stepper">
+                      <button type="button" :aria-label="'Restar octavos de ' + corte" @click="editarStock[corte] = Math.max(0, redondear3((Number(editarStock[corte]) || 0) - 1)); editarStock.error = ''">−</button>
+                      <input :id="'stock-editor-octavo-' + corte" type="number" min="0" step="any" inputmode="decimal" x-model.number="editarStock[corte]" :aria-label="'Octavos de ' + corte" @keydown.enter.prevent="guardarModalStock()">
+                      <button type="button" :aria-label="'Sumar octavos de ' + corte" @click="editarStock[corte] = redondear3((Number(editarStock[corte]) || 0) + 1); editarStock.error = ''">+</button>
+                    </span>
+                  </div>
+                </div>
+              </template>
             </div>
-          </template>
+            <p class="stock-editor-note">Este ajuste registra tu conteo. Para convertir piezas a octavos, usa los controles de Transformar.</p>
+          </div>
+          <div class="stock-editor-section" x-show="editarStock.grupo || editarStock.cortes || (editarStock.octavo && editarStock.lineas && editarStock.lineas.length)">
+            <div class="stock-editor-section-title"><span x-text="editarStock.octavo ? 'Platos del octavo' : (editarStock.cortes ? 'Stock por presa' : 'Productos del grupo')"></span><small>Unidades disponibles</small></div>
+            <div class="modal-editar-stock-lista">
+              <template x-for="(linea, indice) in editarStock.lineas" :key="'edit-linea-' + linea.id">
+                <div class="stock-editor-line" :style="'animation-delay:' + Math.min(indice * 40, 200) + 'ms'">
+                  <div class="stock-editor-line-head">
+                    <div><h3 x-text="linea.nombre"></h3><small x-text="linea.porCorte ? 'Pierna y pecho se guardan por separado' : 'Stock del producto'"></small></div>
+                    <span class="stock-editor-line-total">Total <span x-text="formatNum(totalLineaEditar(linea))"></span></span>
+                  </div>
+                  <template x-if="linea.porCorte">
+                    <div class="stock-editor-grid">
+                      <template x-for="corte in ['pierna', 'pecho']" :key="linea.id + '-editor-' + corte">
+                        <div class="stock-editor-card" :data-cut="corte">
+                          <p class="stock-editor-cut-title"><i class="stock-editor-dot" aria-hidden="true"></i><span x-text="corte === 'pierna' ? 'Pierna' : 'Pecho'"></span></p>
+                          <template x-for="tipo in (linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']))" :key="linea.id + '-' + corte + '-' + tipo">
+                            <div class="stock-editor-field">
+                              <label class="stock-editor-field-label" :for="'stock-editor-' + linea.id + '-' + corte + '-' + tipo" x-text="tipo === 'cocido' ? 'Cocido' : 'Crudo'"></label>
+                              <span class="stock-editor-stepper">
+                                <button type="button" :aria-label="'Restar ' + tipo + ' de ' + corte + ' de ' + linea.nombre" @click="linea[corte][tipo] = Math.max(0, redondear3((Number(linea[corte][tipo]) || 0) - 1)); editarStock.error = ''">−</button>
+                                <input :id="'stock-editor-' + linea.id + '-' + corte + '-' + tipo" type="number" min="0" step="any" inputmode="decimal" x-model.number="linea[corte][tipo]" :aria-label="'Stock ' + tipo + ' de ' + corte + ' de ' + linea.nombre" @keydown.enter.prevent="guardarModalStock()">
+                                <button type="button" :aria-label="'Sumar ' + tipo + ' de ' + corte + ' de ' + linea.nombre" @click="linea[corte][tipo] = redondear3((Number(linea[corte][tipo]) || 0) + 1); editarStock.error = ''">+</button>
+                              </span>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="!linea.porCorte">
+                    <div class="stock-editor-grid" :class="!linea.tieneCocido ? 'stock-editor-grid-single' : ''">
+                      <template x-for="tipo in (linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']))" :key="linea.id + '-editor-' + tipo">
+                        <div class="stock-editor-field stock-editor-card" style="margin-top:0">
+                          <label class="stock-editor-field-label" :for="'stock-editor-' + linea.id + '-' + tipo" x-text="tipo === 'cocido' ? 'Cocido' : (linea.tieneCocido ? 'Crudo' : 'Stock')"></label>
+                          <span class="stock-editor-stepper">
+                            <button type="button" :aria-label="'Restar ' + tipo + ' de ' + linea.nombre" @click="linea[tipo] = Math.max(0, redondear3((Number(linea[tipo]) || 0) - 1)); editarStock.error = ''">−</button>
+                            <input :id="'stock-editor-' + linea.id + '-' + tipo" type="number" min="0" step="any" inputmode="decimal" x-model.number="linea[tipo]" :aria-label="'Stock ' + tipo + ' de ' + linea.nombre" @keydown.enter.prevent="guardarModalStock()">
+                            <button type="button" :aria-label="'Sumar ' + tipo + ' de ' + linea.nombre" @click="linea[tipo] = redondear3((Number(linea[tipo]) || 0) + 1); editarStock.error = ''">+</button>
+                          </span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="stock-editor-section" x-show="!editarStock.octavo && !editarStock.grupo && !editarStock.cortes">
+            <div class="stock-editor-section-title">Cantidad disponible <small>Según tu conteo</small></div>
+            <div class="stock-editor-grid" :class="!editarStock.tieneCocido ? 'stock-editor-grid-single' : ''">
+              <template x-for="tipo in (editarStock.soloCocido ? ['cocido'] : (editarStock.tieneCocido ? ['crudo', 'cocido'] : ['crudo']))" :key="'stock-simple-' + tipo">
+                <div class="stock-editor-field stock-editor-card" style="margin-top:0">
+                  <label class="stock-editor-field-label" :for="'stock-editor-simple-' + tipo" x-text="tipo === 'cocido' ? 'Stock cocido' : (editarStock.tieneCocido ? 'Stock crudo' : 'Stock')"></label>
+                  <span class="stock-editor-stepper">
+                    <button type="button" :aria-label="'Restar stock ' + tipo" @click="editarStock[tipo] = Math.max(0, redondear3((Number(editarStock[tipo]) || 0) - 1)); editarStock.error = ''">−</button>
+                    <input :id="'stock-editor-simple-' + tipo" type="number" min="0" step="any" inputmode="decimal" x-model.number="editarStock[tipo]" :aria-label="'Nuevo stock ' + tipo" @keydown.enter.prevent="guardarModalStock()">
+                    <button type="button" :aria-label="'Sumar stock ' + tipo" @click="editarStock[tipo] = redondear3((Number(editarStock[tipo]) || 0) + 1); editarStock.error = ''">+</button>
+                  </span>
+                </div>
+              </template>
+            </div>
+          </div>
+          <label class="stock-editor-reason">Motivo del ajuste <span>Opcional</span>
+            <input type="text" maxlength="160" x-model="editarStock.motivo" placeholder="Ej. Conteo de cámara, merma o ajuste de corte" aria-label="Motivo del ajuste" @keydown.enter.prevent="guardarModalStock()">
+          </label>
+        </fieldset>
+        <p class="stock-editor-error" role="alert" x-show="editarStock.error" x-text="editarStock.error"></p>
       </div>
-      <div class="space-y-3 px-5 pt-3 shrink-0" x-show="editarStock.grupo">
-        <div class="rounded-lg border border-[#d4af37]/40 bg-[#101018] px-3 py-2 text-xs font-mono space-y-1">
-          <p class="flex justify-between"><span class="text-[#a0a0b8]">Total crudo</span><strong class="text-emerald-300" x-text="formatNum(totalCrudoEditar())"></strong></p>
-          <p class="flex justify-between" x-show="hayCocidoEditar()"><span class="text-[#a0a0b8]">Total cocido</span><strong class="text-amber-300" x-text="formatNum(totalCocidoEditar())"></strong></p>
-          <p class="flex justify-between border-t border-[#26263a] pt-1"><span class="text-white">Total</span><strong class="text-[#d4af37]" x-text="formatNum(totalEditar())"></strong></p>
+      <div class="stock-editor-footer">
+        <span class="stock-editor-footer-note">El ajuste quedará registrado en el inventario.</span>
+        <div class="stock-editor-actions">
+          <button type="button" class="stock-editor-button" :disabled="editarStock.guardando" @click="cerrarEditarStock()">Cancelar</button>
+          <button type="button" class="stock-editor-button stock-editor-save" :disabled="editarStock.guardando" @click="guardarModalStock()">
+            <span class="stock-editor-spinner" x-show="editarStock.guardando" aria-hidden="true"></span>
+            <span x-text="editarStock.guardando ? 'Guardando…' : 'Guardar cambios'"></span>
+          </button>
         </div>
-        <label class="block text-xs text-[#a0a0b8]">
-          <span class="font-bold text-white">Motivo <span class="font-normal text-[#71718a]">(opcional)</span></span>
-          <input type="text" maxlength="200" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#d4af37]" x-model="editarStock.motivo" placeholder="Ej. Merma, conteo de cámara, ajuste de corte" aria-label="Motivo del ajuste">
-        </label>
-      </div>
-      <div class="space-y-3 px-5 pt-3" x-show="editarStock.octavo">
-        <label class="block text-xs text-[#a0a0b8]">
-          <span class="font-bold text-white">Motivo <span class="font-normal text-[#71718a]">(opcional)</span></span>
-          <input type="text" maxlength="200" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#d4af37]" x-model="editarStock.motivo" placeholder="Ej. Conteo de cámara" aria-label="Motivo del ajuste">
-        </label>
-        <p class="text-xs font-semibold text-rose-300" role="alert" x-show="editarStock.error" x-text="editarStock.error"></p>
-      </div>
-      <div class="space-y-3 px-5" x-show="!editarStock.octavo && !editarStock.grupo">
-        <label class="block text-xs text-[#a0a0b8]" x-show="!editarStock.soloCocido">
-          <span class="font-bold text-emerald-300" x-text="editarStock.tieneCocido ? 'Stock crudo' : 'Stock'"></span>
-          <input type="number" min="0" step="any" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.crudo" aria-label="Nuevo stock crudo">
-        </label>
-        <label class="block text-xs text-[#a0a0b8]" x-show="editarStock.tieneCocido || editarStock.soloCocido">
-          <span class="font-bold text-amber-300">Stock cocido</span>
-          <input type="number" min="0" step="any" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.cocido" aria-label="Nuevo stock cocido">
-        </label>
-        <label class="block text-xs text-[#a0a0b8]">
-          <span class="font-bold text-white">Motivo <span class="font-normal text-[#71718a]">(opcional)</span></span>
-          <input type="text" maxlength="200" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#d4af37]" x-model="editarStock.motivo" placeholder="Ej. Merma, conteo de cámara, ajuste de corte" aria-label="Motivo del ajuste">
-        </label>
-      </div>
-      <div class="flex justify-end gap-2 px-5 pt-3 pb-5 shrink-0">
-        <button type="button" class="px-3 py-2 rounded-lg bg-[#1c1c2b] text-[#a0a0b8] hover:text-white cursor-pointer" @click="editarStock.abierto = false">Cancelar</button>
-        <button type="button" class="px-3 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold cursor-pointer" @click="editarStock.octavo ? guardarEditarOctavo() : (editarStock.grupo ? guardarEditarStockGrupo() : guardarEditarStock())">Guardar</button>
       </div>
     </div>
   </div>
@@ -8677,7 +8805,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         auditoriaFechaDesde: '',
         auditoriaFechaHasta: '',
         nuevoAjusteForm: { abierto: false, tipo: 'crudo', cantidad: -1, motivo: '' },
-        editarStock: { abierto: false, id: '', nombre: '', tieneCocido: false, soloCocido: false, octavo: false, grupo: false, lineas: [], crudo: 0, cocido: 0, pecho: 0, pierna: 0, pechoAntes: 0, piernaAntes: 0, realAntes: 0, separados: true, motivo: '', error: '' },
+        editarStock: { abierto: false, id: '', nombre: '', tieneCocido: false, soloCocido: false, octavo: false, cortes: false, grupo: false, lineas: [], crudo: 0, cocido: 0, pecho: 0, pierna: 0, pechoAntes: 0, piernaAntes: 0, realAntes: 0, separados: true, motivo: '', error: '', guardando: false },
 
         claveDeFila: {
           pollo_fresco: 'pollo-origen',
@@ -12891,6 +13019,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             tieneCocido: false,
             soloCocido: false,
             octavo: true,
+            cortes: false,
             grupo: false,
             lineas,
             crudo: 0,
@@ -12906,6 +13035,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             guardando: false,
             desdeTabla: !!desdeTabla
           };
+          this.enfocarEditarStock();
         },
 
         totalOctavosEditar() {
@@ -12925,12 +13055,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const campo = this.campoTipo(base, tipoOk);
           row[campo] = this.redondear3((Number(row[campo]) || 0) + d);
           row[tipoOk] = Math.max(0, this.calcSaldoTipo(row, tipoOk));
+          const prefijo = (base === 'ingreso' ? 'Ingreso' : 'Corrección') + ' ' + tipoOk;
+          const texto = String(motivo || '').trim();
+          const marca = texto.match(/(?:^|·)\s*(pecho|pierna|sin separar)\s*$/i);
+          const sufijo = marca ? ' · ' + marca[1].toLowerCase() : '';
+          const detalle = marca ? texto.slice(0, marca.index).trim() : texto;
+          // El modelo admite 200 caracteres. Recortar sólo el texto libre conserva la marca
+          // final que identifica el corte, incluso al generar una corrección de saldo.
+          const libre = detalle.slice(0, Math.max(0, 200 - prefijo.length - sufijo.length - 3)).trimEnd();
           return {
             rubro: clave,
             clase: base === 'correccion' ? 'regulacion' : 'ingreso',
             tipoProducto: tipoOk,
             cantidad: d,
-            motivo: (base === 'ingreso' ? 'Ingreso' : 'Corrección') + ' ' + tipoOk + (motivo ? ' · ' + motivo : ''),
+            motivo: prefijo + (libre ? ' · ' + libre : '') + sufijo,
             fecha: new Date().toISOString(),
             nombre: row.nombre
           };
@@ -12941,73 +13079,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // así que guarda aunque la pieza no tenga stock. Antes pedía 1 pieza por cada 2 octavos y se quedaba
         // sin guardar cuando faltaban piezas, con el aviso escondido detrás del modal.
         guardarEditarOctavo() {
-          const f = this.editarStock;
-          f.error = '';
-          const leer = (v) => {
-            if (v === '' || v === null || v === undefined) return 0;
-            const n = Number(v);
-            return Number.isFinite(n) ? this.redondear3(n) : NaN;
-          };
-          const pecho = leer(f.pecho);
-          const pierna = leer(f.pierna);
-          if (!Number.isFinite(pecho) || !Number.isFinite(pierna) || pecho < 0 || pierna < 0) {
-            f.error = 'Escribe números de 0 o más en pecho y pierna.';
-            return false;
-          }
-          const row = this.filaReal('octavo_pollo');
-          if (!row || !this.claveDeFila.octavo_pollo) {
-            f.error = 'Octavo de pollo no está en la hoja.';
-            return false;
-          }
-          if (this.productoBloqueado && this.productoBloqueado('octavo_pollo')) {
-            // El bloqueo frena ventas y pases, no el conteo: se deja guardar y se avisa.
-            this.toastMessage = 'Octavo de pollo está bloqueado. El stock se guarda igual.';
-          }
-          const extraLibre = String(f.motivo || '').trim();
-          // Un motivo con «pecho» o «pierna» cambiaría la marca del movimiento: se guarda solo en el no marcado.
-          const extraSeguro = /pech|piern/.test(this.norm(extraLibre)) ? '' : extraLibre;
-          const movs = [];
-          const real = this.redondear3(this.calcSaldoTipo(row, 'crudo'));
-          const sinCambio = Math.abs(pecho - (Number(f.pechoAntes) || 0)) < 0.0005 && Math.abs(pierna - (Number(f.piernaAntes) || 0)) < 0.0005 && Math.abs(real - (Number(f.realAntes) || 0)) < 0.0005;
-          if (!sinCambio) {
-            const dPecho = this.redondear3(pecho - this.octavosTagNeto('pechugas'));
-            const dPierna = this.redondear3(pierna - this.octavosTagNeto('piernas'));
-            const resto = this.redondear3((pecho + pierna) - real - dPecho - dPierna);
-            const mPecho = this.movSaldoDirecto(row, 'crudo', dPecho, 'pecho' + (extraSeguro ? ' · ' + extraSeguro : ''));
-            if (mPecho) movs.push(mPecho);
-            const mPierna = this.movSaldoDirecto(row, 'crudo', dPierna, 'pierna' + (extraSeguro ? ' · ' + extraSeguro : ''));
-            if (mPierna) movs.push(mPierna);
-            // Stock viejo sin marca (ni pecho ni pierna): se ajusta aparte para que el total quede exacto.
-            const mResto = this.movSaldoDirecto(row, 'crudo', resto, 'sin separar' + (extraLibre ? ' · ' + extraLibre : ''));
-            if (mResto) movs.push(mResto);
-          }
-          // Desde la tabla también se editan los platos del octavo.
-          (f.lineas || []).forEach((linea) => {
-            const hijo = this.filaReal(linea.id);
-            if (!hijo) return;
-            const tipos = linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
-            tipos.forEach((tipo) => {
-              const next = leer(linea[tipo]);
-              if (!Number.isFinite(next) || next < 0) return;
-              const mov = this.movSaldoDirecto(hijo, tipo, next - this.redondear3(this.calcSaldoTipo(hijo, tipo)), extraLibre);
-              if (mov) {
-                movs.push(mov);
-                this.pulseRowTotal(hijo.id);
-              }
-            });
-          });
-          if (!movs.length) {
-            f.abierto = false;
-            this.toastMessage = 'Sin cambios de stock';
-            return true;
-          }
-          this.anotarMovs(movs);
-          this.pulseRowTotal(row.id);
-          this.anotarHistorial('Editar stock', 'Octavo de pollo: ' + this.formatNum(pecho) + ' pecho · ' + this.formatNum(pierna) + ' pierna', this.formatNum(this.redondear3(pecho + pierna)));
-          this.encolarMovimientos(movs);
-          f.abierto = false;
-          this.toastMessage = 'Octavo de pollo: ' + this.formatNum(pecho) + ' de pecho y ' + this.formatNum(pierna) + ' de pierna.';
-          return true;
+          return this.guardarModalStock();
         },
 
         motivoSaldoAnterior(texto) {
@@ -13034,6 +13106,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           const solo = !!row.soloCocido;
           const tiene = !!row.tieneCocido && !solo;
+          const linea = this.lineaEditarDe(row);
           this.editarStock = {
             abierto: true,
             id: row.id,
@@ -13041,28 +13114,50 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             tieneCocido: tiene,
             soloCocido: solo,
             octavo: false,
+            cortes: linea.porCorte,
             grupo: false,
-            lineas: [],
+            lineas: linea.porCorte ? [linea] : [],
             crudo: solo ? 0 : this.redondear3(Math.max(0, this.calcSaldoTipo(row, 'crudo'))),
             cocido: (tiene || solo) ? this.redondear3(Math.max(0, this.calcSaldoTipo(row, 'cocido'))) : 0,
             pecho: 0,
             pierna: 0,
+            antes: linea.antes,
             motivo: '',
+            error: '',
+            guardando: false,
             desdeTabla: !!desdeTabla
           };
+          this.enfocarEditarStock();
+        },
+
+        esPlatoOctavoEditar(id) {
+          const rowId = this.filaIdDePlatoTransformar(id) || id;
+          return this.platosDelOctavo().some((plato) => (this.filaIdDePlatoTransformar(plato.id) || plato.id) === rowId);
         },
 
         lineaEditarDe(row) {
           const solo = !!row.soloCocido;
           const tiene = !!row.tieneCocido && !solo;
-          return {
+          const linea = {
             id: row.id,
             nombre: row.nombre,
             tieneCocido: tiene,
             soloCocido: solo,
+            porCorte: this.esPlatoOctavoEditar(row.id),
             crudo: solo ? 0 : this.redondear3(Math.max(0, this.calcSaldoTipo(row, 'crudo'))),
             cocido: (tiene || solo) ? this.redondear3(Math.max(0, this.calcSaldoTipo(row, 'cocido'))) : 0
           };
+          linea.antes = { crudo: linea.crudo, cocido: linea.cocido };
+          if (linea.porCorte) {
+            ['pecho', 'pierna'].forEach((corte) => {
+              const marca = corte === 'pecho' ? 'pechugas' : 'piernas';
+              linea[corte] = {
+                crudo: solo ? 0 : this.stockOctavoPlato(row.id, marca, 'crudo'),
+                cocido: (tiene || solo) ? this.stockOctavoPlato(row.id, marca, 'cocido') : 0
+              };
+            });
+          }
+          return linea;
         },
 
         abrirEditarStockFila(row) {
@@ -13077,6 +13172,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             nombre: row.nombre,
             tieneCocido: !!row.tieneCocido,
             octavo: false,
+            cortes: false,
             grupo: true,
             lineas: [this.lineaEditarDe(row)].concat(hijos.map((hijo) => this.lineaEditarDe(hijo))),
             crudo: 0,
@@ -13084,22 +13180,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             pecho: 0,
             pierna: 0,
             motivo: '',
+            error: '',
+            guardando: false,
             desdeTabla: true
           };
+          this.enfocarEditarStock();
         },
 
         totalLineaEditar(linea) {
           if (!linea) return 0;
-          const cocido = (linea.tieneCocido || linea.soloCocido) ? (Number(linea.cocido) || 0) : 0;
-          return this.redondear3((Number(linea.crudo) || 0) + cocido);
+          const crudo = linea.soloCocido ? 0 : this.stockLineaTipoEditar(linea, 'crudo');
+          const cocido = (linea.tieneCocido || linea.soloCocido) ? this.stockLineaTipoEditar(linea, 'cocido') : 0;
+          return this.redondear3(crudo + cocido);
+        },
+
+        stockLineaTipoEditar(linea, tipo) {
+          if (!linea) return 0;
+          if (linea.porCorte) return this.redondear3((Number(linea.pecho[tipo]) || 0) + (Number(linea.pierna[tipo]) || 0));
+          return Number(linea[tipo]) || 0;
         },
 
         totalCrudoEditar() {
-          return this.redondear3((this.editarStock.lineas || []).reduce((a, linea) => a + (Number(linea.crudo) || 0), 0));
+          return this.redondear3((this.editarStock.lineas || []).reduce((a, linea) => a + (linea.soloCocido ? 0 : this.stockLineaTipoEditar(linea, 'crudo')), 0));
         },
 
         totalCocidoEditar() {
-          return this.redondear3((this.editarStock.lineas || []).reduce((a, linea) => a + ((linea.tieneCocido || linea.soloCocido) ? (Number(linea.cocido) || 0) : 0), 0));
+          return this.redondear3((this.editarStock.lineas || []).reduce((a, linea) => a + ((linea.tieneCocido || linea.soloCocido) ? this.stockLineaTipoEditar(linea, 'cocido') : 0), 0));
         },
 
         hayCocidoEditar() {
@@ -13134,45 +13240,165 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return true;
         },
 
-        async guardarEditarStockGrupo() {
+        guardarEditarStockGrupo() {
+          return this.guardarModalStock();
+        },
+
+        guardarEditarStock() {
+          return this.guardarModalStock();
+        },
+
+        stockEditarAntes() {
           const f = this.editarStock;
-          const lineas = f.lineas || [];
-          let cambios = 0;
-          try {
-            for (let i = 0; i < lineas.length; i++) {
-              const linea = lineas[i];
-              const tipos = linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
-              for (let t = 0; t < tipos.length; t++) {
-                const tipo = tipos[t];
-                const antes = this.calcSaldoTipo(this.filaReal(linea.id) || {}, tipo);
-                const ok = await this.fijarSaldoTipo(linea.id, tipo, linea[tipo]);
-                if (ok === false) return;
-                if (this.redondear3((Number(linea[tipo]) || 0) - antes)) cambios += 1;
-              }
-            }
-            await this.cargarKardex();
-            this.editarStock.abierto = false;
-            this.toastMessage = cambios ? ('Stock de ' + f.nombre + ' actualizado.') : 'Sin cambios de stock';
-          } catch (e) {
-            this.toastMessage = e.message || 'No se guardó el stock';
+          if (f.octavo || f.grupo || f.cortes) {
+            const lineas = (f.lineas || []).reduce((suma, linea) => suma + (Number(linea.antes && linea.antes.crudo) || 0) + (Number(linea.antes && linea.antes.cocido) || 0), 0);
+            return this.redondear3(lineas + (f.octavo ? (Number(f.realAntes) || 0) : 0));
+          }
+          return this.redondear3((Number(f.antes && f.antes.crudo) || 0) + (Number(f.antes && f.antes.cocido) || 0));
+        },
+
+        stockEditarNuevo() {
+          const f = this.editarStock;
+          if (f.octavo || f.grupo || f.cortes) return this.redondear3(this.totalEditar() + (f.octavo ? this.totalOctavosEditar() : 0));
+          return this.totalLineaEditar(f);
+        },
+
+        elementosFocoEditarStock() {
+          const panel = this.$refs && this.$refs.modalEditarStock;
+          if (!panel) return [];
+          return Array.from(panel.querySelectorAll('input:not([disabled]), button:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]')).filter((el) => el.getClientRects().length > 0);
+        },
+
+        enfocarEditarStock() {
+          if (typeof document === 'undefined') return;
+          this._editarStockFocoAnterior = document.activeElement;
+          if (this.$nextTick) this.$nextTick(() => {
+            const campos = this.elementosFocoEditarStock();
+            const primero = campos.find((el) => el.tagName === 'INPUT') || campos[0];
+            if (primero) primero.focus({ preventScroll: true });
+          });
+        },
+
+        cerrarEditarStock() {
+          if (this.editarStock.guardando) return;
+          this.editarStock.abierto = false;
+          const anterior = this._editarStockFocoAnterior;
+          if (anterior && anterior.isConnected && anterior.focus) anterior.focus({ preventScroll: true });
+          this._editarStockFocoAnterior = null;
+        },
+
+        atraparFocoEditarStock(event) {
+          if (event.key !== 'Tab') return;
+          const campos = this.elementosFocoEditarStock();
+          if (!campos.length) { event.preventDefault(); return; }
+          const primero = campos[0];
+          const ultimo = campos[campos.length - 1];
+          if (event.shiftKey && (event.target === primero || !campos.includes(event.target))) {
+            event.preventDefault(); ultimo.focus();
+          } else if (!event.shiftKey && (event.target === ultimo || !campos.includes(event.target))) {
+            event.preventDefault(); primero.focus();
           }
         },
 
-        async guardarEditarStock() {
+        // Cuenta física por corte: normaliza las marcas y corrige aparte el saldo viejo sin separar.
+        // Así se conserva exactamente la distribución incluso tras ventas o ajustes sin marca.
+        deltaOctavoCorteEditar(corte, objetivo) {
+          const delta = this.redondear3(objetivo - this.octavosTagNeto(corte));
+          if (delta <= 0) return delta;
+          const positivos = (this.movimientosPeriodo || []).reduce((suma, m) => {
+            if (!m || m.rubro !== this.claveDeFila.octavo_pollo || !this.motivoEsCorte(m.motivo, corte)) return suma;
+            return (m.clase === 'ingreso' || m.clase === 'regulacion') ? suma + Math.max(0, Number(m.cantidad) || 0) : suma;
+          }, 0);
+          // La producción desde la pieza puede superar las entradas marcadas. Cubrir esa diferencia
+          // hace que el nuevo ingreso marcado sí aumente el disponible; el resto se compensa sin marca.
+          return this.redondear3(delta + Math.max(0, this.octavosDe(corte) - positivos));
+        },
+
+        movimientosSaldoCortes(row, tipo, pecho, pierna, motivo, octavo) {
+          const actualPecho = octavo ? this.octavosInicialesEditar().pecho : this.stockOctavoPlato(row.id, 'pechugas', tipo);
+          const actualPierna = octavo ? this.octavosInicialesEditar().pierna : this.stockOctavoPlato(row.id, 'piernas', tipo);
+          const real = this.redondear3(this.calcSaldoTipo(row, tipo));
+          if (Math.abs(pecho - actualPecho) < 0.0005 && Math.abs(pierna - actualPierna) < 0.0005 && Math.abs(pecho + pierna - real) < 0.0005) return [];
+          const netoPecho = octavo ? this.octavosTagNeto('pechugas') : this.netoMarcado(row.id, 'pechugas', tipo);
+          const netoPierna = octavo ? this.octavosTagNeto('piernas') : this.netoMarcado(row.id, 'piernas', tipo);
+          const dPecho = octavo ? this.deltaOctavoCorteEditar('pechugas', pecho) : this.redondear3(pecho - netoPecho);
+          const dPierna = octavo ? this.deltaOctavoCorteEditar('piernas', pierna) : this.redondear3(pierna - netoPierna);
+          const resto = this.redondear3(pecho + pierna - real - dPecho - dPierna);
+          const extra = String(motivo || '').trim();
+          return [
+            this.movSaldoDirecto(row, tipo, dPecho, (extra ? extra + ' · ' : '') + 'pecho'),
+            this.movSaldoDirecto(row, tipo, dPierna, (extra ? extra + ' · ' : '') + 'pierna'),
+            this.movSaldoDirecto(row, tipo, resto, (extra ? extra + ' · ' : '') + 'sin separar')
+          ].filter(Boolean);
+        },
+
+        async guardarModalStock() {
           const f = this.editarStock;
-          const row = this.filaReal(f.id);
-          if (!row) return;
-          const tipos = f.soloCocido ? ['cocido'] : (f.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
-          try {
-            for (let i = 0; i < tipos.length; i++) {
-              const ok = await this.fijarSaldoTipo(f.id, tipos[i], f[tipos[i]]);
-              if (ok === false) return;
+          if (f.guardando || !f.abierto) return false;
+          f.error = '';
+          const lineas = (f.octavo || f.grupo || f.cortes) ? (f.lineas || []) : [f];
+          const leer = (valor) => valor === '' || valor === null || valor === undefined ? 0 : Number(valor);
+          const campos = f.octavo ? [f.pecho, f.pierna] : [];
+          for (const linea of lineas) {
+            if (!this.filaReal(linea.id) || !this.claveDeFila[linea.id]) {
+              f.error = 'No se encontró la fila de ' + linea.nombre + '. Recarga el inventario e inténtalo de nuevo.';
+              return false;
             }
-            await this.cargarKardex();
-            this.editarStock.abierto = false;
-            this.toastMessage = 'Stock de ' + row.nombre + ' actualizado.';
+            const tipos = linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
+            tipos.forEach((tipo) => {
+              if (linea.porCorte) campos.push(linea.pecho[tipo], linea.pierna[tipo]);
+              else campos.push(linea[tipo]);
+            });
+          }
+          if (f.octavo && (!this.filaReal('octavo_pollo') || !this.claveDeFila.octavo_pollo)) {
+            f.error = 'Octavo de pollo no está en la hoja.';
+            return false;
+          }
+          if (campos.some((valor) => !Number.isFinite(leer(valor)) || leer(valor) < 0)) {
+            f.error = 'Escribe cantidades válidas de 0 o más antes de guardar.';
+            return false;
+          }
+          f.guardando = true;
+          try {
+            await (this._colaTransformar || Promise.resolve());
+            const movs = [];
+            for (const linea of lineas) {
+              const row = this.filaReal(linea.id);
+              const tipos = linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
+              for (const tipo of tipos) {
+                if (linea.porCorte) movs.push(...this.movimientosSaldoCortes(row, tipo, this.redondear3(leer(linea.pecho[tipo])), this.redondear3(leer(linea.pierna[tipo])), f.motivo, false));
+                else {
+                  const mov = this.movSaldoDirecto(row, tipo, this.redondear3(leer(linea[tipo])) - this.redondear3(this.calcSaldoTipo(row, tipo)), f.motivo);
+                  if (mov) movs.push(mov);
+                }
+              }
+            }
+            // Las marcas nuevas de los platos cambian el disponible por corte del octavo.
+            // Proyectarlas primero permite respetar también el conteo escrito para el padre.
+            this.anotarMovs(movs);
+            if (f.octavo) {
+              const delOctavo = this.movimientosSaldoCortes(this.filaReal('octavo_pollo'), 'crudo', this.redondear3(leer(f.pecho)), this.redondear3(leer(f.pierna)), f.motivo, true);
+              this.anotarMovs(delOctavo);
+              movs.push(...delOctavo);
+            }
+            if (movs.length) {
+              for (const m of movs) await this.paso(m.rubro, m.tipoProducto, m.cantidad, m.motivo, m.clase, m.nombre);
+              await this.cargarKardex();
+              const ids = new Set(lineas.map((linea) => linea.id).concat(f.octavo ? ['octavo_pollo'] : []));
+              ids.forEach((id) => this.pulseRowTotal(id));
+              this.anotarHistorial('Editar stock', f.nombre, this.formatNum(this.stockEditarNuevo()));
+            }
+            this.toastMessage = movs.length ? ('Stock de ' + f.nombre + ' actualizado.') : 'Sin cambios de stock';
+            f.guardando = false;
+            this.cerrarEditarStock();
+            return true;
           } catch (e) {
-            this.toastMessage = e.message || 'No se guardó el stock';
+            f.error = (e && e.message) || 'No se guardó el stock. Inténtalo de nuevo.';
+            this.toastMessage = f.error;
+            try { await this.cargarKardex(); } catch (_) { /* Mantiene el error de guardado visible. */ }
+            return false;
+          } finally {
+            f.guardando = false;
           }
         },
 
@@ -14627,6 +14853,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         motivoEsCorte(motivo, corte) {
           const m = this.norm(motivo);
+          // La última marca explícita manda: el motivo libre puede mencionar ambos cortes.
+          if (/(?:^|·)\s*sin separar\s*$/.test(m)) return false;
+          const marca = m.match(/(?:^|·)\s*(pecho|pierna)\s*$/);
+          if (marca) return marca[1] === (corte === 'piernas' || corte === 'pierna' ? 'pierna' : 'pecho');
           const pecho = m.includes('pecho') || m.includes('pechuga');
           const pierna = m.includes('pierna');
           if (corte === 'piernas' || corte === 'pierna') return pierna && !pecho;
