@@ -15027,7 +15027,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!row || !clave) return this.avisoTransformar('Aviso ámbar: ' + (d.nombre || d.id) + ' no tiene fila en la hoja.');
             const entran = this.redondear3(d.entran);
             if (!entran) continue;
-            destinos.push({ row, clave, entran, tipo: d.tipo === 'cocido' && row.tieneCocido ? 'cocido' : 'crudo' });
+            // Una fila «solo cocido» (Pieza de panceta) siempre recibe en cocido: antes caía en crudo,
+            // el cuadro no se movía y al restar pedía un crudo que la fila no tiene.
+            destinos.push({ row, clave, entran, tipo: row.soloCocido ? 'cocido' : (d.tipo === 'cocido' && row.tieneCocido ? 'cocido' : 'crudo') });
           }
           if (!salen && !destinos.length) return false;
           if (salen > 0 && this.productoBloqueado(op.origenId)) {
@@ -15301,12 +15303,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
 
+        // Stock de Pieza de panceta = piezas que salieron de las tiras − piezas usadas (ventas) ± corrección.
+        // Subir: suma piezas que salieron (pide tiras usadas). Bajar: primero quita piezas que salieron en el
+        // período; lo que falte (stock que viene del saldo anterior) va a Corrección cocido.
+        // Antes la resta se cortaba en las piezas de hoy: con stock del día anterior, − no hacía nada.
         fijarStockTrozos(valor) {
+          const row = this.filaReal('trozo_panceta');
+          const clave = this.claveDeFila.trozo_panceta;
+          if (!row || !clave) return this.avisoTransformar('Aviso ámbar: Pieza de panceta no está en la hoja.');
           const actual = this.stockCuadro('trozo_panceta', 'cocido');
           const next = Math.max(0, Math.round(Number(valor) || 0));
-          const delta = next - actual;
+          const delta = this.redondear3(next - actual);
           if (!delta) return false;
-          return this.fijarTrozosPanceta(this.trozosHoy() + delta);
+          if (delta > 0) return this.fijarTrozosPanceta(this.trozosHoy() + delta);
+          const baja = -delta;
+          const devolver = Math.min(this.trozosHoy(), baja);
+          if (devolver > 0 && this.fijarTrozosPanceta(this.trozosHoy() - devolver) === false) return false;
+          const resto = this.redondear3(baja - devolver);
+          if (resto > 0) {
+            row.correccionCocido = this.redondear3((Number(row.correccionCocido) || 0) - resto);
+            row.cocido = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
+            const mov = { rubro: clave, clase: 'regulacion', tipoProducto: 'cocido', cantidad: -resto, motivo: 'Corrección cocido', fecha: new Date().toISOString(), nombre: row.nombre };
+            this.anotarMovs([mov]);
+            this.pulseRowTotal(row.id);
+            this.anotarHistorial('Corrección', 'Pieza de panceta', '−' + this.formatNum(resto));
+            this.encolarMovimientos([mov]);
+          }
+          return true;
         },
 
         fijarTrozosPanceta(val) {

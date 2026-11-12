@@ -183,7 +183,7 @@ Sale del fresco o de un ingreso directo.
 | Origen | Regla |
 | --- | --- |
 | Pato fresco | 1 pato = 2 pechos de pato y 2 piernas de pato. Pecho y pierna de pato tienen Crudo → Cocido. |
-| Panceta | Tres cuadros: **Panceta entera → Tira de panceta → Trozo de panceta**. La caja de la entera es el stock. «Pancetas a tiras» resta 1 panceta y suma 6 tiras. «Tiras usadas» resta tiras y «Trozos» suma los trozos que salieron. El «quedan» del trozo es el crudo: al pasar a cocido, baja. No deja anotar trozos sin tiras usadas, ni devolver una panceta cuyas tiras ya se usaron. |
+| Panceta | Tres cuadros: **Panceta entera → Tira de panceta → Trozo de panceta**. La caja de la entera es el stock. «Pancetas a tiras» resta 1 panceta y suma 6 tiras. «Tiras usadas» resta tiras. **Pieza de panceta** es solo cocido: su stock = piezas que salieron de las tiras − piezas usadas en ventas ± corrección. En la caja «Stock», + suma piezas que salieron (pide tiras usadas antes). − primero quita piezas que salieron en el período; si el stock viene del saldo anterior, el resto va a Corrección cocido. No deja anotar piezas sin tiras usadas, ni devolver una panceta cuyas tiras ya se usaron. |
 | Pieza de pescado | Entra directo. Ocupa el lugar del origen en el mapa. Los platos vinculados restan la pieza. |
 | Pieza de pota | Entra directo. Ocupa el lugar del origen en el mapa. Los platos vinculados restan la pieza. |
 | Carnero | **Carnero pachamanca** (1 carnero = el factor configurado, por defecto 1) y **Seco de carnero** (1 a 1). Los dos tienen crudo y cocido. El tope es el stock de hoja del carnero. |
