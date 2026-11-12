@@ -117,6 +117,17 @@ Lo que sale de otro rubro se anota también en el plato con `sinSaldo`. Al pinta
 
 Filete de la carta se pinta como filete crudo, 1 por plato. Filete junior, 0,5. `milanesa-junior` y el código `T643` no entran al kardex de la hoja.
 
+## Lupa de Queda y auditoría
+
+Las dos ventanas leen la fila y sus platos agrupados con las mismas listas que las columnas (`miembrosFamilia`):
+
+- **Saldo ant., Ingreso y Corrección** suman la fila más `filasTransformacionDe`, igual que las columnas Saldo ant. e Ingreso total.
+- **Venta, Transformación, Saldo y Queda** suman la fila más `platosDirectosDe`, igual que las columnas Venta, Saldo y Queda. En la vista Pachamanca independiente, solo la fila.
+
+**Lupa de Queda** (`construirProcedimientoSaldoReal`): cada paso trae su desglose por pieza y plato (crudo, cocido y total) y una marca que lo compara con su columna. La apertura sale abierta y tiene que ser igual a la columna Saldo ant. Si alguna vez la cuenta no cierra con la columna Saldo, aparece un paso de ajuste que lo explica.
+
+**Auditoría** (`cargarAuditoria`): abre con el período de la hoja. Recalcula con `resumenKardex` y `valoresKardexFila`, que son las mismas funciones que usa `aplicarKardex`. Si el período es el de la hoja, la apertura lleva la marca «= tabla». La lista de movimientos incluye la pieza y sus platos, con el saldo resultante de cada producto y tipo, y se puede filtrar por plato.
+
 ## Qué lee cada pestaña
 
 | Pestaña | Lectura |

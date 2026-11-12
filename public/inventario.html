@@ -1138,7 +1138,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     /* ===================================================================== */
     .bloq-fila {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 6.5rem 6rem 4.5rem;
+      grid-template-columns: minmax(0, 1fr) 7.5rem 8rem 4.5rem;
       align-items: center;
       column-gap: 0.75rem;
     }
@@ -1158,6 +1158,94 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       outline: none;
       border-color: #d4af37 !important;
       box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25);
+    }
+    /* Escritorio (≥1024px): lista a la izquierda con su propio scroll y barra lateral fija a la derecha.
+       Pantalla angosta: todo el cuerpo hace scroll (lista arriba, duración y motivo abajo)
+       y Cerrar / Aplicar quedan pegados al pie. */
+    @media (max-width: 1023px) {
+      .bloq-modal .bloq-cuerpo { overflow-y: auto; }
+      .bloq-modal .bloq-lista-scroll { flex: none; overflow: visible; }
+      .bloq-modal .bloq-acciones { position: sticky; bottom: 0; z-index: 2; box-shadow: 0 -10px 24px -10px rgba(0, 0, 0, 0.8); }
+    }
+    /* Reserva por tipo: etiqueta Crudo / Cocido + caja */
+    .bloq-reserva-tipo {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em;
+    }
+    .bloq-reserva-tipo > span { width: 2.6rem; text-align: right; }
+    .bloq-reserva-tipo.es-crudo > span { color: #6ee7b7; }
+    .bloq-reserva-tipo.es-cocido > span { color: #d4af37; }
+    main .bloq-reserva-tipo input.bloq-reserva-input { width: 3.9rem !important; }
+    .bloq-reserva-tipo.es-cocido input.bloq-reserva-input { border-color: rgba(212, 175, 55, 0.35) !important; }
+    /* Cuadro de grupo (Pecho / Pierna / Octavo) y sus platos */
+    .bloq-grupo-cab {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      padding: 0.55rem 0.75rem; border-radius: 0.65rem 0.65rem 0.25rem 0.25rem;
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(20, 20, 31, 0.9));
+    }
+    .bloq-fila.bloq-hijo {
+      margin-left: 0.9rem; border-left: 2px solid rgba(212, 175, 55, 0.45) !important;
+      border-radius: 0.25rem 0.5rem 0.5rem 0.25rem;
+    }
+    @media (max-width: 639px) {
+      .bloq-fila.bloq-hijo { margin-left: 0.4rem; }
+      .bloq-fila .bloq-reservar { align-items: flex-start; }
+    }
+    .bloq-lateral section + section { padding-top: 1.1rem; border-top: 1px dashed #26263a; }
+    .bloq-chip {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.32rem 0.7rem; border-radius: 999px;
+      font-size: 11px; font-weight: 700; line-height: 1.2;
+      border: 1px solid #26263a; background: #0a0a0f; color: #a0a0b8; cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease, box-shadow 160ms ease;
+    }
+    .bloq-chip:hover { color: #fff; border-color: #3a3a55; }
+    .bloq-chip:active { transform: scale(0.95); }
+    .bloq-chip.activo { background: #d4af37; color: #1a1200; border-color: #d4af37; box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18); }
+    .bloq-chip-sm { padding: 0.22rem 0.55rem; font-size: 10.5px; }
+    main input.bloq-cantidad-input {
+      width: 3.25rem !important; height: 2rem;
+      padding: 0 !important; border: 0 !important; border-radius: 0 !important;
+      border-left: 1px solid #26263a !important; border-right: 1px solid #26263a !important;
+      font-size: 0.9rem; font-weight: 700; text-align: center;
+    }
+    main textarea.bloq-motivo-input {
+      display: block; width: 100%; resize: none;
+      padding: 0.5rem 2rem 0.5rem 0.75rem !important;
+      font-size: 0.85rem; line-height: 1.35;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    main textarea.bloq-motivo-input:focus { outline: none; border-color: #d4af37 !important; box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2); }
+    .bloq-reloj {
+      display: flex; align-items: center; gap: 0.85rem;
+      padding: 0.65rem 0.85rem; border-radius: 0.75rem;
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(10, 10, 15, 0.6));
+      transition: border-color 220ms ease, background 220ms ease;
+    }
+    .bloq-reloj.sin-fin { border-color: #26263a; background: #0e0e16; }
+    .bloq-reloj.vencido { border-color: rgba(255, 0, 0, 0.5); background: rgba(255, 0, 0, 0.07); }
+    .bloq-anillo { width: 3rem; height: 3rem; flex-shrink: 0; transform: rotate(-90deg); }
+    .bloq-anillo circle { fill: none; stroke-width: 4; }
+    .bloq-anillo .pista { stroke: #26263a; }
+    .bloq-anillo .avance {
+      stroke: #d4af37; stroke-linecap: round;
+      stroke-dasharray: 119.38;
+      transition: stroke-dashoffset 900ms linear, stroke 220ms ease;
+    }
+    .bloq-reloj.sin-fin .avance { stroke: #5a5a7a; }
+    .bloq-reloj.vencido .avance { stroke: #ff4d4d; }
+    .bloq-reloj:not(.sin-fin):not(.vencido) .bloq-anillo { animation: bloqRelojLatido 2s ease-in-out infinite; }
+    @keyframes bloqRelojLatido { 0%, 100% { filter: drop-shadow(0 0 0 rgba(212,175,55,0)); } 50% { filter: drop-shadow(0 0 5px rgba(212,175,55,0.45)); } }
+    .bloq-cuenta {
+      font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;
+      font-size: 1.25rem; font-weight: 700; color: #fff; line-height: 1.2;
+    }
+    .bloq-reloj.vencido .bloq-cuenta { color: #ff8080; }
+    @media (prefers-reduced-motion: reduce) {
+      .bloq-reloj .bloq-anillo { animation: none !important; }
+      .bloq-anillo .avance { transition: none; }
     }
     @media (max-width: 639px) {
       .bloq-cabecera { display: none; }
@@ -1240,6 +1328,140 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .btn-lupa-venta:active { transform: scale(0.94); }
     .btn-lupa-venta.con-venta { border-color: rgba(251, 113, 133, 0.45); }
     .btn-lupa-venta.pulso { animation: ventaLupaPulso 600ms ease-out; }
+
+    /* ===================================================================== */
+    /* PROCEDIMIENTO DE QUEDA (lupa de Queda)                                 */
+    /* ===================================================================== */
+    @keyframes procPop { from { opacity: 0; transform: translateY(6px) scale(0.92); } to { opacity: 1; transform: none; } }
+    @keyframes procPasoIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+    @keyframes procLinea { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+    @keyframes procFilaIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    @keyframes procBrillo { 0%, 100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); } 50% { box-shadow: 0 0 18px 2px rgba(45, 212, 191, 0.28); } }
+    .proc-panel { animation: ventaPanelIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .proc-formula {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem;
+      padding: 0.75rem 0.9rem; border-radius: 0.85rem;
+      border: 1px solid #26263a; background: linear-gradient(135deg, #16162a 0%, #101019 100%);
+    }
+    .proc-chip {
+      display: inline-flex; align-items: center; padding: 0.15rem 0.5rem; border-radius: 0.4rem; border-width: 1px;
+      animation: procPop 300ms cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(80ms + var(--i, 0) * 45ms);
+    }
+    .proc-chip-final { color: #99f6e4; border-color: #2dd4bf; background: rgba(19, 78, 74, 0.7); font-weight: 800; }
+    .proc-cuadre {
+      display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.8rem; border-radius: 0.75rem; border: 1px solid;
+      animation: procPop 320ms ease both; animation-delay: 160ms;
+    }
+    .proc-cuadre.ok { border-color: rgba(52, 211, 153, 0.4); background: rgba(6, 78, 59, 0.25); }
+    .proc-cuadre.mal { border-color: rgba(251, 191, 36, 0.5); background: rgba(120, 53, 15, 0.25); }
+    .proc-cuadre-icono {
+      width: 1.6rem; height: 1.6rem; flex-shrink: 0; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 0.85rem;
+    }
+    .proc-cuadre.ok .proc-cuadre-icono { background: #10b981; color: #022c22; }
+    .proc-cuadre.mal .proc-cuadre-icono { background: #f59e0b; color: #1a1200; }
+    .proc-timeline { position: relative; list-style: none; margin: 0; padding: 0 0 0 2.6rem; display: flex; flex-direction: column; gap: 0.6rem; }
+    .proc-timeline::before {
+      content: ''; position: absolute; left: 1.05rem; top: 0.9rem; bottom: 0.9rem; width: 2px; border-radius: 2px;
+      background: linear-gradient(180deg, #a855f7 0%, #10b981 30%, #f43f5e 60%, #2dd4bf 100%);
+      opacity: 0.45; transform-origin: top; animation: procLinea 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .proc-paso { position: relative; animation: procPasoIn 340ms cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(120ms + var(--i, 0) * 55ms); }
+    .proc-bola {
+      position: absolute; left: -2.6rem; top: 0.7rem; width: 2.1rem; height: 2.1rem; border-radius: 0.65rem;
+      display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.9rem;
+      border: 1.5px solid #26263a; background: #0a0a0f; color: #d4af37; z-index: 1;
+    }
+    .proc-card {
+      border: 1px solid #26263a; border-radius: 0.85rem; padding: 0.75rem 0.9rem; background: #14141f;
+      transition: border-color 180ms ease, transform 180ms ease, background-color 180ms ease;
+    }
+    .proc-card:hover { transform: translateX(2px); }
+    .proc-etiqueta { padding: 0.1rem 0.45rem; border-radius: 0.3rem; font-size: 10px; font-weight: 800; text-transform: uppercase; background: #26263a; color: #a0a0b8; }
+    .proc-valor { font-size: 1.25rem; font-weight: 800; color: #fff; }
+    .proc-paso.es-apertura .proc-bola { border-color: #a855f7; color: #d8b4fe; background: rgba(88, 28, 135, 0.35); }
+    .proc-paso.es-apertura .proc-card { border-color: rgba(168, 85, 247, 0.45); background: linear-gradient(135deg, rgba(88, 28, 135, 0.18), #14141f 60%); }
+    .proc-paso.es-apertura .proc-valor { color: #e9d5ff; }
+    .proc-paso.es-apertura .proc-etiqueta { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; }
+    .proc-paso.es-suma .proc-bola { border-color: #10b981; color: #6ee7b7; background: rgba(6, 78, 59, 0.4); }
+    .proc-paso.es-suma .proc-card { border-color: rgba(16, 185, 129, 0.35); }
+    .proc-paso.es-suma .proc-valor { color: #6ee7b7; }
+    .proc-paso.es-suma .proc-etiqueta { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+    .proc-paso.es-resta .proc-bola { border-color: #f43f5e; color: #fda4af; background: rgba(136, 19, 55, 0.4); }
+    .proc-paso.es-resta .proc-card { border-color: rgba(244, 63, 94, 0.4); }
+    .proc-paso.es-resta .proc-valor { color: #fda4af; }
+    .proc-paso.es-resta .proc-etiqueta { background: rgba(244, 63, 94, 0.18); color: #fecdd3; }
+    .proc-paso.es-subtotal .proc-bola { border-color: #22d3ee; color: #a5f3fc; }
+    .proc-paso.es-subtotal .proc-card { border-color: rgba(34, 211, 238, 0.35); background: #171728; }
+    .proc-paso.es-cierre .proc-bola { border-color: #2dd4bf; background: #2dd4bf; color: #042f2e; }
+    .proc-paso.es-cierre .proc-card { border: 2px solid #2dd4bf; background: linear-gradient(135deg, rgba(19, 78, 74, 0.55), #14141f 70%); animation: procBrillo 2.6s ease-in-out 900ms 2; }
+    .proc-paso.es-cierre .proc-valor { color: #99f6e4; font-size: 1.6rem; }
+    .proc-paso.es-cierre .proc-etiqueta { background: rgba(45, 212, 191, 0.2); color: #99f6e4; }
+    .proc-col {
+      display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.12rem 0.5rem; border-radius: 999px;
+      font-size: 10.5px; font-weight: 700; font-family: 'JetBrains Mono', monospace; border: 1px solid;
+    }
+    .proc-col.ok { color: #6ee7b7; border-color: rgba(16, 185, 129, 0.4); background: rgba(6, 78, 59, 0.3); }
+    .proc-col.mal { color: #fcd34d; border-color: rgba(245, 158, 11, 0.5); background: rgba(120, 53, 15, 0.3); }
+    .proc-desglose-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 999px;
+      font-size: 11px; font-weight: 700; color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.35); background: rgba(212, 175, 55, 0.06);
+      cursor: pointer; transition: background-color 160ms ease, transform 120ms ease;
+    }
+    .proc-desglose-btn:hover { background: rgba(212, 175, 55, 0.15); }
+    .proc-desglose-btn:active { transform: scale(0.96); }
+    .proc-desglose { margin-top: 0.6rem; border: 1px solid #26263a; border-radius: 0.6rem; overflow: hidden; background: #0d0d16; }
+    .proc-desglose-fila {
+      display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem 4.5rem 4.5rem; gap: 0.5rem; align-items: center;
+      padding: 0.35rem 0.7rem; font-size: 12px; font-family: 'JetBrains Mono', monospace; text-align: right;
+      border-top: 1px solid #1c1c2b; animation: procFilaIn 220ms ease both; animation-delay: calc(var(--j, 0) * 35ms);
+    }
+    .proc-desglose-fila > span:first-child { text-align: left; font-family: 'Inter', system-ui, sans-serif; color: #d4d4e0; }
+    .proc-desglose-fila.sin-tipos { grid-template-columns: minmax(0, 1fr) 5rem; }
+    .proc-desglose-fila.propio { background: rgba(212, 175, 55, 0.07); }
+    .proc-desglose-fila.propio > span:first-child { color: #fff; font-weight: 700; }
+    .proc-desglose-cab { border-top: 0; background: #12121c; font-size: 10px; text-transform: uppercase; font-weight: 800; color: #5a5a7a; animation: none; }
+    .proc-desglose-cab > span:first-child { color: #5a5a7a; font-weight: 800; }
+    .proc-desglose-total { background: #15151f; font-weight: 800; color: #fff; border-top: 1px solid #26263a; animation: none; }
+    .proc-desglose-total > span:first-child { color: #a0a0b8; font-weight: 800; text-transform: uppercase; font-size: 10px; }
+    @media (max-width: 639px) {
+      .proc-timeline { padding-left: 2.2rem; }
+      .proc-bola { left: -2.2rem; width: 1.8rem; height: 1.8rem; }
+      .proc-timeline::before { left: 0.85rem; }
+      .proc-desglose-fila { grid-template-columns: minmax(0, 1fr) 3.4rem 3.4rem 3.6rem; font-size: 11px; padding: 0.35rem 0.5rem; }
+    }
+
+    /* ===================================================================== */
+    /* AUDITORÍA DE MOVIMIENTOS Y KÁRDEX                                      */
+    /* ===================================================================== */
+    .aud-panel { animation: ventaPanelIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .aud-kpi {
+      border: 1px solid #26263a; border-radius: 0.8rem; padding: 0.65rem 0.8rem;
+      background: linear-gradient(160deg, #191927 0%, #101018 100%);
+      animation: procPop 320ms cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(60ms + var(--i, 0) * 60ms);
+      transition: border-color 180ms ease, transform 180ms ease;
+    }
+    .aud-kpi:hover { transform: translateY(-2px); border-color: #3a3a55; }
+    .aud-miembro {
+      display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; border-radius: 999px;
+      font-size: 11px; font-weight: 700; border: 1px solid #26263a; background: #0a0a0f; color: #a0a0b8; cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease;
+    }
+    .aud-miembro:hover { color: #fff; border-color: #3a3a55; }
+    .aud-miembro:active { transform: scale(0.96); }
+    .aud-miembro.activo { background: #d4af37; color: #1a1200; border-color: #d4af37; }
+    .aud-fila { animation: procFilaIn 240ms ease both; animation-delay: calc(var(--i, 0) * 18ms); }
+    .aud-tabla-fam { width: 100%; font-size: 11.5px; border-collapse: separate; border-spacing: 0; }
+    .aud-tabla-fam th { font-size: 10px; text-transform: uppercase; color: #5a5a7a; font-weight: 800; padding: 0.35rem 0.55rem; text-align: right; background: #12121c; }
+    .aud-tabla-fam th:first-child, .aud-tabla-fam td:first-child { text-align: left; }
+    .aud-tabla-fam td { padding: 0.35rem 0.55rem; text-align: right; border-top: 1px solid #1c1c2b; font-family: 'JetBrains Mono', monospace; }
+    .aud-tabla-fam tr.propio td { background: rgba(212, 175, 55, 0.07); }
+    .aud-tabla-fam tr.total td { background: #15151f; font-weight: 800; color: #fff; border-top: 1px solid #26263a; }
+    @media (prefers-reduced-motion: reduce) {
+      .proc-panel, .proc-chip, .proc-cuadre, .proc-paso, .proc-timeline::before, .proc-desglose-fila, .proc-paso.es-cierre .proc-card,
+      .aud-panel, .aud-kpi, .aud-fila { animation: none !important; }
+      .proc-card:hover, .aud-kpi:hover { transform: none; }
+    }
     @media (prefers-reduced-motion: reduce) {
       .venta-fondo, .venta-panel, .venta-kpi, .venta-barra, .venta-linea, .btn-lupa-venta.pulso,
       .venta-fondo.cerrando, .venta-fondo.cerrando .venta-panel { animation: none !important; }
@@ -5772,11 +5994,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   <div
     x-show="showAuditoriaModal"
     x-cloak
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm"
     @keydown.escape.window="cerrarModalAuditoria()"
   >
     <div
-      class="bg-[#14141f] border-2 border-[#d4af37]/60 rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+      class="aud-panel bg-[#14141f] border-2 border-[#d4af37]/60 rounded-2xl max-w-6xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden"
       @click.outside="cerrarModalAuditoria()"
     >
       <div class="bg-[#101018] border-b border-[#26263a] px-5 py-4 flex items-center justify-between">
@@ -5806,48 +6034,119 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </div>
 
       <template x-if="auditoriaRow">
-        <div class="bg-[#0c0c14] border-b border-[#26263a] px-5 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
-            <span class="text-[#a0a0b8] block">Saldo Anterior</span>
-            <div class="flex items-baseline gap-1 mt-0.5">
-              <span class="text-base font-extrabold text-purple-200 num-mono" x-text="formatNum(valorTipo(auditoriaRow, 'saldoAnterior', 'crudo') + valorTipo(auditoriaRow, 'saldoAnterior', 'cocido'))"></span>
-              <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+        <div class="bg-[#0c0c14] border-b border-[#26263a] px-5 py-3 space-y-3 text-xs">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <!-- Saldo anterior (apertura) de la familia -->
+            <div class="aud-kpi" style="--i:0">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[#a0a0b8] font-semibold">Saldo anterior</span>
+                <span x-show="auditoriaResumen && auditoriaResumen.mismoPeriodo" class="proc-col" :class="auditoriaResumen && auditoriaResumen.cuadraAnt ? 'ok' : 'mal'" :title="'Columna Saldo ant. de la tabla: ' + formatNum(auditoriaResumen ? auditoriaResumen.colAnt : 0)">
+                  <span x-text="auditoriaResumen && auditoriaResumen.cuadraAnt ? '✓ = tabla' : '≠ tabla'"></span>
+                </span>
+              </div>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span class="text-xl font-extrabold text-purple-200 num-mono" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.apertura) : '…'"></span>
+                <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+              </div>
+              <p x-show="auditoriaResumen && auditoriaResumen.hayPlatos" class="text-[10px] text-[#a0a0b8] mt-1">
+                Pieza <strong class="text-white" x-text="auditoriaResumen ? formatNum(auditoriaResumen.aperturaPieza) : ''"></strong>
+                · Platos <strong class="text-teal-300" x-text="auditoriaResumen ? formatNum(auditoriaResumen.aperturaPlatos) : ''"></strong>
+              </p>
             </div>
-            <div x-show="auditoriaRow.tieneCocido" class="text-[10px] text-[#a0a0b8] mt-1 flex gap-2">
-              <span>Crudo: <strong class="text-emerald-300" x-text="formatNum(valorTipo(auditoriaRow, 'saldoAnterior', 'crudo'))"></strong></span>
-              <span>Cocido: <strong class="text-[#d4af37]" x-text="formatNum(valorTipo(auditoriaRow, 'saldoAnterior', 'cocido'))"></strong></span>
+            <!-- Ingreso + corrección -->
+            <div class="aud-kpi" style="--i:1">
+              <span class="text-[#a0a0b8] font-semibold block">Ingreso + corrección</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span class="text-xl font-extrabold text-cyan-200 num-mono" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.ingreso + auditoriaResumen.totales.correccion) : '…'"></span>
+                <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+              </div>
+              <p class="text-[10px] text-[#a0a0b8] mt-1" x-show="auditoriaResumen">
+                Ingreso <strong class="text-emerald-300" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.ingreso) : ''"></strong>
+                · Corr. <strong class="text-amber-300" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.correccion) : ''"></strong>
+              </p>
+            </div>
+            <!-- Salidas -->
+            <div class="aud-kpi" style="--i:2">
+              <span class="text-[#a0a0b8] font-semibold block">Salidas</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span class="text-xl font-extrabold text-rose-300 num-mono" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.venta + auditoriaResumen.totales.transformacion) : '…'"></span>
+                <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+              </div>
+              <p class="text-[10px] text-[#a0a0b8] mt-1" x-show="auditoriaResumen">
+                Venta <strong class="text-rose-300" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.venta) : ''"></strong>
+                · Transf. <strong class="text-orange-300" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.transformacion) : ''"></strong>
+              </p>
+            </div>
+            <!-- Queda al cierre del período -->
+            <div class="aud-kpi" style="--i:3">
+              <div class="flex items-center justify-between">
+                <span class="text-[#a0a0b8] font-semibold">Queda al cierre</span>
+                <span class="w-2.5 h-2.5 rounded-full" :class="clasePuntoEstado(auditoriaRow)"></span>
+              </div>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span class="text-xl font-extrabold text-[#d4af37] num-mono" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.queda) : '…'"></span>
+                <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+              </div>
+              <p class="text-[10px] text-[#a0a0b8] mt-1" x-show="auditoriaResumen">
+                Saldo calculado <strong class="text-white" x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.saldo) : ''"></strong>
+              </p>
             </div>
           </div>
-          <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
-            <span class="text-[#a0a0b8] block">Ingreso Acumulado</span>
-            <div class="flex items-baseline gap-1 mt-0.5">
-              <span class="text-base font-extrabold text-cyan-200 num-mono" x-text="formatNum(calcIngresoTotal(auditoriaRow) - valorTipo(auditoriaRow, 'saldoAnterior', 'crudo') - valorTipo(auditoriaRow, 'saldoAnterior', 'cocido'))"></span>
-              <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
+
+          <!-- Por producto y plato -->
+          <div x-show="auditoriaResumen && auditoriaResumen.hayPlatos" class="rounded-xl border border-[#26263a] overflow-hidden">
+            <button type="button" class="w-full flex items-center justify-between gap-2 px-3 py-2 bg-[#11111b] hover:bg-[#161624] transition cursor-pointer" :aria-expanded="auditoriaVerFamilia" @click="auditoriaVerFamilia = !auditoriaVerFamilia; sonarVenta('filtro')">
+              <span class="inline-flex items-center gap-2 font-bold text-white">
+                <svg viewBox="0 0 24 24" class="w-4 h-4 text-[#d4af37]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                Por producto y plato
+                <span class="text-[10px] font-semibold text-[#a0a0b8]" x-text="auditoriaResumen ? '(' + auditoriaResumen.miembros.length + ' filas)' : ''"></span>
+              </span>
+              <svg viewBox="0 0 24 24" class="w-4 h-4 text-[#a0a0b8] transition-transform duration-200" :class="auditoriaVerFamilia ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div x-show="auditoriaVerFamilia" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" class="overflow-x-auto">
+              <table class="aud-tabla-fam">
+                <thead>
+                  <tr>
+                    <th>Producto / plato</th>
+                    <th>Saldo ant.</th>
+                    <th>Ingreso</th>
+                    <th>Corr.</th>
+                    <th>Venta</th>
+                    <th>Transf.</th>
+                    <th>Queda</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(m, i) in (auditoriaResumen ? auditoriaResumen.miembros : [])" :key="'aud-fam-' + m.id">
+                    <tr class="aud-fila" :class="m.propio ? 'propio' : ''" :style="'--i:' + i">
+                      <td class="text-white" :class="m.propio ? 'font-bold' : ''">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" :class="m.propio ? 'bg-[#d4af37]' : 'bg-teal-400'"></span>
+                        <span x-text="m.nombre"></span>
+                      </td>
+                      <td class="text-purple-200" x-text="m.enApertura ? formatNum(m.apertura) : '—'"></td>
+                      <td class="text-emerald-300" x-text="m.enApertura ? formatNum(m.ingreso) : '—'"></td>
+                      <td class="text-amber-300" x-text="m.enApertura ? formatNum(m.correccion) : '—'"></td>
+                      <td class="text-rose-300" x-text="m.enSaldo ? formatNum(m.venta) : '—'"></td>
+                      <td class="text-orange-300" x-text="m.enSaldo ? formatNum(m.transformacion) : '—'"></td>
+                      <td class="text-[#d4af37] font-bold" x-text="m.enSaldo ? formatNum(m.queda) : '—'"></td>
+                    </tr>
+                  </template>
+                  <tr class="total" x-show="auditoriaResumen">
+                    <td>Total</td>
+                    <td x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.apertura) : ''"></td>
+                    <td x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.ingreso) : ''"></td>
+                    <td x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.correccion) : ''"></td>
+                    <td x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.venta) : ''"></td>
+                    <td x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.transformacion) : ''"></td>
+                    <td x-text="auditoriaResumen ? formatNum(auditoriaResumen.totales.queda) : ''"></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <span class="text-[10px] text-[#71718a] block mt-1">Ingresos + correcciones del día</span>
           </div>
-          <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
-            <span class="text-[#a0a0b8] block">Salidas Totales</span>
-            <div class="flex items-baseline gap-1 mt-0.5">
-              <span class="text-base font-extrabold text-rose-300 num-mono" x-text="formatNum(salidasAuditoria().venta + salidasAuditoria().transformacion)"></span>
-              <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
-            </div>
-            <div class="text-[10px] text-[#a0a0b8] mt-1 flex gap-2">
-              <span>Venta: <strong class="text-rose-300" x-text="formatNum(salidasAuditoria().venta)"></strong></span>
-              <span>Transf: <strong class="text-orange-300" x-text="formatNum(salidasAuditoria().transformacion)"></strong></span>
-            </div>
-          </div>
-          <div class="bg-[#141422] border border-[#26263a] rounded-lg p-2.5">
-            <div class="flex items-center justify-between">
-              <span class="text-[#a0a0b8] block">Saldo Real Actual</span>
-              <span class="w-2.5 h-2.5 rounded-full" :class="clasePuntoEstado(auditoriaRow)"></span>
-            </div>
-            <div class="flex items-baseline gap-1 mt-0.5">
-              <span class="text-base font-extrabold text-[#d4af37] num-mono" x-text="formatNum(calcSaldoReal(auditoriaRow))"></span>
-              <span class="text-[10px] text-[#71718a]" x-text="auditoriaRow.unidad"></span>
-            </div>
-            <span class="text-[10px] font-semibold block mt-1" :class="claseTextoEstado(auditoriaRow)" x-text="estadoFila(auditoriaRow)"></span>
-          </div>
+          <p x-show="auditoriaResumen && !auditoriaResumen.mismoPeriodo" class="text-[10px] text-[#71718a]">
+            Este período no es el de la hoja: los números son del período de la auditoría y pueden no coincidir con las columnas.
+          </p>
         </div>
       </template>
 
@@ -5888,6 +6187,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </div>
         </div>
 
+        <div x-show="auditoriaResumen && auditoriaResumen.hayPlatos" class="pt-2 border-t border-[#26263a] flex flex-wrap items-center gap-1.5">
+          <span class="text-xs font-bold text-[#d4af37] mr-1">Ver de:</span>
+          <button type="button" class="aud-miembro" :class="auditoriaFiltroMiembro === 'todos' ? 'activo' : ''" @click="auditoriaFiltroMiembro = 'todos'; sonarVenta('filtro')">
+            Toda la familia <span class="num-mono opacity-80" x-text="(auditoriaMovs || []).length"></span>
+          </button>
+          <template x-for="m in (auditoriaResumen ? auditoriaResumen.miembros : [])" :key="'aud-chip-' + m.id">
+            <button type="button" class="aud-miembro" x-show="cuentaMovsMiembro(m.id) > 0" :class="auditoriaFiltroMiembro === m.id ? 'activo' : ''" @click="auditoriaFiltroMiembro = m.id; sonarVenta('filtro')">
+              <span class="w-1.5 h-1.5 rounded-full" :class="m.propio ? 'bg-[#d4af37]' : 'bg-teal-400'"></span>
+              <span x-text="m.nombreCorto"></span>
+              <span class="num-mono opacity-80" x-text="cuentaMovsMiembro(m.id)"></span>
+            </button>
+          </template>
+          <button type="button" class="aud-miembro" x-show="cuentaMovsMiembro('otros') > 0" :class="auditoriaFiltroMiembro === 'otros' ? 'activo' : ''" @click="auditoriaFiltroMiembro = 'otros'; sonarVenta('filtro')">
+            Otros platos <span class="num-mono opacity-80" x-text="cuentaMovsMiembro('otros')"></span>
+          </button>
+        </div>
+
         <div x-show="auditoriaFiltroPeriodo === 'personalizado'" class="pt-2 border-t border-[#26263a] flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-1.5">
             <span class="text-[#a0a0b8]">Desde:</span>
@@ -5906,6 +6222,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <tr class="bg-[#101018] text-[#a0a0b8] border-b border-[#26263a] sticky top-0">
               <th class="px-3 py-2 font-semibold">Fecha y Hora</th>
               <th class="px-2.5 py-2 font-semibold">Período</th>
+              <th class="px-2.5 py-2 font-semibold">Producto / plato</th>
               <th class="px-2.5 py-2 font-semibold">Operación</th>
               <th class="px-2.5 py-2 font-semibold">Variante</th>
               <th class="px-3 py-2 font-semibold">Motivo / Detalle de Auditoría</th>
@@ -5915,8 +6232,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </tr>
           </thead>
           <tbody class="divide-y divide-[#1e1e2d]">
-            <template x-for="mov in getMovimientosFiltrados()" :key="'aud-mov-' + mov.id">
-              <tr class="hover:bg-[#1a1a2b] transition-colors">
+            <template x-for="(mov, mi) in getMovimientosFiltrados()" :key="'aud-mov-' + mov.id">
+              <tr class="aud-fila hover:bg-[#1a1a2b] transition-colors" :style="'--i:' + Math.min(mi, 20)">
                 <td class="px-3 py-2.5 num-mono text-white whitespace-nowrap" x-text="mov.fecha"></td>
                 <td class="px-2.5 py-2.5 whitespace-nowrap">
                   <span
@@ -5924,6 +6241,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     :class="mov.periodoTag === 'hoy' ? 'bg-[#d4af37]/20 text-[#d4af37]' : (mov.periodoTag === 'ayer' ? 'bg-purple-950 text-purple-300' : 'bg-[#1c1c2b] text-[#a0a0b8]')"
                     x-text="mov.periodoTag === '7dias' ? '7 días' : mov.periodoTag"
                   ></span>
+                </td>
+                <td class="px-2.5 py-2.5 whitespace-nowrap max-w-[11rem]">
+                  <span class="inline-flex items-center gap-1.5 max-w-full" :title="mov.producto">
+                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="mov.fueraDeSaldo ? 'bg-[#5a5a7a]' : (mov.propio ? 'bg-[#d4af37]' : 'bg-teal-400')"></span>
+                    <span class="truncate font-semibold" :class="mov.propio ? 'text-white' : 'text-teal-200'" x-text="mov.producto || '—'"></span>
+                  </span>
                 </td>
                 <td class="px-2.5 py-2.5 whitespace-nowrap">
                   <span
@@ -5966,13 +6289,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </tr>
             </template>
             <tr x-show="!auditoriaCargando && getMovimientosFiltrados().length === 0">
-              <td colspan="8" class="text-center py-8 text-[#71718a]">
+              <td colspan="9" class="text-center py-8 text-[#71718a]">
                 <p class="text-sm font-semibold text-[#a0a0b8]">No se encontraron movimientos para el filtro seleccionado.</p>
                 <p class="text-xs mt-1">Prueba seleccionando «Todos» o cambiando el rango de fechas.</p>
               </td>
             </tr>
             <tr x-show="auditoriaCargando">
-              <td colspan="8" class="text-center py-8 text-[#a0a0b8]">Cargando movimientos…</td>
+              <td colspan="9" class="text-center py-8 text-[#a0a0b8]">Cargando movimientos…</td>
             </tr>
           </tbody>
         </table>
@@ -7070,20 +7393,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   <!-- ===================================================================== -->
   <template x-if="bloqueo.abierto">
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="cerrarBloqueo()" @keydown.escape.window="cerrarBloqueo()" role="dialog" aria-modal="true" aria-label="Bloqueo de inventario">
-      <div class="w-full max-w-3xl max-h-[90vh] flex flex-col bg-[#14141f] border-2 border-[#d4af37] rounded-xl overflow-hidden">
-        <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-[#26263a]">
+      <div class="bloq-modal w-full max-w-6xl h-[92vh] flex flex-col bg-[#14141f] border-2 border-[#d4af37] rounded-xl overflow-hidden">
+        <div class="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-[#26263a]">
           <div>
             <div class="flex flex-wrap items-center gap-2">
               <svg viewBox="0 0 24 24" class="w-5 h-5 text-[#d4af37]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
               <h3 class="text-lg font-semibold text-[#d4af37]">Bloqueo de inventario</h3>
-              <span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-bold uppercase tracking-wide" x-show="resumenBloqueo().bloqueados">Activo</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-bold uppercase tracking-wide inline-flex items-center gap-1" x-show="(resumenBloqueo().bloqueados || resumenBloqueo().reservas) && !bloqueoVencidoAhora()">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-300 dot-critico"></span>
+                <span x-text="finBloqueoMs() === null ? 'Activo' : 'Activo · ' + cuentaRegresivaBloqueo(finBloqueoMs())"></span>
+              </span>
+              <span class="px-2 py-0.5 rounded bg-[#ff0000]/15 border border-[#ff0000]/40 text-red-200 text-[10px] font-bold uppercase tracking-wide" x-show="(resumenBloqueo().bloqueados || resumenBloqueo().reservas) && bloqueoVencidoAhora()">Venció · ya no bloquea</span>
             </div>
             <p class="text-xs text-[#a0a0b8] mt-1">Aparta unidades o bloquea un producto. Un plato bloqueado desaparece de la carta de los mozos. La reserva resta lo que se puede transformar o vender en esta hoja.</p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="cerrarBloqueo()" aria-label="Cerrar">×</button>
         </div>
 
-        <div class="px-5 py-3 space-y-3 border-b border-[#26263a]">
+        <!-- Cuerpo: lista a la izquierda, barra de duración y motivo a la derecha -->
+        <div class="bloq-cuerpo flex-1 min-h-0 flex flex-col lg:flex-row">
+        <div class="bloq-lista flex flex-col min-w-0 lg:flex-1 lg:min-h-0">
+        <div class="shrink-0 px-5 py-3 space-y-3 border-b border-[#26263a]">
           <div class="flex flex-wrap items-center gap-2">
             <div class="inline-flex rounded-lg border border-[#26263a] overflow-hidden" role="tablist" aria-label="Qué bloquear">
               <button type="button" role="tab" :aria-selected="bloqueo.tab === 'productos'" class="px-3 py-1.5 text-xs font-bold cursor-pointer transition" :class="bloqueo.tab === 'productos' ? 'bg-[#d4af37] text-[#1a1200]' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white'" @click="bloqueo.tab = 'productos'">Productos</button>
@@ -7097,40 +7427,79 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </p>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-5 py-3">
+        <div class="bloq-lista-scroll flex-1 min-h-0 overflow-y-auto px-5 py-3">
           <!-- Productos del inventario -->
           <div x-show="bloqueo.tab === 'productos'" class="space-y-1.5">
+            <p class="flex items-start gap-2 rounded-lg border border-[#26263a] bg-[#0e0e16] px-3 py-2 text-[11px] text-[#a0a0b8]">
+              <svg viewBox="0 0 24 24" class="w-4 h-4 shrink-0 text-[#d4af37] mt-px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+              <span><strong class="text-white">Pollo fresco</strong> no se reserva ni se bloquea. <strong class="text-white">Pecho</strong>, <strong class="text-white">Pierna</strong> y <strong class="text-white">Octavo de pollo</strong> se reservan y bloquean por plato, en su cuadro.</span>
+            </p>
             <div class="bloq-fila bloq-cabecera px-3 text-[10px] uppercase font-bold text-[#5a5a7a]">
               <span>Producto</span>
               <span class="text-right">Queda</span>
               <span class="text-center">Reservar</span>
               <span class="text-center">Bloquear</span>
             </div>
-            <template x-for="f in filasBloqueo()" :key="'bloq-p-' + f.id">
-              <div class="bloq-fila rounded-lg border px-3 py-2 transition" :class="verLineaBloqueo('p:' + f.id).bloqueado ? 'border-[#ff0000]/60 bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f]'">
-                <div class="bloq-producto min-w-0">
-                  <span class="block text-xs font-semibold text-white truncate" :title="f.nombre" x-text="f.nombre"></span>
-                  <span class="block text-[10px] text-[#a0a0b8] truncate" x-text="f.grupo || 'Fila sola'"></span>
-                </div>
-                <div class="bloq-queda text-right leading-tight">
-                  <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a]">Queda</span>
-                  <span class="block text-sm font-mono font-bold whitespace-nowrap" :class="f.stock <= 0 ? 'text-[#ff6b6b]' : 'text-white'" x-text="formatNum(f.stock)"></span>
-                  <span class="block text-[10px] text-[#a0a0b8] whitespace-nowrap" x-text="f.unidad"></span>
-                  <span class="block text-[10px] font-semibold whitespace-nowrap text-amber-300" x-show="verLineaBloqueo('p:' + f.id).reserva > 0" x-text="'Libre ' + formatNum(Math.max(0, f.stock - verLineaBloqueo('p:' + f.id).reserva))"></span>
-                </div>
-                <div class="bloq-reservar flex flex-col items-center">
-                  <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a] mb-0.5">Reservar</span>
-                  <input type="number" min="0" step="1" inputmode="numeric" :aria-label="'Reservar de ' + f.nombre" :value="verLineaBloqueo('p:' + f.id).reserva" @change="fijarReservaBloqueo('p:' + f.id, $event.target.value)" @focus="$el.select()" class="bloq-reserva-input">
-                </div>
-                <div class="bloq-bloquear flex flex-col items-center">
-                  <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a] mb-1">Bloquear</span>
-                  <button type="button" role="switch" :aria-checked="verLineaBloqueo('p:' + f.id).bloqueado" :aria-label="'Bloquear ' + f.nombre" @click="alternarBloqueo('p:' + f.id)" class="relative w-10 h-5 rounded-full transition cursor-pointer" :class="verLineaBloqueo('p:' + f.id).bloqueado ? 'bg-[#ff0000]' : 'bg-[#26263a]'">
-                    <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" :class="verLineaBloqueo('p:' + f.id).bloqueado ? 'left-5' : 'left-0.5'"></span>
-                  </button>
-                </div>
+            <template x-for="f in listaBloqueo()" :key="'bloq-' + f.kind + '-' + f.id">
+              <div :class="f.kind === 'grupo' ? 'pt-2' : ''">
+                <!-- Cuadro del grupo (Pecho / Pierna / Octavo): no se reserva, muestra sus platos debajo -->
+                <template x-if="f.kind === 'grupo'">
+                  <div class="bloq-grupo-cab">
+                    <div class="min-w-0 flex items-center gap-2">
+                      <span class="w-7 h-7 shrink-0 rounded-lg bg-[#d4af37]/15 border border-[#d4af37]/40 text-[#d4af37] inline-flex items-center justify-center" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                      </span>
+                      <div class="min-w-0">
+                        <span class="block text-[13px] font-bold text-white truncate" x-text="f.nombre"></span>
+                        <span class="block text-[10px] text-[#a0a0b8]" x-text="f.cuantos + (f.cuantos === 1 ? ' plato' : ' platos') + ' · se reserva por plato'"></span>
+                      </div>
+                    </div>
+                    <div class="text-right leading-tight">
+                      <span class="block text-[9px] uppercase font-bold text-[#5a5a7a]">Queda en total</span>
+                      <span class="text-sm font-mono font-bold text-white" x-text="formatNum(f.stock)"></span>
+                      <span class="text-[10px] text-[#a0a0b8]" x-text="' ' + f.unidad"></span>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Fila de producto o de plato del grupo -->
+                <template x-if="f.kind === 'fila'">
+                  <div class="bloq-fila rounded-lg border px-3 py-2 transition" :class="[verLineaBloqueo('p:' + f.id).bloqueado ? 'border-[#ff0000]/60 bg-[#ff0000]/10' : 'border-[#26263a] bg-[#0a0a0f]', f.enGrupo ? 'bloq-hijo' : '']">
+                    <div class="bloq-producto min-w-0">
+                      <span class="block text-xs font-semibold text-white truncate" :title="f.nombre" x-text="f.nombre"></span>
+                      <span class="block text-[10px] text-[#a0a0b8] truncate" x-text="f.enGrupo ? ('Plato de ' + f.grupoNombre) : (f.grupo || 'Fila sola')"></span>
+                    </div>
+                    <div class="bloq-queda text-right leading-tight">
+                      <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a]">Queda</span>
+                      <template x-for="t in f.tipos" :key="f.id + '-q-' + t">
+                        <div class="whitespace-nowrap">
+                          <span x-show="f.tipos.length > 1 || t === 'cocido'" class="text-[9px] font-bold font-sans mr-1" :class="t === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(t)"></span>
+                          <span class="text-sm font-mono font-bold" :class="f[t] <= 0 ? 'text-[#ff6b6b]' : 'text-white'" x-text="formatNum(f[t])"></span>
+                          <span class="text-[10px] text-[#a0a0b8]" x-show="f.tipos.length === 1" x-text="' ' + f.unidad"></span>
+                          <span class="block text-[10px] font-semibold text-amber-300" x-show="reservaLineaTipo('p:' + f.id, t) > 0" x-text="'Libre ' + formatNum(Math.max(0, f[t] - reservaLineaTipo('p:' + f.id, t)))"></span>
+                        </div>
+                      </template>
+                    </div>
+                    <div class="bloq-reservar flex flex-col items-center gap-1">
+                      <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a]">Reservar</span>
+                      <template x-for="t in f.tipos" :key="f.id + '-r-' + t">
+                        <label class="bloq-reserva-tipo" :class="t === 'cocido' ? 'es-cocido' : 'es-crudo'">
+                          <span x-text="etiquetaTipo(t)"></span>
+                          <input type="number" min="0" step="1" inputmode="numeric" :aria-label="'Reservar ' + etiquetaTipo(t).toLowerCase() + ' de ' + f.nombre" :value="reservaLineaTipo('p:' + f.id, t)" @change="fijarReservaBloqueo('p:' + f.id, $event.target.value, t)" @focus="$el.select()" class="bloq-reserva-input">
+                        </label>
+                      </template>
+                    </div>
+                    <div class="bloq-bloquear flex flex-col items-center">
+                      <span class="sm:hidden block text-[9px] uppercase font-bold text-[#5a5a7a] mb-1">Bloquear</span>
+                      <button type="button" role="switch" :aria-checked="verLineaBloqueo('p:' + f.id).bloqueado" :aria-label="'Bloquear ' + f.nombre" @click="alternarBloqueo('p:' + f.id)" class="relative w-10 h-5 rounded-full transition cursor-pointer" :class="verLineaBloqueo('p:' + f.id).bloqueado ? 'bg-[#ff0000]' : 'bg-[#26263a]'">
+                        <span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" :class="verLineaBloqueo('p:' + f.id).bloqueado ? 'left-5' : 'left-0.5'"></span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
               </div>
             </template>
-            <p class="text-xs text-[#a0a0b8] text-center py-6" x-show="!filasBloqueo().length">No hay productos con ese nombre.</p>
+            <p class="text-xs text-[#a0a0b8] text-center py-6" x-show="!listaBloqueo().length">No hay productos con ese nombre.</p>
           </div>
 
           <!-- Platos de la carta -->
@@ -7149,26 +7518,121 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <p class="text-xs text-[#a0a0b8] text-center py-6" x-show="!platosBloqueo().length">No hay platos con ese nombre.</p>
           </div>
         </div>
+        </div>
 
-        <div class="px-5 py-4 border-t border-[#26263a] space-y-3">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <label class="block text-xs text-[#a0a0b8]">Motivo
-              <input type="text" x-model="bloqueo.motivo" maxlength="120" placeholder="Ej.: evento de las 8 pm, se acabó el carbón" class="mt-1 w-full rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#d4af37]">
-            </label>
-            <label class="block text-xs text-[#a0a0b8]">Hasta
-              <input type="time" x-model="bloqueo.hasta" class="mt-1 w-full rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#d4af37]">
-            </label>
+        <!-- Barra lateral: duración, motivo y aplicar -->
+        <aside class="bloq-lateral flex flex-col border-t lg:border-t-0 lg:border-l border-[#26263a] bg-[#11111a] lg:w-[380px] xl:w-[400px] lg:shrink-0 lg:min-h-0" aria-label="Duración y motivo del bloqueo">
+        <div class="lg:flex-1 lg:min-h-0 lg:overflow-y-auto px-5 py-4">
+          <div class="flex flex-col gap-5">
+
+            <!-- Duración (cronómetro) -->
+            <section aria-labelledby="bloq-duracion-titulo">
+              <div class="flex items-center justify-between gap-2">
+                <h4 id="bloq-duracion-titulo" class="text-xs font-bold text-white inline-flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4 text-[#d4af37]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2h5M12 2v3"/></svg>
+                  Duración
+                </h4>
+                <span class="text-[10px] text-[#5a5a7a]">Cuenta desde que aplicas</span>
+              </div>
+
+              <div class="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Duración del bloqueo">
+                <button type="button" role="radio" x-show="finBloqueoMs() !== null && !bloqueoVencidoAhora()" :aria-checked="bloqueo.duracion.modo === 'mantener'" class="bloq-chip" :class="bloqueo.duracion.modo === 'mantener' ? 'activo' : ''" @click="elegirModoBloqueo('mantener')">Mantener el actual</button>
+                <template x-for="p in presetsBloqueo()" :key="'bloq-pre-' + p.id">
+                  <button type="button" role="radio" :aria-checked="bloqueo.duracion.modo === 'preset' && bloqueo.duracion.preset === p.id" class="bloq-chip" :class="bloqueo.duracion.modo === 'preset' && bloqueo.duracion.preset === p.id ? 'activo' : ''" @click="elegirModoBloqueo('preset', p.id)" x-text="p.nombre"></button>
+                </template>
+                <button type="button" role="radio" :aria-checked="bloqueo.duracion.modo === 'custom'" class="bloq-chip" :class="bloqueo.duracion.modo === 'custom' ? 'activo' : ''" @click="elegirModoBloqueo('custom')">Otro tiempo</button>
+                <button type="button" role="radio" :aria-checked="bloqueo.duracion.modo === 'fecha'" class="bloq-chip" :class="bloqueo.duracion.modo === 'fecha' ? 'activo' : ''" @click="elegirModoBloqueo('fecha')">Fecha exacta</button>
+                <button type="button" role="radio" :aria-checked="bloqueo.duracion.modo === 'sin'" class="bloq-chip" :class="bloqueo.duracion.modo === 'sin' ? 'activo' : ''" @click="elegirModoBloqueo('sin')">Sin límite</button>
+              </div>
+
+              <!-- Otro tiempo: cantidad + unidad -->
+              <div x-show="bloqueo.duracion.modo === 'custom'" x-transition.opacity.duration.200ms class="mt-2.5 flex flex-wrap items-center gap-2">
+                <div class="inline-flex items-center rounded-lg border border-[#26263a] bg-[#0a0a0f] overflow-hidden">
+                  <button type="button" class="w-8 h-8 text-[#d4af37] font-bold hover:bg-[#1c1c2b] transition" aria-label="Menos tiempo" @click="moverCantidadBloqueo(-1)">−</button>
+                  <input type="number" min="1" step="1" inputmode="numeric" aria-label="Cantidad" class="bloq-cantidad-input" :value="bloqueo.duracion.cantidad" @change="fijarCantidadBloqueo($event.target.value)" @focus="$el.select()">
+                  <button type="button" class="w-8 h-8 text-[#d4af37] font-bold hover:bg-[#1c1c2b] transition" aria-label="Más tiempo" @click="moverCantidadBloqueo(1)">+</button>
+                </div>
+                <div class="inline-flex rounded-lg border border-[#26263a] overflow-hidden" role="radiogroup" aria-label="Unidad">
+                  <template x-for="u in unidadesBloqueo()" :key="'bloq-u-' + u.id">
+                    <button type="button" role="radio" :aria-checked="bloqueo.duracion.unidad === u.id" class="px-3 h-8 text-xs font-bold transition" :class="bloqueo.duracion.unidad === u.id ? 'bg-[#d4af37] text-[#1a1200]' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white'" @click="fijarUnidadBloqueo(u.id)" x-text="u.nombre"></button>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Fecha exacta -->
+              <div x-show="bloqueo.duracion.modo === 'fecha'" x-transition.opacity.duration.200ms class="mt-2.5">
+                <input type="datetime-local" aria-label="Fecha y hora de fin" x-model="bloqueo.duracion.fecha" class="w-full sm:w-auto rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#d4af37]">
+              </div>
+
+              <!-- Cronómetro -->
+              <div class="bloq-reloj mt-3" :class="relojBloqueo().vencido ? 'vencido' : (relojBloqueo().fin === null ? 'sin-fin' : '')">
+                <svg viewBox="0 0 44 44" class="bloq-anillo" aria-hidden="true">
+                  <circle cx="22" cy="22" r="19" class="pista"/>
+                  <circle cx="22" cy="22" r="19" class="avance" :style="'stroke-dashoffset:' + (119.38 * (1 - relojBloqueo().fraccion)).toFixed(2)"/>
+                </svg>
+                <div class="min-w-0">
+                  <template x-if="relojBloqueo().fin === null">
+                    <div>
+                      <p class="text-sm font-bold text-white">Sin límite</p>
+                      <p class="text-[11px] text-[#a0a0b8]">Dura hasta que lo quites aquí.</p>
+                    </div>
+                  </template>
+                  <template x-if="relojBloqueo().fin !== null">
+                    <div>
+                      <p class="text-[10px] uppercase font-bold tracking-wide" :class="relojBloqueo().vencido ? 'text-[#ff6b6b]' : 'text-[#5a5a7a]'" x-text="relojBloqueo().vencido ? (bloqueo.duracion.modo === 'mantener' ? 'Venció' : 'Esa hora ya pasó') : (bloqueo.duracion.modo === 'mantener' ? 'Termina en' : 'Si aplicas ahora, dura')"></p>
+                      <p class="bloq-cuenta" x-text="relojBloqueo().vencido ? '00:00:00' : (bloqueo.duracion.modo === 'mantener' || bloqueo.duracion.modo === 'fecha' ? relojBloqueo().falta : textoDuracionElegida())"></p>
+                      <p class="text-[11px] text-[#a0a0b8]">Hasta <span class="text-white font-semibold" x-text="formatoFinBloqueo(relojBloqueo().fin)"></span></p>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </section>
+
+            <!-- Motivo (opcional) -->
+            <section aria-labelledby="bloq-motivo-titulo">
+              <div class="flex items-center justify-between gap-2">
+                <label for="bloq-motivo" id="bloq-motivo-titulo" class="text-xs font-bold text-white inline-flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4 text-[#d4af37]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg>
+                  Motivo
+                  <span class="px-1.5 py-0.5 rounded bg-[#26263a] text-[9px] font-bold uppercase text-[#a0a0b8]">Opcional</span>
+                </label>
+                <span class="text-[10px] font-mono" :class="(bloqueo.motivo || '').length > 100 ? 'text-amber-300' : 'text-[#5a5a7a]'" x-text="(bloqueo.motivo || '').length + '/120'"></span>
+              </div>
+              <div class="relative mt-2">
+                <textarea id="bloq-motivo" x-ref="motivoBloqueo" x-model="bloqueo.motivo" maxlength="120" rows="2" placeholder="Puedes dejarlo vacío. Ej.: evento de las 8 pm, se acabó el carbón" class="bloq-motivo-input"></textarea>
+                <button type="button" x-show="bloqueo.motivo" x-transition.opacity class="absolute top-1.5 right-1.5 w-6 h-6 rounded-md text-[#a0a0b8] hover:text-white hover:bg-[#26263a] transition" aria-label="Borrar motivo" @click="bloqueo.motivo = ''; $refs.motivoBloqueo.focus()">×</button>
+              </div>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <template x-for="m in motivosSugeridosBloqueo()" :key="'bloq-mot-' + m">
+                  <button type="button" class="bloq-chip bloq-chip-sm" :class="(bloqueo.motivo || '').toLowerCase().indexOf(m.toLowerCase()) !== -1 ? 'activo' : ''" @click="usarMotivoBloqueo(m)" x-text="'+ ' + m"></button>
+                </template>
+              </div>
+              <p class="mt-2 text-[10px] text-[#5a5a7a]">Solo lo ven los administradores en esta hoja. No hace falta para aplicar.</p>
+            </section>
           </div>
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <span class="text-xs text-[#a0a0b8]">
-              <strong class="text-white" x-text="resumenBloqueo().bloqueados"></strong> bloqueados ·
-              <strong class="text-white" x-text="resumenBloqueo().reservas"></strong> con reserva
-            </span>
-            <div class="flex items-center gap-2">
-              <button type="button" class="px-4 py-2 rounded-lg border border-[#26263a] text-[#a0a0b8] hover:text-white text-sm font-semibold cursor-pointer" @click="cerrarBloqueo()">Cerrar</button>
-              <button type="button" class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-sm font-extrabold cursor-pointer hover:brightness-110" @click="aplicarBloqueo()">Aplicar bloqueo</button>
+        </div>
+
+        <!-- Resumen y botones: siempre visibles al pie de la barra -->
+        <div class="bloq-acciones shrink-0 px-5 py-4 border-t border-[#26263a] bg-[#0e0e16] space-y-3">
+          <div class="grid grid-cols-2 gap-2">
+            <div class="rounded-lg border border-[#ff0000]/30 bg-[#ff0000]/5 px-3 py-2">
+              <p class="text-[10px] uppercase font-bold text-[#a0a0b8]">Bloqueados</p>
+              <p class="text-xl font-mono font-bold text-red-200" x-text="resumenBloqueo().bloqueados"></p>
+            </div>
+            <div class="rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2">
+              <p class="text-[10px] uppercase font-bold text-[#a0a0b8]">Con reserva</p>
+              <p class="text-xl font-mono font-bold text-amber-200" x-text="resumenBloqueo().reservas"></p>
             </div>
           </div>
+          <div class="flex items-center gap-2">
+            <button type="button" class="flex-1 px-4 py-2.5 rounded-lg border border-[#26263a] text-[#a0a0b8] hover:text-white hover:bg-[#1c1c2b] text-sm font-semibold cursor-pointer transition" @click="cerrarBloqueo()">Cerrar</button>
+            <button type="button" class="flex-[2] px-4 py-2.5 rounded-lg bg-[#d4af37] text-[#1a1200] text-sm font-extrabold cursor-pointer hover:brightness-110 active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5" @click="aplicarBloqueo()">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              Aplicar bloqueo
+            </button>
+          </div>
+        </div>
+        </aside>
         </div>
       </div>
     </div>
@@ -7513,7 +7977,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
-    class="fixed inset-0 z-[88] flex items-center justify-center bg-black/85 p-3 sm:p-5 overflow-y-auto"
+    class="fixed inset-0 z-[88] flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-5 overflow-y-auto"
     @keydown.escape.window="showSaldoRealModal = false"
     role="dialog"
     aria-modal="true"
@@ -7521,7 +7985,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   >
     <template x-if="saldoRealInfo">
       <div
-        class="modal-platos-entra bg-[#12121d] border-2 border-teal-400 rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-[0_0_40px_rgba(20,184,166,0.25)] overflow-hidden"
+        class="proc-panel bg-[#12121d] border-2 border-teal-400/80 rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-[0_0_40px_rgba(20,184,166,0.25)] overflow-hidden"
         @click.outside="showSaldoRealModal = false"
       >
         <!-- Encabezado del Modal de Saldo Real -->
@@ -7569,63 +8033,110 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <!-- Cuerpo: Paso a Paso de Sumas y Restas en el Período -->
         <div class="flex-1 overflow-y-auto p-5 space-y-3 bg-[#0a0a0f]">
 
-          <!-- Resumen rápido de ecuación en una sola línea -->
-          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span class="text-[#a0a0b8] font-semibold">Fórmula del período (<span class="text-[#d4af37]" x-text="saldoRealInfo.etiquetaPeriodo"></span>):</span>
+          <!-- Fórmula del período en una línea -->
+          <div class="proc-formula">
+            <span class="text-[#a0a0b8] font-semibold text-[11px] uppercase tracking-wide">Fórmula <span class="text-[#d4af37] normal-case" x-text="'· ' + saldoRealInfo.etiquetaPeriodo"></span></span>
             <div class="flex flex-wrap items-center gap-1.5 font-mono text-xs">
-              <span class="px-2 py-0.5 rounded bg-purple-950/60 border border-purple-500/40 text-purple-200" x-text="'Ant: ' + formatNum(saldoRealInfo.saldoAnterior)"></span>
+              <span class="proc-chip text-purple-200 border-purple-500/40 bg-purple-950/50" style="--i:0" x-text="'Ant ' + formatNum(saldoRealInfo.saldoAnterior)"></span>
               <span class="text-emerald-400 font-bold">+</span>
-              <span class="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300" x-text="'Ing: +' + formatNum(saldoRealInfo.ingreso)"></span>
+              <span class="proc-chip text-emerald-300 border-emerald-500/40 bg-emerald-950/50" style="--i:1" x-text="'Ing ' + formatNum(saldoRealInfo.ingreso)"></span>
               <span class="text-amber-300 font-bold" x-text="saldoRealInfo.correccion >= 0 ? '+' : '−'"></span>
-              <span class="px-2 py-0.5 rounded bg-amber-950/60 border border-amber-500/40 text-amber-200" x-text="'Corr: ' + formatNum(Math.abs(saldoRealInfo.correccion))"></span>
+              <span class="proc-chip text-amber-200 border-amber-500/40 bg-amber-950/50" style="--i:2" x-text="'Corr ' + formatNum(Math.abs(saldoRealInfo.correccion))"></span>
               <span class="text-rose-400 font-bold">−</span>
-              <span class="px-2 py-0.5 rounded bg-rose-950/60 border border-rose-500/40 text-rose-300" x-text="'Vta: −' + formatNum(saldoRealInfo.ventas)"></span>
+              <span class="proc-chip text-rose-300 border-rose-500/40 bg-rose-950/50" style="--i:3" x-text="'Vta ' + formatNum(saldoRealInfo.ventas)"></span>
               <span class="text-rose-400 font-bold">−</span>
-              <span class="px-2 py-0.5 rounded bg-rose-950/80 border border-[#ff2e4c] text-white" x-text="'Transf: −' + formatNum(saldoRealInfo.transformacion)"></span>
+              <span class="proc-chip text-white border-[#ff2e4c]/70 bg-rose-950/70" style="--i:4" x-text="'Transf ' + formatNum(saldoRealInfo.transformacion)"></span>
+              <template x-if="Math.abs(saldoRealInfo.ajuste) > 0.0005">
+                <span class="inline-flex items-center gap-1.5">
+                  <span class="text-sky-300 font-bold" x-text="saldoRealInfo.ajuste >= 0 ? '+' : '−'"></span>
+                  <span class="proc-chip text-sky-200 border-sky-500/40 bg-sky-950/50" style="--i:5" x-text="'Ajuste ' + formatNum(Math.abs(saldoRealInfo.ajuste))"></span>
+                </span>
+              </template>
               <span class="text-[#d4af37] font-bold">=</span>
-              <span class="px-2.5 py-0.5 rounded bg-teal-950/80 border border-teal-400 text-teal-200 font-extrabold" x-text="formatNum(saldoRealInfo.quedaSaldoReal) + ' ' + saldoRealInfo.unidad"></span>
+              <span class="proc-chip proc-chip-final" style="--i:6" x-text="formatNum(saldoRealInfo.saldoTeorico)"></span>
+              <span class="text-[#5a5a7a]">→ Queda</span>
+              <span class="proc-chip proc-chip-final" style="--i:7" x-text="formatNum(saldoRealInfo.quedaSaldoReal) + ' ' + saldoRealInfo.unidad"></span>
             </div>
           </div>
 
-          <!-- Lista vertical de pasos detallados (Suma / Resta / Subtotal) -->
-          <div class="space-y-2">
-            <template x-for="(paso, pIdx) in saldoRealInfo.pasos" :key="'paso-sr-' + pIdx">
-              <div
-                class="rounded-xl p-3.5 border flex items-center justify-between gap-3 transition"
-                :class="paso.tipo === 'suma' ? 'bg-emerald-950/25 border-emerald-500/50' : (paso.tipo === 'resta' ? 'bg-rose-950/30 border-rose-500/60' : (paso.tipo === 'cierre' ? 'bg-teal-950/45 border-2 border-teal-400 shadow-lg' : (paso.tipo === 'subtotal' ? 'bg-[#181828] border-cyan-500/50' : 'bg-[#14141f] border-[#26263a]')))"
-              >
-                <div class="flex items-start gap-3">
-                  <!-- Icono indicador de Suma (↑ Verde), Resta (↓ Rojo), Apertura o Subtotal -->
-                  <div
-                    class="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-sm shrink-0 mt-0.5"
-                    :class="paso.tipo === 'suma' ? 'bg-emerald-500/20 border border-emerald-400 text-emerald-300' : (paso.tipo === 'resta' ? 'bg-rose-500/20 border border-[#ff2e4c] text-rose-300' : (paso.tipo === 'cierre' ? 'bg-teal-400 text-[#042f2e]' : 'bg-[#0a0a0f] border border-[#26263a] text-[#d4af37]'))"
-                    x-text="paso.icono"
-                  ></div>
-                  <div>
-                    <div class="flex flex-wrap items-center gap-2">
-                      <span class="text-xs sm:text-sm font-extrabold text-white" x-text="paso.titulo"></span>
-                      <span
-                        class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase"
-                        :class="paso.tipo === 'suma' ? 'bg-emerald-500/20 text-emerald-300' : (paso.tipo === 'resta' ? 'bg-rose-500/25 text-rose-200' : (paso.tipo === 'cierre' ? 'bg-teal-400/20 text-teal-200' : 'bg-[#26263a] text-[#a0a0b8]'))"
-                        x-text="paso.etiquetaAccion"
-                      ></span>
+          <!-- Cuadre con la tabla -->
+          <div class="proc-cuadre" :class="saldoRealInfo.cuadra ? 'ok' : 'mal'">
+            <span class="proc-cuadre-icono" aria-hidden="true" x-text="saldoRealInfo.cuadra ? '✓' : '!'"></span>
+            <p class="text-xs">
+              <strong class="text-white" x-text="saldoRealInfo.cuadra ? 'Cuadra con Inventario Tabla.' : 'Hay una diferencia con Inventario Tabla.'"></strong>
+              <span class="text-[#a0a0b8]" x-text="saldoRealInfo.hayPlatos ? ('Cada paso suma la pieza y sus platos agrupados (' + saldoRealInfo.miembros + ' filas), igual que las columnas de la hoja.') : 'Cada paso usa los mismos números que las columnas de la hoja.'"></span>
+            </p>
+          </div>
+
+          <!-- Pasos en línea de tiempo -->
+          <ol class="proc-timeline">
+            <template x-for="paso in saldoRealInfo.pasos" :key="'paso-sr-' + paso.clave">
+              <li class="proc-paso" :class="'es-' + paso.tipo" :style="'--i:' + paso.indice">
+                <span class="proc-bola" aria-hidden="true" x-text="paso.icono"></span>
+                <div class="proc-card">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-extrabold text-white" x-text="paso.titulo"></span>
+                        <span class="proc-etiqueta" x-text="paso.etiquetaAccion"></span>
+                      </div>
+                      <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="paso.explicacion"></p>
                     </div>
-                    <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="paso.explicacion"></p>
-                    <p x-show="paso.desgloseTipos" class="text-[11px] font-mono text-cyan-200/90 mt-1" x-text="paso.desgloseTipos"></p>
+                    <div class="text-right shrink-0 leading-tight">
+                      <span class="proc-valor num-mono block" x-text="paso.valorFormateado"></span>
+                      <span class="text-[10px] text-[#a0a0b8] num-mono" x-text="saldoRealInfo.unidad"></span>
+                    </div>
+                  </div>
+
+                  <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                    <template x-if="saldoRealInfo.tieneCocido && (paso.crudo || paso.cocido)">
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono">
+                        <span class="px-1.5 py-0.5 rounded bg-emerald-950/70 text-emerald-300" x-text="'Crudo ' + formatNum(paso.crudo)"></span>
+                        <span class="px-1.5 py-0.5 rounded bg-amber-950/70 text-[#d4af37]" x-text="'Cocido ' + formatNum(paso.cocido)"></span>
+                      </span>
+                    </template>
+                    <template x-if="paso.columna">
+                      <span class="proc-col" :class="paso.columna.ok ? 'ok' : 'mal'" :title="paso.columna.ok ? 'Es el mismo número que muestra la tabla' : 'No coincide con la tabla'">
+                        <span x-text="paso.columna.ok ? '✓' : '≠'"></span>
+                        <span x-text="paso.columna.etiqueta + ': ' + formatNum(paso.columna.valor)"></span>
+                      </span>
+                    </template>
+                    <button type="button" x-show="paso.partes.length > 1 || (paso.partes.length === 1 && !paso.partes[0].propio)" class="proc-desglose-btn ml-auto" :aria-expanded="paso.abierto" @click="alternarPasoSaldo(paso)">
+                      <span x-text="(paso.abierto ? 'Ocultar' : 'Ver') + ' producto y platos (' + paso.partes.length + ')'"></span>
+                      <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 transition-transform duration-200" :class="paso.abierto ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                  </div>
+
+                  <!-- Desglose por producto y plato -->
+                  <div x-show="paso.abierto && paso.partes.length" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" class="proc-desglose">
+                    <div class="proc-desglose-fila proc-desglose-cab">
+                      <span>Producto / plato</span>
+                      <span x-show="saldoRealInfo.tieneCocido">Crudo</span>
+                      <span x-show="saldoRealInfo.tieneCocido">Cocido</span>
+                      <span>Total</span>
+                    </div>
+                    <template x-for="(p, j) in paso.partes" :key="paso.clave + '-p-' + p.id">
+                      <div class="proc-desglose-fila" :class="[p.propio ? 'propio' : '', saldoRealInfo.tieneCocido ? '' : 'sin-tipos']" :style="'--j:' + j">
+                        <span class="truncate" :title="p.nombre">
+                          <span class="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" :class="p.propio ? 'bg-[#d4af37]' : 'bg-teal-400'"></span>
+                          <span x-text="p.nombre"></span>
+                        </span>
+                        <span x-show="saldoRealInfo.tieneCocido" class="text-emerald-300" x-text="p.tieneCrudo ? formatNum(p.crudo) : '—'"></span>
+                        <span x-show="saldoRealInfo.tieneCocido" class="text-[#d4af37]" x-text="p.tieneCocido ? formatNum(p.cocido) : '—'"></span>
+                        <span class="font-bold text-white" x-text="formatNum(p.total)"></span>
+                      </div>
+                    </template>
+                    <div class="proc-desglose-fila proc-desglose-total" :class="saldoRealInfo.tieneCocido ? '' : 'sin-tipos'">
+                      <span>Total</span>
+                      <span x-show="saldoRealInfo.tieneCocido" class="text-emerald-300" x-text="formatNum(paso.crudo)"></span>
+                      <span x-show="saldoRealInfo.tieneCocido" class="text-[#d4af37]" x-text="formatNum(paso.cocido)"></span>
+                      <span x-text="formatNum(paso.partes.reduce((a, p) => a + p.total, 0))"></span>
+                    </div>
                   </div>
                 </div>
-
-                <div class="text-right shrink-0">
-                  <span
-                    class="text-lg sm:text-xl font-extrabold num-mono block"
-                    :class="paso.tipo === 'suma' ? 'text-emerald-300' : (paso.tipo === 'resta' ? 'text-rose-300' : (paso.tipo === 'cierre' ? 'text-teal-200 text-2xl' : 'text-white'))"
-                    x-text="paso.valorFormateado"
-                  ></span>
-                  <span class="text-[10px] text-[#a0a0b8] num-mono" x-text="saldoRealInfo.unidad"></span>
-                </div>
-              </div>
+              </li>
             </template>
-          </div>
+          </ol>
 
           <div class="modal-platos-entra bg-[#14141f] border border-teal-500/40 rounded-xl p-3 space-y-2" :class="saldoRealInfo.reordenando ? 'tabla-platos-reordena' : ''" @mouseleave="soltarOrdenSaldo()">
             <p class="text-xs font-extrabold text-teal-200 uppercase">Saldo restante</p>
@@ -8142,6 +8653,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         showAuditoriaModal: false,
         auditoriaRow: null,
         auditoriaMovs: [],
+        auditoriaResumen: null,
+        auditoriaFiltroMiembro: 'todos',
+        auditoriaVerFamilia: false,
         auditoriaFiltroPeriodo: 'hoy',
         auditoriaFiltroTipo: 'todos',
         auditoriaFiltroClase: 'todos',
@@ -8768,7 +9282,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ventaManualPlatoKey: '',
         ventaManualPlatos: 1,
         ventaManualCorte: '',
-        bloqueo: { abierto: false, tab: 'productos', busqueda: '', motivo: '', hasta: '', lineas: {} },
+        bloqueo: {
+          abierto: false, tab: 'productos', busqueda: '', motivo: '', hasta: '', desde: '', duracionTexto: '', vencido: false, lineas: {},
+          // modo: 'sin' (sin límite) · 'preset' · 'custom' (N horas/días/semanas) · 'fecha' (fecha exacta) · 'mantener' (el fin ya guardado)
+          duracion: { modo: 'sin', preset: '', cantidad: 2, unidad: 'h', fecha: '' }
+        },
+        bloqueoAhora: Date.now(),
         ingresoAbierto: {},
         ventasPeriodo: [],
         graficoSerie: [],
@@ -9886,32 +10405,41 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
-        aplicarKardex(filas, movimientos, ventas) {
-          this.asegurarFilasVendidas(ventas);
+        // Cuentas del kardex por rubro y tipo, sin tocar la hoja. aplicarKardex las pinta en las filas;
+        // la auditoría las usa con su propio período. Una sola matemática para las dos.
+        // Una venta de comanda tal como la cuenta la hoja: filete de la carta = 1 filete crudo,
+        // filete junior = 0,5; milanesa junior y T643 no entran. null = no entra al kardex.
+        ventaKardexNormalizada(v) {
+          let rubro = v && (v.rubro || v.plato);
+          if (!rubro || rubro === 'milanesa-junior' || rubro === 'milanesa_junior' || (v && v.codigo === 'T643')) return null;
+          let n = Number(v && v.cantidad) || 0;
+          let tipo = v && v.tipoProducto === 'crudo' ? 'crudo' : 'cocido';
+          if (rubro === 'filete-pollo' || rubro === 'filete_pollo') {
+            rubro = 'filete';
+            tipo = 'crudo';
+            if (v.platos != null && !(Number(v.factor) > 0)) n = Number(v.platos) * 1;
+          } else if (rubro === 'filete-junior' || rubro === 'filete_junior') {
+            rubro = 'filete';
+            tipo = 'crudo';
+            if (v.platos != null) {
+              n = Number(v.platos) * 0.5;
+            } else if (Number(v.factor) !== 0.5) {
+              n = n * 0.5;
+            }
+          }
+          if (n <= 0) return null;
+          return { rubro, tipo, n, sinSaldo: !!v.sinSaldo };
+        },
+
+        resumenKardex(filas, movimientos, ventas) {
           const ventaComanda = {};
           const cubiertaComanda = {};
           (ventas || []).forEach((v) => {
-            let rubro = v && (v.rubro || v.plato);
-            if (!rubro || rubro === 'milanesa-junior' || rubro === 'milanesa_junior' || (v && v.codigo === 'T643')) return;
-            let n = Number(v && v.cantidad) || 0;
-            let tipo = v && v.tipoProducto === 'crudo' ? 'crudo' : 'cocido';
-            if (rubro === 'filete-pollo' || rubro === 'filete_pollo') {
-              rubro = 'filete';
-              tipo = 'crudo';
-              if (v.platos != null && !(Number(v.factor) > 0)) n = Number(v.platos) * 1;
-            } else if (rubro === 'filete-junior' || rubro === 'filete_junior') {
-              rubro = 'filete';
-              tipo = 'crudo';
-              if (v.platos != null) {
-                n = Number(v.platos) * 0.5;
-              } else if (Number(v.factor) !== 0.5) {
-                n = n * 0.5;
-              }
-            }
-            if (n <= 0) return;
-            const key = rubro + '|' + tipo;
-            ventaComanda[key] = (ventaComanda[key] || 0) + n;
-            if (v.sinSaldo) cubiertaComanda[key] = (cubiertaComanda[key] || 0) + n;
+            const nv = this.ventaKardexNormalizada(v);
+            if (!nv) return;
+            const key = nv.rubro + '|' + nv.tipo;
+            ventaComanda[key] = (ventaComanda[key] || 0) + nv.n;
+            if (nv.sinSaldo) cubiertaComanda[key] = (cubiertaComanda[key] || 0) + nv.n;
           });
           const porClave = {};
           (filas || []).forEach((f) => {
@@ -9928,47 +10456,63 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const key = m.rubro + '|' + (m.tipoProducto || 'crudo');
             pases.set(key, (pases.get(key) || 0) - (Number(m.cantidad) || 0));
           });
+          return { ventaComanda, cubiertaComanda, porClave, pases };
+        },
+
+        // Columnas de una fila para un resumen del kardex (mismos nombres de campo que la fila).
+        // null = el kardex no trae nada de esa clave y la fila se deja como está.
+        valoresKardexFila(rk, clave, row) {
+          const partes = rk.porClave[clave] || [];
+          if (!partes.length && !rk.ventaComanda[clave + '|crudo'] && !rk.ventaComanda[clave + '|cocido']) return null;
+          const sale = (tipo) => Math.max(0, Math.round((rk.pases.get(clave + '|' + tipo) || 0) * 1000) / 1000);
+          const crudo = partes.find((p) => p.tipoProducto === 'crudo') || {};
+          const cocido = partes.find((p) => p.tipoProducto === 'cocido') || {};
+          const v = {};
+          const carga = (p, tipo) => {
+            const s = sale(tipo);
+            v[this.campoTipo('saldoAnterior', tipo)] = Number(p.saldoInicial) || 0;
+            v[this.campoTipo('ingreso', tipo)] = (Number(p.ingresos) || 0) + s;
+            v[this.campoTipo('correccion', tipo)] = Number(p.regulacion) || 0;
+            v[this.campoTipo('venta', tipo)] = (Number(p.egreso) || 0) + (rk.ventaComanda[clave + '|' + tipo] || 0);
+            v[this.campoTipo('cubierta', tipo)] = rk.cubiertaComanda[clave + '|' + tipo] || 0;
+            v[this.campoTipo('transformacion', tipo)] = s;
+            v[this.campoTipo('inventario', tipo)] = p.tieneConteo ? (Number(p.conteo) || 0) : null;
+          };
+          carga(crudo, 'crudo');
+          carga(cocido, 'cocido');
+          const bases = ['saldoAnterior', 'ingreso', 'correccion', 'venta', 'transformacion', 'cubierta'];
+          if (!row.tieneCocido) {
+            bases.forEach((b) => {
+              v[b] += Number(v[b + 'Cocido']) || 0;
+              v[b + 'Cocido'] = 0;
+            });
+            if (v.inventarioCocido !== null) v.inventario = (Number(v.inventario) || 0) + Number(v.inventarioCocido);
+            v.inventarioCocido = null;
+          }
+          v.crudo = Number(crudo.baja) || 0;
+          v.cocido = Number(cocido.baja) || 0;
+          if (row.soloCocido) {
+            bases.forEach((b) => {
+              v[b + 'Cocido'] = (Number(v[b + 'Cocido']) || 0) + (Number(v[b]) || 0);
+              v[b] = 0;
+            });
+            if (v.inventario !== null && v.inventario !== undefined && v.inventario !== '') {
+              v.inventarioCocido = (Number(v.inventarioCocido) || 0) + (Number(v.inventario) || 0);
+              v.inventario = null;
+            }
+            v.cocido = (Number(v.crudo) || 0) + (Number(v.cocido) || 0);
+            v.crudo = 0;
+          }
+          return v;
+        },
+
+        aplicarKardex(filas, movimientos, ventas) {
+          this.asegurarFilasVendidas(ventas);
+          const rk = this.resumenKardex(filas, movimientos, ventas);
+          const porClave = rk.porClave;
           this.rows.forEach((row) => {
-            const clave = this.claveDeFila[row.id];
-            const partes = porClave[clave] || [];
-            const sale = (tipo) => Math.max(0, Math.round((pases.get(clave + '|' + tipo) || 0) * 1000) / 1000);
-            const crudo = partes.find((p) => p.tipoProducto === 'crudo') || {};
-            const cocido = partes.find((p) => p.tipoProducto === 'cocido') || {};
-            const carga = (p, tipo) => {
-              const s = sale(tipo);
-              row[this.campoTipo('saldoAnterior', tipo)] = Number(p.saldoInicial) || 0;
-              row[this.campoTipo('ingreso', tipo)] = (Number(p.ingresos) || 0) + s;
-              row[this.campoTipo('correccion', tipo)] = Number(p.regulacion) || 0;
-              row[this.campoTipo('venta', tipo)] = (Number(p.egreso) || 0) + (ventaComanda[clave + '|' + tipo] || 0);
-              row[this.campoTipo('cubierta', tipo)] = cubiertaComanda[clave + '|' + tipo] || 0;
-              row[this.campoTipo('transformacion', tipo)] = s;
-              row[this.campoTipo('inventario', tipo)] = p.tieneConteo ? (Number(p.conteo) || 0) : null;
-            };
-            if (!partes.length && !ventaComanda[clave + '|crudo'] && !ventaComanda[clave + '|cocido']) return;
-            carga(crudo, 'crudo');
-            carga(cocido, 'cocido');
-            if (!row.tieneCocido) {
-              ['saldoAnterior', 'ingreso', 'correccion', 'venta', 'transformacion', 'cubierta'].forEach((b) => {
-                row[b] += Number(row[b + 'Cocido']) || 0;
-                row[b + 'Cocido'] = 0;
-              });
-              if (row.inventarioCocido !== null) row.inventario = (Number(row.inventario) || 0) + Number(row.inventarioCocido);
-              row.inventarioCocido = null;
-            }
-            row.crudo = Number(crudo.baja) || 0;
-            row.cocido = Number(cocido.baja) || 0;
-            if (row.soloCocido) {
-              ['saldoAnterior', 'ingreso', 'correccion', 'venta', 'transformacion', 'cubierta'].forEach((b) => {
-                row[b + 'Cocido'] = (Number(row[b + 'Cocido']) || 0) + (Number(row[b]) || 0);
-                row[b] = 0;
-              });
-              if (row.inventario !== null && row.inventario !== undefined && row.inventario !== '') {
-                row.inventarioCocido = (Number(row.inventarioCocido) || 0) + (Number(row.inventario) || 0);
-                row.inventario = null;
-              }
-              row.cocido = (Number(row.crudo) || 0) + (Number(row.cocido) || 0);
-              row.crudo = 0;
-            }
+            const vals = this.valoresKardexFila(rk, this.claveDeFila[row.id], row);
+            if (vals) Object.assign(row, vals);
           });
           this.syncIngresoDirecto();
           this.eventos.forEach((ev) => {
@@ -10219,21 +10763,236 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         // ===== Bloqueo de inventario =====
         abrirBloqueo() {
-          this.bloqueo = Object.assign({}, this.bloqueo, { abierto: true, busqueda: '' });
+          const vigente = this.finBloqueoMs() !== null && !this.bloqueoVencidoAhora();
+          const duracion = Object.assign({}, this.bloqueo.duracion, { modo: vigente ? 'mantener' : 'sin', preset: '' });
+          this.bloqueo = Object.assign({}, this.bloqueo, { abierto: true, busqueda: '', duracion });
+          this.bloqueoAhora = Date.now();
+          clearInterval(this._relojBloqueo);
+          // El reloj solo corre con el modal abierto; solo lo leen la cuenta regresiva y la fecha de fin.
+          this._relojBloqueo = setInterval(() => { this.bloqueoAhora = Date.now(); }, 1000);
         },
 
         cerrarBloqueo() {
+          clearInterval(this._relojBloqueo);
+          this._relojBloqueo = null;
           this.bloqueo = Object.assign({}, this.bloqueo, { abierto: false });
         },
 
-        filasBloqueo() {
+        // ----- Duración del bloqueo -----
+        presetsBloqueo() {
+          return [
+            { id: '1h', nombre: '1 hora', ms: 3600000 },
+            { id: '3h', nombre: '3 horas', ms: 3 * 3600000 },
+            { id: '6h', nombre: '6 horas', ms: 6 * 3600000 },
+            { id: 'turno', nombre: 'Fin del turno', ms: 0 },
+            { id: '1d', nombre: '1 día', ms: 86400000 },
+            { id: '3d', nombre: '3 días', ms: 3 * 86400000 },
+            { id: '1s', nombre: '1 semana', ms: 7 * 86400000 },
+            { id: '2s', nombre: '2 semanas', ms: 14 * 86400000 }
+          ];
+        },
+
+        unidadesBloqueo() {
+          return [
+            { id: 'h', nombre: 'Horas', uno: 'hora', varios: 'horas', ms: 3600000, max: 72 },
+            { id: 'd', nombre: 'Días', uno: 'día', varios: 'días', ms: 86400000, max: 60 },
+            { id: 's', nombre: 'Semanas', uno: 'semana', varios: 'semanas', ms: 7 * 86400000, max: 12 }
+          ];
+        },
+
+        // Próximo cierre del día operativo (04:00 Lima, UTC−5 fijo).
+        finTurnoBloqueo(ms) {
+          const limaYmd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(ms));
+          let t = Date.parse(limaYmd + 'T04:00:00-05:00');
+          while (t <= ms) t += 86400000;
+          return t;
+        },
+
+        elegirModoBloqueo(modo, preset) {
+          const d = Object.assign({}, this.bloqueo.duracion, { modo, preset: preset || '' });
+          if (modo === 'fecha' && !d.fecha) {
+            const base = new Date(Date.now() + 3 * 3600000);
+            base.setMinutes(0, 0, 0);
+            const pad = (n) => String(n).padStart(2, '0');
+            d.fecha = base.getFullYear() + '-' + pad(base.getMonth() + 1) + '-' + pad(base.getDate()) + 'T' + pad(base.getHours()) + ':00';
+          }
+          this.bloqueo.duracion = d;
+          this.bloqueoAhora = Date.now();
+          if (this.soundEnabled) this.sonarVenta('filtro');
+        },
+
+        moverCantidadBloqueo(delta) {
+          const u = this.unidadesBloqueo().find((x) => x.id === this.bloqueo.duracion.unidad) || this.unidadesBloqueo()[0];
+          this.fijarCantidadBloqueo((Number(this.bloqueo.duracion.cantidad) || 0) + delta, u);
+        },
+
+        fijarCantidadBloqueo(valor, unidad) {
+          const u = unidad || this.unidadesBloqueo().find((x) => x.id === this.bloqueo.duracion.unidad) || this.unidadesBloqueo()[0];
+          const n = Math.min(u.max, Math.max(1, Math.round(Number(valor) || 1)));
+          this.bloqueo.duracion = Object.assign({}, this.bloqueo.duracion, { modo: 'custom', cantidad: n });
+        },
+
+        fijarUnidadBloqueo(id) {
+          const u = this.unidadesBloqueo().find((x) => x.id === id);
+          if (!u) return;
+          const n = Math.min(u.max, Math.max(1, Number(this.bloqueo.duracion.cantidad) || 1));
+          this.bloqueo.duracion = Object.assign({}, this.bloqueo.duracion, { modo: 'custom', unidad: id, cantidad: n });
+        },
+
+        // Fin guardado, en ms. Acepta la hora suelta "HH:MM" de la versión anterior (se lee como el próximo HH:MM del día operativo).
+        finBloqueoMs(hasta, desde) {
+          const s = String(hasta === undefined ? (this.bloqueo.hasta || '') : (hasta || '')).trim();
+          if (!s) return null;
+          const hm = s.match(/^(\d{1,2}):(\d{2})$/);
+          if (hm) {
+            const ref = Date.parse(desde || this.bloqueo.desde || '') || Date.now();
+            const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(ref));
+            let t = Date.parse(ymd + 'T' + hm[1].padStart(2, '0') + ':' + hm[2] + ':00-05:00');
+            if (t <= ref) t += 86400000;
+            return t;
+          }
+          const t = Date.parse(s);
+          return Number.isNaN(t) ? null : t;
+        },
+
+        bloqueoVencidoAhora() {
+          const fin = this.finBloqueoMs();
+          // Lee el reloj del modal para que la vista cambie sola al llegar la hora de fin.
+          const ahora = Math.max(Date.now(), this.bloqueoAhora || 0);
+          return fin !== null && ahora >= fin;
+        },
+
+        // Fin que se guardará al pulsar Aplicar (se recalcula con el reloj mientras el modal está abierto).
+        finBloqueoElegido() {
+          const d = this.bloqueo.duracion || {};
+          const ahora = this.bloqueoAhora || Date.now();
+          if (d.modo === 'sin') return null;
+          if (d.modo === 'mantener') return this.finBloqueoMs();
+          if (d.modo === 'preset') {
+            const p = this.presetsBloqueo().find((x) => x.id === d.preset);
+            if (!p) return null;
+            return p.id === 'turno' ? this.finTurnoBloqueo(ahora) : ahora + p.ms;
+          }
+          if (d.modo === 'custom') {
+            const u = this.unidadesBloqueo().find((x) => x.id === d.unidad) || this.unidadesBloqueo()[0];
+            return ahora + (Number(d.cantidad) || 1) * u.ms;
+          }
+          if (d.modo === 'fecha') {
+            const t = Date.parse(d.fecha || '');
+            return Number.isNaN(t) ? null : t;
+          }
+          return null;
+        },
+
+        textoDuracionElegida() {
+          const d = this.bloqueo.duracion || {};
+          if (d.modo === 'sin') return 'Sin límite';
+          if (d.modo === 'mantener') return this.bloqueo.duracionTexto || 'El fin ya guardado';
+          if (d.modo === 'preset') {
+            const p = this.presetsBloqueo().find((x) => x.id === d.preset);
+            return p ? p.nombre : '';
+          }
+          if (d.modo === 'custom') {
+            const u = this.unidadesBloqueo().find((x) => x.id === d.unidad) || this.unidadesBloqueo()[0];
+            const n = Number(d.cantidad) || 1;
+            return n + ' ' + (n === 1 ? u.uno : u.varios);
+          }
+          if (d.modo === 'fecha') return 'Hasta una fecha';
+          return '';
+        },
+
+        formatoFinBloqueo(ms) {
+          if (ms === null || ms === undefined) return '';
+          return new Date(ms).toLocaleString('es-PE', { timeZone: 'America/Lima', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        },
+
+        // "2 d 05:12:33" o "05:12:33".
+        cuentaRegresivaBloqueo(ms) {
+          if (ms === null || ms === undefined) return '';
+          let s = Math.max(0, Math.floor((ms - (this.bloqueoAhora || Date.now())) / 1000));
+          const d = Math.floor(s / 86400); s -= d * 86400;
+          const h = Math.floor(s / 3600); s -= h * 3600;
+          const m = Math.floor(s / 60); s -= m * 60;
+          const pad = (n) => String(n).padStart(2, '0');
+          return (d ? d + ' d ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
+        },
+
+        // Estado del cronómetro para la vista: fin, lo que falta y la fracción que queda (anillo).
+        relojBloqueo() {
+          const fin = this.finBloqueoElegido();
+          const ahora = this.bloqueoAhora || Date.now();
+          const d = this.bloqueo.duracion || {};
+          if (fin === null) return { fin: null, valido: d.modo === 'sin', fraccion: 1, falta: '', vencido: false };
+          const vencido = fin <= ahora;
+          let fraccion = 1;
+          if (d.modo === 'mantener') {
+            const inicio = Date.parse(this.bloqueo.desde || '');
+            if (!Number.isNaN(inicio) && fin > inicio) fraccion = Math.max(0, Math.min(1, (fin - ahora) / (fin - inicio)));
+          }
+          return { fin, valido: !vencido, fraccion: vencido ? 0 : fraccion, falta: this.cuentaRegresivaBloqueo(fin), vencido };
+        },
+
+        // ----- Motivo (opcional) -----
+        motivosSugeridosBloqueo() {
+          return ['Evento', 'Se acabó', 'Calidad', 'Pedido especial', 'Mantenimiento', 'Falta insumo'];
+        },
+
+        usarMotivoBloqueo(texto) {
+          const actual = String(this.bloqueo.motivo || '').trim();
+          if (actual.toLowerCase().indexOf(texto.toLowerCase()) !== -1) return;
+          this.bloqueo.motivo = (actual ? actual + ' · ' + texto : texto).slice(0, 120);
+          this.$nextTick(() => { const el = this.$refs && this.$refs.motivoBloqueo; if (el) el.focus(); });
+        },
+
+        // Pecho, Pierna y Octavo de pollo no se reservan como pieza: se reservan y bloquean sus platos.
+        gruposBloqueoPorPlato() {
+          return ['pechuga', 'pierna', 'octavo_pollo'];
+        },
+
+        // Filas que no admiten reserva ni bloqueo propio (Pollo fresco + los grupos por plato).
+        esBloqueable(id) {
+          return id !== 'pollo_fresco' && this.gruposBloqueoPorPlato().indexOf(id) === -1;
+        },
+
+        itemBloqueo(row, extra) {
+          const tipos = this.tiposDe(row);
+          return Object.assign({
+            kind: 'fila',
+            id: row.id,
+            nombre: row.nombre,
+            unidad: row.unidad || 'unid',
+            grupo: this.getGroupName(row.grupo),
+            tipos,
+            crudo: this.redondear3(this.saldoRealColumnaTipo(row, 'crudo')),
+            cocido: this.redondear3(this.saldoRealColumnaTipo(row, 'cocido')),
+            stock: this.redondear3(this.saldoRealColumna(row))
+          }, extra || {});
+        },
+
+        // Lista plana del modal: primero los cuadros de Pecho / Pierna / Octavo con sus platos, luego el resto.
+        listaBloqueo() {
           const q = this.norm(this.bloqueo.busqueda || '').trim();
-          return (this.rows || [])
-            .filter((r) => r && r.id && this.claveDeFila[r.id])
+          const out = [];
+          const enGrupo = new Set();
+          this.gruposBloqueoPorPlato().forEach((gid) => {
+            const padre = this.filaReal(gid);
+            if (!padre) return;
+            const hijos = this.filasTransformacionDe(padre).filter((h) => h && this.esBloqueable(h.id) && this.claveDeFila[h.id]);
+            hijos.forEach((h) => enGrupo.add(h.id));
+            if (!hijos.length) return;
+            const coincideGrupo = !q || this.norm(padre.nombre).includes(q);
+            const visibles = coincideGrupo ? hijos : hijos.filter((h) => this.norm(h.nombre).includes(q));
+            if (!visibles.length) return;
+            out.push({ kind: 'grupo', id: gid, nombre: padre.nombre, unidad: padre.unidad || 'unid', stock: this.redondear3(this.saldoRealColumna(padre)), cuantos: hijos.length });
+            visibles.forEach((h) => out.push(this.itemBloqueo(h, { enGrupo: true, grupoNombre: padre.nombre })));
+          });
+          const sueltas = (this.rows || [])
+            .filter((r) => r && r.id && this.claveDeFila[r.id] && this.esBloqueable(r.id) && !enGrupo.has(r.id))
             .filter((r) => !q || this.norm(r.nombre).includes(q))
-            .map((r) => ({ id: r.id, nombre: r.nombre, unidad: r.unidad || 'unid', stock: this.redondear3(this.saldoRealColumna(r)), grupo: this.getGroupName(r.grupo) }))
+            .map((r) => this.itemBloqueo(r))
             .sort((a, b) => b.stock - a.stock || String(a.nombre).localeCompare(String(b.nombre), 'es'))
             .slice(0, 60);
+          return out.concat(sueltas);
         },
 
         platosBloqueo() {
@@ -10246,11 +11005,24 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // Solo lectura, para la plantilla. Crear la línea mientras se pinta escribía estado reactivo
         // en cada fila de la lista (60 escrituras por pintado) y volvía a disparar el pintado.
         verLineaBloqueo(key) {
-          return (this.bloqueo.lineas && this.bloqueo.lineas[key]) || { bloqueado: false, reserva: 0 };
+          return (this.bloqueo.lineas && this.bloqueo.lineas[key]) || { bloqueado: false, reserva: 0, reservaCrudo: 0, reservaCocido: 0 };
+        },
+
+        reservaLineaTipo(key, tipo) {
+          const l = this.verLineaBloqueo(key);
+          return Math.max(0, Number(tipo === 'cocido' ? l.reservaCocido : l.reservaCrudo) || 0);
+        },
+
+        // Línea guardada → forma actual. Una reserva vieja sin tipo cuenta como crudo.
+        normalizarLineaBloqueo(l) {
+          const tieneTipos = l && (l.reservaCrudo !== undefined || l.reservaCocido !== undefined);
+          const crudo = Math.max(0, Number(tieneTipos ? l.reservaCrudo : (l && l.reserva)) || 0);
+          const cocido = Math.max(0, Number(tieneTipos ? l.reservaCocido : 0) || 0);
+          return { bloqueado: !!(l && l.bloqueado), reservaCrudo: crudo, reservaCocido: cocido, reserva: this.redondear3(crudo + cocido), nombre: (l && l.nombre) || '' };
         },
 
         lineaBloqueo(key) {
-          if (!this.bloqueo.lineas[key]) this.bloqueo.lineas[key] = { bloqueado: false, reserva: 0 };
+          if (!this.bloqueo.lineas[key]) this.bloqueo.lineas[key] = { bloqueado: false, reserva: 0, reservaCrudo: 0, reservaCocido: 0 };
           return this.bloqueo.lineas[key];
         },
 
@@ -10260,20 +11032,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.bloqueo.lineas = Object.assign({}, this.bloqueo.lineas);
         },
 
-        fijarReservaBloqueo(key, val) {
+        fijarReservaBloqueo(key, val, tipo) {
           const l = this.lineaBloqueo(key);
-          l.reserva = Math.max(0, Number(val) || 0);
+          const n = Math.max(0, Number(val) || 0);
+          if (tipo === 'cocido') l.reservaCocido = n;
+          else l.reservaCrudo = n;
+          l.reserva = this.redondear3((Number(l.reservaCrudo) || 0) + (Number(l.reservaCocido) || 0));
           this.bloqueo.lineas = Object.assign({}, this.bloqueo.lineas);
         },
 
+        // Pasada la hora de fin, el bloqueo y las reservas dejan de contar (igual que en el servidor).
         productoBloqueado(id) {
+          if (!this.esBloqueable(id) || this.bloqueoVencidoAhora()) return false;
           const l = this.bloqueo.lineas && this.bloqueo.lineas['p:' + id];
           return !!(l && l.bloqueado);
         },
 
-        reservaDe(id) {
+        // Reserva de esa fila. Con tipo, solo la del crudo o la del cocido; sin tipo, la suma.
+        reservaDe(id, tipo) {
+          if (!this.esBloqueable(id) || this.bloqueoVencidoAhora()) return 0;
           const l = this.bloqueo.lineas && this.bloqueo.lineas['p:' + id];
-          return l ? Math.max(0, Number(l.reserva) || 0) : 0;
+          if (!l) return 0;
+          if (tipo === 'cocido') return Math.max(0, Number(l.reservaCocido) || 0);
+          if (tipo === 'crudo') return Math.max(0, Number(l.reservaCrudo !== undefined ? l.reservaCrudo : l.reserva) || 0);
+          return Math.max(0, Number(l.reserva) || 0);
         },
 
         aplicarLineasBloqueo(cuerpo) {
@@ -10281,11 +11063,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           (cuerpo && cuerpo.lineas || []).forEach((l) => {
             if (!l || !l.id) return;
             const key = (l.tipo === 'plato' ? 'c:' : 'p:') + l.id;
-            lineas[key] = { bloqueado: !!l.bloqueado, reserva: Math.max(0, Number(l.reserva) || 0), nombre: l.nombre || '' };
+            lineas[key] = this.normalizarLineaBloqueo(l);
           });
+          const hasta = (cuerpo && cuerpo.hasta) || '';
+          const desde = (cuerpo && cuerpo.desde) || '';
+          const fin = this.finBloqueoMs(hasta, desde);
           this.bloqueo = Object.assign({}, this.bloqueo, {
             motivo: (cuerpo && cuerpo.motivo) || '',
-            hasta: (cuerpo && cuerpo.hasta) || '',
+            hasta: fin === null ? '' : new Date(fin).toISOString(),
+            desde,
+            duracionTexto: (cuerpo && cuerpo.duracion) || '',
+            vencido: fin !== null && Date.now() >= fin,
             lineas
           });
         },
@@ -10303,7 +11091,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const localTiene = Object.keys(this.bloqueo.lineas || {}).length > 0;
             if (data && Array.isArray(data.lineas) && (data.lineas.length || !localTiene)) {
               this.aplicarLineasBloqueo(data);
-              try { localStorage.setItem('inventario-bloqueo', JSON.stringify({ motivo: data.motivo || '', hasta: data.hasta || '', lineas: data.lineas })); } catch (e) {}
+              try { localStorage.setItem('inventario-bloqueo', JSON.stringify({ motivo: data.motivo || '', hasta: data.hasta || '', desde: data.desde || '', duracion: data.duracion || '', lineas: data.lineas })); } catch (e) {}
             }
           } catch (e) {}
         },
@@ -10315,6 +11103,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!l || (!l.bloqueado && !(Number(l.reserva) > 0))) return;
             const tipo = key.indexOf('c:') === 0 ? 'plato' : 'producto';
             const id = key.slice(2);
+            // Pollo fresco, Pecho, Pierna y Octavo no se guardan: van por plato.
+            if (tipo === 'producto' && !this.esBloqueable(id)) return;
             let nombre = l.nombre || '';
             if (tipo === 'producto') {
               const row = this.filaReal(id);
@@ -10323,26 +11113,53 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const p = (this.platosCarta || []).find((x) => x.clave === id);
               if (p) nombre = p.nombre || nombre;
             }
-            lineas.push({ tipo, id, nombre, bloqueado: !!l.bloqueado, reserva: Math.max(0, Number(l.reserva) || 0) });
+            const n = this.normalizarLineaBloqueo(l);
+            if (tipo === 'plato') { n.reservaCrudo = 0; n.reservaCocido = 0; n.reserva = 0; }
+            if (!n.bloqueado && !(n.reserva > 0)) return;
+            lineas.push({ tipo, id, nombre, bloqueado: n.bloqueado, reserva: n.reserva, reservaCrudo: n.reservaCrudo, reservaCocido: n.reservaCocido });
           });
-          return { motivo: this.bloqueo.motivo || '', hasta: this.bloqueo.hasta || '', lineas };
+          // El cronómetro arranca al aplicar: el fin se calcula con la hora de este clic.
+          this.bloqueoAhora = Date.now();
+          const modo = (this.bloqueo.duracion && this.bloqueo.duracion.modo) || 'sin';
+          const fin = this.finBloqueoElegido();
+          const mantener = modo === 'mantener';
+          return {
+            motivo: String(this.bloqueo.motivo || '').trim(),
+            hasta: fin === null ? '' : new Date(fin).toISOString(),
+            desde: fin === null ? '' : (mantener && this.bloqueo.desde ? this.bloqueo.desde : new Date().toISOString()),
+            duracion: fin === null ? '' : (mantener ? (this.bloqueo.duracionTexto || '') : this.textoDuracionElegida()),
+            lineas
+          };
         },
 
         async aplicarBloqueo() {
+          const r = this.relojBloqueo();
+          if (this.bloqueo.duracion.modo === 'fecha' && !r.valido) {
+            this.toastMessage = 'Elige una fecha y hora de fin que todavía no haya pasado.';
+            return;
+          }
           const cuerpo = this.cuerpoBloqueo();
           try { localStorage.setItem('inventario-bloqueo', JSON.stringify(cuerpo)); } catch (e) {}
           try {
             const data = await this.api('/inventario/bloqueo', { method: 'PUT', body: JSON.stringify(cuerpo) });
             this.aplicarLineasBloqueo(data);
             this.cerrarBloqueo();
-            this.toastMessage = 'Bloqueo aplicado. Los platos bloqueados salen de la carta de los mozos.';
+            const fin = this.finBloqueoMs();
+            this.toastMessage = fin === null
+              ? 'Bloqueo aplicado sin límite. Los platos bloqueados salen de la carta de los mozos.'
+              : 'Bloqueo aplicado hasta ' + this.formatoFinBloqueo(fin) + '. Después vuelve todo solo a la carta.';
+            if (this.soundEnabled) this.sonarVenta('abrir');
           } catch (e) {
+            this.aplicarLineasBloqueo(cuerpo);
             this.toastMessage = 'El bloqueo quedó en este navegador. No se pudo guardar en el servidor.';
           }
         },
 
         resumenBloqueo() {
-          const lineas = Object.values(this.bloqueo.lineas || {});
+          const todas = this.bloqueo.lineas || {};
+          const lineas = Object.keys(todas)
+            .filter((k) => k.indexOf('p:') !== 0 || this.esBloqueable(k.slice(2)))
+            .map((k) => todas[k]);
           return {
             bloqueados: lineas.filter((l) => l.bloqueado).length,
             reservas: lineas.filter((l) => Number(l.reserva) > 0).length
@@ -11671,7 +12488,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!fecha) this.anotarMovs(movs);
           // Misma cola que Transformar: el ingreso se guarda antes que el pase a piezas que viene detrás.
           this.encolarMovimientos(movs);
-          if (parteFresco) this.setPollosFrescosConvertir(this.redondear3(this.frescosHoy() + cambio));
+          // Ingreso de Pollo fresco en la tabla = lo mismo que el + de Transformar: ese pollo pasa a 2 pechos + 2 piernas.
+          if (parteFresco) this.convertirFrescosEntrantes(cambio);
         },
 
 
@@ -11827,11 +12645,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         async abrirModalAuditoria(row) {
           this.auditoriaRow = row;
-          this.auditoriaFiltroPeriodo = 'hoy';
+          this.auditoriaResumen = null;
+          this.auditoriaMovs = [];
+          this.auditoriaFiltroMiembro = 'todos';
+          this.auditoriaVerFamilia = false;
+          // Abre con el mismo período de la hoja, para que la apertura sea la columna Saldo ant.
+          const rh = this.rangoPeriodo();
+          const fechaPlana = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+          this.auditoriaFiltroPeriodo = ['hoy', 'ayer', '7dias'].indexOf(this.periodo) !== -1 ? this.periodo : 'hoy';
           this.auditoriaFiltroTipo = 'todos';
           this.auditoriaFiltroClase = 'todos';
+          if (!this.showAuditoriaModal) this.sonarVenta('abrir');
           this.auditoriaFechaDesde = this.diaOffset(this.fechaHoy(), -6);
           this.auditoriaFechaHasta = this.fechaHoy();
+          // Otro período de días enteros (30 días, mes, rango): se abre como personalizado con esas fechas.
+          if (['hoy', 'ayer', '7dias'].indexOf(this.periodo) === -1 && rh && fechaPlana(rh.desde) && fechaPlana(rh.hasta)) {
+            this.auditoriaFiltroPeriodo = 'personalizado';
+            this.auditoriaFechaDesde = rh.desde;
+            this.auditoriaFechaHasta = rh.hasta;
+          }
           this.nuevoAjusteForm = { abierto: false, tipo: row && row.tieneCocido ? 'cocido' : 'crudo', cantidad: -1, motivo: '' };
           this.showAuditoriaModal = true;
           await this.cargarAuditoria();
@@ -11845,7 +12677,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         async cargarAuditoria() {
           const row = this.auditoriaRow;
           if (!row) return;
-          const clave = this.claveDeFila[row.id];
           const r = this.rangoAuditoria();
           this.auditoriaCargando = true;
           try {
@@ -11854,61 +12685,145 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               this.api('/inventario/kardex?carta=1&ciclo=04&desde=' + r.desde + '&hasta=' + r.hasta)
             ]);
             if (this.auditoriaRow !== row) return;
-            const guardados = (movs.movimientos || []).filter((m) => m.rubro === clave).map((m) => ({
-              id: String(m._id),
-              t: new Date(m.fecha).getTime(),
-              fecha: m.fecha,
-              claseBase: m.clase,
-              clase: this.claseAuditoria(m),
-              tipoProducto: m.tipoProducto === 'cocido' ? 'cocido' : 'crudo',
-              motivo: m.motivo || '',
-              cantidad: m.clase === 'egreso' ? -Math.abs(Number(m.cantidad) || 0) : (Number(m.cantidad) || 0),
-              auditor: m.usuario || ''
-            }));
-            const clavesGrupo = new Set(this.clavesVentaDe(row));
-            const ventas = (k.ventas || []).filter((v) => {
-              const rubro = v && (v.rubro || v.plato);
-              if (!rubro || v.sinSaldo) return false;
-              return rubro === clave || clavesGrupo.has(rubro);
-            }).map((v, i) => {
-              const rubro = v.rubro || v.plato;
-              const delPlato = rubro !== clave;
-              const fila = delPlato ? this.filaPorClave(rubro) : null;
-              const plato = (fila && fila.nombre) || v.nombre || rubro;
-              const detalle = Array.isArray(v.detalle) && v.detalle[0] && v.detalle[0].nombre ? v.detalle[0].nombre : '';
+            const movimientos = movs.movimientos || [];
+            const ventas = k.ventas || [];
+
+            // Familia de la fila: la pieza y sus platos agrupados, con las mismas listas que usan las columnas.
+            const fam = this.miembrosFamilia(row);
+            const enApertura = new Set(fam.apertura.map((m) => m.id));
+            const enSaldo = new Set(fam.saldo.map((m) => m.id));
+            const lista = [];
+            fam.apertura.concat(fam.saldo).forEach((m) => { if (lista.indexOf(m) === -1) lista.push(m); });
+            const independiente = this.filaPachamancaIndependiente(row);
+
+            // Misma matemática que aplicarKardex, con el período de la auditoría.
+            const rk = this.resumenKardex(k.filas || [], movimientos, ventas);
+            const r3 = (v) => this.redondear3(v);
+            const miembros = lista.map((m) => {
+              const clave = this.claveDeFila[m.id];
+              const v = (clave && this.valoresKardexFila(rk, clave, m)) || {};
+              const tipos = this.tiposDe(m);
+              const leer = (b) => tipos.reduce((a, t) => a + (Number(v[this.campoTipo(b, t)]) || 0), 0);
+              const apertura = leer('saldoAnterior');
+              const ingreso = leer('ingreso');
+              const correccion = leer('correccion');
+              const ventaBruta = leer('venta');
+              const cubierta = leer('cubierta');
+              const transformacion = leer('transformacion');
+              const venta = independiente && m.id === row.id ? ventaBruta : ventaBruta - cubierta;
+              const saldo = apertura + ingreso + correccion - ventaBruta + cubierta - transformacion;
+              const queda = tipos.reduce((a, t) => {
+                const s = (Number(v[this.campoTipo('saldoAnterior', t)]) || 0) + (Number(v[this.campoTipo('ingreso', t)]) || 0)
+                  + (Number(v[this.campoTipo('correccion', t)]) || 0) - (Number(v[this.campoTipo('venta', t)]) || 0)
+                  - (Number(v[this.campoTipo('transformacion', t)]) || 0) + (Number(v[this.campoTipo('cubierta', t)]) || 0);
+                const c = v[this.campoTipo('inventario', t)];
+                return a + (c === null || c === undefined ? s : Number(c) || 0);
+              }, 0);
               return {
+                id: m.id,
+                clave: clave || '',
+                nombre: m.id === row.id ? (m.nombre + ' (pieza)') : m.nombre,
+                nombreCorto: m.nombre,
+                propio: m.id === row.id,
+                enApertura: enApertura.has(m.id),
+                enSaldo: enSaldo.has(m.id),
+                tieneCocido: !!m.tieneCocido,
+                soloCocido: !!m.soloCocido,
+                apertura: r3(apertura), ingreso: r3(ingreso), correccion: r3(correccion),
+                venta: r3(venta), transformacion: r3(transformacion), saldo: r3(saldo), queda: r3(queda),
+                vals: v
+              };
+            });
+            const suma = (campo, filtro) => r3(miembros.filter(filtro).reduce((a, m) => a + m[campo], 0));
+            const deApertura = (m) => m.enApertura;
+            const deSaldo = (m) => m.enSaldo;
+            const totales = {
+              apertura: suma('apertura', deApertura),
+              ingreso: suma('ingreso', deApertura),
+              correccion: suma('correccion', deApertura),
+              venta: suma('venta', deSaldo),
+              transformacion: suma('transformacion', deSaldo),
+              saldo: suma('saldo', deSaldo),
+              queda: suma('queda', deSaldo)
+            };
+            const propio = miembros.find((m) => m.propio) || { apertura: 0 };
+            // Con el mismo período que la hoja, la apertura tiene que ser la columna Saldo ant.
+            const mismoPeriodo = this.queryRango(this.rangoPeriodo()) === this.queryRango(r);
+            const colAnt = this.redondear3(this.saldoAnteriorColumna(row));
+
+            // Movimientos de la familia, con saldo resultante por producto y tipo.
+            const porClave = {};
+            miembros.forEach((m) => { if (m.clave) porClave[m.clave] = m; });
+            const tipoMostrado = (m, tipo) => (m.tieneCocido ? tipo : (m.soloCocido ? 'cocido' : 'crudo'));
+            const items = [];
+            movimientos.forEach((mv) => {
+              const m = porClave[mv.rubro];
+              if (!m) return;
+              items.push({
+                id: String(mv._id),
+                t: new Date(mv.fecha).getTime(),
+                fecha: mv.fecha,
+                claseBase: mv.clase,
+                clase: this.claseAuditoria(mv),
+                tipoProducto: tipoMostrado(m, mv.tipoProducto === 'cocido' ? 'cocido' : 'crudo'),
+                motivo: mv.motivo || '',
+                cantidad: mv.clase === 'egreso' ? -Math.abs(Number(mv.cantidad) || 0) : (Number(mv.cantidad) || 0),
+                auditor: mv.usuario || '',
+                miembroId: m.id, producto: m.nombreCorto, propio: m.propio, clave: m.clave
+              });
+            });
+            const clavesVenta = new Set(this.clavesVentaDe(row));
+            ventas.forEach((v, i) => {
+              const nv = this.ventaKardexNormalizada(v);
+              if (!nv || nv.sinSaldo) return;
+              const m = porClave[nv.rubro];
+              const rubroOriginal = v.rubro || v.plato;
+              if (!m && !clavesVenta.has(rubroOriginal)) return;
+              const fila = m ? null : this.filaPorClave(rubroOriginal);
+              const detalle = Array.isArray(v.detalle) && v.detalle[0] && v.detalle[0].nombre ? v.detalle[0].nombre : '';
+              const nombrePlato = detalle || v.nombre || (fila && fila.nombre) || rubroOriginal;
+              items.push({
                 id: 'venta-' + i + '-' + (v.fecha || ''),
                 t: new Date(v.fecha).getTime(),
                 fecha: v.fecha,
                 claseBase: 'egreso',
                 clase: 'venta',
-                tipoProducto: v.tipoProducto === 'crudo' ? 'crudo' : 'cocido',
-                motivo: delPlato ? (plato + (detalle && detalle !== plato ? (' · ' + detalle) : '')) : (v.nombre || v.motivo || 'Venta de comandas'),
-                cantidad: -Math.abs(Number(v.cantidad) || 0),
+                tipoProducto: m ? tipoMostrado(m, nv.tipo) : nv.tipo,
+                motivo: nombrePlato,
+                cantidad: -nv.n,
                 auditor: 'Comandas',
-                rubro: rubro,
-                fueraDeSaldo: delPlato
-              };
+                miembroId: m ? m.id : '',
+                producto: m ? m.nombreCorto : ((fila && fila.nombre) || rubroOriginal),
+                propio: !!(m && m.propio),
+                clave: m ? m.clave : rubroOriginal,
+                fueraDeSaldo: !m
+              });
             });
             const saldo = {};
-            (k.filas || []).forEach((f) => {
-              if ((f.rubro || f.plato) === clave) saldo[f.tipoProducto] = Number(f.saldoInicial) || 0;
-            });
-            const lista = guardados.concat(ventas).sort((a, b) => a.t - b.t);
-            lista.forEach((m) => {
-              const tipo = m.tipoProducto;
-              if (m.fueraDeSaldo) {
-                const fila = this.filaPorClave(m.rubro);
-                m.saldoResultante = fila ? this.calcSaldoTipo(fila, tipo) : null;
+            items.sort((a, b) => a.t - b.t).forEach((it) => {
+              if (!it.fueraDeSaldo) {
+                const m = porClave[it.clave];
+                const key = it.clave + '|' + it.tipoProducto;
+                if (!(key in saldo)) saldo[key] = Number(m.vals[this.campoTipo('saldoAnterior', it.tipoProducto)]) || 0;
+                saldo[key] = it.claseBase === 'inventario' ? it.cantidad : r3(saldo[key] + it.cantidad);
+                it.saldoResultante = saldo[key];
               } else {
-                const base = Number(saldo[tipo]) || 0;
-                saldo[tipo] = m.claseBase === 'inventario' ? m.cantidad : base + m.cantidad;
-                m.saldoResultante = saldo[tipo];
+                it.saldoResultante = null;
               }
-              m.periodoTag = this.periodoDeMovimiento(m.fecha);
-              m.fecha = this.fmtFecha(m.fecha);
+              it.periodoTag = this.periodoDeMovimiento(it.fecha);
+              it.fecha = this.fmtFecha(it.fecha);
             });
-            this.auditoriaMovs = lista.reverse();
+            this.auditoriaResumen = {
+              miembros,
+              totales,
+              aperturaPieza: propio.apertura,
+              aperturaPlatos: r3(totales.apertura - propio.apertura),
+              mismoPeriodo,
+              colAnt,
+              cuadraAnt: !mismoPeriodo || Math.abs(colAnt - totales.apertura) < 0.0005,
+              hayPlatos: miembros.length > 1
+            };
+            this.auditoriaMovs = items.reverse();
           } catch (e) {
             this.toastMessage = e.message || 'No se cargó la auditoría';
           } finally {
@@ -11920,8 +12835,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return (this.auditoriaMovs || []).filter((m) => {
             if (this.auditoriaFiltroTipo !== 'todos' && m.tipoProducto !== this.auditoriaFiltroTipo) return false;
             if (this.auditoriaFiltroClase !== 'todos' && m.clase !== this.auditoriaFiltroClase) return false;
+            if (this.auditoriaFiltroMiembro !== 'todos') {
+              if (this.auditoriaFiltroMiembro === 'otros') return !!m.fueraDeSaldo;
+              if (m.miembroId !== this.auditoriaFiltroMiembro) return false;
+            }
             return true;
           });
+        },
+
+        cuentaMovsMiembro(id) {
+          return (this.auditoriaMovs || []).filter((m) => (id === 'otros' ? m.fueraDeSaldo : m.miembroId === id)).length;
         },
 
         abrirEditarOctavo() {
@@ -12140,9 +13063,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         exportarAuditoriaCsv() {
           const row = this.auditoriaRow;
           if (!row) return;
-          const lineas = ['Fecha,Operacion,Tipo,Motivo,Cantidad,Quien'];
+          const q = (s) => '"' + String(s || '').replace(/"/g, '""') + '"';
+          const lineas = ['Fecha,Producto,Operacion,Tipo,Motivo,Cantidad,Saldo resultante,Quien'];
           this.getMovimientosFiltrados().forEach((m) => {
-            lineas.push([m.fecha, m.clase, m.tipoProducto, '"' + String(m.motivo || '').replace(/"/g, '""') + '"', m.cantidad, '"' + String(m.auditor || '') + '"'].join(','));
+            lineas.push([q(m.fecha), q(m.producto), m.clase, m.tipoProducto, q(m.motivo), m.cantidad, m.saldoResultante === null || m.saldoResultante === undefined ? '' : m.saldoResultante, q(m.auditor)].join(','));
           });
           const blob = new Blob([lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
           const link = document.createElement('a');
@@ -12799,7 +13723,52 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         abrirModalProcedimientoSaldoReal(row) {
           if (!row) return;
           this.saldoRealInfo = this.construirProcedimientoSaldoReal(row);
+          if (!this.showSaldoRealModal) this.sonarVenta('abrir');
           this.showSaldoRealModal = true;
+        },
+
+        // Filas que suma cada columna de la tabla para esta fila (mismas funciones que la tabla):
+        // - apertura: Saldo ant. e Ingreso total → la fila + filasTransformacionDe
+        // - saldo: Venta, Saldo y Queda → la fila + platosDirectosDe (o solo la fila en Pachamanca independiente)
+        miembrosFamilia(row) {
+          const apertura = [row].concat(this.filasTransformacionDe(row));
+          const saldo = [row];
+          if (!this.filaPachamancaIndependiente(row)) {
+            this.platosDirectosDe(row.id).forEach((nodo) => {
+              const hijo = this.filaReal(nodo.id);
+              if (hijo) saldo.push(hijo);
+            });
+          }
+          return { apertura, saldo };
+        },
+
+        // Una línea de desglose: crudo, cocido y total de un miembro para un valor.
+        parteFamilia(m, row, leer) {
+          const tipos = this.tiposDe(m);
+          const crudo = tipos.indexOf('crudo') !== -1 ? this.redondear3(leer(m, 'crudo')) : 0;
+          const cocido = tipos.indexOf('cocido') !== -1 ? this.redondear3(leer(m, 'cocido')) : 0;
+          return {
+            id: m.id,
+            nombre: m.id === row.id ? (m.nombre + ' (pieza)') : m.nombre,
+            propio: m.id === row.id,
+            tieneCocido: tipos.indexOf('cocido') !== -1,
+            tieneCrudo: tipos.indexOf('crudo') !== -1,
+            crudo,
+            cocido,
+            total: this.redondear3(crudo + cocido)
+          };
+        },
+
+        partesFamilia(lista, row, leer, todas) {
+          return lista.map((m) => this.parteFamilia(m, row, leer)).filter((p) => todas || p.propio || Math.abs(p.total) > 0.0005);
+        },
+
+        sumaPartes(partes) {
+          return partes.reduce((a, p) => ({
+            crudo: this.redondear3(a.crudo + p.crudo),
+            cocido: this.redondear3(a.cocido + p.cocido),
+            total: this.redondear3(a.total + p.total)
+          }), { crudo: 0, cocido: 0, total: 0 });
         },
 
         construirProcedimientoSaldoReal(row) {
@@ -12807,154 +13776,198 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const dias = this.diasMultiplicadorPeriodo();
           const etqPeriodo = this.etiquetaPeriodoSeleccionado();
           const rangoFechas = (r && r.desde && r.hasta) ? (r.desde === r.hasta ? r.desde : (r.desde + ' → ' + r.hasta + ' (' + dias + ' días)')) : 'Hoy';
+          const unidad = row.unidad || 'unid';
+          const fam = this.miembrosFamilia(row);
+          const independiente = this.filaPachamancaIndependiente(row);
+          const iguales = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.0005;
+          const n = (v) => this.formatNum(v);
+          const signo = (v) => (v >= 0 ? '+' : '−') + n(Math.abs(v));
 
-          const antCrudo = Number(this.valorTipo(row, 'saldoAnterior', 'crudo')) || 0;
-          const antCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'saldoAnterior', 'cocido')) || 0) : 0;
-          const saldoAnterior = antCrudo + antCocido;
+          // 1. Apertura: exactamente lo que suma la columna Saldo ant.
+          const pAnt = this.partesFamilia(fam.apertura, row, (m, t) => this.valorTipo(m, 'saldoAnterior', t), true);
+          const sAnt = this.sumaPartes(pAnt);
+          const colAnt = this.redondear3(this.saldoAnteriorColumna(row));
 
-          const ingCrudo = (Number(this.valorTipo(row, 'ingreso', 'crudo')) || 0);
-          const ingCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'ingreso', 'cocido')) || 0) : 0;
-          const ingreso = ingCrudo + ingCocido;
+          // 2-3. Ingreso y corrección de la fila y de sus platos (los que entran en Ingreso total).
+          const pIng = this.partesFamilia(fam.apertura, row, (m, t) => this.valorTipo(m, 'ingreso', t));
+          const sIng = this.sumaPartes(pIng);
+          const pCor = this.partesFamilia(fam.apertura, row, (m, t) => this.valorTipo(m, 'correccion', t));
+          const sCor = this.sumaPartes(pCor);
+          const colIngFila = this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'ingreso', t), 0));
+          const colIT = this.redondear3(this.ingresoTotalColumna(row));
+          const sumaIT = this.redondear3(sAnt.total + sIng.total + sCor.total);
 
-          const corCrudo = (Number(this.valorTipo(row, 'correccion', 'crudo')) || 0);
-          const corCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'correccion', 'cocido')) || 0) : 0;
-          const correccion = corCrudo + corCocido;
+          // 4. Ventas: la columna Venta comandas (venta neta de la pieza + venta de los platos directos).
+          const leerVenta = independiente
+            ? (m, t) => this.valorTipo(m, 'venta', t)
+            : (m, t) => this.ventaNetaTipo(m, t);
+          const pVta = this.partesFamilia(fam.saldo, row, leerVenta);
+          const sVta = this.sumaPartes(pVta);
+          const colVta = this.redondear3(this.ventaColumna(row));
 
-          const ingresoTotal = this.calcIngresoTotal(row);
+          // 5. Transformación: lo que salió de la pieza (columna) y, si hubo, de sus platos.
+          const pTra = this.partesFamilia(fam.saldo, row, (m, t) => this.valorTipo(m, 'transformacion', t));
+          const sTra = this.sumaPartes(pTra);
+          const colTraFila = this.redondear3(this.totalTransformacionFila(row));
 
-          const vtaCrudo = (Number(this.valorTipo(row, 'venta', 'crudo')) || 0);
-          const vtaCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'venta', 'cocido')) || 0) : 0;
-          const ventasPropias = vtaCrudo + vtaCocido;
-          const ventas = this.ventaColumna(row);
-          const ventasPlatos = this.detalleVentasPlatos(row);
-          const textoVentasPlatos = ventasPlatos.map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
+          // Saldo: la columna Saldo.
+          const pSal = this.partesFamilia(fam.saldo, row, (m, t) => this.calcSaldoTipo(m, t), true);
+          const sSal = this.sumaPartes(pSal);
+          const colSaldo = this.redondear3(this.saldoColumna(row));
+          const ajuste = this.redondear3(colSaldo - (colIT - colVta - sTra.total));
 
-          const transCrudo = (Number(this.valorTipo(row, 'transformacion', 'crudo')) || 0);
-          const transCocido = row.tieneCocido ? (Number(this.valorTipo(row, 'transformacion', 'cocido')) || 0) : 0;
-          const transformacion = transCrudo + transCocido;
-
-          const saldoPropio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0);
-          const sueltas = this.calcSaldoReal(row);
-          const enPlatos = this.saldoDePlatos(row, true);
-          const familia = sueltas + enPlatos;
-          const saldoTeorico = saldoPropio;
-          const quedaSaldoReal = familia;
-
-          const cntCrudo = this.conteoTipo(row, 'crudo');
-          const cntCocido = row.tieneCocido ? this.conteoTipo(row, 'cocido') : null;
-          const huboConteo = (cntCrudo !== null) || (cntCocido !== null);
-          const difTotal = huboConteo ? (sueltas - saldoPropio) : null;
+          // Conteo y Queda: la columna Queda.
+          const pQueda = this.partesFamilia(fam.saldo, row, (m, t) => this.calcSaldoRealTipo(m, t), true);
+          const colQueda = this.redondear3(this.saldoRealColumna(row));
+          const contados = fam.saldo.filter((m) => this.tiposDe(m).some((t) => this.conteoTipo(m, t) !== null));
+          const difConteo = this.redondear3(colQueda - colSaldo);
+          const sueltas = this.redondear3(this.calcSaldoReal(row));
+          const enPlatos = this.redondear3(colQueda - sueltas);
+          const hayPlatos = fam.apertura.length > 1 || fam.saldo.length > 1;
 
           const pasos = [
             {
-              tipo: 'apertura',
-              icono: '1',
-              titulo: '1. Saldo Anterior (Apertura)',
+              clave: 'apertura', tipo: 'apertura', icono: '1',
+              titulo: 'Saldo anterior (apertura)',
               etiquetaAccion: 'BASE INICIAL',
-              explicacion: 'Stock con el que abrió ' + row.nombre + ' al iniciar el período (' + etqPeriodo + ').',
-              desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(antCrudo) + ' · Cocido: ' + this.formatNum(antCocido)) : '',
-              valorFormateado: this.formatNum(saldoAnterior)
+              explicacion: hayPlatos
+                ? ('Lo que quedó del ciclo anterior en ' + row.nombre + ' y en sus platos agrupados, al abrir ' + etqPeriodo + '.')
+                : ('Lo que quedó del ciclo anterior en ' + row.nombre + ', al abrir ' + etqPeriodo + '.'),
+              valor: sAnt.total, valorFormateado: n(sAnt.total),
+              crudo: sAnt.crudo, cocido: sAnt.cocido,
+              partes: pAnt,
+              columna: { etiqueta: 'Columna Saldo ant.', valor: colAnt, ok: iguales(sAnt.total, colAnt) },
+              abierto: true
             },
             {
-              tipo: 'suma',
-              icono: '↑',
-              titulo: '2. Ingreso del Período',
-              etiquetaAccion: ingreso > 0 ? '+ SUMA AL INVENTARIO' : 'SIN INGRESO',
-              explicacion: ingreso > 0 ? ('Se sumaron +' + this.formatNum(ingreso) + ' ' + (row.unidad || 'unid') + ' por entrada o despiece en ' + etqPeriodo + '.') : 'No se registraron entradas nuevas en este período.',
-              desgloseTipos: row.tieneCocido ? ('Crudo: +' + this.formatNum(ingCrudo) + ' · Cocido: +' + this.formatNum(ingCocido)) : '',
-              valorFormateado: '+' + this.formatNum(ingreso)
+              clave: 'ingreso', tipo: 'suma', icono: '+',
+              titulo: 'Ingreso del período',
+              etiquetaAccion: sIng.total ? 'SUMA' : 'SIN INGRESO',
+              explicacion: sIng.total
+                ? (hayPlatos
+                  ? ('Compras, despiece y pases que entraron. La columna Ingreso muestra solo la pieza (' + n(colIngFila) + '); lo de los platos entra en Ingreso total.')
+                  : 'Compras, despiece y pases que entraron.')
+                : 'No hubo entradas en este período.',
+              valor: sIng.total, valorFormateado: '+' + n(sIng.total),
+              crudo: sIng.crudo, cocido: sIng.cocido,
+              partes: pIng, columna: null, abierto: false
             },
             {
-              tipo: correccion < 0 ? 'resta' : 'suma',
-              icono: correccion < 0 ? '↓' : '↑',
-              titulo: '3. Corrección Manual',
-              etiquetaAccion: correccion === 0 ? 'SIN AJUSTE (0)' : (correccion > 0 ? '+ SUMA POR AJUSTE' : '− RESTA POR AJUSTE'),
-              explicacion: correccion === 0 ? 'No hubo ajustes manuales en la columna Corrección.' : ('Ajuste manual aplicado en hoja: ' + (correccion > 0 ? '+' : '−') + this.formatNum(Math.abs(correccion)) + '.'),
-              desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(corCrudo) + ' · Cocido: ' + this.formatNum(corCocido)) : '',
-              valorFormateado: (correccion >= 0 ? '+' : '−') + this.formatNum(Math.abs(correccion))
+              clave: 'correccion', tipo: sCor.total < 0 ? 'resta' : 'suma', icono: sCor.total < 0 ? '−' : '+',
+              titulo: 'Corrección',
+              etiquetaAccion: iguales(sCor.total, 0) ? 'SIN AJUSTE' : (sCor.total > 0 ? 'SUMA' : 'RESTA'),
+              explicacion: iguales(sCor.total, 0) ? 'No hubo ajustes en la columna Corrección.' : ('Ajustes anotados en la hoja: ' + signo(sCor.total) + '.'),
+              valor: sCor.total, valorFormateado: signo(sCor.total),
+              crudo: sCor.crudo, cocido: sCor.cocido,
+              partes: pCor, columna: null, abierto: false
             },
             {
-              tipo: 'subtotal',
-              icono: '=',
-              titulo: 'Subtotal 1: Ingreso Total Disponible',
+              clave: 'it', tipo: 'subtotal', icono: '=',
+              titulo: 'Ingreso total disponible',
               etiquetaAccion: 'APERTURA + INGRESO + CORRECCIÓN',
-              explicacion: 'Total acumulado disponible antes de descontar ventas y transformaciones.',
-              desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(this.calcIngresoTotalTipo(row, 'crudo')) + ' · Cocido: ' + this.formatNum(this.calcIngresoTotalTipo(row, 'cocido'))) : '',
-              valorFormateado: this.formatNum(ingresoTotal)
+              explicacion: 'Todo lo que hubo para vender o transformar en el período.',
+              valor: sumaIT, valorFormateado: n(sumaIT),
+              crudo: this.redondear3(sAnt.crudo + sIng.crudo + sCor.crudo), cocido: this.redondear3(sAnt.cocido + sIng.cocido + sCor.cocido),
+              partes: [], columna: { etiqueta: 'Columna Ingreso total', valor: colIT, ok: iguales(sumaIT, colIT) }, abierto: false
             },
             {
-              tipo: 'resta',
-              icono: '↓',
-              titulo: '4. Resta por Ventas (Comandas / Manual)',
-              etiquetaAccion: ventas > 0 ? '− RESTA POR VENTAS' : 'SIN VENTAS (0)',
-              explicacion: ventas > 0
-                ? ('Se vendieron −' + this.formatNum(ventas) + ' ' + (row.unidad || 'unid') + ' por comandas. Primero sale el cocido del plato, si no alcanza el crudo y al final la pieza suelta.')
-                : 'Sin salidas por ventas registradas en el período.',
-              desgloseTipos: textoVentasPlatos || (row.tieneCocido ? ('Crudo: −' + this.formatNum(vtaCrudo) + ' · Cocido: −' + this.formatNum(vtaCocido)) : (ventasPropias ? ('Pieza suelta: −' + this.formatNum(ventasPropias)) : '')),
-              valorFormateado: '−' + this.formatNum(ventas)
+              clave: 'venta', tipo: 'resta', icono: '−',
+              titulo: 'Ventas (comandas y manual)',
+              etiquetaAccion: colVta ? 'RESTA' : 'SIN VENTAS',
+              explicacion: colVta
+                ? 'Cada venta sale primero del cocido del plato, después del crudo y al final de la pieza. Lo que la pieza cubre por un plato no se cuenta dos veces.'
+                : 'No hubo ventas en este período.',
+              valor: colVta, valorFormateado: '−' + n(colVta),
+              crudo: sVta.crudo, cocido: sVta.cocido,
+              partes: pVta, columna: { etiqueta: 'Columna Venta', valor: colVta, ok: iguales(sVta.total, colVta) }, abierto: false
             },
             {
-              tipo: 'resta',
-              icono: '↓',
-              titulo: '5. Resta por Transformación / Despiece',
-              etiquetaAccion: transformacion > 0 ? '− RESTA POR TRANSFORMACIÓN' : 'SIN TRANSFORMACIÓN (0)',
-              explicacion: transformacion > 0 ? ('Se restaron −' + this.formatNum(transformacion) + ' ' + (row.unidad || 'unid') + ' para convertirse en cortes/platos hijos.') : 'Este producto no tuvo salidas por transformación.',
-              desgloseTipos: '',
-              valorFormateado: '−' + this.formatNum(transformacion)
-            },
-            {
-              tipo: 'subtotal',
-              icono: '=',
-              titulo: 'Subtotal 2: Saldo Calculado en Hoja',
-              etiquetaAccion: 'INGRESO TOTAL − VENTAS − TRANSFORMACIÓN',
-              explicacion: 'Es la pieza que queda suelta en esta fila. Los platos del grupo se suman aparte, en el recuadro de abajo.',
-              desgloseTipos: row.tieneCocido ? ('Crudo: ' + this.formatNum(this.calcSaldoTipo(row, 'crudo')) + ' · Cocido: ' + this.formatNum(this.calcSaldoTipo(row, 'cocido'))) : '',
-              valorFormateado: this.formatNum(saldoTeorico)
-            },
-            {
-              tipo: difTotal !== null && difTotal < 0 ? 'resta' : 'suma',
-              icono: huboConteo ? '#' : '✓',
-              titulo: '6. Verificación de Conteo Físico en Cámara',
-              etiquetaAccion: huboConteo ? (difTotal === 0 ? 'CUADRA EXACTO' : (difTotal > 0 ? ('SOBRA +' + this.formatNum(difTotal)) : ('FALTA −' + this.formatNum(Math.abs(difTotal))))) : 'SIN CONTEO FÍSICO (USA SALDO)',
-              explicacion: huboConteo ? ('Se contó físicamente en cámara. El conteo físico define el Saldo Real final.') : 'Aún no se ingresó conteo físico manual, por lo que el Saldo Real toma el Saldo Calculado.',
-              desgloseTipos: huboConteo && row.tieneCocido ? ('Conteo Crudo: ' + (cntCrudo === null ? '—' : cntCrudo) + ' · Conteo Cocido: ' + (cntCocido === null ? '—' : cntCocido)) : '',
-              valorFormateado: huboConteo ? ((difTotal >= 0 ? '+' : '−') + this.formatNum(Math.abs(difTotal))) : '0'
-            },
-            {
-              tipo: 'cierre',
-              icono: '★',
-              titulo: 'Resultado Final: Queda (Saldo Real)',
-              etiquetaAccion: 'SALDO REAL ACTUAL EN ' + etqPeriodo.toUpperCase(),
-              explicacion: 'Quedan ' + this.formatNum(sueltas) + ' sueltas en ' + row.nombre + ' y ' + this.formatNum(enPlatos) + ' en sus platos. En la familia son ' + this.formatNum(familia) + '.',
-              desgloseTipos: row.tieneCocido ? ('Queda Crudo: ' + this.formatNum(this.saldoRealColumnaTipo(row, 'crudo')) + ' · Queda Cocido: ' + this.formatNum(this.saldoRealColumnaTipo(row, 'cocido'))) : '',
-              valorFormateado: this.formatNum(quedaSaldoReal)
+              clave: 'transformacion', tipo: 'resta', icono: '−',
+              titulo: 'Transformación',
+              etiquetaAccion: sTra.total ? 'RESTA' : 'SIN TRANSFORMACIÓN',
+              explicacion: sTra.total
+                ? (iguales(sTra.total, colTraFila)
+                  ? 'Lo que salió hacia otros cortes o platos.'
+                  : ('Lo que salió hacia otros cortes o platos. La columna Transformación muestra solo la pieza (' + n(colTraFila) + ').'))
+                : 'No salió nada por transformación.',
+              valor: sTra.total, valorFormateado: '−' + n(sTra.total),
+              crudo: sTra.crudo, cocido: sTra.cocido,
+              partes: pTra, columna: null, abierto: false
             }
           ];
+          if (!iguales(ajuste, 0)) {
+            pasos.push({
+              clave: 'ajuste', tipo: ajuste < 0 ? 'resta' : 'suma', icono: '±',
+              titulo: independiente ? 'Venta cubierta por la reserva' : 'Platos fuera de Ingreso total',
+              etiquetaAccion: 'CUADRE CON LA TABLA',
+              explicacion: independiente
+                ? 'Parte de la venta salió de la pieza de reserva: baja la reserva y no vuelve a bajar esta fila.'
+                : 'Algún plato suma en Saldo y Queda, pero no en Saldo ant. ni en Ingreso total.',
+              valor: ajuste, valorFormateado: signo(ajuste),
+              crudo: 0, cocido: 0, partes: [], columna: null, abierto: false
+            });
+          }
+          pasos.push({
+            clave: 'saldo', tipo: 'subtotal', icono: '=',
+            titulo: 'Saldo calculado',
+            etiquetaAccion: 'INGRESO TOTAL − VENTAS − TRANSFORMACIÓN',
+            explicacion: hayPlatos ? 'La pieza suelta más lo que queda en cada plato, según la fórmula.' : 'Lo que debería haber según la fórmula.',
+            valor: colSaldo, valorFormateado: n(colSaldo),
+            crudo: sSal.crudo, cocido: sSal.cocido,
+            partes: pSal, columna: { etiqueta: 'Columna Saldo', valor: colSaldo, ok: iguales(sSal.total, colSaldo) }, abierto: false
+          });
+          pasos.push({
+            clave: 'conteo', tipo: difConteo < 0 ? 'resta' : 'suma', icono: contados.length ? '#' : '✓',
+            titulo: 'Conteo físico en cámara',
+            etiquetaAccion: contados.length ? (iguales(difConteo, 0) ? 'CUADRA EXACTO' : (difConteo > 0 ? 'SOBRA ' + signo(difConteo) : 'FALTA ' + signo(difConteo))) : 'SIN CONTEO',
+            explicacion: contados.length
+              ? ('Se contó en cámara: ' + contados.map((m) => m.nombre).join(', ') + '. El conteo reemplaza el saldo de esa fila.')
+              : 'Nadie contó en cámara. Queda toma el saldo calculado.',
+            valor: difConteo, valorFormateado: contados.length ? signo(difConteo) : '0',
+            crudo: 0, cocido: 0, partes: [], columna: null, abierto: false
+          });
+          pasos.push({
+            clave: 'queda', tipo: 'cierre', icono: '★',
+            titulo: 'Queda (saldo real)',
+            etiquetaAccion: 'RESULTADO EN ' + etqPeriodo.toUpperCase(),
+            explicacion: hayPlatos
+              ? ('Quedan ' + n(sueltas) + ' sueltas en ' + row.nombre + ' y ' + n(enPlatos) + ' en sus platos.')
+              : ('Quedan ' + n(colQueda) + ' ' + unidad + ' en ' + row.nombre + '.'),
+            valor: colQueda, valorFormateado: n(colQueda),
+            crudo: this.redondear3(this.saldoRealColumnaTipo(row, 'crudo')), cocido: this.redondear3(this.saldoRealColumnaTipo(row, 'cocido')),
+            partes: pQueda, columna: { etiqueta: 'Columna Queda', valor: colQueda, ok: iguales(this.sumaPartes(pQueda).total, colQueda) }, abierto: false
+          });
+          pasos.forEach((p, i) => { p.indice = i; });
 
           return {
             id: row.id,
             nombre: row.nombre,
-            unidad: row.unidad || 'unid',
+            unidad,
+            tieneCocido: !!(row.tieneCocido || row.soloCocido),
             etiquetaPeriodo: etqPeriodo,
             rangoFechas,
-            saldoAnterior,
-            ingreso,
-            correccion,
-            ingresoTotal,
-            ventas,
-            transformacion,
-            saldoTeorico,
-            quedaSaldoReal,
-            sueltas: sueltas,
-            enPlatos: enPlatos,
-            familia: familia,
-            platosConSaldo: this.platosDirectosDe(row.id).map((n) => {
-              const hijo = this.filaReal(n.id);
+            hayPlatos,
+            miembros: Math.max(fam.apertura.length, fam.saldo.length),
+            saldoAnterior: sAnt.total,
+            ingreso: sIng.total,
+            correccion: sCor.total,
+            ingresoTotal: sumaIT,
+            ventas: colVta,
+            transformacion: sTra.total,
+            ajuste,
+            saldoTeorico: colSaldo,
+            quedaSaldoReal: colQueda,
+            cuadra: pasos.every((p) => !p.columna || p.columna.ok),
+            sueltas,
+            enPlatos,
+            familia: colQueda,
+            platosConSaldo: this.platosDirectosDe(row.id).map((nodo) => {
+              const hijo = this.filaReal(nodo.id);
               const crudo = hijo ? this.calcSaldoRealTipo(hijo, 'crudo') : 0;
               const cocido = hijo && hijo.tieneCocido ? this.calcSaldoRealTipo(hijo, 'cocido') : 0;
               return {
-                id: n.id,
-                nombre: (hijo && hijo.nombre) || n.nombre,
+                id: nodo.id,
+                nombre: (hijo && hijo.nombre) || nodo.nombre,
                 tieneCocido: !!(hijo && hijo.tieneCocido),
                 crudo: crudo,
                 cocido: cocido,
@@ -12966,6 +13979,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             puntoEstado: this.clasePuntoEstado(row),
             pasos
           };
+        },
+
+        alternarPasoSaldo(paso) {
+          if (!paso || !paso.partes || !paso.partes.length) return;
+          paso.abierto = !paso.abierto;
+          this.sonarVenta('filtro');
         },
 
         totalTransformacionFila(row) {
@@ -13637,8 +14656,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (salen > 0 && this.productoBloqueado(op.origenId)) {
             return this.avisoTransformar('Aviso ámbar: ' + origen.nombre + ' está bloqueado.');
           }
-          if (salen > 0) {
-            const stock = this.redondear3(this.calcSaldoTipo(origen, 'crudo') - this.reservaDe(op.origenId));
+          // sinTope: el pollo que acaba de ingresar se convierte entero aunque el saldo de fórmula
+          // del fresco esté en 0 o negativo (la cascada de ventas puede dejar pollo-origen bajo cero).
+          if (salen > 0 && !op.sinTope) {
+            const stock = this.redondear3(this.calcSaldoTipo(origen, 'crudo') - this.reservaDe(op.origenId, 'crudo'));
             if (stock + 0.0001 < salen) {
               return this.avisoTransformar('Aviso ámbar: ' + origen.nombre + ' no tiene stock de hoja para pasar ' + this.formatNum(salen) + '. Quedan ' + this.formatNum(Math.max(0, stock)) + '.');
             }
@@ -14226,7 +15247,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
 
-        setPollosFrescosConvertir(val) {
+        setPollosFrescosConvertir(val, opts) {
           const next = Math.max(0, this.redondear3(Number(val) || 0));
           const delta = this.redondear3(next - this.frescosHoy());
           if (!delta) return false;
@@ -14240,8 +15261,39 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               { id: 'pierna', entran: this.redondear3(delta * fl) }
             ],
             motivo: 'Pasa a piezas',
-            historial: 'Pollo fresco → Pecho y Pierna'
+            historial: 'Pollo fresco → Pecho y Pierna',
+            sinTope: !!(opts && opts.sinTope)
           });
+        },
+
+        // Pollos que acaban de entrar (+) o salir (−) por el Ingreso, en la tabla o en Transformar.
+        // Entran: se convierten todos (2 pechos + 2 piernas c/u), sin mirar el saldo previo del fresco.
+        // Salen: se devuelve lo que se pueda (lo convertido en el período y lo que aún queda de pecho y pierna);
+        //        el resto baja solo el fresco.
+        convertirFrescosEntrantes(cambio) {
+          const n = this.redondear3(Number(cambio) || 0);
+          if (!n) return false;
+          if (n > 0) {
+            if (this.productoBloqueado('pollo_fresco')) {
+              this.toastMessage = 'Pollo fresco está bloqueado: el ingreso quedó, pero no se pasó a piezas.';
+              return false;
+            }
+            return this.setPollosFrescosConvertir(this.redondear3(this.frescosHoy() + n), { sinTope: true });
+          }
+          const fp = Number(this.config.factorPechugasPorFresco) || 2;
+          const fl = Number(this.config.factorPiernasPorFresco) || 2;
+          const pecho = this.filaReal('pechuga');
+          const pierna = this.filaReal('pierna');
+          const maxPecho = pecho ? Math.max(0, this.calcSaldoTipo(pecho, 'crudo')) / fp : 0;
+          const maxPierna = pierna ? Math.max(0, this.calcSaldoTipo(pierna, 'crudo')) / fl : 0;
+          const devolver = this.redondear3(Math.floor(Math.min(-n, this.frescosHoy(), maxPecho, maxPierna) * 1000) / 1000);
+          if (devolver < -n) {
+            this.toastMessage = devolver > 0
+              ? 'Se devolvieron ' + this.formatNum(devolver) + ' pollos desde pecho y pierna. El resto ya estaba usado.'
+              : 'El pecho y la pierna de esos pollos ya se usaron. Solo bajó el ingreso de Pollo fresco.';
+          }
+          if (!(devolver > 0)) return false;
+          return this.setPollosFrescosConvertir(this.redondear3(this.frescosHoy() - devolver));
         },
 
         async fijarStockPolloFresco(valor) {
@@ -14251,7 +15303,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!(delta > 0)) return this.fijarStockDirecto('pollo_fresco', 'crudo', next);
           const ok = await this.fijarStockDirecto('pollo_fresco', 'crudo', next);
           if (ok === false) return false;
-          return this.setPollosFrescosConvertir(this.frescosHoy() + delta);
+          return this.convertirFrescosEntrantes(delta);
         },
 
 
@@ -16483,9 +17535,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const hacia = n > 0 ? 'cocido' : 'crudo';
           const cant = Math.abs(n);
           const marca = corte ? (' · ' + this.marcaCorte(corte)) : '';
-          const disp = this.redondear3(this.calcSaldoTipo(row, desde));
+          // Lo reservado de ese tipo queda apartado: no se pasa a cocido (ni vuelve a crudo).
+          const reservado = this.reservaDe(row.id, desde);
+          const disp = this.redondear3(this.calcSaldoTipo(row, desde) - reservado);
           if (disp + 0.0001 < cant) {
-            return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' no tiene ' + desde + ' para pasar a ' + hacia + '. Tiene ' + this.formatNum(Math.max(0, disp)) + '.');
+            return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' no tiene ' + desde + ' para pasar a ' + hacia + '. Tiene ' + this.formatNum(Math.max(0, disp)) + (reservado > 0 ? ' libres (' + this.formatNum(reservado) + ' reservados)' : '') + '.');
           }
           this.transformWarning = '';
           this.moverTipoEnFila(row, desde, hacia, cant);

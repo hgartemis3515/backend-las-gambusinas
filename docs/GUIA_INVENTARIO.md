@@ -73,7 +73,7 @@ Hoja de producción del período. Es la fuente de verdad.
 
 En Configuración → Tabla, **Ocultar** empieza marcado en Saldo y Conteo, Diferencia, Estado y Corrección. Queda sigue visible. Si en este equipo ya se dejó alguna columna visible, se respeta. Cada opción se guarda en el navegador.
 
-Al sumar o restar el **Ingreso** de Pollo fresco, solo se convierte ese cambio: 1 pollo que entra sale en Transformación y entran 2 pechos y 2 piernas. No se vuelve a cortar el ingreso que ya estaba. Al bajar el ingreso, se devuelve esa misma cantidad si esos pollos se habían convertido.
+Al sumar o restar el **Ingreso** de Pollo fresco, solo se convierte ese cambio: 1 pollo que entra sale en Transformación y entran 2 pechos y 2 piernas, igual que el **+** de Transformar. El pollo que entra se convierte entero aunque el saldo del fresco estuviera en 0 o en negativo. No se vuelve a cortar el ingreso que ya estaba. Al bajar el ingreso, se devuelven los pollos que todavía tienen su pecho y su pierna en la hoja. Si ya se usaron, solo baja el ingreso del fresco y sale un aviso. Si Pollo fresco está bloqueado, el ingreso se guarda pero no pasa a piezas.
 
 Mix leña pecho usa la misma fila que Pecho leña. Mix leña pierna y los cuartos de leña no se suman otra vez al padre.
 
@@ -232,11 +232,14 @@ El saldo de esta pestaña suma también los platos que cuelgan más abajo de la 
 
 Icono de candado en la barra. **Aplicar bloqueo** guarda la lista en el servidor y en este navegador. El conteo por fila sigue en la columna Conteo.
 
-- Pestaña **Productos**: lo que queda, una caja **Reservar** y un interruptor **Bloquear**. La fila bloqueada se marca en la tabla.
+- Pestaña **Productos**: lo que queda, una caja **Reservar** y un interruptor **Bloquear**. La fila bloqueada se marca en la tabla. Si el producto tiene cocido, se reserva por separado **Crudo** y **Cocido**, cada uno con su «Libre».
+- **Pollo fresco** no se reserva ni se bloquea. **Pecho de pollo**, **Pierna de pollo** y **Octavo de pollo** tampoco se reservan como pieza: salen como un cuadro con sus platos (Pecho leña, Sandwich, Pecho pachamanca; Pollo pachamanca pierna, Pierna a la leña, Pollada; Arroz con pollo, Pollo a la olla, Caldo de pollo), cada uno con lo que queda y su propia reserva y bloqueo.
+- La reserva de crudo baja el tope de lo que se puede transformar y de lo que pasa de crudo a cocido. La reserva de cocido no se puede devolver a crudo.
 - Pestaña **Platos de la carta**: un interruptor **Bloquear** por plato. Ese plato deja de salir en la carta de los mozos.
 - **Reservar** aparta unidades. Esa cantidad no se puede transformar: el tope del pase es el stock de hoja menos la reserva.
 - **Bloquear** un producto impide transformarlo y venderlo en manual desde la hoja. El lápiz sigue pudiendo corregir el saldo.
-- Abajo: motivo, hora hasta la que dura y el resumen.
+- **Duración**: 1, 3 o 6 horas, fin del turno (04:00), 1 o 3 días, 1 o 2 semanas, otro tiempo (N horas, días o semanas), fecha exacta o sin límite. El tiempo empieza a contar al pulsar **Aplicar bloqueo**. El cronómetro muestra cuánto falta y la hora de fin. Al llegar esa hora, el bloqueo y las reservas dejan de contar solos y los platos vuelven a la carta. **Mantener el actual** conserva el fin ya guardado.
+- **Motivo**: opcional. Se puede escribir o elegir una sugerencia (Evento, Se acabó, Calidad…). Hasta 120 caracteres.
 
 ## Avisos
 

@@ -452,26 +452,59 @@ async function guardarRelaciones(body) {
     return guardado;
 }
 
+// Pollo fresco no se reserva. Pecho, Pierna y Octavo se reservan y bloquean por plato, no como pieza.
+const NO_BLOQUEABLES = new Set(['pollo_fresco', 'pechuga', 'pierna', 'octavo_pollo']);
+
 function sanearBloqueo(body) {
     const src = body || {};
-    const lineas = (Array.isArray(src.lineas) ? src.lineas : []).slice(0, 400).map((l) => ({
-        tipo: l && l.tipo === 'plato' ? 'plato' : 'producto',
-        id: String(l && l.id || '').slice(0, 80),
-        nombre: String(l && l.nombre || '').slice(0, 120),
-        bloqueado: !!(l && l.bloqueado),
-        reserva: Math.max(0, Number(l && l.reserva) || 0)
-    })).filter((l) => l.id && (l.bloqueado || l.reserva > 0));
+    const lineas = (Array.isArray(src.lineas) ? src.lineas : []).slice(0, 400).map((l) => {
+        // Reserva por tipo. Una línea vieja con solo "reserva" cuenta como crudo.
+        const conTipos = l && (l.reservaCrudo !== undefined || l.reservaCocido !== undefined);
+        const crudo = Math.max(0, Number(conTipos ? l.reservaCrudo : (l && l.reserva)) || 0);
+        const cocido = Math.max(0, Number(conTipos ? l.reservaCocido : 0) || 0);
+        const esPlato = l && l.tipo === 'plato';
+        return {
+            tipo: esPlato ? 'plato' : 'producto',
+            id: String(l && l.id || '').slice(0, 80),
+            nombre: String(l && l.nombre || '').slice(0, 120),
+            bloqueado: !!(l && l.bloqueado),
+            reservaCrudo: esPlato ? 0 : crudo,
+            reservaCocido: esPlato ? 0 : cocido,
+            reserva: esPlato ? 0 : Math.round((crudo + cocido) * 1000) / 1000
+        };
+    }).filter((l) => l.id && !(l.tipo === 'producto' && NO_BLOQUEABLES.has(l.id)) && (l.bloqueado || l.reserva > 0));
     return {
-        motivo: String(src.motivo || '').slice(0, 120),
-        hasta: String(src.hasta || '').slice(0, 8),
+        motivo: String(src.motivo || '').trim().slice(0, 120),
+        hasta: fechaBloqueo(src.hasta),
+        desde: fechaBloqueo(src.desde),
+        duracion: String(src.duracion || '').slice(0, 40),
         lineas
     };
 }
 
+// "hasta" es una fecha ISO (fin del bloqueo). Se acepta la hora suelta "HH:MM" de la versión anterior.
+// Vacío = sin límite: dura hasta que alguien lo quite.
+function fechaBloqueo(valor) {
+    const s = String(valor || '').trim();
+    if (!s) return '';
+    if (/^\d{1,2}:\d{2}$/.test(s)) return s;
+    const t = Date.parse(s);
+    return Number.isNaN(t) ? '' : new Date(t).toISOString();
+}
+
+function bloqueoVencido(bloqueo) {
+    const hasta = bloqueo && bloqueo.hasta;
+    if (!hasta || /^\d{1,2}:\d{2}$/.test(hasta)) return false;
+    const t = Date.parse(hasta);
+    return !Number.isNaN(t) && Date.now() >= t;
+}
+
 async function leerBloqueo() {
     const doc = await MapaSemantico.findOne({ clave: 'bloqueo' }).lean();
-    if (!doc || !doc.bloqueo) return { motivo: '', hasta: '', lineas: [] };
-    return sanearBloqueo(doc.bloqueo);
+    if (!doc || !doc.bloqueo) return { motivo: '', hasta: '', desde: '', duracion: '', lineas: [], vencido: false };
+    const data = sanearBloqueo(doc.bloqueo);
+    data.vencido = bloqueoVencido(data);
+    return data;
 }
 
 async function guardarBloqueo(body) {
@@ -484,7 +517,7 @@ async function guardarBloqueo(body) {
     try {
         require('./plato.repository').invalidatePlatoMenuCache('plato-carta normal');
     } catch (e) { /* la carta se filtra igual en cada lectura */ }
-    return guardado;
+    return Object.assign({}, guardado, { vencido: bloqueoVencido(guardado) });
 }
 
 async function filtrarCartaBloqueada(lista) {
@@ -494,6 +527,8 @@ async function filtrarCartaBloqueada(lista) {
     } catch (e) {
         return lista || [];
     }
+    // Pasada la hora de fin, los platos vuelven a la carta sin que nadie tenga que quitar el bloqueo.
+    if (bloqueo.vencido) return lista || [];
     const ids = new Set();
     const nombres = new Set();
     (bloqueo.lineas || []).forEach((l) => {
