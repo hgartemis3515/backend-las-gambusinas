@@ -16022,11 +16022,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             'arroz pollo': true,
             'arroz tipo pollo': true
           };
+          const consumoUno = {
+            'arroz blanco': true,
+            'arroz verde + pato': true,
+            'arroz verde': true,
+            'arroz pato': true,
+            'arroz con pato': true,
+            'arroz beata': true
+          };
           this.config.relaciones = (this.config.relaciones || []).filter((r) => {
             if (!r) return false;
             const n = this.norm(r.rubro);
             if (quitar[n]) return false;
             if (nuevo[n]) r.rubro = nuevo[n];
+            if (consumoUno[n] || consumoUno[this.norm(r.rubro)]) {
+              const cant = Number(r.cantidad);
+              if (!(cant > 0)) r.cantidad = 1;
+            }
             return true;
           });
         },
