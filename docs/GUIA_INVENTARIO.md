@@ -148,7 +148,8 @@ El mismo modal sirve en Transformar y en Inventario Tabla.
 
 - El número escrito es el saldo de esa fila (crudo, y cocido si la fila lo tiene).
 - La diferencia se guarda en el día, en Ingreso o en Corrección. No se anota como saldo anterior de un día pasado.
-- El lápiz de octavos ajusta los octavos que salen de pecho y de pierna, con la misma regla de 2 octavos = 1 pieza.
+- El lápiz de octavos deja el stock de Octavo de pollo en «octavos de pecho + octavos de pierna». Guarda un ingreso o una corrección de hoy, marcados «· pecho» o «· pierna». No resta piezas de Pecho ni de Pierna, así que guarda aunque esas piezas no tengan stock. Para pasar piezas a octavos (2 octavos = 1 pieza) se usan − / + del cuadro.
+- En la tabla, el lápiz de la fila Octavo de pollo abre ese mismo modal: pecho, pierna y debajo sus platos (Arroz con pollo, Pollo a la olla, Caldo de pollo).
 - Un producto bloqueado se puede corregir con el lápiz. No se puede transformar ni vender en manual mientras siga bloqueado.
 
 ### Pecho de pollo

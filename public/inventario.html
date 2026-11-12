@@ -22,7 +22,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 7. Cómo queda el inventario después de los ajustes de noviembre de 2026:
    - Pollo fresco: 1 ave = 2 pechos + 2 piernas. En la tabla, fijarCampo solo convierte el delta del ingreso (setPollosFrescosConvertir). No se vuelve a cortar el stock ya convertido.
    - El + del cuadro de pollo fresco suma y convierte ese mismo delta. El + chico del factor solo convierte.
-   - El lápiz (fijarSaldoTipo) deja el saldo de fórmula en el número escrito, en Transformar y en la tabla, con un ingreso o una corrección de hoy. El lápiz de octavos sigue en fijarOctavosStock.
+   - El lápiz (fijarSaldoTipo) deja el saldo de fórmula en el número escrito, en Transformar y en la tabla, con un ingreso o una corrección de hoy. El lápiz de octavos (guardarEditarOctavo) hace lo mismo por pecho y pierna, con movimientos marcados «· pecho» / «· pierna»; los − / + del cuadro siguen pasando piezas (fijarOctavosStock). En la tabla, el lápiz de Octavo abre ese modal con sus platos.
    - Los avisos de la hoja (toastMessage) van fijos abajo a la izquierda y se cierran a los 7 s. No empujan la hoja.
    - Configuración → Tabla: Saldo y Conteo, Diferencia, Estado y Corrección arrancan ocultos. Queda siempre se ve.
    - Bloqueo: PUT /api/inventario/bloqueo. Un producto bloqueado no se transforma ni se vende en manual; la reserva resta el tope del pase. Un plato bloqueado no sale en la carta del mozo (filtrarCartaBloqueada).
@@ -6365,7 +6365,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70"
     @keydown.escape.window="editarStock.abierto = false"
   >
-    <div class="modal-editar-stock w-full bg-[#14141f] border border-[#d4af37]/50 rounded-xl shadow-2xl" :class="editarStock.grupo ? 'max-w-lg' : 'max-w-md'" @click.outside="editarStock.abierto = false">
+    <div class="modal-editar-stock w-full bg-[#14141f] border border-[#d4af37]/50 rounded-xl shadow-2xl" :class="(editarStock.grupo || (editarStock.lineas && editarStock.lineas.length)) ? 'max-w-lg' : 'max-w-md'" @click.outside="editarStock.abierto = false">
       <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-3 shrink-0">
         <div>
           <h2 class="text-base font-extrabold text-white">Editar stock</h2>
@@ -6374,18 +6374,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <button type="button" class="text-[#a0a0b8] hover:text-white cursor-pointer" aria-label="Cerrar" @click="editarStock.abierto = false">✕</button>
       </div>
       <div class="space-y-3 px-5" x-show="editarStock.octavo">
-        <p class="text-xs text-[#a0a0b8]">Stock pecho: <strong class="text-sky-200" x-text="formatNum(octavosStockCorte('pechugas'))"></strong> · Stock pierna: <strong class="text-emerald-200" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
-        <label class="block text-xs text-[#a0a0b8]">
-          <span class="font-bold text-sky-200">Cantidad de pecho</span>
-          <input type="number" min="0" step="1" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.pecho" aria-label="Octavos desde pecho">
-        </label>
-        <label class="block text-xs text-[#a0a0b8]">
-          <span class="font-bold text-emerald-200">Cantidad de pierna</span>
-          <input type="number" min="0" step="1" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.pierna" aria-label="Octavos desde pierna">
-        </label>
-        <p class="text-[11px] text-[#a0a0b8]">Bajar el número devuelve la pieza al pecho o a la pierna. 2 octavos son 1 pieza.</p>
+        <p class="text-xs text-[#a0a0b8]">Stock actual: <strong class="text-white" x-text="formatNum(editarStock.realAntes || 0)"></strong> octavos · pecho <strong class="text-sky-200" x-text="formatNum(editarStock.pechoAntes || 0)"></strong> · pierna <strong class="text-emerald-200" x-text="formatNum(editarStock.piernaAntes || 0)"></strong></p>
+        <p class="text-[11px] text-amber-200" x-show="!editarStock.separados && (editarStock.realAntes || 0) > 0">El stock todavía no estaba separado: lo que no tiene marca aparece en pierna. Escribe cuánto es de cada uno.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block text-xs text-[#a0a0b8]">
+            <span class="font-bold text-sky-200">Octavos de pecho</span>
+            <input type="number" min="0" step="1" inputmode="numeric" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.pecho" @keydown.enter.prevent="guardarEditarOctavo()" @input="editarStock.error = ''" aria-label="Octavos de pecho">
+          </label>
+          <label class="block text-xs text-[#a0a0b8]">
+            <span class="font-bold text-emerald-200">Octavos de pierna</span>
+            <input type="number" min="0" step="1" inputmode="numeric" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white num-mono text-lg font-bold focus:outline-none focus:border-[#d4af37]" x-model.number="editarStock.pierna" @keydown.enter.prevent="guardarEditarOctavo()" @input="editarStock.error = ''" aria-label="Octavos de pierna">
+          </label>
+        </div>
+        <div class="rounded-lg border border-[#d4af37]/40 bg-[#101018] px-3 py-2 text-xs font-mono">
+          <p class="flex justify-between"><span class="text-[#a0a0b8]">Total octavos</span><strong class="text-[#d4af37]" x-text="formatNum(totalOctavosEditar())"></strong></p>
+          <p class="flex justify-between" x-show="Math.abs(totalOctavosEditar() - (editarStock.realAntes || 0)) > 0.0005"><span class="text-[#a0a0b8]">Cambio</span><strong :class="totalOctavosEditar() >= (editarStock.realAntes || 0) ? 'text-emerald-300' : 'text-rose-300'" x-text="(totalOctavosEditar() >= (editarStock.realAntes || 0) ? '+' : '−') + formatNum(Math.abs(totalOctavosEditar() - (editarStock.realAntes || 0)))"></strong></p>
+        </div>
+        <p class="text-[11px] text-[#a0a0b8]">Deja el stock en este número con un ingreso o una corrección de hoy. No resta piezas de Pecho ni de Pierna: para pasar piezas a octavos usa − / + del cuadro.</p>
+        <p class="text-[11px] font-semibold text-[#d4af37]" x-show="editarStock.lineas && editarStock.lineas.length">Platos del octavo</p>
       </div>
-      <div class="modal-editar-stock-lista space-y-2 px-5" x-show="editarStock.grupo">
+      <div class="modal-editar-stock-lista space-y-2 px-5" :class="editarStock.octavo ? 'pt-2' : ''" x-show="editarStock.grupo || (editarStock.octavo && editarStock.lineas && editarStock.lineas.length)">
           <template x-for="linea in editarStock.lineas" :key="'edit-linea-' + linea.id">
             <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-2">
               <div class="flex items-center justify-between gap-2">
@@ -6415,6 +6423,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <span class="font-bold text-white">Motivo <span class="font-normal text-[#71718a]">(opcional)</span></span>
           <input type="text" maxlength="200" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#d4af37]" x-model="editarStock.motivo" placeholder="Ej. Merma, conteo de cámara, ajuste de corte" aria-label="Motivo del ajuste">
         </label>
+      </div>
+      <div class="space-y-3 px-5 pt-3" x-show="editarStock.octavo">
+        <label class="block text-xs text-[#a0a0b8]">
+          <span class="font-bold text-white">Motivo <span class="font-normal text-[#71718a]">(opcional)</span></span>
+          <input type="text" maxlength="200" class="mt-1 w-full bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#d4af37]" x-model="editarStock.motivo" placeholder="Ej. Conteo de cámara" aria-label="Motivo del ajuste">
+        </label>
+        <p class="text-xs font-semibold text-rose-300" role="alert" x-show="editarStock.error" x-text="editarStock.error"></p>
       </div>
       <div class="space-y-3 px-5" x-show="!editarStock.octavo && !editarStock.grupo">
         <label class="block text-xs text-[#a0a0b8]" x-show="!editarStock.soloCocido">
@@ -8662,7 +8677,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         auditoriaFechaDesde: '',
         auditoriaFechaHasta: '',
         nuevoAjusteForm: { abierto: false, tipo: 'crudo', cantidad: -1, motivo: '' },
-        editarStock: { abierto: false, id: '', nombre: '', tieneCocido: false, soloCocido: false, octavo: false, grupo: false, lineas: [], crudo: 0, cocido: 0, pecho: 0, pierna: 0, motivo: '' },
+        editarStock: { abierto: false, id: '', nombre: '', tieneCocido: false, soloCocido: false, octavo: false, grupo: false, lineas: [], crudo: 0, cocido: 0, pecho: 0, pierna: 0, pechoAntes: 0, piernaAntes: 0, realAntes: 0, separados: true, motivo: '', error: '' },
 
         claveDeFila: {
           pollo_fresco: 'pollo-origen',
@@ -12847,33 +12862,152 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return (this.auditoriaMovs || []).filter((m) => (id === 'otros' ? m.fueraDeSaldo : m.miembroId === id)).length;
         },
 
-        abrirEditarOctavo() {
+        // Lo que el modal de octavos muestra al abrir: pecho y pierna suman el stock real del octavo.
+        // Si el stock no está separado, lo no marcado va a pierna (igual que en los platos del octavo).
+        octavosInicialesEditar() {
+          const row = this.filaReal('octavo_pollo');
+          const real = row ? Math.max(0, this.redondear3(this.calcSaldoTipo(row, 'crudo'))) : 0;
+          if (this.octavosSeparados()) {
+            const pecho = this.octavosStockCorte('pechugas');
+            return { pecho, pierna: this.redondear3(Math.max(0, real - pecho)), real, separados: true };
+          }
+          const pecho = Math.min(real, this.octavosTagLibre('pechugas'));
+          return { pecho, pierna: this.redondear3(Math.max(0, real - pecho)), real, separados: false };
+        },
+
+        // Lápiz de Octavo de pollo (Transformar y tabla). desdeTabla suma los platos del octavo.
+        abrirEditarOctavo(desdeTabla) {
+          const row = this.filaReal('octavo_pollo');
+          if (!row) {
+            this.toastMessage = 'Octavo de pollo no está en la hoja';
+            return;
+          }
+          const ini = this.octavosInicialesEditar();
+          const lineas = desdeTabla ? this.filasTransformacionDe(row).map((hijo) => this.lineaEditarDe(hijo)) : [];
           this.editarStock = {
             abierto: true,
             id: 'octavo_pollo',
             nombre: 'Octavo de pollo',
             tieneCocido: false,
+            soloCocido: false,
             octavo: true,
             grupo: false,
-            lineas: [],
+            lineas,
             crudo: 0,
             cocido: 0,
-            pecho: this.octavosStockCorte('pechugas'),
-            pierna: this.octavosStockCorte('piernas'),
-            motivo: ''
+            pecho: ini.pecho,
+            pierna: ini.pierna,
+            pechoAntes: ini.pecho,
+            piernaAntes: ini.pierna,
+            realAntes: ini.real,
+            separados: ini.separados,
+            motivo: '',
+            error: '',
+            guardando: false,
+            desdeTabla: !!desdeTabla
           };
         },
 
+        totalOctavosEditar() {
+          const f = this.editarStock;
+          return this.redondear3((Number(f.pecho) || 0) + (Number(f.pierna) || 0));
+        },
+
+        // Arma el movimiento que lleva el saldo crudo/cocido de una fila al número escrito y lo pinta ya.
+        // Igual que fijarStockDirecto: sube con ingreso; baja con ingreso mientras alcance, luego corrección.
+        movSaldoDirecto(row, tipo, delta, motivo) {
+          const d = this.redondear3(delta);
+          const clave = row && this.claveDeFila[row.id];
+          if (!d || !clave) return null;
+          const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
+          const ingreso = Number(this.valorTipo(row, 'ingreso', tipoOk)) || 0;
+          const base = (d > 0 || ingreso + d >= -0.0001) ? 'ingreso' : 'correccion';
+          const campo = this.campoTipo(base, tipoOk);
+          row[campo] = this.redondear3((Number(row[campo]) || 0) + d);
+          row[tipoOk] = Math.max(0, this.calcSaldoTipo(row, tipoOk));
+          return {
+            rubro: clave,
+            clase: base === 'correccion' ? 'regulacion' : 'ingreso',
+            tipoProducto: tipoOk,
+            cantidad: d,
+            motivo: (base === 'ingreso' ? 'Ingreso' : 'Corrección') + ' ' + tipoOk + (motivo ? ' · ' + motivo : ''),
+            fecha: new Date().toISOString(),
+            nombre: row.nombre
+          };
+        },
+
+        // Editar stock de octavos: deja el octavo en «pecho + pierna» con ingresos o correcciones marcados
+        // «· pecho» / «· pierna». No pasa piezas desde Pecho o Pierna (eso lo hacen los − / + del cuadro),
+        // así que guarda aunque la pieza no tenga stock. Antes pedía 1 pieza por cada 2 octavos y se quedaba
+        // sin guardar cuando faltaban piezas, con el aviso escondido detrás del modal.
         guardarEditarOctavo() {
           const f = this.editarStock;
-          const pecho = Math.max(0, Math.round(Number(f.pecho) || 0));
-          const pierna = Math.max(0, Math.round(Number(f.pierna) || 0));
-          const antesPecho = this.octavosStockCorte('pechugas');
-          const antesPierna = this.octavosStockCorte('piernas');
-          this.transformWarning = '';
-          if (pecho !== antesPecho && this.fijarOctavosStock('pechugas', pecho) === false && this.transformWarning) return;
-          if (pierna !== antesPierna && this.fijarOctavosStock('piernas', pierna) === false && this.transformWarning) return;
-          this.editarStock.abierto = false;
+          f.error = '';
+          const leer = (v) => {
+            if (v === '' || v === null || v === undefined) return 0;
+            const n = Number(v);
+            return Number.isFinite(n) ? this.redondear3(n) : NaN;
+          };
+          const pecho = leer(f.pecho);
+          const pierna = leer(f.pierna);
+          if (!Number.isFinite(pecho) || !Number.isFinite(pierna) || pecho < 0 || pierna < 0) {
+            f.error = 'Escribe números de 0 o más en pecho y pierna.';
+            return false;
+          }
+          const row = this.filaReal('octavo_pollo');
+          if (!row || !this.claveDeFila.octavo_pollo) {
+            f.error = 'Octavo de pollo no está en la hoja.';
+            return false;
+          }
+          if (this.productoBloqueado && this.productoBloqueado('octavo_pollo')) {
+            // El bloqueo frena ventas y pases, no el conteo: se deja guardar y se avisa.
+            this.toastMessage = 'Octavo de pollo está bloqueado. El stock se guarda igual.';
+          }
+          const extraLibre = String(f.motivo || '').trim();
+          // Un motivo con «pecho» o «pierna» cambiaría la marca del movimiento: se guarda solo en el no marcado.
+          const extraSeguro = /pech|piern/.test(this.norm(extraLibre)) ? '' : extraLibre;
+          const movs = [];
+          const real = this.redondear3(this.calcSaldoTipo(row, 'crudo'));
+          const sinCambio = Math.abs(pecho - (Number(f.pechoAntes) || 0)) < 0.0005 && Math.abs(pierna - (Number(f.piernaAntes) || 0)) < 0.0005 && Math.abs(real - (Number(f.realAntes) || 0)) < 0.0005;
+          if (!sinCambio) {
+            const dPecho = this.redondear3(pecho - this.octavosTagNeto('pechugas'));
+            const dPierna = this.redondear3(pierna - this.octavosTagNeto('piernas'));
+            const resto = this.redondear3((pecho + pierna) - real - dPecho - dPierna);
+            const mPecho = this.movSaldoDirecto(row, 'crudo', dPecho, 'pecho' + (extraSeguro ? ' · ' + extraSeguro : ''));
+            if (mPecho) movs.push(mPecho);
+            const mPierna = this.movSaldoDirecto(row, 'crudo', dPierna, 'pierna' + (extraSeguro ? ' · ' + extraSeguro : ''));
+            if (mPierna) movs.push(mPierna);
+            // Stock viejo sin marca (ni pecho ni pierna): se ajusta aparte para que el total quede exacto.
+            const mResto = this.movSaldoDirecto(row, 'crudo', resto, 'sin separar' + (extraLibre ? ' · ' + extraLibre : ''));
+            if (mResto) movs.push(mResto);
+          }
+          // Desde la tabla también se editan los platos del octavo.
+          (f.lineas || []).forEach((linea) => {
+            const hijo = this.filaReal(linea.id);
+            if (!hijo) return;
+            const tipos = linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
+            tipos.forEach((tipo) => {
+              const next = leer(linea[tipo]);
+              if (!Number.isFinite(next) || next < 0) return;
+              const mov = this.movSaldoDirecto(hijo, tipo, next - this.redondear3(this.calcSaldoTipo(hijo, tipo)), extraLibre);
+              if (mov) {
+                movs.push(mov);
+                this.pulseRowTotal(hijo.id);
+              }
+            });
+          });
+          if (!movs.length) {
+            f.abierto = false;
+            this.toastMessage = 'Sin cambios de stock';
+            return true;
+          }
+          this.anotarMovs(movs);
+          this.pulseRowTotal(row.id);
+          this.anotarHistorial('Editar stock', 'Octavo de pollo: ' + this.formatNum(pecho) + ' pecho · ' + this.formatNum(pierna) + ' pierna', this.formatNum(this.redondear3(pecho + pierna)));
+          this.encolarMovimientos(movs);
+          f.abierto = false;
+          this.toastMessage = 'Octavo de pollo: ' + this.formatNum(pecho) + ' de pecho y ' + this.formatNum(pierna) + ' de pierna.';
+          return true;
         },
 
         motivoSaldoAnterior(texto) {
@@ -12933,6 +13067,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         abrirEditarStockFila(row) {
           if (!row) return;
+          // Octavo de pollo se edita por pecho y pierna, con sus platos debajo.
+          if (this.esFilaOctavo(row)) return this.abrirEditarOctavo(true);
           const hijos = this.filasTransformacionDe(row);
           if (!hijos.length) return this.abrirEditarStock(row.id, true);
           this.editarStock = {
@@ -14529,21 +14665,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(pecho);
         },
 
-        octavosTagLibre(corte) {
+        // Octavos marcados de pecho o de pierna, sin recortar a 0.
+        // Entradas: lo que pasó desde la pieza (octavosDe) o lo que entró marcado en el octavo, lo mayor.
+        // Las correcciones y devoluciones marcadas (negativas) siempre restan; antes se perdían en el max.
+        octavosTagNeto(corte) {
           const clave = this.claveDeFila.octavo_pollo;
-          let ingresos = 0;
+          let positivos = 0;
+          let negativos = 0;
           let egresos = 0;
           (this.movimientosPeriodo || []).forEach((m) => {
             if (!m || m.rubro !== clave || !this.motivoEsCorte(m.motivo, corte)) return;
-            const n = Math.abs(Number(m.cantidad) || 0);
-            if (m.clase === 'egreso') egresos += n;
-            else if (m.clase === 'ingreso' || m.clase === 'regulacion') ingresos += Number(m.cantidad) || 0;
+            const n = Number(m.cantidad) || 0;
+            if (m.clase === 'egreso') egresos += Math.abs(n);
+            else if (m.clase === 'ingreso' || m.clase === 'regulacion') {
+              if (n >= 0) positivos += n;
+              else negativos += n;
+            }
           });
-          const creados = Math.max(this.octavosDe(corte), Math.max(0, this.redondear3(ingresos)));
+          const creados = Math.max(this.octavosDe(corte), this.redondear3(positivos)) + negativos;
           const usados = this.platosDelOctavo().reduce((a, p) => {
             return a + Math.max(0, this.netoMarcado(p.id, corte, 'crudo')) + Math.max(0, this.netoMarcado(p.id, corte, 'cocido'));
           }, 0);
-          return Math.max(0, this.redondear3(creados - usados - egresos));
+          return this.redondear3(creados - usados - egresos);
+        },
+
+        octavosTagLibre(corte) {
+          return Math.max(0, this.octavosTagNeto(corte));
         },
 
         octavosSeparados() {
