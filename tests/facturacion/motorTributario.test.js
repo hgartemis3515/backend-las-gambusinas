@@ -299,6 +299,27 @@ describe('serieService — reserva atómica de correlativos', () => {
             .rejects.toMatchObject({ codigo: 'TRANSACCION_REQUERIDA' });
     });
 
+    test('si B001 no está en Mongo, la reserva la crea y arranca en 1', async () => {
+        const docs = new Map();
+        const Modelo = {
+            async findOneAndUpdate(filtro, update) {
+                const key = `${filtro.ruc}|${filtro.tipo}|${filtro.serie}`;
+                if (update.$setOnInsert) {
+                    if (!docs.has(key)) docs.set(key, { ...filtro, ...update.$setOnInsert });
+                    return docs.get(key);
+                }
+                const doc = docs.get(key);
+                if (!doc || !filtro.activa || doc.ultimoNumero >= filtro.ultimoNumero.$lt) return null;
+                doc.ultimoNumero += update.$inc.ultimoNumero;
+                return { ...doc };
+            },
+        };
+        const session = crearSesion();
+        const r = await reservarCorrelativo({ ruc: '20131312955', tipo: '03', serie: 'B001', session }, { Modelo });
+        session.confirmar();
+        expect(r).toMatchObject({ serie: 'B001', numero: '00000001', idCompleto: 'B001-00000001' });
+    });
+
     test('serie agotada o inexistente', async () => {
         const Modelo = crearSerieFake({ ultimoNumero: 99999999 });
         await expect(reservarCorrelativo({ ruc: '20131312955', tipo: '03', serie: 'B001', session: crearSesion() }, { Modelo }))

@@ -51,7 +51,10 @@ function crearDeps({ encolar } = {}) {
                 endSession: async () => {},
             }),
             SerieModelo: {
-                findOneAndUpdate: async () => { ultimo += 1; return { ultimoNumero: ultimo }; },
+                findOneAndUpdate: async (_filtro, update) => {
+                    if (update?.$inc?.ultimoNumero) ultimo += update.$inc.ultimoNumero;
+                    return { ultimoNumero: ultimo };
+                },
             },
             Modelo: {
                 create: async ([datos]) => {

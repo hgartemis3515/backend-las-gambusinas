@@ -72,6 +72,7 @@ async function reservarCorrelativo({ ruc, tipo, serie, session, sinTransaccion =
 
     const opciones = { new: true };
     if (session) opciones.session = session;
+    await asegurarSerie({ ruc, tipo, serie }, { Modelo, session });
     const doc = await Modelo.findOneAndUpdate(
         { ruc, tipo, serie, activa: true, ultimoNumero: { $lt: MAX_CORRELATIVO } },
         { $inc: { ultimoNumero: 1 } },
@@ -89,12 +90,14 @@ async function reservarCorrelativo({ ruc, tipo, serie, session, sinTransaccion =
  * @param {{ruc: string, tipo: string, serie: string, sucursal?: string, terminal?: string}} datos
  * @param {Object} [deps]
  */
-async function asegurarSerie(datos, { Modelo = SerieComprobante } = {}) {
+async function asegurarSerie(datos, { Modelo = SerieComprobante, session } = {}) {
     validarSerie(datos.tipo, datos.serie);
+    const opciones = { upsert: true, new: true, runValidators: true };
+    if (session) opciones.session = session;
     return Modelo.findOneAndUpdate(
         { ruc: datos.ruc, tipo: datos.tipo, serie: datos.serie },
         { $setOnInsert: { sucursal: datos.sucursal || 'principal', terminal: datos.terminal || null, ultimoNumero: 0, activa: true } },
-        { upsert: true, new: true, runValidators: true }
+        opciones
     );
 }
 
