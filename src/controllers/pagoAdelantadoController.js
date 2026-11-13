@@ -505,6 +505,8 @@ router.post('/pago-adelantado', authMozoOpcional, async (req, res) => {
           mesa: ticket.mesa,
           nummesa: ticket.numMesa,
           origen: ticket.origen || 'comanda',
+          aprobadoPorNombre: ticket.aprobadoPorNombre || null,
+          fechaAprobacion: ticket.fechaAprobacion || null,
           estadoMesa: 'pedido',
           message: `Ticket PPA #${ticket.ticketNumber} aprobado (cobro directo caja)`,
         };
@@ -679,6 +681,8 @@ router.put('/pago-adelantado/:id/aprobar', ...rolesTablaTickets, async (req, res
         mesa: ticket.mesa,
         nummesa: ticket.numMesa,
         origen: ticket.origen || 'comanda',
+        aprobadoPorNombre: ticket.aprobadoPorNombre || null,
+        fechaAprobacion: ticket.fechaAprobacion || null,
         reservaId: ticket.reserva || null,
         estadoMesa: esReserva ? (mesaEstado || null) : 'pedido',
         message: esReserva

@@ -1320,8 +1320,49 @@ const anularReservaNoCobrada = async (reservaId) => {
     }
 
     await emitirAnulacionReservaNoCobrada(reserva, ticketId);
+    await auditarReservaNoCobrada(reserva, ahora);
     logger.info('Reserva anulada por falta de cobro', { reservaId: reserva._id, ticketId });
     return { anulada: true, reservaId: reserva._id, mesaId: reserva.mesa, motivo: MOTIVO_RESERVA_NO_COBRADA };
+};
+
+const auditarReservaNoCobrada = async (reserva, cuando) => {
+    try {
+        const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
+        const comandas = await getComandaModel().find({
+            origenReserva: reserva._id,
+            motivoEliminacion: MOTIVO_RESERVA_NO_COBRADA
+        }).select('numeroComandaDia comandaNumber revisionTicket mesaNumero clienteNombre mozoNombre totalCalculado createdAt fechaEliminacion').lean();
+        const hora = cuando || new Date();
+        for (const c of comandas) {
+            const mesa = c.mesaNumero;
+            const cliente = c.clienteNombre || reserva.clienteNombre || '';
+            await AuditoriaAcciones.create({
+                accion: 'COMANDA_ANULADA_RESERVA_NO_COBRADA',
+                entidadId: c._id,
+                entidadTipo: 'comanda',
+                usuarioNombre: 'Sistema',
+                timestamp: c.fechaEliminacion || hora,
+                motivo: 'Reserva no cobrada. Caja no la aprobó dentro de la hora.',
+                metadata: {
+                    comandaId: c._id,
+                    comandas: [c._id],
+                    numeroComandaDia: c.numeroComandaDia,
+                    comandaNumber: c.comandaNumber,
+                    numMesa: mesa,
+                    clienteNombre: cliente,
+                    mozoNombre: c.mozoNombre || null,
+                    total: c.totalCalculado,
+                    creadaEn: c.createdAt,
+                    anuladaEn: c.fechaEliminacion || hora,
+                    reservaId: reserva._id,
+                    ticketId: reserva.pagoAdelantado?.ticketId || null,
+                    resumen: ['Caja no aprobó la reserva', mesa != null ? ('Mesa ' + mesa) : '', cliente].filter(Boolean).join(' · ')
+                }
+            });
+        }
+    } catch (e) {
+        logger.warn('No se pudo auditar la reserva no cobrada', { error: e.message, reservaId: reserva._id });
+    }
 };
 
 const rechazarReservaTrasPPA = async (reservaId, motivo) => {

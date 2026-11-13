@@ -1607,7 +1607,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-show="ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" x-text="'DNI: ' + (ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente)"></span>
  </div>
  <p x-show="ticket.observaciones" class="text-[10px] text-txt-muted mt-1 truncate" x-text="'📝 ' + ticket.observaciones"></p>
- <p x-show="ticket.estado === 'aprobado' && ticket.aprobadoPorNombre" class="text-[10px] text-st-preparado mt-0.5" x-text="'✓ Aprobado por ' + ticket.aprobadoPorNombre"></p>
+ <p x-show="textoCobradoTicket(ticket)" class="text-[10px] text-st-preparado mt-0.5" x-text="textoCobradoTicket(ticket)"></p>
  <p x-show="ticket.estado === 'reportado' && ticket.motivoReporte" class="text-[10px] text-st-pagado mt-0.5" x-text="'⚠ ' + ticket.motivoReporte"></p>
  <p x-show="ticket.estado === 'rechazado' && ticket.motivoRechazo" class="text-[10px] text-st-pagado mt-0.5" x-text="'✕ ' + ticket.motivoRechazo"></p>
  </div>
@@ -2383,7 +2383,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-show="ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" x-text="'DNI: ' + (ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente)"></span>
  </div>
  <p x-show="ticket.observaciones" class="text-[10px] text-txt-muted mt-1 truncate" x-text="'📝 ' + ticket.observaciones"></p>
- <p x-show="ticket.estado === 'aprobado' && ticket.aprobadoPorNombre" class="text-[10px] text-st-preparado mt-0.5" x-text="'✓ Aprobado por ' + ticket.aprobadoPorNombre"></p>
+ <p x-show="textoCobradoTicket(ticket)" class="text-[10px] text-st-preparado mt-0.5" x-text="textoCobradoTicket(ticket)"></p>
  <p x-show="ticket.estado === 'reportado' && ticket.motivoReporte" class="text-[10px] text-st-pagado mt-0.5" x-text="'⚠ ' + ticket.motivoReporte"></p>
  <p x-show="ticket.estado === 'rechazado' && ticket.motivoRechazo" class="text-[10px] text-st-pagado mt-0.5" x-text="'✕ ' + ticket.motivoRechazo"></p>
  </div>
@@ -2801,6 +2801,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span x-show="ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" x-text="'DNI: ' + (ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente)"></span>
  </div>
  <p x-show="ticket.observaciones" class="text-[10px] text-txt-muted mt-1 truncate" x-text="'📝 ' + ticket.observaciones"></p>
+ <p x-show="textoCobradoTicket(ticket)" class="text-[10px] text-st-preparado mt-0.5" x-text="textoCobradoTicket(ticket)"></p>
  </div>
  <div class="flex flex-col items-end gap-1 shrink-0">
  <template x-if="Number(totalesTicketVista(ticket).desc) > 0">
@@ -4888,10 +4889,10 @@ this.socket.on('reportes:comanda-eliminada', () => this.scheduleRefreshVentasTot
  });
  this.socket.on('comanda-aprobada', (data) => {
    if (data.ticketId) {
-     this.actualizarTicketEnLista(data.ticketId, {
-       estado: 'aprobado',
-       aprobadoPorNombre: data.aprobadoPorNombre,
-     });
+     const patch = { estado: 'aprobado' };
+     if (data.aprobadoPorNombre) patch.aprobadoPorNombre = data.aprobadoPorNombre;
+     if (data.fechaAprobacion) patch.fechaAprobacion = data.fechaAprobacion;
+     this.actualizarTicketEnLista(data.ticketId, patch);
    }
    const cid = data.comandaId || data.comanda?._id;
    if (cid) this.scheduleComandaSync(cid);
@@ -4903,7 +4904,10 @@ this.socket.on('reportes:comanda-eliminada', () => this.scheduleRefreshVentasTot
  });
  this.socket.on('ticket-ppa-aprobado', (data) => {
    if (data.ticketId) {
-     this.actualizarTicketEnLista(data.ticketId, { estado: 'aprobado' });
+     const patch = { estado: 'aprobado' };
+     if (data.aprobadoPorNombre) patch.aprobadoPorNombre = data.aprobadoPorNombre;
+     if (data.fechaAprobacion) patch.fechaAprobacion = data.fechaAprobacion;
+     this.actualizarTicketEnLista(data.ticketId, patch);
    }
    this.scheduleRefreshVentasTotales();
  });
@@ -7421,6 +7425,16 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  ticketMetodoPagoLabel(metodo) {
  const map = { efectivo: 'Efectivo', digital: 'Digital', tarjeta: 'Tarjeta' };
  return map[metodo] || metodo || '—';
+ },
+
+ textoCobradoTicket(ticket) {
+ if (!ticket || ticket.estado !== 'aprobado') return '';
+ const nombre = String(ticket.aprobadoPorNombre || '').trim();
+ if (!nombre) return '';
+ const hora = ticket.fechaAprobacion ? this.horaTrazabilidad(ticket.fechaAprobacion) : '';
+ return hora && hora !== '—'
+  ? ('✓ Cobrado por ' + nombre + ' — ' + hora)
+  : ('✓ Cobrado por ' + nombre);
  },
 
  totalesTicketVista(ticket) {

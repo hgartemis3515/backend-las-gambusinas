@@ -64,9 +64,13 @@ tailwind.config = {
           <option value="ELIMINAR_PLATO_COMANDA">Eliminar Plato</option>
           <option value="ELIMINAR_PLATO_RECOGER">Eliminar Plato Recoger</option>
         </optgroup>
+        <optgroup label="✓ Cobros">
+          <option value="COMANDA_APROBADA_COCINA">Comanda cobrada</option>
+        </optgroup>
         <optgroup label="🚫 Anulación">
           <option value="PLATO_ANULADO_COCINA">Plato Anulado</option>
           <option value="COMANDA_ANULADA_COCINA">Comanda Anulada</option>
+          <option value="COMANDA_ANULADA_RESERVA_NO_COBRADA">Reserva no cobrada por caja</option>
           <option value="INTENTO_ANULACION">Intento Fallido</option>
         </optgroup>
         <optgroup label="↩️ Reversión">
@@ -169,7 +173,7 @@ tailwind.config = {
                 'bg-[rgba(0,212,170,0.05)]': esAccionReversion(a.accion),
                 'bg-[rgba(156,136,255,0.05)]': esAccionLiberacion(a.accion)
               }">
-              <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.createdAt ? new Date(a.createdAt).toLocaleTimeString('es-PE') : a.hora"></td>
+              <td class="px-4 py-3 text-txt-muted text-xs whitespace-nowrap" x-text="formatHoraLista(a)"></td>
               <td class="px-4 py-3" x-text="a.usuario?.nombre || a.usuario || '—'"></td>
               <td class="px-4 py-3">
                 <span class="text-xs font-medium px-2 py-0.5 rounded-full"
@@ -262,6 +266,50 @@ tailwind.config = {
           </div>
         </div>
       </div>
+
+      <template x-if="selectedRegistro?.metadata?.resumen || selectedRegistro?.metadata?.clienteNombre || selectedRegistro?.metadata?.aprobadoPor">
+        <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <h3 class="text-[#d4af37] font-bold mb-3">Datos</h3>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="col-span-2" x-show="selectedRegistro?.metadata?.resumen">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Detalle</p>
+              <p class="font-medium" x-text="selectedRegistro.metadata.resumen"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda</p>
+              <p class="font-medium" x-text="etiquetaComandaAuditoria(selectedRegistro) || '—'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Mesa</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.numMesa != null ? selectedRegistro.metadata.numMesa : '—'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Cliente</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.clienteNombre || '—'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Mozo</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.mozoNombre || '—'"></p>
+            </div>
+            <div x-show="selectedRegistro?.metadata?.aprobadoPor">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Cobrado por</p>
+              <p class="font-medium" x-text="selectedRegistro.metadata.aprobadoPor"></p>
+            </div>
+            <div x-show="selectedRegistro?.metadata?.creadaEn">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Hora de la comanda</p>
+              <p class="font-medium" x-text="formatInstante(selectedRegistro.metadata.creadaEn)"></p>
+            </div>
+            <div x-show="selectedRegistro?.metadata?.anuladaEn">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Hora de la anulación</p>
+              <p class="font-medium" x-text="formatInstante(selectedRegistro.metadata.anuladaEn)"></p>
+            </div>
+            <div x-show="selectedRegistro?.metadata?.total != null">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Total</p>
+              <p class="font-medium" x-text="'S/. ' + Number(selectedRegistro.metadata.total || 0).toFixed(2)"></p>
+            </div>
+          </div>
+        </div>
+      </template>
 
       <template x-if="esAccionInventario(selectedRegistro?.accion)">
         <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
@@ -709,7 +757,7 @@ function auditoriaApp() {
 
     matchPeriodo(r) {
       const T = window.TurnosDiaNoche;
-      const fecha = r.createdAt || r.timestamp || r.hora;
+      const fecha = r.timestamp || r.hora || r.createdAt;
       if (!T) return true;
       if (this.filtroPeriodo === 'custom') {
         if (!fecha) return !this.filterFechaDesde && !this.filterFechaHasta;
@@ -767,9 +815,9 @@ function auditoriaApp() {
       const hoy = T.limaYMD();
       if (this.filtroPeriodo === 'ayer') {
         const ayer = T.addDaysYMD(hoy, -1);
-        return { desde: ayer, hasta: hoy };
+        return { desde: ayer, hasta: ayer };
       }
-      return { desde: hoy, hasta: T.addDaysYMD(hoy, 1) };
+      return { desde: hoy, hasta: hoy };
     },
 
     async loadAuditoria() {
@@ -998,6 +1046,9 @@ function auditoriaApp() {
         'ELIMINAR_PLATO_RECOGER': '🗑️ Eliminar Plato Recoger',
         'PLATO_ANULADO_COCINA': '🚫 Plato Anulado',
         'COMANDA_ANULADA_COCINA': '🚫 Comanda Anulada',
+        'COMANDA_ANULADA_RESERVA_NO_COBRADA': '🚫 Reserva no cobrada por caja',
+        'COMANDA_APROBADA_COCINA': '✓ Comanda cobrada',
+        'COMANDA_ENVIADA_APROBACION': '🎫 Enviada a cobro',
         'INTENTO_ANULACION_COMANDA_PAGADA': '⚠️ Intento Fallido',
         'INTENTO_ANULACION_PLATO_ENTREGADO': '⚠️ Intento Fallido',
         'reversion_comanda': '↩️ Revertir Comanda',
@@ -1036,6 +1087,7 @@ function auditoriaApp() {
       if (this.esAccionReversion(accion)) return 'bg-[rgba(0,212,170,0.2)] text-[#00d4aa]';
       if (this.esAccionLiberacion(accion)) return 'bg-[rgba(156,136,255,0.2)] text-[#9c88ff]';
       if (this.esAccionInventario(accion)) return 'bg-[rgba(212,175,55,0.2)] text-[#d4af37]';
+      if (accion.includes('APROBADA') || accion.includes('aprobada')) return 'bg-[rgba(46,204,113,0.2)] text-[#2ecc71]';
       if (accion.includes('crear') || accion.includes('nuevo') || accion.includes('agregado')) return 'bg-[rgba(46,204,113,0.2)] text-[#2ecc71]';
       if (accion.includes('editar') || accion.includes('modificar')) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
       return 'bg-bg-sidebar text-txt-secondary';
@@ -1066,6 +1118,10 @@ function auditoriaApp() {
           return 'Plato Anulado desde Cocina';
         case 'COMANDA_ANULADA_COCINA':
           return 'Comanda Anulada desde Cocina';
+        case 'COMANDA_ANULADA_RESERVA_NO_COBRADA':
+          return 'Comanda anulada: caja no aprobó la reserva';
+        case 'TICKET_ANULADO_COCINA':
+          return 'Ticket eliminado de la tabla de cocina';
         case 'INTENTO_ANULACION_COMANDA_PAGADA':
           return 'Intento de Anulación en Comanda Pagada';
         case 'INTENTO_ANULACION_PLATO_ENTREGADO':
@@ -1103,14 +1159,26 @@ function auditoriaApp() {
         'insumo_agotado': 'Insumo Agotado',
         'error_preparacion': 'Error en Preparación',
         'cliente_cancelo': 'Cliente Canceló',
-        'otro': 'Otro'
+        'otro': 'Otro',
+        'ticket_tabla_cocina': 'Ticket quitado de la tabla de cocina'
       };
       return labels[tipo] || tipo;
     },
 
+    formatInstante(fecha) {
+      if (!fecha) return '—';
+      const d = new Date(fecha);
+      if (Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    },
+
+    formatHoraLista(reg) {
+      return this.formatInstante(reg?.timestamp || reg?.hora || reg?.createdAt);
+    },
+
     formatFechaAuditoria(reg) {
       if (!reg) return '—';
-      const fecha = reg.createdAt || reg.timestamp || reg.hora;
+      const fecha = reg.timestamp || reg.hora || reg.createdAt;
       if (!fecha) return '—';
       try {
         return new Date(fecha).toLocaleString('es-PE');

@@ -283,13 +283,16 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
     const ticketsComanda = await ticketAprobacionRepository.obtenerTicketsPorFecha(rango.desde, rango.hasta);
     const ticketsPPA = await ticketPagoAdelantadoRepository.obtenerTicketsPorFecha(rango.desde, rango.hasta);
 
-    const { ticketSigueVigenteParaCierre } = require('../utils/estadisticasComandas');
+    const { ticketSigueVigenteParaCierre, reservaAnuladaEnTablaCocina } = require('../utils/estadisticasComandas');
     const { sanearTotalCeroEnLista } = aprobacionService;
+    const incluirReservasAnuladas = String(req.query.incluirReservasAnuladas || '') === '1';
+    const visibleEnTabla = (t) => ticketSigueVigenteParaCierre(t)
+      || (incluirReservasAnuladas && reservaAnuladaEnTablaCocina(t));
     const tickets = [
       ...ticketsComanda.map((t) => sanearTotalCeroEnLista(t)),
       ...ticketsPPA.map((t) => ({ ...t, tipo: 'ADELANTADO' })),
     ]
-      .filter(ticketSigueVigenteParaCierre)
+      .filter(visibleEnTabla)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({ success: true, tickets, desde: rango.desde, hasta: rango.hasta });
@@ -573,6 +576,8 @@ router.put('/aprobacion/:id/aprobar', ...rolesTablaTickets, async (req, res) => 
           mesa: ticket.mesa,
           nummesa: ticket.numMesa,
           origen: ticket.origen || 'comanda',
+          aprobadoPorNombre: ticket.aprobadoPorNombre || null,
+          fechaAprobacion: ticket.fechaAprobacion || null,
           reservaId: ticket.reserva || null,
           estadoMesa: esReserva ? (estadoMesaPPA || result.mesaEstado || null) : (estadoMesaPPA || 'pedido'),
           message: esReserva

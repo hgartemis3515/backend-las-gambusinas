@@ -413,6 +413,17 @@ function ticketSigueVigenteParaCierre(t) {
     return docs.some((c) => !esComandaEliminada(c));
 }
 
+/**
+ * Reserva que caja no cobró y el sistema anuló. La comanda queda eliminada,
+ * así que no cuenta en cierre, pero la tabla de cocina sí la lista.
+ */
+function reservaAnuladaEnTablaCocina(t) {
+    const origen = String(t?.origen || '').toLowerCase();
+    const esReserva = origen === 'reserva' || (t?.reserva != null && t.reserva !== '');
+    if (!esReserva) return false;
+    return String(t?.estado || '').toLowerCase() === 'rechazado';
+}
+
 function filtroNoIncluidoEnCierreComanda() {
     return {
         $or: [
@@ -920,6 +931,7 @@ module.exports = {
     STATUS_COMANDA_VENDIDA,
     esComandaVendida,
     ticketSigueVigenteParaCierre,
+    reservaAnuladaEnTablaCocina,
     matchComandasEstadisticas,
     matchComandasCierrePendiente,
     matchComandasEliminadasPeriodo,

@@ -377,6 +377,20 @@ describe('estadisticasComandas', () => {
     })).toBe(true);
   });
 
+  test('reserva rechazada no cuenta en cierre y sí se puede listar en cocina', () => {
+    const { ticketSigueVigenteParaCierre, reservaAnuladaEnTablaCocina } = require('../src/utils/estadisticasComandas');
+    const anulada = {
+      origen: 'reserva',
+      estado: 'rechazado',
+      motivoRechazo: 'Reserva no cobrada',
+      comandas: [{ comandaNumber: 2, eliminada: true, status: 'cancelado' }],
+    };
+    expect(ticketSigueVigenteParaCierre(anulada)).toBe(false);
+    expect(reservaAnuladaEnTablaCocina(anulada)).toBe(true);
+    expect(reservaAnuladaEnTablaCocina({ origen: 'reserva', estado: 'aprobado' })).toBe(false);
+    expect(reservaAnuladaEnTablaCocina({ origen: 'comanda', estado: 'rechazado' })).toBe(false);
+  });
+
   test('comanda eliminada (cancelado o eliminada=true) no entra en match de reportes/mozos', () => {
     const vigente = require('../src/utils/estadisticasComandas').matchComandaVigente();
     expect(vigente.eliminada).toEqual({ $ne: true });

@@ -225,6 +225,47 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
 /**
  * Aprobar un TPA: cambia estado, marca platos y los libera al KDS
  */
+async function auditarPpaCobrado(ticket, usuarioObjId, usuarioNombre) {
+  try {
+    const comandas = await comandaModel.find({ _id: { $in: ticket.comandas || [] } })
+      .select('numeroComandaDia comandaNumber revisionTicket mesaNumero clienteNombre mozoNombre')
+      .lean();
+    const primera = comandas[0] || null;
+    const quien = usuarioNombre || ticket.aprobadoPorNombre || 'Caja';
+    const mesa = ticket.numMesa || primera?.mesaNumero || null;
+    const cliente = comandas.map((c) => c.clienteNombre).filter(Boolean).join(', ');
+    await AuditoriaAcciones.create({
+      accion: 'COMANDA_APROBADA_COCINA',
+      entidadId: (ticket.comandas && ticket.comandas[0]) || ticket._id,
+      entidadTipo: 'comanda',
+      usuario: usuarioObjId,
+      usuarioNombre: quien,
+      timestamp: ticket.fechaAprobacion || new Date(),
+      datosDespues: {
+        ticketEstado: 'aprobado',
+        ticketNumber: ticket.ticketNumber,
+        origen: 'ppa',
+      },
+      metadata: {
+        ticketId: ticket._id,
+        ticketNumber: ticket.ticketNumber,
+        origen: ticket.origen || 'ppa',
+        aprobadoPor: quien,
+        comandaId: ticket.comandas && ticket.comandas[0],
+        comandas: ticket.comandas || [],
+        comandasNumbers: ticket.comandasNumbers || [],
+        numeroComandaDia: primera?.numeroComandaDia ?? null,
+        numMesa: mesa,
+        clienteNombre: cliente,
+        mozoNombre: ticket.nombreMozo || ticket.mozoNombre || primera?.mozoNombre || null,
+        resumen: ['Cobrado por ' + quien, mesa != null ? ('Mesa ' + mesa) : '', cliente].filter(Boolean).join(' · '),
+      },
+    });
+  } catch (auditErr) {
+    logger.error('Error registrando auditoría de cobro PPA', { error: auditErr.message });
+  }
+}
+
 async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
   const zona = 'America/Lima';
   const ahoraTs = moment().tz(zona).toDate();
@@ -249,6 +290,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
       alreadyApproved,
       activada: !!conf.activada
     });
+    if (!alreadyApproved) await auditarPpaCobrado(ticket, usuarioObjId, usuarioNombre);
     return {
       ticket,
       platosLiberados: [],
@@ -331,6 +373,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
   }
 
   await asignarCocinaTrasAprobarPpa(ticket, 'post_ppa');
+  if (!alreadyApproved) await auditarPpaCobrado(ticket, usuarioObjId, usuarioNombre);
   return { ticket, platosLiberados };
 }
 

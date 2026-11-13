@@ -5,6 +5,8 @@ const HistorialComandas = require('../database/models/historialComandas.model');
 const SesionesUsuarios = require('../database/models/sesionesUsuarios.model');
 const comandaModel = require('../database/models/comanda.model');
 const { letraRevisionTicket } = require('../utils/comandasNumbers');
+const { rangoLima } = require('../utils/diaOperativoRestaurante');
+const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const moment = require('moment-timezone');
 
 function oidComanda(v) {
@@ -43,6 +45,123 @@ function etiquetaDia(doc) {
     : doc.comandaNumber;
   if (n == null || n === '') return '';
   return `#${n}${letraRevisionTicket(doc.revisionTicket)}`;
+}
+
+function idAuditoria(v) {
+  if (v == null || v === '') return '';
+  return String(v._id || v);
+}
+
+/**
+ * Cobros de pago adelantado y anulaciones "caja no aprobó la reserva"
+ * que ocurrieron antes de que se escribiera la fila de auditoría.
+ */
+async function filasCobrosYAnulacionesFaltantes(auditorias, inicio, fin) {
+  if (!inicio || !fin) return [];
+  const vistosTicket = new Set();
+  const vistasAnulacion = new Set();
+  for (const a of auditorias) {
+    const plain = typeof a.toObject === 'function' ? a.toObject() : a;
+    const meta = plain.metadata || {};
+    if (plain.accion === 'COMANDA_APROBADA_COCINA' && meta.ticketId) {
+      vistosTicket.add(String(meta.ticketId));
+    }
+    if (plain.accion === 'COMANDA_ANULADA_RESERVA_NO_COBRADA') {
+      vistasAnulacion.add(idAuditoria(plain.entidadId));
+      if (meta.comandaId) vistasAnulacion.add(String(meta.comandaId));
+    }
+  }
+
+  const [tickets, anuladas] = await Promise.all([
+    ticketPagoAdelantadoModel.find({
+      estado: 'aprobado',
+      fechaAprobacion: { $gte: inicio, $lte: fin },
+    }).select('ticketNumber fechaAprobacion aprobadoPorNombre comandas comandasNumbers numMesa nombreMozo mozoNombre origen').lean(),
+    comandaModel.find({
+      motivoEliminacion: 'Reserva no cobrada',
+      fechaEliminacion: { $gte: inicio, $lte: fin },
+    }).select('numeroComandaDia comandaNumber revisionTicket mesaNumero clienteNombre mozoNombre totalCalculado createdAt fechaEliminacion origenReserva').lean(),
+  ]);
+
+  const ids = [];
+  const pushId = (id) => {
+    const s = idAuditoria(id);
+    if (s && !ids.includes(s)) ids.push(s);
+  };
+  tickets.forEach((t) => (t.comandas || []).forEach(pushId));
+  anuladas.forEach((c) => pushId(c._id));
+  const mapa = new Map();
+  if (ids.length) {
+    const docs = await comandaModel.find({ _id: { $in: ids } })
+      .select('numeroComandaDia comandaNumber revisionTicket mesaNumero clienteNombre mozoNombre')
+      .lean();
+    docs.forEach((d) => mapa.set(String(d._id), d));
+  }
+
+  const filas = [];
+  for (const t of tickets) {
+    if (vistosTicket.has(String(t._id))) continue;
+    const primeraId = (t.comandas || [])[0] || null;
+    const c = primeraId ? mapa.get(String(primeraId)) : null;
+    const quien = t.aprobadoPorNombre || 'Caja';
+    const mesa = t.numMesa || c?.mesaNumero || null;
+    const cliente = c?.clienteNombre || '';
+    filas.push({
+      _id: `ppa-${t._id}`,
+      accion: 'COMANDA_APROBADA_COCINA',
+      entidadTipo: 'comanda',
+      entidadId: primeraId,
+      usuarioNombre: quien,
+      timestamp: t.fechaAprobacion,
+      createdAt: t.fechaAprobacion,
+      motivo: null,
+      metadata: {
+        ticketId: t._id,
+        ticketNumber: t.ticketNumber,
+        origen: t.origen || 'ppa',
+        aprobadoPor: quien,
+        comandaId: primeraId,
+        comandas: t.comandas || [],
+        comandasNumbers: t.comandasNumbers || [],
+        numeroComandaDia: c?.numeroComandaDia ?? null,
+        numMesa: mesa,
+        clienteNombre: cliente,
+        mozoNombre: t.nombreMozo || t.mozoNombre || c?.mozoNombre || null,
+        resumen: ['Cobrado por ' + quien, mesa != null ? ('Mesa ' + mesa) : '', cliente].filter(Boolean).join(' · '),
+      },
+    });
+  }
+
+  for (const c of anuladas) {
+    if (vistasAnulacion.has(String(c._id))) continue;
+    const mesa = c.mesaNumero;
+    const cliente = c.clienteNombre || '';
+    filas.push({
+      _id: `reserva-nocobro-${c._id}`,
+      accion: 'COMANDA_ANULADA_RESERVA_NO_COBRADA',
+      entidadTipo: 'comanda',
+      entidadId: c._id,
+      usuarioNombre: 'Sistema',
+      timestamp: c.fechaEliminacion,
+      createdAt: c.fechaEliminacion,
+      motivo: 'Reserva no cobrada. Caja no la aprobó dentro de la hora.',
+      metadata: {
+        comandaId: c._id,
+        comandas: [c._id],
+        numeroComandaDia: c.numeroComandaDia,
+        comandaNumber: c.comandaNumber,
+        numMesa: mesa,
+        clienteNombre: cliente,
+        mozoNombre: c.mozoNombre || null,
+        total: c.totalCalculado,
+        creadaEn: c.createdAt,
+        anuladaEn: c.fechaEliminacion,
+        reservaId: c.origenReserva || null,
+        resumen: ['Caja no aprobó la reserva', mesa != null ? ('Mesa ' + mesa) : '', cliente].filter(Boolean).join(' · '),
+      },
+    });
+  }
+  return filas;
 }
 
 async function adjuntarComandaVista(auditorias) {
@@ -336,16 +455,16 @@ router.get('/auditoria/reporte-completo', async (req, res) => {
     const { fechaInicio, fechaFin, usuario } = req.query;
     
     const query = {};
-    
-    // Filtro de fechas
+    let inicio = null;
+    let fin = null;
+
+    // Día operativo 04:00–04:00 Lima. Así las 11:00 y la madrugada siguiente
+    // siguen en el mismo día y no se recortan a las 23:59.
     if (fechaInicio || fechaFin) {
-      query.timestamp = {};
-      if (fechaInicio) {
-        query.timestamp.$gte = moment.tz(fechaInicio, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
-      }
-      if (fechaFin) {
-        query.timestamp.$lte = moment.tz(fechaFin, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
-      }
+      const rango = rangoLima(fechaInicio, fechaFin || fechaInicio);
+      inicio = rango.inicio;
+      fin = rango.fin;
+      query.timestamp = { $gte: inicio, $lte: fin };
     }
     
     // Filtro por usuario
@@ -386,26 +505,36 @@ router.get('/auditoria/reporte-completo', async (req, res) => {
       resumenPorUsuario[usuarioKey].acciones[aud.accion]++;
     });
     
-    // Comandas eliminadas
-    const comandasEliminadas = await comandaModel.countDocuments({ 
-      eliminada: true,
-      ...(fechaInicio || fechaFin ? {
-        fechaEliminacion: {
-          ...(fechaInicio ? { $gte: moment.tz(fechaInicio, "YYYY-MM-DD", "America/Lima").startOf('day').toDate() } : {}),
-          ...(fechaFin ? { $lte: moment.tz(fechaFin, "YYYY-MM-DD", "America/Lima").endOf('day').toDate() } : {})
-        }
-      } : {})
+    const faltantes = await filasCobrosYAnulacionesFaltantes(auditorias, inicio, fin);
+    const unidas = [...auditorias, ...faltantes].sort(
+      (a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0)
+    );
+
+    faltantes.forEach((aud) => {
+      if (!resumenPorAccion[aud.accion]) resumenPorAccion[aud.accion] = 0;
+      resumenPorAccion[aud.accion]++;
     });
-    
-    const tope = (fechaInicio || fechaFin) ? 500 : 100;
-    const pagina = await adjuntarComandaVista(auditorias.slice(0, tope));
+
+    // Comandas eliminadas
+    const comandasEliminadas = await comandaModel.countDocuments({
+      eliminada: true,
+      ...(inicio || fin ? {
+        fechaEliminacion: {
+          ...(inicio ? { $gte: inicio } : {}),
+          ...(fin ? { $lte: fin } : {}),
+        },
+      } : {}),
+    });
+
+    const tope = (fechaInicio || fechaFin) ? 5000 : 100;
+    const pagina = await adjuntarComandaVista(unidas.slice(0, tope));
     res.json({
       periodo: {
         fechaInicio: fechaInicio || 'No especificada',
         fechaFin: fechaFin || 'No especificada'
       },
       resumen: {
-        totalAcciones: auditorias.length,
+        totalAcciones: unidas.length,
         comandasEliminadas: comandasEliminadas,
         resumenPorAccion: resumenPorAccion,
         resumenPorUsuario: resumenPorUsuario

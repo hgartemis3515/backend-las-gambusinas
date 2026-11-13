@@ -17,7 +17,7 @@ const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
 const { resolverComandasNumbers } = require('../utils/comandasNumbers');
 const { anotarTicketsDeComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
-const { anularTicketDuplicadoEnModelo } = require('../utils/anularTicketDuplicado');
+const { anularTicketDuplicadoEnModelo, armarDetalleTicketAnulado } = require('../utils/anularTicketDuplicado');
 const { comandaOmiteTicketAlta } = require('../utils/omiteTicketAltaComanda');
 const { nombreClientePreferido } = require('../constants/clienteDefaults');
 
@@ -1132,33 +1132,68 @@ async function actualizarTicketUnificado(ticketId, tipoHint, data) {
   return { ticket: out.ticket, comandasAfectadas: out.comandasAfectadas || [], tipo: 'ADELANTADO' };
 }
 
+function idsComandaDeTicket(ticket) {
+  return (ticket?.comandas || []).map((c) => {
+    if (c && typeof c === 'object') return c._id || c;
+    return c;
+  }).filter((id) => id && mongoose.Types.ObjectId.isValid(String(id)));
+}
+
 async function registrarAuditoriaTicketAnulado({ ticket, tipo, motivo, usuarioId, usuarioNombre }) {
   try {
     const uid = usuarioId && mongoose.Types.ObjectId.isValid(String(usuarioId)) ? usuarioId : null;
+    const ids = idsComandaDeTicket(ticket);
+    const comandas = ids.length
+      ? await comandaModel.find({ _id: { $in: ids } })
+        .select('numeroComandaDia comandaNumber revisionTicket mesaNumero clienteNombre mozoNombre')
+        .lean()
+      : [];
+    const detalle = armarDetalleTicketAnulado({ ticket, tipo, comandas });
+    const ahora = new Date();
+    const quien = String(usuarioNombre || '').trim() || 'Cocina';
     await AuditoriaAcciones.create({
       accion: 'TICKET_ANULADO_COCINA',
-      entidadId: ticket?._id || null,
+      entidadId: ids[0] || null,
       entidadTipo: 'comanda',
       usuario: uid,
-      usuarioNombre: usuarioNombre || 'Cocina',
+      usuarioNombre: quien,
+      timestamp: ahora,
       datosAntes: {
         isActive: true,
         estado: ticket?.estado,
         ticketNumber: ticket?.ticketNumber,
         tipo,
+        comandas: detalle.numeros,
+        clienteNombre: detalle.cliente,
+        mesa: detalle.mesa,
       },
       datosDespues: {
         isActive: false,
-        estado: ticket?.estado,
+        estado: 'anulado',
         ticketNumber: ticket?.ticketNumber,
+        anuladoEn: ahora,
       },
       motivo,
       metadata: {
         tipo,
         duplicado: true,
-        ticketNumber: ticket?.ticketNumber,
-        mesaId: ticket?.mesa,
-        comandas: ticket?.comandas,
+        ticketId: ticket?._id || null,
+        ticketNumber: ticket?.ticketNumber ?? null,
+        comandaId: ids[0] || null,
+        comandasIds: ids,
+        comandasNumbers: detalle.numeros,
+        numeroComandaDia: detalle.numeroDia,
+        numMesa: detalle.mesa,
+        mesaNum: detalle.mesa,
+        clienteNombre: detalle.cliente || null,
+        mozoNombre: detalle.mozo || null,
+        platos: detalle.platos,
+        resumen: detalle.resumen,
+        estadoAlAnular: ticket?.estado || null,
+        sourceApp: 'cocina',
+        tipoAnulacion: 'ticket_tabla_cocina',
+        anuladoPor: quien,
+        anuladoEn: ahora,
       },
     });
   } catch (e) {
