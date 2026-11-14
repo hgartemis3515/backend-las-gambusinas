@@ -66,7 +66,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     try {
       resumenVerificacion = await verificacionService.validarListoParaCerrar();
     } catch (verifErr) {
-      if (verifErr.code === 'VERIFICACION_INCOMPLETA' || verifErr.code === 'TICKETS_SIN_COBRAR') {
+      if (verifErr.code === 'VERIFICACION_INCOMPLETA' || verifErr.code === 'TICKETS_SIN_COBRAR' || verifErr.code === 'COMANDAS_KDS_ACTIVAS' || verifErr.code === 'CIERRE_BLOQUEADO') {
         return res.status(400).json({
           error: verifErr.code,
           message: verifErr.message,
@@ -601,7 +601,7 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       : Math.floor((periodoFin - periodoInicio) / (1000 * 60 * 60 * 24));
 
     // Contadores de verificación de tickets del período
-    let verificacion = { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: true };
+    let verificacion = { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, comandasKdsActivas: 0, mensajeBloqueo: '', puedeCerrar: true };
     try {
       const resumenVerif = await verificacionService.obtenerResumenVerificacion();
       verificacion = {
@@ -609,6 +609,10 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
         confirmados: resumenVerif.confirmados,
         pendientes: resumenVerif.pendientes,
         ticketsSinCobrar: resumenVerif.ticketsSinCobrar || 0,
+        comandasKdsActivas: resumenVerif.comandasKdsActivas || 0,
+        comandasPorCobrar: resumenVerif.comandasPorCobrar || [],
+        comandasPorEntregar: resumenVerif.comandasPorEntregar || [],
+        mensajeBloqueo: resumenVerif.mensajeBloqueo || '',
         puedeCerrar: resumenVerif.puedeCerrar,
       };
     } catch (verifErr) {

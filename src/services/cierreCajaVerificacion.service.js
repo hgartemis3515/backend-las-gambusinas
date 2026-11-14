@@ -10,12 +10,15 @@
  *   - El cierre de caja se bloquea hasta que todos los tickets del período estén confirmados.
  *   - También se bloquea si el filtro Pendientes de tickets y pagos adelantados
  *     tiene al menos un ticket sin cobrar (estado pendiente_aprobacion) del día operativo.
+ *   - También se bloquea si hay comandas visibles en la tabla KDS.
+ *     El aviso usa numeroComandaDia (no el histórico) y dice si falta cobrar o entregar.
  */
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
+const comandaModel = require('../database/models/comanda.model');
 const CierreCajaRestaurante = require('../database/models/cierreCajaRestaurante.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
@@ -32,6 +35,11 @@ const { obtenerUltimoCierreVigente } = require('../utils/cierreCajaReversion');
 const { resolverPeriodoPendienteCierre } = require('../utils/cierreCajaTurnosDia');
 const { boundsDiaOperativo, ymdOperativo } = require('../utils/diaOperativoRestaurante');
 const cajaAdicionalService = require('./cajaAdicional.service');
+const {
+  comandaEnTablaKds,
+  clasificarBloqueo,
+  mensajeBloqueoCierre,
+} = require('../utils/bloqueoCierreCaja');
 
 const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos mozoNombre procesadoPor procesandoPor eliminada fechaEliminacion`;
 
@@ -131,7 +139,7 @@ async function listarTicketsParaVerificacion() {
 
   const total = tickets.length;
   const confirmados = tickets.filter((t) => t.verificado).length;
-  const ticketsSinCobrar = await contarTicketsPendientesDeCobro();
+  const bloqueo = await bloqueoOperativoCierre();
 
   return {
     periodoInicio,
@@ -141,29 +149,63 @@ async function listarTicketsParaVerificacion() {
       total,
       confirmados,
       pendientes: total - confirmados,
-      ticketsSinCobrar,
-      puedeCerrar: confirmados === total && ticketsSinCobrar === 0,
+      ...bloqueo,
+      puedeCerrar: confirmados === total && bloqueo.ticketsSinCobrar === 0 && bloqueo.comandasKdsActivas === 0,
     },
   };
 }
 
 /**
- * Tickets que la tabla de tickets y pagos adelantados muestra en Pendientes
- * para el día operativo (04:00–04:00 Lima): estado pendiente_aprobacion.
- * Uno basta para no dejar continuar al cierre.
+ * Tickets Pendientes del día operativo y comandas que siguen en la tabla KDS.
+ * El mensaje nombra numeroComandaDia y dice si falta cobrar o entregar.
  */
-async function contarTicketsPendientesDeCobro(now = new Date()) {
+async function bloqueoOperativoCierre(now = new Date()) {
   const { inicio, fin } = boundsDiaOperativo(ymdOperativo(now));
-  const filtro = {
+  const filtroTickets = {
     estado: 'pendiente_aprobacion',
     isActive: true,
     createdAt: { $gte: inicio, $lte: fin },
   };
-  const [comandas, adelantados] = await Promise.all([
-    ticketAprobacionModel.countDocuments(filtro),
-    ticketPagoAdelantadoModel.countDocuments(filtro),
+  const [ticketsComanda, ticketsAdelantado, candidatasKds] = await Promise.all([
+    ticketAprobacionModel
+      .find(filtroTickets)
+      .select('comandas')
+      .populate('comandas', 'numeroComandaDia status')
+      .lean(),
+    ticketPagoAdelantadoModel
+      .find(filtroTickets)
+      .select('comandas')
+      .populate('comandas', 'numeroComandaDia status')
+      .lean(),
+    comandaModel
+      .find({
+        IsActive: true,
+        eliminada: { $ne: true },
+        programadaPorReserva: { $ne: true },
+        status: { $nin: ['entregado', 'pagado'] },
+      })
+      .select('numeroComandaDia status platos.estado platos.eliminado platos.anulado platos.tipoServicio platos.paraLlevar platos.pagoAdelantado.estadoTicket')
+      .lean(),
   ]);
-  return (comandas || 0) + (adelantados || 0);
+
+  const kds = (candidatasKds || []).filter(comandaEnTablaKds);
+  const clasif = clasificarBloqueo({
+    kds,
+    tickets: [...(ticketsComanda || []), ...(ticketsAdelantado || [])],
+  });
+  const ticketsSinCobrar = (ticketsComanda || []).length + (ticketsAdelantado || []).length;
+  let mensajeBloqueo = mensajeBloqueoCierre(clasif);
+  if (!mensajeBloqueo && (ticketsSinCobrar > 0 || kds.length > 0)) {
+    mensajeBloqueo = 'No se puede cerrar caja: hay comandas sin cobrar o sin entregar.';
+  }
+
+  return {
+    ticketsSinCobrar,
+    comandasKdsActivas: kds.length,
+    comandasPorCobrar: clasif.cobrar,
+    comandasPorEntregar: clasif.entregar,
+    mensajeBloqueo,
+  };
 }
 
 
@@ -324,6 +366,10 @@ async function obtenerResumenVerificacion() {
     confirmados: resumen.confirmados,
     pendientes: resumen.pendientes,
     ticketsSinCobrar: resumen.ticketsSinCobrar,
+    comandasKdsActivas: resumen.comandasKdsActivas,
+    comandasPorCobrar: resumen.comandasPorCobrar,
+    comandasPorEntregar: resumen.comandasPorEntregar,
+    mensajeBloqueo: resumen.mensajeBloqueo,
     puedeCerrar: resumen.puedeCerrar,
   };
 }
@@ -616,10 +662,16 @@ async function desmarcarTicketsDeCierre(cierreId) {
  */
 async function validarListoParaCerrar() {
   const resumen = await obtenerResumenVerificacion();
-  if (Number(resumen.ticketsSinCobrar) > 0) {
-    const err = new Error('Te falta cobrar tickets en pendientes');
+  if (resumen.mensajeBloqueo) {
+    const hayCobro = Number(resumen.ticketsSinCobrar) > 0;
+    const hayKds = Number(resumen.comandasKdsActivas) > 0;
+    const err = new Error(resumen.mensajeBloqueo);
     err.statusCode = 400;
-    err.code = 'TICKETS_SIN_COBRAR';
+    err.code = hayCobro && hayKds
+      ? 'CIERRE_BLOQUEADO'
+      : hayKds
+        ? 'COMANDAS_KDS_ACTIVAS'
+        : 'TICKETS_SIN_COBRAR';
     err.resumen = resumen;
     throw err;
   }

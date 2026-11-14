@@ -151,6 +151,10 @@ tailwind.config = {
       </div>
     </div>
 
+    <div x-show="estado.verificacion?.mensajeBloqueo" x-cloak class="mb-6 rounded-xl border border-st-esperando/40 bg-st-esperando/10 px-4 py-3">
+      <p class="text-sm font-bold text-st-esperando" x-text="estado.verificacion.mensajeBloqueo"></p>
+    </div>
+
     <!-- ============================================ -->
     <!-- HISTÓRICO DE CIERRES -->
     <!-- ============================================ -->
@@ -544,7 +548,7 @@ function cierreApp() {
       montoPendiente: 0,
       descuentosPendientes: 0,
       periodoFin: null,
-      verificacion: { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: true }
+      verificacion: { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, comandasKdsActivas: 0, mensajeBloqueo: '', puedeCerrar: true }
     },
     cierres: [],
     cierreActual: null,
@@ -557,7 +561,7 @@ function cierreApp() {
 
     // ========== VERIFICACIÓN DE TICKETS ==========
     ticketsVerificacion: [],
-    verificacion: { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: false },
+    verificacion: { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, comandasKdsActivas: 0, mensajeBloqueo: '', puedeCerrar: false },
     ticketDetalle: null,
     pasoCierre: 1,             // 1 = verificación de tickets, 2 = confirmación final
     filtroMozoCierre: '',
@@ -626,7 +630,7 @@ function cierreApp() {
             montoPendiente: data.montoPendiente || 0,
             descuentosPendientes: data.descuentosPendientes || 0,
             periodoFin: data.periodoFin,
-            verificacion: data.verificacion || { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: true }
+            verificacion: data.verificacion || { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, comandasKdsActivas: 0, mensajeBloqueo: '', puedeCerrar: true }
           };
           this.puedeHabilitarCaja = !!data.puedeHabilitarCajaAdicional;
           this.cajaAbierta = data.cajaAbierta || null;
@@ -802,13 +806,21 @@ function cierreApp() {
       this.modalOpen = true;
       await Promise.all([this.loadEstadoActual(), this.cargarTicketsVerificacion()]);
       this.renderPasoVerificacion();
-      if (this.faltaCobrarPendientes()) {
-        alert('Te falta cobrar tickets en pendientes');
-      }
+      const bloqueo = this.textoBloqueoCierre();
+      if (bloqueo) alert(bloqueo);
     },
 
     faltaCobrarPendientes() {
       return Number(this.verificacion?.ticketsSinCobrar) > 0;
+    },
+
+    textoBloqueoCierre() {
+      const msg = String(this.verificacion?.mensajeBloqueo || '').trim();
+      if (msg) return msg;
+      if (this.faltaCobrarPendientes() || Number(this.verificacion?.comandasKdsActivas) > 0) {
+        return 'No se puede cerrar caja: hay comandas sin cobrar o sin entregar.';
+      }
+      return '';
     },
 
     // ---- Cargar tickets del período pendiente ----
@@ -819,15 +831,15 @@ function cierreApp() {
         const data = await apiGet('/cierre-caja/verificacion/tickets');
         if (data && data.success) {
           this.ticketsVerificacion = data.tickets || [];
-          this.verificacion = data.resumen || { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: false };
+          this.verificacion = data.resumen || { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, comandasKdsActivas: 0, mensajeBloqueo: '', puedeCerrar: false };
         } else {
           this.ticketsVerificacion = [];
-          this.verificacion = { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: true };
+          this.verificacion = { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, comandasKdsActivas: 0, mensajeBloqueo: '', puedeCerrar: true };
         }
       } catch (e) {
         console.error('Error cargando verificación:', e);
         this.ticketsVerificacion = [];
-        this.verificacion = { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, puedeCerrar: true };
+        this.verificacion = { total: 0, confirmados: 0, pendientes: 0, ticketsSinCobrar: 0, comandasKdsActivas: 0, mensajeBloqueo: '', puedeCerrar: true };
       }
       this.loadingVerificacion = false;
       this.renderPasoVerificacion();
@@ -1002,8 +1014,8 @@ function cierreApp() {
       if (!tickets.length) {
         const vacio = this.filtroMozoCierre
           ? 'Ningún ticket de ese mozo en este período.'
-          : (this.faltaCobrarPendientes()
-            ? 'Te falta cobrar tickets en pendientes'
+          : (this.textoBloqueoCierre()
+            ? this.escHtml(this.textoBloqueoCierre())
             : 'No hay tickets pendientes en este período. Ya puedes ejecutar el cierre.');
         return `<tr><td colspan="9" class="px-4 py-10 text-center text-txt-muted text-sm">${vacio}</td></tr>`;
       }
@@ -1079,8 +1091,8 @@ function cierreApp() {
     renderPasoVerificacion() {
       const v = this.verificacion;
       const tickets = this.ticketsVerificacion || [];
-      const faltaCobrar = this.faltaCobrarPendientes();
-      const puedeCerrar = !!v.puedeCerrar && !faltaCobrar;
+      const bloqueo = this.textoBloqueoCierre();
+      const puedeCerrar = !!v.puedeCerrar && !bloqueo;
       const pct = v.total > 0 ? Math.round((v.confirmados / v.total) * 100) : 100;
 
       this.modalTitle = `Verificación de tickets · ${v.confirmados}/${v.total}`;
@@ -1115,14 +1127,14 @@ function cierreApp() {
             <button onclick="getApp().cerrarModal()" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary px-4 py-2.5 rounded-xl text-sm font-semibold hover:text-white transition">Cancelar</button>
             <button
               onclick="getApp().irAPasoConfirmacion()"
-              ${faltaCobrar || puedeCerrar ? '' : 'disabled'}
+              ${bloqueo || puedeCerrar ? '' : 'disabled'}
               class="flex-1 bg-gold text-bg-primary px-4 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition ${!puedeCerrar ? 'opacity-40 cursor-not-allowed' : ''}"
-              title="${faltaCobrar ? 'Te falta cobrar tickets en pendientes' : (!puedeCerrar ? 'Confirma todos los tickets primero' : 'Continuar al cierre')}">
+              title="${bloqueo ? this.escHtml(bloqueo) : (!puedeCerrar ? 'Confirma todos los tickets primero' : 'Continuar al cierre')}">
               Continuar al cierre
             </button>
           </div>
-          ${faltaCobrar
-            ? '<div class="mt-3 rounded-xl border border-st-esperando/40 bg-st-esperando/10 px-4 py-3 text-center"><p class="text-sm font-bold text-st-esperando">Te falta cobrar tickets en pendientes</p></div>'
+          ${bloqueo
+            ? `<div class="mt-3 rounded-xl border border-st-esperando/40 bg-st-esperando/10 px-4 py-3 text-center"><p class="text-sm font-bold text-st-esperando">${this.escHtml(bloqueo)}</p></div>`
             : (!puedeCerrar ? '<p class="text-center text-[11px] text-st-esperando mt-2">Confirma todos los tickets antes de continuar</p>' : '')}
         </div>
       `;
@@ -1152,7 +1164,7 @@ function cierreApp() {
       this.verificacion.confirmados = this.ticketsVerificacion.filter((t) => t.verificado).length;
       this.verificacion.pendientes = this.verificacion.total - this.verificacion.confirmados;
       const verificadosOk = this.verificacion.total === 0 || this.verificacion.confirmados === this.verificacion.total;
-      this.verificacion.puedeCerrar = verificadosOk && !this.faltaCobrarPendientes();
+      this.verificacion.puedeCerrar = verificadosOk && !this.textoBloqueoCierre();
       if (this.ticketDetalle && String(this.ticketDetalle.id) === String(id) && ticket) {
         this.ticketDetalle.verificado = !!ticket.verificado;
         this.ticketDetalle.verificadoPorNombre = ticket.verificadoPorNombre || null;
@@ -1223,8 +1235,9 @@ function cierreApp() {
     // ---- Pasar al Paso 2: confirmación final ----
     async irAPasoConfirmacion() {
       await this.cargarTicketsVerificacion();
-      if (this.faltaCobrarPendientes()) {
-        alert('Te falta cobrar tickets en pendientes');
+      const bloqueoPaso = this.textoBloqueoCierre();
+      if (bloqueoPaso) {
+        alert(bloqueoPaso);
         return;
       }
       if (!this.verificacion.puedeCerrar) {
@@ -1243,8 +1256,8 @@ function cierreApp() {
       const desde = data.ultimoCierre ? new Date(data.ultimoCierre).toLocaleString('es-PE') : 'Inicio de operaciones';
       const hasta = data.periodoFin ? new Date(data.periodoFin).toLocaleString('es-PE') : new Date().toLocaleString('es-PE');
       const verif = this.verificacion || {};
-      const faltaCobrar = this.faltaCobrarPendientes();
-      const puedeCerrar = !!verif.puedeCerrar && !faltaCobrar;
+      const bloqueo = this.textoBloqueoCierre();
+      const puedeCerrar = !!verif.puedeCerrar && !bloqueo;
 
       this.modalTitle = 'Confirmar Cierre de Caja';
       this.modalBody = `
@@ -1275,12 +1288,12 @@ function cierreApp() {
             </div>
           </div>
 
-          ${faltaCobrar
-            ? '<p class="text-center text-sm font-bold text-st-esperando mb-3">Te falta cobrar tickets en pendientes</p>'
+          ${bloqueo
+            ? `<p class="text-center text-sm font-bold text-st-esperando mb-3">${this.escHtml(bloqueo)}</p>`
             : (!puedeCerrar ? '<p class="text-center text-[11px] text-st-esperando mb-3">Hay tickets sin verificar. Márcalos para poder cerrar.</p>' : '')}
           <div class="flex gap-3">
             <button onclick="getApp().volverAPasoVerificacion()" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary px-4 py-2.5 rounded-xl text-sm font-semibold hover:text-white transition">Volver</button>
-            <button onclick="getApp().ejecutarCierreCaja()" ${faltaCobrar || puedeCerrar ? '' : 'disabled'} class="flex-1 bg-gold text-bg-primary px-4 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition ${!puedeCerrar ? 'opacity-40 cursor-not-allowed' : ''}">Confirmar Cierre</button>
+            <button onclick="getApp().ejecutarCierreCaja()" ${bloqueo || puedeCerrar ? '' : 'disabled'} class="flex-1 bg-gold text-bg-primary px-4 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition ${!puedeCerrar ? 'opacity-40 cursor-not-allowed' : ''}">Confirmar Cierre</button>
           </div>
         </div>
       `;
@@ -1292,8 +1305,9 @@ function cierreApp() {
     },
 
     async ejecutarCierreCaja() {
-      if (this.faltaCobrarPendientes()) {
-        alert('Te falta cobrar tickets en pendientes');
+      const bloqueoCierre = this.textoBloqueoCierre();
+      if (bloqueoCierre) {
+        alert(bloqueoCierre);
         this.pasoCierre = 1;
         this.renderPasoVerificacion();
         return;
@@ -1342,8 +1356,8 @@ function cierreApp() {
         this.loadCierresCaja();
       } catch (e) {
         // Si falla por verificación incompleta, volver al paso 1
-        if (e.message && e.message.includes('Te falta cobrar')) {
-          alert('Te falta cobrar tickets en pendientes');
+        if (e.message && (e.message.includes('Falta cobrar') || e.message.includes('Falta entregar') || e.message.includes('Te falta cobrar') || e.message.includes('sin cobrar') || e.message.includes('sin entregar'))) {
+          alert(e.message);
           this.pasoCierre = 1;
           await this.cargarTicketsVerificacion();
         } else if (e.message && e.message.includes('Faltan confirmar')) {
