@@ -45,6 +45,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
   <link rel="stylesheet" href="/assets/css/tw-inventario.css">
   <script src="/assets/js/inventarioRelaciones.js"></script>
+  <script src="/assets/js/ventaEspecialOpciones.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="/assets/css/dashboard.css">
@@ -7200,42 +7201,535 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </div>
 
   <template x-if="ventaEspecialAbierta">
-    <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" @click.self="ventaEspecialAbierta = false" @keydown.escape.window="ventaEspecialAbierta = false" role="dialog" aria-modal="true" aria-label="Venta especial">
-      <div class="w-full max-w-2xl bg-[#14141f] border border-[#d4af37] p-5 max-h-[90vh] overflow-y-auto rounded-xl">
-        <div class="flex items-start justify-between gap-3 mb-3">
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="cerrarVentaEspecial()" @keydown.escape.window="cerrarVentaEspecial()" role="dialog" aria-modal="true" aria-label="Venta especial" data-testid="modal-venta-especial">
+      <div class="bloq-modal w-full max-w-6xl h-[92vh] flex flex-col bg-[#14141f] border-2 border-[#d4af37] rounded-xl overflow-hidden shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
+
+        <!-- Cabecera del Modal (misma estructura visual que Bloqueo) -->
+        <div class="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-[#26263a]">
           <div>
-            <h3 class="text-lg font-semibold text-[#d4af37]">Venta especial</h3>
-            <p class="text-xs text-[#a0a0b8] mt-1">Elige cuánto de cada producto apartado para evento se usó hoy. Aplicar resta solo ese stock, no el del restaurante.</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <svg viewBox="0 0 24 24" class="w-5 h-5 text-[#d4af37]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>
+              </svg>
+              <h3 class="text-lg font-semibold text-[#d4af37]">Venta especial</h3>
+              <span class="px-2 py-0.5 rounded bg-[#d4af37]/15 border border-[#d4af37]/40 text-[#d4af37] text-[10px] font-bold uppercase tracking-wide inline-flex items-center gap-1" x-show="resumenVentaEspecial().totalLineas > 0">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                <span x-text="resumenVentaEspecial().totalLineas + (resumenVentaEspecial().totalLineas === 1 ? ' selección activa' : ' selecciones activas')"></span>
+              </span>
+              <span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-bold uppercase tracking-wide" x-show="resumenVentaEspecial().totalCrudo > 0" x-text="'Crudo −' + formatNum(resumenVentaEspecial().totalCrudo)"></span>
+              <span class="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/40 text-[#d4af37] text-[10px] font-bold uppercase tracking-wide" x-show="resumenVentaEspecial().totalCocido > 0" x-text="'Cocido −' + formatNum(resumenVentaEspecial().totalCocido)"></span>
+            </div>
+            <p class="text-xs text-[#a0a0b8] mt-1">
+              Elige si restar por <strong class="text-white">Productos</strong> (descarga directa de Inventario Tabla) o por <strong class="text-[#d4af37]">Platos vinculados</strong> (descarga automática de todos los insumos que componen el plato en Relación de platos, indicando stock actual, si reduce <strong class="text-[#d4af37]">Cocido</strong> o <strong class="text-emerald-300">Crudo</strong>, y cuánto quedará). En pachamanca eliges los sabores. En leña eliges pierna o pecho.
+            </p>
           </div>
-          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ventaEspecialAbierta = false" aria-label="Cerrar">×</button>
+          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1 cursor-pointer" @click="cerrarVentaEspecial()" aria-label="Cerrar">×</button>
         </div>
-        <div class="overflow-x-auto rounded-lg border border-[#26263a]">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="bg-[#0a0a0f] text-[#a0a0b8] uppercase text-[11px]">
-                <th class="text-left px-3 py-2">Producto de evento</th>
-                <th class="text-left px-3 py-2">Sale de</th>
-                <th class="text-right px-3 py-2">Disponible</th>
-                <th class="text-right px-3 py-2">Usado hoy</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="ev in eventos" :key="'venta-esp-' + ev.id">
-                <tr class="border-t border-[#26263a]">
-                  <td class="px-3 py-2 font-semibold" x-text="ev.nombre"></td>
-                  <td class="px-3 py-2 text-[#a0a0b8]" x-text="ev.origen"></td>
-                  <td class="px-3 py-2 text-right num-mono text-[#d4af37]" x-text="ev.disponible"></td>
-                  <td class="px-3 py-2 text-right">
-                    <input type="number" min="0" step="1" x-model="ev.usar" class="num-claro w-20 text-center num-mono font-bold text-sm" :aria-label="'Usado de ' + ev.nombre">
-                  </td>
-                </tr>
+
+        <!-- Cuerpo de 2 columnas (igual a Bloqueo: Lista a la izquierda + Resumen lateral a la derecha) -->
+        <div class="flex-1 min-h-0 flex flex-col lg:flex-row">
+
+          <!-- Columna izquierda: Pestañas + Filtros + Lista -->
+          <div class="flex-1 min-w-0 min-h-0 flex flex-col px-5 py-4">
+            <div class="shrink-0 flex flex-wrap items-center gap-2 mb-3">
+              <div class="inline-flex rounded-lg border border-[#26263a] bg-[#0a0a0f] p-0.5" role="tablist" aria-label="Modo de Venta Especial">
+                <button
+                  type="button"
+                  role="tab"
+                  data-testid="tab-venta-especial-productos"
+                  :aria-selected="ventaEspecial.tab === 'productos'"
+                  class="px-3.5 py-1.5 rounded-md text-xs font-bold cursor-pointer transition inline-flex items-center gap-1.5"
+                  :class="ventaEspecial.tab === 'productos' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#a0a0b8] hover:text-white'"
+                  @click="cambiarTabVentaEspecial('productos')"
+                >
+                  <span>Productos</span>
+                  <span class="px-1.5 py-0.2 rounded text-[10px] font-mono" :class="ventaEspecial.tab === 'productos' ? 'bg-[#1a1200]/20 text-[#1a1200]' : 'bg-[#1c1c2b] text-[#a0a0b8]'" x-text="conteoProductosVentaEspecial()"></span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  data-testid="tab-venta-especial-platos"
+                  :aria-selected="ventaEspecial.tab === 'platos'"
+                  class="px-3.5 py-1.5 rounded-md text-xs font-bold cursor-pointer transition inline-flex items-center gap-1.5"
+                  :class="ventaEspecial.tab === 'platos' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#a0a0b8] hover:text-white'"
+                  @click="cambiarTabVentaEspecial('platos')"
+                >
+                  <span>Platos vinculados</span>
+                  <span class="px-1.5 py-0.2 rounded text-[10px] font-mono" :class="ventaEspecial.tab === 'platos' ? 'bg-[#1a1200]/20 text-[#1a1200]' : 'bg-[#1c1c2b] text-[#a0a0b8]'" x-text="totalPlatosVinculadosVentaEspecial()"></span>
+                </button>
+              </div>
+
+              <div class="relative flex-1 min-w-[200px]">
+                <input
+                  type="search"
+                  x-model.debounce.120ms="ventaEspecial.busqueda"
+                  :placeholder="ventaEspecial.tab === 'productos' ? 'Buscar producto de Inventario Tabla (ej. Filete, Arroz verde, Octavo)…' : 'Buscar plato vinculado en Relación de platos (ej. Arroz con pollo)…'"
+                  aria-label="Buscar en Venta Especial"
+                  data-testid="input-buscar-venta-especial"
+                  class="w-full rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#d4af37]"
+                >
+              </div>
+
+              <button
+                type="button"
+                x-show="resumenVentaEspecial().totalLineas > 0"
+                @click="limpiarSeleccionVentaEspecial()"
+                class="px-2.5 py-1.5 rounded-lg border border-[#26263a] bg-[#0a0a0f] text-[11px] font-bold text-[#a0a0b8] hover:text-white hover:border-rose-500/50 cursor-pointer transition"
+              >
+                Limpiar selección
+              </button>
+            </div>
+
+            <!-- Barra rápida de familias -->
+            <div class="shrink-0 flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 border-b border-[#26263a]">
+              <button
+                type="button"
+                @click="ventaEspecial.familia = 'todas'"
+                class="px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap cursor-pointer transition border"
+                :class="ventaEspecial.familia === 'todas' ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a] hover:text-white'"
+              >Todas las familias</button>
+              <template x-for="fam in familiasInventarioConfig()" :key="'ve-fam-' + fam.id">
+                <button
+                  type="button"
+                  @click="ventaEspecial.familia = fam.id"
+                  class="px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap cursor-pointer transition border inline-flex items-center gap-1"
+                  :class="ventaEspecial.familia === fam.id ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a] hover:text-white'"
+                >
+                  <span x-text="fam.icono"></span>
+                  <span x-text="fam.nombre"></span>
+                </button>
               </template>
-            </tbody>
-          </table>
-        </div>
-        <div class="flex justify-end gap-2 mt-4">
-          <button type="button" @click="ventaEspecialAbierta = false" class="px-4 py-2 rounded-lg bg-[#1c1c2b] text-white text-sm font-semibold cursor-pointer">Cerrar</button>
-          <button type="button" @click="aplicarVentaEspecial()" class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-sm font-extrabold cursor-pointer">Aplicar</button>
+            </div>
+
+            <!-- =============================================================== -->
+            <!-- PESTAÑA 1: PRODUCTOS (Todo lo que compone un producto en tabla) -->
+            <!-- =============================================================== -->
+            <div x-show="ventaEspecial.tab === 'productos'" class="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1" data-testid="lista-venta-especial-productos">
+              <template x-for="f in listaProductosVentaEspecial()" :key="'ve-prod-' + f.kind + '-' + f.id">
+                <div>
+                  <!-- Cabecera de grupo (Pecho, Pierna, Octavo) igual que en Bloqueo -->
+                  <template x-if="f.kind === 'grupo'">
+                    <div class="mt-2 first:mt-0 rounded-lg border border-[#d4af37]/45 bg-[#19162a] px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="px-1.5 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37] text-[10px] font-extrabold uppercase tracking-wider">Grupo de corte</span>
+                          <p class="text-xs font-extrabold text-[#d4af37] uppercase tracking-wide" x-text="f.nombre"></p>
+                        </div>
+                        <p class="text-[11px] text-[#a0a0b8]">
+                          En este corte quedan <span class="text-white font-mono font-bold" x-text="formatNum(f.stock) + ' ' + f.unidad"></span>
+                          <template x-if="f.id === 'octavo_pollo'">
+                            <span class="ml-1 text-emerald-300 font-mono" x-text="'(Pierna: ' + formatNum(octavosStockCorte('piernas')) + ' · Pecho: ' + formatNum(octavosStockCorte('pechugas')) + ')'"></span>
+                          </template>
+                          · Puedes restar directamente de la pieza o de cualquiera de sus <span class="text-white font-mono" x-text="f.cuantos"></span> platos.
+                        </p>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Fila de producto -->
+                  <template x-if="f.kind === 'fila'">
+                    <div
+                      class="rounded-lg border px-3 py-2.5 flex flex-wrap items-center justify-between gap-3 transition"
+                      :class="[
+                        f.enGrupo ? 'ml-3 border-l-2 border-l-[#d4af37]/50' : '',
+                        cantidadProductoVentaEspecial(f.id) > 0 ? 'border-[#d4af37] bg-[#d4af37]/10 shadow-[0_0_16px_rgba(212,175,55,0.12)]' : 'border-[#26263a] bg-[#0a0a0f] hover:border-[#3a3a58]'
+                      ]"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                          <p class="text-sm font-semibold text-white truncate" x-text="f.nombre"></p>
+                          <span class="text-[10px] px-1.5 py-0.5 rounded bg-[#14141f] border border-[#26263a] text-[#a0a0b8]" x-text="f.enGrupo ? ('De ' + f.grupoNombre) : f.grupo"></span>
+                          <template x-if="f.esOctavo">
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/15 border border-sky-400/40 text-sky-200 font-mono" x-text="'Pierna ' + formatNum(f.stockPierna) + ' · Pecho ' + formatNum(f.stockPecho)"></span>
+                          </template>
+                        </div>
+
+                        <!-- Stock actual desglosado en Crudo / Cocido / Total -->
+                        <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono">
+                          <span class="text-[#a0a0b8]">
+                            Queda total: <strong class="text-white" x-text="formatNum(f.stock) + ' ' + f.unidad"></strong>
+                          </span>
+                          <template x-if="f.tieneCrudo">
+                            <span class="px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-300" x-text="'Crudo: ' + formatNum(f.crudo)"></span>
+                          </template>
+                          <template x-if="f.tieneCocido">
+                            <span class="px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-500/30 text-[#d4af37]" x-text="'Cocido: ' + formatNum(f.cocido)"></span>
+                          </template>
+                        </div>
+
+                        <!-- Vista previa en vivo cuando tiene cantidad > 0 -->
+                        <template x-if="cantidadProductoVentaEspecial(f.id) > 0">
+                          <div class="mt-2 pt-2 border-t border-[#d4af37]/30 flex flex-wrap items-center gap-2 text-[11px]">
+                            <span class="text-[#d4af37] font-bold uppercase tracking-wider text-[10px]">Se reducirá:</span>
+                            <template x-for="(parte, pIdx) in previewDescargaProductoVentaEspecial(f)" :key="'prev-prod-' + f.id + '-' + pIdx">
+                              <span
+                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono font-bold border"
+                                :class="parte.tipo === 'cocido' ? 'bg-amber-950/80 border-[#d4af37]/60 text-[#d4af37]' : 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300'"
+                              >
+                                <span x-text="parte.nombre"></span>
+                                <span class="uppercase text-[10px]" x-text="parte.tipo === 'cocido' ? 'Cocido' : 'Crudo'"></span>
+                                <span class="text-rose-200" x-text="'−' + formatNum(parte.cantidad)"></span>
+                                <span class="text-[#a0a0b8] font-normal" x-text="'(Queda ' + formatNum(parte.stockAntes) + ' → ' + formatNum(parte.stockDespues) + ')'"></span>
+                              </span>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+
+                      <!-- Controles de Modo (Auto / Cocido / Crudo) + Corte si es Octavo + Cantidad a restar -->
+                      <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        <!-- Si es Octavo o plato de Octavo, elegir corte Pecho / Pierna -->
+                        <template x-if="f.esOctavo">
+                          <div class="inline-flex rounded-lg border border-[#26263a] bg-[#14141f] p-0.5 text-[11px] font-bold">
+                            <button
+                              type="button"
+                              @click="fijarCorteProductoVentaEspecial(f.id, 'piernas')"
+                              class="px-2 py-1 rounded cursor-pointer transition"
+                              :class="corteProductoVentaEspecial(f.id) === 'piernas' ? 'bg-emerald-400 text-[#0a0a0f]' : 'text-[#a0a0b8] hover:text-white'"
+                            >Pierna</button>
+                            <button
+                              type="button"
+                              @click="fijarCorteProductoVentaEspecial(f.id, 'pechugas')"
+                              class="px-2 py-1 rounded cursor-pointer transition"
+                              :class="corteProductoVentaEspecial(f.id) === 'pechugas' ? 'bg-sky-400 text-[#0a0a0f]' : 'text-[#a0a0b8] hover:text-white'"
+                            >Pecho</button>
+                          </div>
+                        </template>
+
+                        <!-- Selector Cocido / Crudo / Auto cuando el producto tiene ambos -->
+                        <template x-if="f.tieneCrudo && f.tieneCocido">
+                          <div class="inline-flex rounded-lg border border-[#26263a] bg-[#14141f] p-0.5 text-[10px] font-bold" role="group" :aria-label="'Tipo a reducir en ' + f.nombre">
+                            <button
+                              type="button"
+                              @click="fijarModoTipoProductoVentaEspecial(f.id, 'auto')"
+                              class="px-2 py-1 rounded cursor-pointer transition"
+                              :class="modoTipoProductoVentaEspecial(f.id) === 'auto' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#a0a0b8] hover:text-white'"
+                              title="Descuenta primero Cocido y luego Crudo"
+                            >Auto</button>
+                            <button
+                              type="button"
+                              @click="fijarModoTipoProductoVentaEspecial(f.id, 'cocido')"
+                              class="px-2 py-1 rounded cursor-pointer transition"
+                              :class="modoTipoProductoVentaEspecial(f.id) === 'cocido' ? 'bg-amber-400 text-[#1a1200]' : 'text-[#d4af37] hover:text-white'"
+                            >Cocido</button>
+                            <button
+                              type="button"
+                              @click="fijarModoTipoProductoVentaEspecial(f.id, 'crudo')"
+                              class="px-2 py-1 rounded cursor-pointer transition"
+                              :class="modoTipoProductoVentaEspecial(f.id) === 'crudo' ? 'bg-emerald-400 text-[#062419]' : 'text-emerald-300 hover:text-white'"
+                            >Crudo</button>
+                          </div>
+                        </template>
+                        <template x-if="!(f.tieneCrudo && f.tieneCocido)">
+                          <span
+                            class="px-2 py-1 rounded text-[10px] font-bold uppercase border"
+                            :class="f.tieneCocido ? 'bg-amber-950/50 border-amber-500/40 text-[#d4af37]' : 'bg-emerald-950/50 border-emerald-500/40 text-emerald-300'"
+                            x-text="f.tieneCocido ? 'Reduce Cocido' : 'Reduce Crudo'"
+                          ></span>
+                        </template>
+
+                        <!-- Input numérico con botones - / + -->
+                        <div class="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#14141f] text-white font-bold cursor-pointer hover:border-[#d4af37] transition"
+                            @click="fijarCantidadProductoVentaEspecial(f.id, Math.max(0, cantidadProductoVentaEspecial(f.id) - 1))"
+                            :aria-label="'Menos ' + f.nombre"
+                          >−</button>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            :value="cantidadProductoVentaEspecial(f.id) || ''"
+                            placeholder="0"
+                            @input="fijarCantidadProductoVentaEspecial(f.id, $event.target.value)"
+                            :aria-label="'Restar de ' + f.nombre"
+                            :data-testid="'ve-input-prod-' + f.id"
+                            class="w-16 text-center num-mono text-xs font-bold text-white bg-[#14141f] border rounded-lg px-2 py-1.5 focus:outline-none"
+                            :class="cantidadProductoVentaEspecial(f.id) > 0 ? 'border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]' : 'border-[#26263a]'"
+                          >
+                          <button
+                            type="button"
+                            class="w-7 h-7 rounded-lg border border-[#26263a] bg-[#14141f] text-[#d4af37] font-bold cursor-pointer hover:border-[#d4af37] transition"
+                            @click="fijarCantidadProductoVentaEspecial(f.id, cantidadProductoVentaEspecial(f.id) + 1)"
+                            :aria-label="'Más ' + f.nombre"
+                            :data-testid="'ve-mas-prod-' + f.id"
+                          >+</button>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+              <p class="text-xs text-[#a0a0b8] text-center py-6" x-show="!listaProductosVentaEspecial().length">No hay productos con ese filtro.</p>
+            </div>
+
+            <!-- =============================================================== -->
+            <!-- PESTAÑA 2: PLATOS VINCULADOS (De la sección Relación de platos) -->
+            <!-- =============================================================== -->
+            <div x-show="ventaEspecial.tab === 'platos'" x-cloak class="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1" data-testid="lista-venta-especial-platos">
+              <template x-for="plato in listaPlatosVinculadosVentaEspecial()" :key="'ve-plato-' + plato.key">
+                <div
+                  class="rounded-xl border p-3 transition"
+                  :class="cantidadPlatoVentaEspecial(plato.key) > 0 ? 'border-[#d4af37] bg-[#d4af37]/10 shadow-[0_0_20px_rgba(212,175,55,0.14)]' : 'border-[#26263a] bg-[#0a0a0f] hover:border-[#3a3a58]'"
+                  :data-testid="'ve-card-plato-' + norm(plato.nombre).replace(/[^a-z0-9]+/g, '-')"
+                >
+                  <!-- Fila superior del plato vinculado -->
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="px-2 py-0.5 rounded bg-[#d4af37]/20 border border-[#d4af37]/40 text-[#d4af37] text-[10px] font-extrabold uppercase tracking-wider">Plato vinculado</span>
+                        <h4 class="text-sm font-extrabold text-white" x-text="plato.nombre"></h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-[#14141f] border border-[#26263a] text-[#a0a0b8] font-mono" x-text="plato.ingredientes.length + (plato.ingredientes.length === 1 ? ' producto vinculado' : ' productos vinculados')"></span>
+                      </div>
+                      <p class="text-[11px] text-[#a0a0b8] mt-1">
+                        Contiene:
+                        <span class="text-white font-semibold" x-text="plato.resumenReceta"></span>
+                      </p>
+                    </div>
+
+                    <!-- Controles para restar cantidad de este plato vinculado -->
+                    <div class="flex items-center gap-2 shrink-0">
+                      <template x-if="plato.pideCorteOctavo || plato.pideCorteLena">
+                        <div class="inline-flex rounded-lg border border-[#26263a] bg-[#14141f] p-0.5 text-[11px] font-bold">
+                          <button
+                            type="button"
+                            @click="fijarCortePlatoVentaEspecial(plato.key, 'piernas')"
+                            class="px-2 py-1 rounded cursor-pointer transition"
+                            :class="cortePlatoVentaEspecial(plato.key) === 'piernas' ? 'bg-emerald-400 text-[#0a0a0f]' : 'text-[#a0a0b8] hover:text-white'"
+                          >Pierna</button>
+                          <button
+                            type="button"
+                            @click="fijarCortePlatoVentaEspecial(plato.key, 'pechugas')"
+                            class="px-2 py-1 rounded cursor-pointer transition"
+                            :class="cortePlatoVentaEspecial(plato.key) === 'pechugas' ? 'bg-sky-400 text-[#0a0a0f]' : 'text-[#a0a0b8] hover:text-white'"
+                          >Pecho</button>
+                        </div>
+                      </template>
+
+                      <div class="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          class="w-8 h-8 rounded-lg border border-[#26263a] bg-[#14141f] text-white font-bold cursor-pointer hover:border-[#d4af37] transition"
+                          @click="fijarCantidadPlatoVentaEspecial(plato.key, Math.max(0, cantidadPlatoVentaEspecial(plato.key) - 1))"
+                          :aria-label="'Menos ' + plato.nombre"
+                        >−</button>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          :value="cantidadPlatoVentaEspecial(plato.key) || ''"
+                          placeholder="0"
+                          @input="fijarCantidadPlatoVentaEspecial(plato.key, $event.target.value)"
+                          :aria-label="'Platos a restar de ' + plato.nombre"
+                          :data-testid="'ve-input-plato-' + norm(plato.nombre).replace(/[^a-z0-9]+/g, '-')"
+                          class="w-16 text-center num-mono text-xs font-bold text-white bg-[#14141f] border rounded-lg px-2 py-1.5 focus:outline-none"
+                          :class="cantidadPlatoVentaEspecial(plato.key) > 0 ? 'border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]' : 'border-[#26263a]'"
+                        >
+                        <button
+                          type="button"
+                          class="w-8 h-8 rounded-lg border border-[#26263a] bg-[#14141f] text-[#d4af37] font-bold cursor-pointer hover:border-[#d4af37] transition"
+                          @click="fijarCantidadPlatoVentaEspecial(plato.key, cantidadPlatoVentaEspecial(plato.key) + 1)"
+                          :aria-label="'Más ' + plato.nombre"
+                          :data-testid="'ve-mas-plato-' + norm(plato.nombre).replace(/[^a-z0-9]+/g, '-')"
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <template x-if="plato.pideSabores && cantidadPlatoVentaEspecial(plato.key) > 0">
+                    <div class="mt-2.5 rounded-lg border border-[#d4af37]/40 bg-[#14141f] p-2.5 space-y-2" data-testid="ve-sabores-pachamanca">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#d4af37]">Sabores de la pachamanca</span>
+                        <span class="text-[11px] font-mono text-amber-200" x-text="textoSaboresPlatoVE(plato)"></span>
+                      </div>
+                      <div class="flex flex-wrap gap-1.5">
+                        <template x-for="op in plato.sabores" :key="'ve-sab-' + plato.key + '-' + op.rowId">
+                          <div class="inline-flex items-center gap-1 rounded-lg border border-[#26263a] bg-[#0a0a0f] px-1.5 py-1">
+                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-white font-bold cursor-pointer" @click="moverSaborPlatoVE(plato.key, op.rowId, -1, plato.saboresPorPlato)" :aria-label="'Menos ' + op.nombre">−</button>
+                            <span class="text-xs font-bold text-white" x-text="op.nombre"></span>
+                            <span class="font-mono text-[11px] text-[#d4af37]" x-text="saborElegidoVE(plato.key, op.rowId)"></span>
+                            <span class="font-mono text-[10px] text-[#a0a0b8]" x-text="'stock ' + formatNum(op.stock)"></span>
+                            <button type="button" class="w-6 h-6 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" @click="moverSaborPlatoVE(plato.key, op.rowId, 1, plato.saboresPorPlato)" :aria-label="'Más ' + op.nombre">+</button>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                  <!-- Desglose de productos que componen el plato vinculado (siempre visible, y resaltado con cálculo exacto al elegir cantidad > 0) -->
+                  <div class="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <template x-for="ing in plato.ingredientes" :key="'ve-ing-' + plato.key + '-' + ing.relId">
+                      <div
+                        class="rounded-lg border px-3 py-2 flex flex-col justify-between gap-1.5 transition"
+                        :class="cantidadPlatoVentaEspecial(plato.key) > 0 ? 'border-[#d4af37]/60 bg-[#14141f]' : 'border-[#26263a] bg-[#12121c]'"
+                      >
+                        <div class="flex items-start justify-between gap-2">
+                          <div class="min-w-0">
+                            <div class="flex items-center gap-1.5">
+                              <span class="w-2 h-2 rounded-full" :class="ing.modoEfectivo === 'cocido' ? 'bg-[#d4af37]' : 'bg-emerald-400'"></span>
+                              <span class="text-xs font-bold text-white truncate" x-text="ing.nombreProducto"></span>
+                            </div>
+                            <p class="text-[10px] text-[#a0a0b8] mt-0.5 font-mono">
+                              Por 1 plato: <strong class="text-white" x-text="'−' + formatNum(ing.cantidadPorPlato) + ' ' + ing.unidad"></strong>
+                              <span x-show="ing.nota" x-text="' · ' + ing.nota"></span>
+                            </p>
+                          </div>
+
+                          <!-- Selector Cocido / Crudo por insumo del plato si tiene ambos -->
+                          <div class="shrink-0">
+                            <template x-if="ing.tieneCrudo && ing.tieneCocido">
+                              <div class="inline-flex rounded border border-[#26263a] bg-[#0a0a0f] p-0.5 text-[9px] font-bold">
+                                <button
+                                  type="button"
+                                  @click="fijarModoIngredientePlatoVE(plato.key, ing.rowId, 'auto')"
+                                  class="px-1.5 py-0.5 rounded cursor-pointer"
+                                  :class="modoIngredientePlatoVE(plato.key, ing.rowId) === 'auto' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#a0a0b8]'"
+                                >Auto</button>
+                                <button
+                                  type="button"
+                                  @click="fijarModoIngredientePlatoVE(plato.key, ing.rowId, 'cocido')"
+                                  class="px-1.5 py-0.5 rounded cursor-pointer"
+                                  :class="modoIngredientePlatoVE(plato.key, ing.rowId) === 'cocido' ? 'bg-amber-400 text-[#1a1200]' : 'text-[#d4af37]'"
+                                >Cocido</button>
+                                <button
+                                  type="button"
+                                  @click="fijarModoIngredientePlatoVE(plato.key, ing.rowId, 'crudo')"
+                                  class="px-1.5 py-0.5 rounded cursor-pointer"
+                                  :class="modoIngredientePlatoVE(plato.key, ing.rowId) === 'crudo' ? 'bg-emerald-400 text-[#062419]' : 'text-emerald-300'"
+                                >Crudo</button>
+                              </div>
+                            </template>
+                            <template x-if="!(ing.tieneCrudo && ing.tieneCocido)">
+                              <span
+                                class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase border"
+                                :class="ing.tieneCocido ? 'bg-amber-950/60 border-amber-500/40 text-[#d4af37]' : 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'"
+                                x-text="ing.tieneCocido ? 'Cocido' : 'Crudo'"
+                              ></span>
+                            </template>
+                          </div>
+                        </div>
+
+                        <!-- Stock actual y cuánto restará al elegir cantidad -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#26263a]/80 text-[10px] font-mono">
+                          <div class="flex items-center gap-2">
+                            <span class="text-[#a0a0b8]">Stock: <strong class="text-white" x-text="formatNum(ing.stockTotal)"></strong></span>
+                            <span x-show="ing.tieneCrudo" class="text-emerald-300" x-text="'Crudo ' + formatNum(ing.stockCrudo)"></span>
+                            <span x-show="ing.tieneCocido" class="text-[#d4af37]" x-text="'Cocido ' + formatNum(ing.stockCocido)"></span>
+                          </div>
+                          <template x-if="cantidadPlatoVentaEspecial(plato.key) > 0">
+                            <span
+                              class="px-1.5 py-0.5 rounded font-extrabold"
+                              :class="ing.descargaCocido > 0 && ing.descargaCrudo > 0
+                                ? 'bg-rose-950/90 text-rose-200 border border-rose-500/50'
+                                : (ing.descargaCocido > 0 ? 'bg-amber-950/90 text-[#d4af37] border border-[#d4af37]/50' : 'bg-emerald-950/90 text-emerald-300 border border-emerald-500/50')"
+                              x-text="ing.textoDescarga"
+                            ></span>
+                          </template>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <p class="text-xs text-[#a0a0b8] text-center py-6" x-show="!listaPlatosVinculadosVentaEspecial().length">No hay platos vinculados con ese filtro.</p>
+            </div>
+          </div>
+
+          <!-- Columna derecha: Resumen de descarga en vivo + Motivo + Acciones (igual a .bloq-lateral) -->
+          <div class="bloq-lateral lg:w-[370px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#26263a] bg-[#10101a] flex flex-col min-h-0">
+            <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3">
+              <!-- Tarjeta de resumen -->
+              <div class="rounded-xl border border-[#26263a] bg-[#0a0a0f] p-3.5 space-y-2.5" data-testid="resumen-venta-especial">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#d4af37]">Resumen de descarga</span>
+                  <span class="text-xs font-mono text-[#a0a0b8]" x-text="resumenVentaEspecial().items.length + ' productos afectados'"></span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-2">
+                    <span class="text-[10px] uppercase font-bold text-emerald-300 block">Total Crudo a restar</span>
+                    <span class="text-lg font-extrabold num-mono text-emerald-200" x-text="'−' + formatNum(resumenVentaEspecial().totalCrudo)"></span>
+                  </div>
+                  <div class="rounded-lg border border-amber-500/30 bg-amber-950/30 px-2.5 py-2">
+                    <span class="text-[10px] uppercase font-bold text-[#d4af37] block">Total Cocido a restar</span>
+                    <span class="text-lg font-extrabold num-mono text-amber-200" x-text="'−' + formatNum(resumenVentaEspecial().totalCocido)"></span>
+                  </div>
+                </div>
+
+                <!-- Lista detallada de cada producto que se reducirá -->
+                <div class="space-y-1.5 max-h-60 overflow-y-auto pr-1" x-show="resumenVentaEspecial().items.length > 0">
+                  <template x-for="item in resumenVentaEspecial().items" :key="'ve-res-item-' + item.key">
+                    <div class="rounded-lg border border-[#26263a] bg-[#14141f] px-3 py-2 text-xs">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="font-bold text-white truncate" x-text="item.nombre"></span>
+                        <span
+                          class="px-1.5 py-0.5 rounded text-[10px] font-mono font-extrabold uppercase"
+                          :class="item.tipo === 'cocido' ? 'bg-amber-950 text-[#d4af37] border border-amber-500/40' : 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'"
+                          x-text="(item.tipo === 'cocido' ? 'Cocido' : 'Crudo') + (item.corte ? (' · ' + item.corte) : '') + ' −' + formatNum(item.cantidad)"
+                        ></span>
+                      </div>
+                      <div class="mt-1 flex items-center justify-between text-[11px] font-mono text-[#a0a0b8]">
+                        <span x-text="item.origenTexto"></span>
+                        <span>
+                          Stock <strong class="text-white" x-text="formatNum(item.stockAntes)"></strong>
+                          → <strong :class="item.stockDespues < 0 ? 'text-rose-400' : 'text-emerald-300'" x-text="formatNum(item.stockDespues)"></strong>
+                        </span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+
+                <p class="text-[11px] text-amber-200" x-show="avisoOpcionesVentaEspecial()" x-text="avisoOpcionesVentaEspecial()"></p>
+                <p x-show="resumenVentaEspecial().items.length === 0" class="text-xs text-[#5a5a7a] py-3 text-center">
+                  Selecciona un producto en la pestaña <strong class="text-white">Productos</strong> o un plato en <strong class="text-white">Platos vinculados</strong> para ver qué stock Crudo o Cocido se reducirá.
+                </p>
+              </div>
+
+              <!-- Motivo sugerido y libre (igual que Bloqueo) -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label for="ve-motivo-input" class="text-[11px] font-bold uppercase tracking-wider text-[#a0a0b8]">Motivo de la venta especial</label>
+                  <span class="text-[10px] text-[#5a5a7a]">Opcional</span>
+                </div>
+                <div class="flex flex-wrap gap-1">
+                  <template x-for="sug in ['Evento', 'Venta directa', 'Degustación', 'Pedido corporativo', 'Personal', 'Merma']" :key="'ve-sug-' + sug">
+                    <button
+                      type="button"
+                      @click="usarMotivoVentaEspecial(sug)"
+                      class="px-2 py-0.5 rounded-md border border-[#26263a] bg-[#0a0a0f] text-[10px] font-semibold text-[#a0a0b8] hover:text-white hover:border-[#d4af37]/50 cursor-pointer transition"
+                      x-text="sug"
+                    ></button>
+                  </template>
+                </div>
+                <input
+                  id="ve-motivo-input"
+                  type="text"
+                  maxlength="140"
+                  x-model="ventaEspecial.motivo"
+                  placeholder="Ej. Evento salón · 15 platos especiales"
+                  class="w-full rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-2 text-xs text-white focus:outline-none focus:border-[#d4af37]"
+                >
+              </div>
+            </div>
+
+            <!-- Botones de acción al pie de la columna derecha -->
+            <div class="shrink-0 px-5 py-3.5 border-t border-[#26263a] bg-[#0c0c14] flex items-center gap-2">
+              <button
+                type="button"
+                @click="cerrarVentaEspecial()"
+                class="flex-1 px-4 py-2.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-white text-sm font-semibold cursor-pointer transition"
+              >Cerrar</button>
+              <button
+                type="button"
+                data-testid="btn-aplicar-venta-especial"
+                :disabled="ventaEspecial.guardando || resumenVentaEspecial().items.length === 0 || !!avisoOpcionesVentaEspecial()"
+                @click="aplicarVentaEspecial()"
+                class="flex-[2] px-4 py-2.5 rounded-lg bg-[#d4af37] text-[#1a1200] text-sm font-extrabold cursor-pointer hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-default inline-flex items-center justify-center gap-1.5"
+              >
+                <span x-text="ventaEspecial.guardando ? 'Aplicando…' : 'Aplicar venta especial'"></span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -7301,16 +7795,82 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
   <template x-if="ingresoLupa">
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ingresoLupa = null" @keydown.escape.window="ingresoLupa = null" role="dialog" aria-modal="true" aria-label="Ingreso total">
-      <div class="modal-platos-entra w-full max-w-lg bg-[#14141f] border border-cyan-700 p-5 max-h-[90vh] overflow-y-auto rounded-xl">
+      <div class="modal-platos-entra w-full bg-[#14141f] border border-cyan-700 p-5 max-h-[90vh] overflow-y-auto rounded-xl" :class="ingresoLupa.esOctavo ? 'max-w-3xl' : 'max-w-lg'">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div>
             <h3 class="text-lg font-semibold text-cyan-200" x-text="'Ingreso de ' + ingresoLupa.nombre"></h3>
-            <p class="text-xs text-[#a0a0b8] mt-1" x-show="ingresoLupa.id !== 'pollo_fresco'">Arriba está el saldo del producto. Sumar un plato le resta una pieza y restarlo se la devuelve. El cocido sale del crudo del mismo plato. Filete y mix solo cuentan venta y uso.</p>
+            <p class="text-xs text-[#a0a0b8] mt-1" x-show="ingresoLupa.esOctavo">El octavo se parte en dos: pierna y pecho. 2 octavos salen de 1 pieza. Sumar un plato resta de ese corte.</p>
+            <p class="text-xs text-[#a0a0b8] mt-1" x-show="!ingresoLupa.esOctavo && ingresoLupa.id !== 'pollo_fresco'">Arriba está el saldo del producto. Sumar un plato le resta una pieza y restarlo se la devuelve. El cocido sale del crudo del mismo plato. Filete y mix solo cuentan venta y uso.</p>
             <p class="text-xs text-[#d4af37] mt-1" x-show="ingresoLupa.id === 'pollo_fresco'" x-text="'1 pollo fresco = ' + ingresoLupa.factorPechuga + ' pechos y ' + ingresoLupa.factorPierna + ' piernas.'"></p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ingresoLupa = null" aria-label="Cerrar">×</button>
         </div>
-        <div class="overflow-x-auto rounded-lg border border-[#26263a]" @mouseleave="soltarOrdenIngreso()">
+        <div x-show="ingresoLupa.esOctavo" class="overflow-x-auto rounded-lg border border-[#26263a]">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-[#0a0a0f] text-[#5a5a7a] uppercase text-[11px]">
+                <th class="text-left px-3 py-2">Pieza</th>
+                <th class="text-right px-3 py-2">Pierna crudo</th>
+                <th class="text-right px-3 py-2">Pierna cocido</th>
+                <th class="text-right px-3 py-2">Pecho crudo</th>
+                <th class="text-right px-3 py-2">Pecho cocido</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t border-[#26263a]">
+                <td class="px-3 py-1.5 font-semibold text-white">Octavo suelto</td>
+                <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                  <span class="font-mono text-emerald-300" x-text="formatNum(ingresoLupa.pierna)"></span>
+                  <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" aria-label="Restar octavos sueltos de pierna" @click="moverOctavoIngreso('', 'piernas', 'crudo', -1)">−</button>
+                  <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" aria-label="Sumar octavos sueltos de pierna" @click="moverOctavoIngreso('', 'piernas', 'crudo', 1)">+</button>
+                </td>
+                <td class="px-3 py-1.5 text-right text-[#5a5a7a]">—</td>
+                <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                  <span class="font-mono text-sky-300" x-text="formatNum(ingresoLupa.pecho)"></span>
+                  <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" aria-label="Restar octavos sueltos de pecho" @click="moverOctavoIngreso('', 'pechugas', 'crudo', -1)">−</button>
+                  <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" aria-label="Sumar octavos sueltos de pecho" @click="moverOctavoIngreso('', 'pechugas', 'crudo', 1)">+</button>
+                </td>
+                <td class="px-3 py-1.5 text-right text-[#5a5a7a]">—</td>
+              </tr>
+              <template x-for="p in ingresoLupa.platos" :key="'ing-oct-' + p.id">
+                <tr class="border-t border-[#26263a]">
+                  <td class="px-3 py-1.5 font-semibold text-white" x-text="p.nombre"></td>
+                  <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                    <span class="font-mono text-emerald-300" x-text="formatNum(p.piernaCrudo)"></span>
+                    <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" :aria-label="'Restar crudo pierna de ' + p.nombre" @click="moverOctavoIngreso(p.id, 'piernas', 'crudo', -1)">−</button>
+                    <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-emerald-300 font-bold cursor-pointer" :aria-label="'Sumar crudo pierna de ' + p.nombre" @click="moverOctavoIngreso(p.id, 'piernas', 'crudo', 1)">+</button>
+                  </td>
+                  <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                    <template x-if="p.cocido">
+                      <span>
+                        <span class="font-mono text-[#d4af37]" x-text="formatNum(p.piernaCocido)"></span>
+                        <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Restar cocido pierna de ' + p.nombre" @click="moverOctavoIngreso(p.id, 'piernas', 'cocido', -1)">−</button>
+                        <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Sumar cocido pierna de ' + p.nombre" @click="moverOctavoIngreso(p.id, 'piernas', 'cocido', 1)">+</button>
+                      </span>
+                    </template>
+                    <span x-show="!p.cocido" class="text-[#5a5a7a]">—</span>
+                  </td>
+                  <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                    <span class="font-mono text-sky-300" x-text="formatNum(p.pechoCrudo)"></span>
+                    <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" :aria-label="'Restar crudo pecho de ' + p.nombre" @click="moverOctavoIngreso(p.id, 'pechugas', 'crudo', -1)">−</button>
+                    <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-sky-300 font-bold cursor-pointer" :aria-label="'Sumar crudo pecho de ' + p.nombre" @click="moverOctavoIngreso(p.id, 'pechugas', 'crudo', 1)">+</button>
+                  </td>
+                  <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                    <template x-if="p.cocido">
+                      <span>
+                        <span class="font-mono text-[#d4af37]" x-text="formatNum(p.pechoCocido)"></span>
+                        <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Restar cocido pecho de ' + p.nombre" @click="moverOctavoIngreso(p.id, 'pechugas', 'cocido', -1)">−</button>
+                        <button type="button" class="w-6 h-6 ml-1 rounded bg-[#1c1c2b] text-[#d4af37] font-bold cursor-pointer" :aria-label="'Sumar cocido pecho de ' + p.nombre" @click="moverOctavoIngreso(p.id, 'pechugas', 'cocido', 1)">+</button>
+                      </span>
+                    </template>
+                    <span x-show="!p.cocido" class="text-[#5a5a7a]">—</span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-[#26263a]" x-show="!ingresoLupa.esOctavo" @mouseleave="soltarOrdenIngreso()">
           <table class="w-full text-xs" :class="ingresoLupa.reordenando ? 'tabla-platos-reordena' : ''">
             <thead>
               <tr class="bg-[#0a0a0f] text-[#5a5a7a] uppercase text-[11px]">
@@ -7403,6 +7963,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
           </div>
 
+          <div x-show="ventaInfo.esOctavo" class="grid grid-cols-2 gap-2 text-xs">
+            <div class="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-2">
+              <p class="text-[10px] font-extrabold uppercase text-emerald-300">Octavos de pierna</p>
+              <p class="text-base font-extrabold num-mono text-white" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePierna)"></p>
+              <p class="text-[10px] font-mono text-[#a0a0b8]" x-text="'Sueltos ' + formatNum(resumenOctavoVentaManual().octavosLibresPierna) + ' · En platos ' + formatNum(resumenOctavoVentaManual().enPlatosPiernaCrudo + resumenOctavoVentaManual().enPlatosPiernaCocido)"></p>
+            </div>
+            <div class="rounded-lg border border-sky-500/40 bg-sky-950/25 px-3 py-2">
+              <p class="text-[10px] font-extrabold uppercase text-sky-300">Octavos de pecho</p>
+              <p class="text-base font-extrabold num-mono text-white" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePecho)"></p>
+              <p class="text-[10px] font-mono text-[#a0a0b8]" x-text="'Sueltos ' + formatNum(resumenOctavoVentaManual().octavosLibresPecho) + ' · En platos ' + formatNum(resumenOctavoVentaManual().enPlatosPechoCrudo + resumenOctavoVentaManual().enPlatosPechoCocido)"></p>
+            </div>
+          </div>
+
           <div x-show="resumenVenta().total > 0">
             <div class="venta-barra" role="img" :aria-label="'Reparto: ' + textoRepartoVenta()">
               <template x-for="u in usosVenta" :key="'barra-' + u.id">
@@ -7467,36 +8040,98 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </template>
 
   <template x-if="ventaManualAbierta && ventaManualFila">
-    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaManualAbierta = false" @keydown.escape.window="ventaManualAbierta = false" role="dialog" aria-modal="true" aria-label="Venta manual">
-      <div class="w-full max-w-md bg-[#14141f] border-2 border-[#ff0000] p-5 rounded-xl space-y-4">
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaManualAbierta = false" @keydown.escape.window="ventaManualAbierta = false" role="dialog" aria-modal="true" aria-label="Venta manual" data-testid="modal-venta-manual">
+      <div class="w-full max-w-lg bg-[#14141f] border-2 border-[#ff0000] p-5 rounded-xl space-y-4 max-h-[92vh] overflow-y-auto shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <h3 class="text-lg font-semibold text-[#ff0000]">Venta manual</h3>
-            <p class="text-sm text-white mt-1" x-text="ventaManualFila.nombre"></p>
-            <p class="text-xs text-[#a0a0b8] mt-1">Resta de este producto o de un plato vinculado. No es una comanda.</p>
+            <div class="flex items-center gap-2">
+              <h3 class="text-lg font-semibold text-[#ff0000]">Venta manual</h3>
+              <span class="px-2 py-0.5 rounded bg-[#0a0a0f] border border-[#26263a] text-xs font-mono text-[#d4af37]" x-text="'Queda: ' + formatNum(saldoRealColumna(ventaManualFila)) + ' ' + (ventaManualFila.unidad || 'unid')"></span>
+            </div>
+            <p class="text-sm font-bold text-white mt-1" x-text="ventaManualFila.nombre"></p>
+            <p class="text-xs text-[#a0a0b8] mt-0.5">Resta de este producto o de un plato vinculado. No es una comanda.</p>
           </div>
-          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ventaManualAbierta = false" aria-label="Cerrar">×</button>
+          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1 cursor-pointer" @click="ventaManualAbierta = false" aria-label="Cerrar">×</button>
         </div>
+
         <div class="grid grid-cols-2 gap-2" role="tablist" aria-label="Cómo restar">
           <button type="button" role="tab" :aria-selected="ventaManualModo === 'unidad'" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition" :class="ventaManualModo === 'unidad' ? 'bg-[#ff0000] text-white' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a] hover:text-white'" @click="ventaManualModo = 'unidad'">Por unidad</button>
           <button type="button" role="tab" :aria-selected="ventaManualModo === 'plato'" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition" :class="ventaManualModo === 'plato' ? 'bg-[#ff0000] text-white' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a] hover:text-white'" @click="ventaManualModo = 'plato'">Por plato vinculado</button>
         </div>
-        <div x-show="ventaManualPideCorte()" class="space-y-2">
-          <p class="text-xs font-semibold text-white">Tipo de octavo</p>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer" :class="ventaManualCorte === 'pechugas' ? 'bg-sky-400 text-[#0a0a0f]' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a]'" @click="ventaManualCorte = 'pechugas'">Pecho</button>
-            <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold cursor-pointer" :class="ventaManualCorte === 'piernas' ? 'bg-emerald-400 text-[#0a0a0f]' : 'bg-[#0a0a0f] text-[#a0a0b8] border border-[#26263a]'" @click="ventaManualCorte = 'piernas'">Pierna</button>
+
+        <!-- Panel enriquecido para Octavo de pollo: indica cuánta Pierna y cuánto Pecho/Pollo hay disponible -->
+        <div x-show="ventaManualPideCorte()" class="rounded-xl border border-[#d4af37]/50 bg-[#0a0a0f] p-3.5 space-y-3" data-testid="venta-manual-octavo-info">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-[#d4af37]">Disponibilidad de Pierna y de Pollo (Pecho)</span>
+            <span class="text-[10px] font-mono text-[#a0a0b8]">2 octavos = 1 pieza</span>
           </div>
-          <p class="text-[11px] text-[#a0a0b8]" x-text="ventaManualCorte === 'piernas' ? 'Estos octavos salen de pierna.' : (ventaManualCorte === 'pechugas' ? 'Estos octavos salen de pecho.' : 'Elige pecho o pierna antes de restar.')"></p>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <!-- Botón / Tarjeta Pierna -->
+            <button
+              type="button"
+              data-testid="btn-venta-manual-corte-piernas"
+              @click="ventaManualCorte = 'piernas'"
+              class="text-left rounded-xl border-2 p-2.5 cursor-pointer transition"
+              :class="ventaManualCorte === 'piernas' ? 'border-emerald-400 bg-emerald-500/15 shadow-[0_0_16px_rgba(52,211,153,0.2)]' : 'border-[#26263a] bg-[#14141f] hover:border-emerald-500/50'"
+            >
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-extrabold uppercase text-emerald-300">Pierna</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold" :class="ventaManualCorte === 'piernas' ? 'bg-emerald-400 text-[#0a0a0f]' : 'bg-[#0a0a0f] text-emerald-300'" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePierna) + ' oct.'"></span>
+              </div>
+              <div class="mt-1.5 space-y-0.5 text-[10px] font-mono text-[#a0a0b8]">
+                <p>Octavos sueltos: <strong class="text-white" x-text="formatNum(resumenOctavoVentaManual().octavosLibresPierna)"></strong></p>
+                <p>En platos: <strong class="text-emerald-300" x-text="'Crudo ' + formatNum(resumenOctavoVentaManual().enPlatosPiernaCrudo)"></strong> · <strong class="text-[#d4af37]" x-text="'Cocido ' + formatNum(resumenOctavoVentaManual().enPlatosPiernaCocido)"></strong></p>
+                <p>Pieza Pierna de Pollo: <strong class="text-white" x-text="formatNum(resumenOctavoVentaManual().stockPiernaPollo) + ' pza'"></strong></p>
+              </div>
+            </button>
+
+            <!-- Botón / Tarjeta Pecho -->
+            <button
+              type="button"
+              data-testid="btn-venta-manual-corte-pechugas"
+              @click="ventaManualCorte = 'pechugas'"
+              class="text-left rounded-xl border-2 p-2.5 cursor-pointer transition"
+              :class="ventaManualCorte === 'pechugas' ? 'border-sky-400 bg-sky-500/15 shadow-[0_0_16px_rgba(56,189,248,0.2)]' : 'border-[#26263a] bg-[#14141f] hover:border-sky-500/50'"
+            >
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-extrabold uppercase text-sky-300">Pecho (Pollo)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold" :class="ventaManualCorte === 'pechugas' ? 'bg-sky-400 text-[#0a0a0f]' : 'bg-[#0a0a0f] text-sky-300'" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePecho) + ' oct.'"></span>
+              </div>
+              <div class="mt-1.5 space-y-0.5 text-[10px] font-mono text-[#a0a0b8]">
+                <p>Octavos sueltos: <strong class="text-white" x-text="formatNum(resumenOctavoVentaManual().octavosLibresPecho)"></strong></p>
+                <p>En platos: <strong class="text-emerald-300" x-text="'Crudo ' + formatNum(resumenOctavoVentaManual().enPlatosPechoCrudo)"></strong> · <strong class="text-[#d4af37]" x-text="'Cocido ' + formatNum(resumenOctavoVentaManual().enPlatosPechoCocido)"></strong></p>
+                <p>Pieza Pecho de Pollo: <strong class="text-white" x-text="formatNum(resumenOctavoVentaManual().stockPechoPollo) + ' pza'"></strong></p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Resumen de Pollo total disponible -->
+          <div class="rounded-lg border border-[#26263a] bg-[#14141f] px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+            <span class="text-[#a0a0b8]">
+              Total Pollo disp.: <strong class="text-[#d4af37]" x-text="formatNum(resumenOctavoVentaManual().totalOctavosDisponibles) + ' octavos'"></strong>
+            </span>
+            <span class="text-[#a0a0b8]">
+              Pollo fresco: <strong class="text-white" x-text="formatNum(resumenOctavoVentaManual().stockPolloFresco) + ' unid'"></strong>
+              · Pierna <strong class="text-emerald-300" x-text="formatNum(resumenOctavoVentaManual().stockPiernaPollo)"></strong>
+              · Pecho <strong class="text-sky-300" x-text="formatNum(resumenOctavoVentaManual().stockPechoPollo)"></strong>
+            </span>
+          </div>
+
+          <p class="text-[11px] text-[#a0a0b8]" x-text="ventaManualCorte === 'piernas' ? 'Seleccionado: restará octavos de PIERNA.' : (ventaManualCorte === 'pechugas' ? 'Seleccionado: restará octavos de PECHO.' : 'Elige Pierna o Pecho (Pollo) antes de restar.')"></p>
+          <p class="text-[11px] font-mono text-white" x-show="ventaManualPideCorte() && ventaManualCorte" data-testid="venta-manual-calculo-octavo" x-text="calculoOctavoVentaManual()"></p>
         </div>
+
         <div x-show="ventaManualModo === 'unidad'" class="space-y-2">
-          <p class="text-[11px] text-[#a0a0b8]" x-text="esFilaOctavo(ventaManualFila) ? 'Resta octavos de este tipo. No es una comanda.' : 'Resta en orden: cocido, crudo y al final la pieza de reserva.'"></p>
+          <p class="text-[11px] text-[#a0a0b8]" x-text="esFilaOctavo(ventaManualFila) ? 'Resta octavos del corte elegido (Pierna o Pecho). No es una comanda.' : 'Resta en orden: cocido, crudo y al final la pieza de reserva.'"></p>
           <div class="inline-flex items-center gap-2">
             <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = Math.max(1, (Number(ventaManualCantidad) || 1) - 1)">−</button>
             <input type="number" min="1" step="1" x-model.number="ventaManualCantidad" aria-label="Unidades a restar" class="w-24 text-center num-mono text-white bg-[#0a0a0f] border border-[#ff0000] rounded-lg px-2 py-2">
             <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualCantidad = (Number(ventaManualCantidad) || 0) + 1">+</button>
           </div>
+          <p class="text-[11px] font-mono text-[#a0a0b8]" x-show="textoPartesVentaManual()">Restará: <span class="text-white font-bold" x-text="textoPartesVentaManual()"></span></p>
         </div>
+
         <div x-show="ventaManualModo === 'plato'" x-cloak class="space-y-3">
           <template x-if="!platosVentaManual(ventaManualFila).length">
             <p class="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2">Este producto no tiene platos vinculados. Vincúlalos en Relación de platos.</p>
@@ -7520,12 +8155,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <button type="button" class="w-9 h-9 rounded-lg border-2 border-[#ff0000] text-[#ff0000] font-extrabold cursor-pointer" @click="ventaManualPlatos = (Number(ventaManualPlatos) || 0) + 1">+</button>
             </div>
           </div>
-          <p class="text-[11px] font-mono text-[#a0a0b8]" x-show="textoPartesVentaManual()">Restará: <span class="text-white" x-text="textoPartesVentaManual()"></span></p>
+          <p class="text-[11px] font-mono text-[#a0a0b8]" x-show="textoPartesVentaManual()">Restará: <span class="text-white font-bold" x-text="textoPartesVentaManual()"></span></p>
         </div>
+
         <label class="block text-xs text-[#a0a0b8]">Motivo <span class="text-[#5a5a7a]">(opcional)</span>
           <textarea x-model="ventaManualMotivo" maxlength="180" rows="2" placeholder="Si quieres, anota por qué se resta" aria-label="Motivo de la venta manual" class="mt-1 w-full rounded-lg border border-[#ff0000]/50 bg-[#0a0a0f] px-3 py-2 text-sm text-white focus:outline-none"></textarea>
         </label>
-        <button type="button" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando || (ventaManualModo === 'plato' && !platoVentaManualElegido()) || (ventaManualPideCorte() && !ventaManualCorte)" @click="confirmarVentaManual()">Restar</button>
+        <div class="flex items-center justify-end gap-2">
+          <button type="button" class="px-4 py-2 rounded-lg bg-[#1c1c2b] text-white text-sm font-semibold cursor-pointer" @click="ventaManualAbierta = false">Cancelar</button>
+          <button type="button" data-testid="btn-confirmar-venta-manual" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando || (ventaManualModo === 'plato' && !platoVentaManualElegido()) || (ventaManualPideCorte() && !ventaManualCorte)" @click="confirmarVentaManual()">Restar</button>
+        </div>
       </div>
     </div>
   </template>
@@ -8211,6 +8850,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </p>
           </div>
 
+          <div x-show="saldoRealInfo.esOctavo" class="grid grid-cols-2 gap-2 text-xs">
+            <div class="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-2">
+              <p class="text-[10px] font-extrabold uppercase text-emerald-300">Octavos de pierna</p>
+              <p class="font-mono text-white" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePierna) + ' · sueltos ' + formatNum(resumenOctavoVentaManual().octavosLibresPierna)"></p>
+            </div>
+            <div class="rounded-lg border border-sky-500/40 bg-sky-950/25 px-3 py-2">
+              <p class="text-[10px] font-extrabold uppercase text-sky-300">Octavos de pecho</p>
+              <p class="font-mono text-white" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePecho) + ' · sueltos ' + formatNum(resumenOctavoVentaManual().octavosLibresPecho)"></p>
+            </div>
+          </div>
+
           <!-- Pasos en línea de tiempo -->
           <ol class="proc-timeline">
             <template x-for="paso in saldoRealInfo.pasos" :key="'paso-sr-' + paso.clave">
@@ -8572,6 +9222,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         historialLocal: [],
         ventaEspecialAbierta: false,
+        ventaEspecial: {
+          tab: 'platos',
+          busqueda: '',
+          familia: 'todas',
+          motivo: '',
+          guardando: false,
+          cantidadesProducto: {},
+          cantidadesPlato: {},
+          modoTipoProducto: {},
+          corteProducto: {},
+          cortePlato: {},
+          modoIngredientePlato: {},
+          saboresPlato: {}
+        },
         eventos: [
           { id: 'evento_pollo', clave: 'evento-pollo', origenId: 'pollo_fresco', origenClave: 'pollo-origen', nombre: 'Pollo Evento', origen: 'Pollo fresco', disponible: 0, apartar: '', usar: '' },
           { id: 'evento_carne', clave: 'evento-carne', origenId: 'carne_bistec', origenClave: 'bisteck', nombre: 'Carne Evento', origen: 'Carne Bistec', disponible: 0, apartar: '', usar: '' },
@@ -9212,6 +9876,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 tipos: Array.isArray(p.tipos) ? p.tipos.slice() : (p.tipo ? [p.tipo] : []),
                 guarniciones: ficha.guarniciones,
                 variaciones: ficha.variaciones,
+                saboresPorUnidad: ((p.complementos || []).map((g) => Number(g && g.saboresPorUnidad)).find((n) => n >= 1)) || null,
                 id: rawId
               };
             });
@@ -10111,6 +10776,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             ? this.ventaColumna(row)
             : (this.valorTipo(row, 'venta', 'crudo') + this.valorTipo(row, 'venta', 'cocido'));
           this.abrirVenta({
+            id: row.id,
             nombre: row.nombre,
             venta: total,
             clave: clave,
@@ -10321,7 +10987,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.ventaInfo = {
             nombre: f.nombre,
             total: totalLineas || f.venta,
-            lineas: lineas
+            lineas: lineas,
+            esOctavo: !!(f && (f.id === 'octavo_pollo' || f.clave === 'octavo-pollo' || this.esPlatoOctavo({ id: f.id, nombre: f.nombre, filaId: f.id })))
           };
           this.ventaCerrando = false;
           this.ventaAbierta = true;
@@ -10701,7 +11368,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.ventaManualPlatos = 1;
           const lista = this.platosVentaManual(row);
           this.ventaManualPlatoKey = lista.length ? lista[0].key : '';
-          this.ventaManualCorte = '';
+          if (this.esFilaOctavo(row) || this.esPlatoOctavo(row)) {
+            const pPierna = this.octavosStockCorte('piernas');
+            const pPecho = this.octavosStockCorte('pechugas');
+            this.ventaManualCorte = pPierna >= pPecho ? 'piernas' : 'pechugas';
+          } else {
+            this.ventaManualCorte = '';
+          }
           this.ventaManualAbierta = true;
         },
 
@@ -10712,18 +11385,96 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         esPlatoOctavo(p) {
           if (!p) return false;
+          if (p.id === 'arroz_con_pollo' || p.id === 'pollo_olla' || p.id === 'caldo_pollo') return true;
           if (p.filaId === 'arroz_con_pollo' || p.filaId === 'pollo_olla' || p.filaId === 'caldo_pollo') return true;
           const n = this.norm(p.nombre);
           return n.includes('arroz con pollo') || n.includes('pollo a la olla') || n.includes('pollo olla') || (n.includes('caldo') && n.includes('pollo'));
         },
 
         ventaManualPideCorte() {
-          if (this.esFilaOctavo(this.ventaManualFila)) return true;
+          if (this.esFilaOctavo(this.ventaManualFila) || this.esPlatoOctavo(this.ventaManualFila)) return true;
           return this.ventaManualModo === 'plato' && this.esPlatoOctavo(this.platoVentaManualElegido());
         },
 
-        // Platos que se pueden restar desde la venta manual de un producto:
-        // los que tienen fila propia y cuelgan de él, y los de la carta vinculados en Relación de platos.
+        resumenOctavoVentaManual() {
+          const octPierna = this.redondear3(this.octavosStockCorte('piernas'));
+          const octPecho = this.redondear3(this.octavosStockCorte('pechugas'));
+          const octTotal = this.redondear3(this.stockCuadro('octavo_pollo', 'crudo'));
+          const platosIds = ['arroz_con_pollo', 'pollo_olla', 'caldo_pollo'];
+          let platosPiernaCrudo = 0;
+          let platosPiernaCocido = 0;
+          let platosPechoCrudo = 0;
+          let platosPechoCocido = 0;
+          platosIds.forEach((pid) => {
+            const r = this.filaReal(pid);
+            platosPiernaCrudo += this.stockOctavoPlato(pid, 'piernas', 'crudo');
+            platosPechoCrudo += this.stockOctavoPlato(pid, 'pechugas', 'crudo');
+            if (r && r.tieneCocido) {
+              platosPiernaCocido += this.stockOctavoPlato(pid, 'piernas', 'cocido');
+              platosPechoCocido += this.stockOctavoPlato(pid, 'pechugas', 'cocido');
+            }
+          });
+          const platosPierna = this.redondear3(platosPiernaCrudo + platosPiernaCocido);
+          const platosPecho = this.redondear3(platosPechoCrudo + platosPechoCocido);
+          const totalPiernaDisp = this.redondear3(octPierna + platosPierna);
+          const totalPechoDisp = this.redondear3(octPecho + platosPecho);
+          const totalOctavosDisp = this.redondear3(octTotal + platosPierna + platosPecho);
+          const pollosEquiv = this.redondear3(totalOctavosDisp / 8);
+          const rowPierna = this.getRow('pierna');
+          const rowPecho = this.getRow('pechuga');
+          const rowPollo = this.getRow('pollo_fresco');
+          const stockPiernaPollo = rowPierna ? this.redondear3(this.calcSaldoTipo(rowPierna, 'crudo')) : 0;
+          const stockPechoPollo = rowPecho ? this.redondear3(this.calcSaldoTipo(rowPecho, 'crudo')) : 0;
+          const stockPolloFresco = rowPollo ? this.redondear3(this.calcSaldoTipo(rowPollo, 'crudo')) : 0;
+          return {
+            octPierna,
+            octPecho,
+            octTotal,
+            platosPierna,
+            platosPecho,
+            platosPiernaCrudo: this.redondear3(platosPiernaCrudo),
+            platosPiernaCocido: this.redondear3(platosPiernaCocido),
+            platosPechoCrudo: this.redondear3(platosPechoCrudo),
+            platosPechoCocido: this.redondear3(platosPechoCocido),
+            totalPiernaDisp,
+            totalPechoDisp,
+            totalOctavosDisp,
+            pollosEquiv,
+            totalDisponiblePierna: totalPiernaDisp,
+            octavosLibresPierna: octPierna,
+            enPlatosPiernaCrudo: this.redondear3(platosPiernaCrudo),
+            enPlatosPiernaCocido: this.redondear3(platosPiernaCocido),
+            stockPiernaPollo,
+            totalDisponiblePecho: totalPechoDisp,
+            octavosLibresPecho: octPecho,
+            enPlatosPechoCrudo: this.redondear3(platosPechoCrudo),
+            enPlatosPechoCocido: this.redondear3(platosPechoCocido),
+            stockPechoPollo,
+            stockPolloFresco,
+            totalOctavosDisponibles: totalOctavosDisp,
+            piezasPiernaReserva: stockPiernaPollo,
+            piezasPechoReserva: stockPechoPollo,
+            polloFrescoReserva: stockPolloFresco
+          };
+        },
+
+
+        calculoOctavoVentaManual() {
+          const r = this.resumenOctavoVentaManual();
+          const corte = this.ventaManualCorte;
+          if (corte !== 'piernas' && corte !== 'pechugas') return '';
+          const porPlato = this.ventaManualModo === 'plato';
+          let n = Number(porPlato ? this.ventaManualPlatos : this.ventaManualCantidad) || 0;
+          if (porPlato) {
+            const p = this.platoVentaManualElegido();
+            n = this.redondear3(n * (p ? (Number(p.cantidad) || 1) : 1));
+          }
+          const disp = corte === 'piernas' ? r.totalDisponiblePierna : r.totalDisponiblePecho;
+          const nombre = corte === 'piernas' ? 'pierna' : 'pecho';
+          const queda = this.redondear3(disp - n);
+          return 'Cálculo: ' + this.formatNum(n) + ' octavos de ' + nombre + '. Hay ' + this.formatNum(disp) + '. Quedan ' + this.formatNum(queda) + '.';
+        },
+
         platosVentaManual(row) {
           if (!row) return [];
           const out = [];
@@ -10760,7 +11511,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.platosVentaManual(this.ventaManualFila).find((p) => p.key === this.ventaManualPlatoKey) || null;
         },
 
-        // Partes que restaría la venta manual por plato, sin guardar. Sirve para la vista previa y para guardar.
         partesVentaManualPlato() {
           const row = this.ventaManualFila;
           const p = this.platoVentaManualElegido();
@@ -10788,9 +11538,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         textoPartesVentaManual() {
-          return this.partesVentaManualPlato().map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
+          const row = this.ventaManualFila;
+          if (!row) return '';
+          const porPlato = this.ventaManualModo === 'plato';
+          let partes = [];
+          if (porPlato) {
+            partes = this.partesVentaManualPlato();
+          } else {
+            const n = Number(this.ventaManualCantidad) || 0;
+            const clave = this.claveDeFila[row.id];
+            if (n > 0 && clave) partes = this.repartirVentaManual(clave, row, n);
+          }
+          const corteTag = this.ventaManualPideCorte() && this.ventaManualCorte
+            ? (' [' + (this.ventaManualCorte === 'piernas' ? 'Pierna' : 'Pecho') + ']')
+            : '';
+          return partes.map((p) => p.nombre + corteTag + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
         },
-
 
         async confirmarVentaManual() {
           const row = this.ventaManualFila;
@@ -10832,8 +11595,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             }
             this.ventaManualAbierta = false;
             this.toastMessage = porPlato
-              ? ('Se restaron ' + n + ' × ' + plato.nombre + '.')
-              : ('Se restaron ' + n + ' de ' + row.nombre + '.');
+              ? ('Se restaron ' + n + ' × ' + plato.nombre + (marca ? ' (' + this.marcaCorte(this.ventaManualCorte) + ')' : '') + '.')
+              : ('Se restaron ' + n + ' de ' + row.nombre + (marca ? ' (' + this.marcaCorte(this.ventaManualCorte) + ')' : '') + '.');
             await this.cargarKardex();
           } catch (e) {
             this.toastMessage = e.message || 'No se pudo restar';
@@ -10842,9 +11605,638 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
+
+        opcionesVE() {
+          return (typeof window !== 'undefined' && window.VentaEspecialOpciones) || null;
+        },
+
+        metaPlatoVentaEspecial(nombre) {
+          const lib = this.opcionesVE();
+          const carta = (this.platosCarta || []).find((c) => this.norm(c && c.nombre) === this.norm(nombre));
+          if (!lib) return { esPacha: false, esLena: false, saboresPorPlato: 0 };
+          return lib.metaPlato(nombre, carta && carta.saboresPorUnidad);
+        },
+
+        esIngredienteSaborVE(ing) {
+          const lib = this.opcionesVE();
+          return !!(lib && lib.esIngredienteSabor(ing));
+        },
+
+        corteLenaDeVE(ing) {
+          const lib = this.opcionesVE();
+          return lib ? lib.corteLenaDe(ing) : '';
+        },
+
+        pideCorteLenaVE(nombre, items) {
+          const meta = this.metaPlatoVentaEspecial(nombre);
+          if (!meta.esLena) return false;
+          const cortes = (items || []).map((i) => this.corteLenaDeVE(i));
+          return cortes.indexOf('piernas') >= 0 && cortes.indexOf('pechugas') >= 0;
+        },
+
+        cantidadDescargaIngredienteVE(platoKey, nombre, ing, cantPlatos) {
+          const lib = this.opcionesVE();
+          if (!lib) return this.redondear3((Number(cantPlatos) || 0) * (Number(ing.factor) || 1));
+          const map = ((this.ventaEspecial.saboresPlato || {})[platoKey]) || {};
+          const corte = (this.ventaEspecial.cortePlato || {})[platoKey] || 'piernas';
+          return lib.cantidadDescarga({
+            cantPlatos: cantPlatos,
+            factor: ing.factor,
+            ing: ing,
+            meta: this.metaPlatoVentaEspecial(nombre),
+            corteElegido: corte,
+            saboresElegidos: Number(map[ing.rowId]) || 0
+          });
+        },
+
+        avisoOpcionesVentaEspecial() {
+          const lib = this.opcionesVE();
+          if (!lib) return '';
+          const map = (this.ventaEspecial && this.ventaEspecial.cantidadesPlato) || {};
+          const relaciones = (this.config && this.config.relaciones) || [];
+          const keys = Object.keys(map);
+          for (let i = 0; i < keys.length; i++) {
+            const platoKey = keys[i];
+            const cant = Number(map[platoKey]) || 0;
+            if (!(cant > 0)) continue;
+            let nombre = platoKey;
+            const items = [];
+            relaciones.forEach((rel) => {
+              if (!rel || this.norm(rel.plato) !== platoKey) return;
+              nombre = rel.plato;
+              const row = this.filaDeRubroRelacion(rel.rubro);
+              if (!row) return;
+              items.push({ rowId: row.id, complemento: rel.complemento, nota: rel.complemento, productoNombre: row.nombre, rubro: rel.rubro, unidadNota: rel.unidadNota });
+            });
+            const meta = this.metaPlatoVentaEspecial(nombre);
+            const sabMap = ((this.ventaEspecial.saboresPlato || {})[platoKey]) || {};
+            const got = Object.keys(sabMap).reduce((a, k) => a + (Number(sabMap[k]) || 0), 0);
+            const aviso = lib.avisoPlato({ nombre: nombre, cant: cant, meta: meta, saboresElegidos: got });
+            if (aviso) return aviso;
+          }
+          return '';
+        },
+
+        saborElegidoVE(platoKey, rowId) {
+          const map = ((this.ventaEspecial.saboresPlato || {})[platoKey]) || {};
+          return Number(map[rowId]) || 0;
+        },
+
+        textoSaboresPlatoVE(plato) {
+          const cant = this.cantidadPlatoVentaEspecial(plato.key);
+          const need = (Number(plato.saboresPorPlato) || 1) * cant;
+          const map = ((this.ventaEspecial.saboresPlato || {})[plato.key]) || {};
+          const got = Object.keys(map).reduce((a, k) => a + (Number(map[k]) || 0), 0);
+          return got + ' / ' + need + ' sabores';
+        },
+
+        moverSaborPlatoVE(platoKey, rowId, delta, porPlato) {
+          const cant = this.cantidadPlatoVentaEspecial(platoKey);
+          const tope = Math.max(1, Number(porPlato) || 1) * Math.max(1, cant);
+          const mapAll = Object.assign({}, this.ventaEspecial.saboresPlato || {});
+          const map = Object.assign({}, mapAll[platoKey] || {});
+          const actual = Number(map[rowId]) || 0;
+          const suma = Object.keys(map).reduce((a, k) => a + (Number(map[k]) || 0), 0);
+          if (delta > 0 && suma >= tope) return;
+          const next = Math.max(0, actual + delta);
+          if (next) map[rowId] = next;
+          else delete map[rowId];
+          mapAll[platoKey] = map;
+          this.ventaEspecial.saboresPlato = mapAll;
+        },
+
+        // ===== Modal Venta Especial (estilo Bloqueo: Productos vs Platos vinculados) =====
         abrirVentaEspecial() {
+          this.asegurarRelacionesDeTabla();
           this.eventos.forEach((ev) => { ev.usar = ''; });
+          this.ventaEspecial = Object.assign({}, this.ventaEspecial, {
+            tab: 'platos',
+            busqueda: '',
+            familia: (this.ventaEspecial && this.ventaEspecial.familia) || 'todas',
+            guardando: false
+          });
           this.ventaEspecialAbierta = true;
+        },
+
+        cerrarVentaEspecial() {
+          this.ventaEspecialAbierta = false;
+        },
+
+        cambiarTabVentaEspecial(tab) {
+          this.ventaEspecial.tab = tab;
+          this.ventaEspecial.busqueda = '';
+        },
+
+        limpiarSeleccionVentaEspecial() {
+          this.ventaEspecial.cantidadesProducto = {};
+          this.ventaEspecial.cantidadesPlato = {};
+          this.ventaEspecial.modoTipoProducto = {};
+          this.ventaEspecial.corteProducto = {};
+          this.ventaEspecial.cortePlato = {};
+          this.ventaEspecial.modoIngredientePlato = {};
+          this.ventaEspecial.saboresPlato = {};
+        },
+
+        usarMotivoVentaEspecial(m) {
+          this.ventaEspecial.motivo = this.ventaEspecial.motivo === m ? '' : m;
+        },
+
+        conteoProductosVentaEspecial() {
+          const map = (this.ventaEspecial && this.ventaEspecial.cantidadesProducto) || {};
+          return Object.keys(map).filter((k) => Number(map[k]) > 0).length;
+        },
+
+        conteoPlatosVinculadosVentaEspecial() {
+          const map = (this.ventaEspecial && this.ventaEspecial.cantidadesPlato) || {};
+          return Object.keys(map).filter((k) => Number(map[k]) > 0).length;
+        },
+
+        totalPlatosVinculadosVentaEspecial() {
+          const set = new Set();
+          ((this.config && this.config.relaciones) || []).forEach((rel) => {
+            const n = this.norm(rel && rel.plato);
+            if (n) set.add(n);
+          });
+          return set.size;
+        },
+
+        familiaDeFilaConfig(row) {
+          const fam = this.familiaDeProducto(row);
+          return (fam && fam.id) || 'suelto';
+        },
+
+        itemProductoVentaEspecial(row, extra) {
+          const base = this.itemBloqueo(row, extra);
+          const tipos = base.tipos || ['crudo'];
+          const esOctavo = this.esFilaOctavo(row) || this.esPlatoOctavo(row);
+          return Object.assign(base, {
+            row,
+            familia: this.familiaDeFilaConfig(row),
+            tieneCrudo: tipos.indexOf('crudo') >= 0,
+            tieneCocido: tipos.indexOf('cocido') >= 0,
+            esOctavo,
+            stockPierna: esOctavo ? this.octavosStockCorte('piernas') : 0,
+            stockPecho: esOctavo ? this.octavosStockCorte('pechugas') : 0
+          });
+        },
+
+        listaProductosVentaEspecial() {
+          const q = this.norm((this.ventaEspecial && this.ventaEspecial.busqueda) || '').trim();
+          const fam = (this.ventaEspecial && this.ventaEspecial.familia) || 'todas';
+          const pasaFamilia = (row) => fam === 'todas' || this.familiaDeFilaConfig(row) === fam;
+          const out = [];
+          const enGrupo = new Set();
+          this.gruposBloqueoPorPlato().forEach((gid) => {
+            const padre = this.filaReal(gid);
+            if (!padre) return;
+            enGrupo.add(padre.id);
+            const hijos = this.filasTransformacionDe(padre).filter((h) => h && this.claveDeFila[h.id]);
+            hijos.forEach((h) => enGrupo.add(h.id));
+            const todosCorte = [padre].concat(hijos).filter(pasaFamilia);
+            if (!todosCorte.length) return;
+            const coincideGrupo = !q || this.norm(padre.nombre).includes(q);
+            const visibles = coincideGrupo
+              ? todosCorte
+              : todosCorte.filter((h) => this.norm(h.nombre + ' ' + (h.detalle || '')).includes(q));
+            if (!visibles.length) return;
+            out.push({
+              kind: 'grupo',
+              id: gid,
+              nombre: padre.nombre,
+              unidad: padre.unidad || 'unid',
+              stock: this.redondear3(this.saldoRealColumna(padre)),
+              cuantos: hijos.length
+            });
+            visibles.forEach((h) => {
+              out.push(this.itemProductoVentaEspecial(h, {
+                enGrupo: true,
+                grupoNombre: padre.nombre
+              }));
+            });
+          });
+          const sueltas = (this.rows || [])
+            .filter((r) => r && r.id && this.claveDeFila[r.id] && !enGrupo.has(r.id))
+            .filter(pasaFamilia)
+            .filter((r) => !q || this.norm(r.nombre + ' ' + (r.detalle || '')).includes(q))
+            .map((r) => this.itemProductoVentaEspecial(r))
+            .sort((a, b) => b.stock - a.stock || String(a.nombre).localeCompare(String(b.nombre), 'es'))
+            .slice(0, 60);
+          return out.concat(sueltas);
+        },
+
+        cantidadProductoVentaEspecial(rowId) {
+          return Number(this.ventaEspecial && this.ventaEspecial.cantidadesProducto && this.ventaEspecial.cantidadesProducto[rowId]) || 0;
+        },
+
+        fijarCantidadProductoVentaEspecial(rowId, val) {
+          const n = Math.max(0, this.redondear3(Number(val) || 0));
+          const map = Object.assign({}, (this.ventaEspecial && this.ventaEspecial.cantidadesProducto) || {});
+          if (n > 0) map[rowId] = n;
+          else delete map[rowId];
+          this.ventaEspecial.cantidadesProducto = map;
+        },
+
+        modoTipoProductoVentaEspecial(idOrRow) {
+          const row = typeof idOrRow === 'string' ? this.getRow(idOrRow) : idOrRow;
+          if (!row || !row.id) return 'crudo';
+          if (row.soloCocido) return 'cocido';
+          if (!row.tieneCocido) return 'crudo';
+          const m = this.ventaEspecial && this.ventaEspecial.modoTipoProducto && this.ventaEspecial.modoTipoProducto[row.id];
+          return m || 'auto';
+        },
+
+        fijarModoTipoProductoVentaEspecial(rowId, modo) {
+          this.ventaEspecial.modoTipoProducto = Object.assign({}, (this.ventaEspecial && this.ventaEspecial.modoTipoProducto) || {}, { [rowId]: modo });
+        },
+
+        corteProductoVentaEspecial(rowId) {
+          const c = this.ventaEspecial && this.ventaEspecial.corteProducto && this.ventaEspecial.corteProducto[rowId];
+          return c || 'piernas';
+        },
+
+        fijarCorteProductoVentaEspecial(rowId, corte) {
+          this.ventaEspecial.corteProducto = Object.assign({}, (this.ventaEspecial && this.ventaEspecial.corteProducto) || {}, { [rowId]: corte });
+        },
+
+        repartirDescargaProductoModo(row, cantidad, modoPref) {
+          const n = this.redondear3(Number(cantidad) || 0);
+          if (!row || !(n > 0)) return [];
+          const clave = this.claveDeFila[row.id];
+          if (!clave) return [];
+          const modo = modoPref || this.modoTipoProductoVentaEspecial(row);
+          const buildPart = (tipo, cant, disp) => ({
+            rowId: row.id,
+            rubro: clave,
+            nombre: row.nombre,
+            productoNombre: row.nombre,
+            unidad: row.unidad || 'unid',
+            tipo,
+            cantidad: this.redondear3(cant),
+            stockActual: disp,
+            stockResultante: this.redondear3(disp - cant),
+            stockAntes: disp,
+            stockDespues: this.redondear3(disp - cant)
+          });
+          if (row.soloCocido || clave === 'pierna-lena' || clave === 'trozo-panceta') {
+            const disp = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
+            return [buildPart('cocido', n, disp)];
+          }
+          if (!row.tieneCocido || modo === 'crudo') {
+            const disp = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+            return [buildPart('crudo', n, disp)];
+          }
+          if (modo === 'cocido') {
+            const disp = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
+            return [buildPart('cocido', n, disp)];
+          }
+          // auto: primero Cocido disponible y luego Crudo
+          const dispCocido = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
+          const dispCrudo = Math.max(0, this.calcSaldoTipo(row, 'crudo'));
+          const partes = [];
+          const tomaCocido = Math.min(n, dispCocido);
+          if (tomaCocido > 0) {
+            partes.push(buildPart('cocido', tomaCocido, dispCocido));
+          }
+          const falta = this.redondear3(n - tomaCocido);
+          if (falta > 0) {
+            partes.push(buildPart('crudo', falta, dispCrudo));
+          }
+          return partes;
+        },
+
+        previewDescargaProductoVentaEspecial(itemOrRow) {
+          const row = (itemOrRow && itemOrRow.row) ? itemOrRow.row : (typeof itemOrRow === 'string' ? this.getRow(itemOrRow) : this.getRow(itemOrRow && itemOrRow.id) || itemOrRow);
+          const n = this.cantidadProductoVentaEspecial(row && row.id);
+          if (!row || !row.id || !(n > 0)) return [];
+          const partes = this.repartirDescargaProductoModo(row, n, this.modoTipoProductoVentaEspecial(row));
+          const pideCorte = this.esFilaOctavo(row) || this.esPlatoOctavo(row);
+          const corte = pideCorte ? this.corteProductoVentaEspecial(row.id) : '';
+          return partes.map((p) => Object.assign({}, p, {
+            key: p.rowId + ':' + p.tipo,
+            corte
+          }));
+        },
+
+        filaDeRubroRelacion(rubro) {
+          if (!rubro) return null;
+          const nr = this.norm(rubro).trim();
+          if (!nr) return null;
+          const rDirecto = this.filaPorClave(rubro) || this.getRow(rubro);
+          if (rDirecto && rDirecto.id) return rDirecto;
+          const alias = {
+            'filete-pollo': 'filete',
+            'filete de pollo': 'filete',
+            'filete-junior': 'filete',
+            'pechuga-pollo': 'pechuga',
+            'pechuga de pollo': 'pechuga',
+            'pecho de pollo': 'pechuga',
+            'pierna-pollo': 'pierna',
+            'pierna de pollo': 'pierna',
+            'arroz-verde': 'arroz_verde',
+            'arroz verde': 'arroz_verde',
+            'arroz verde + pato': 'arroz_verde',
+            'arroz-blanco': 'arroz_blanco',
+            'arroz blanco': 'arroz_blanco',
+            'arroz-beata': 'arroz_beata',
+            'arroz a la beata': 'arroz_beata',
+            'octavo-pollo': 'octavo_pollo',
+            'octavo de pollo': 'octavo_pollo',
+            'trozo-panceta': 'trozo_panceta',
+            'trozo de panceta': 'trozo_panceta',
+            'chicharron-chancho': 'chicharron_chancho',
+            'chicharron de chancho': 'chicharron_chancho',
+            'pieza-pescado': 'pieza_pescado',
+            'pieza-pota': 'pieza_pota',
+            'pechuga-pato': 'pechuga_pato',
+            'pierna-pato': 'pierna_pato'
+          };
+          if (alias[nr]) {
+            const rAlias = this.getRow(alias[nr]);
+            if (rAlias && rAlias.id) return rAlias;
+          }
+          const rows = this.rows || [];
+          for (let i = 0; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r || !r.id) continue;
+            const clave = this.claveDeFila[r.id] || r.id;
+            const vista = this.nombreVistaProductoRelacion ? this.nombreVistaProductoRelacion(r) : r.nombre;
+            const candidatos = (this.rubrosRelacionDeFila ? this.rubrosRelacionDeFila(r.id) : []).concat([
+              r.id,
+              r.nombre,
+              vista,
+              clave
+            ]);
+            for (let j = 0; j < candidatos.length; j++) {
+              if (candidatos[j] && this.norm(candidatos[j]).trim() === nr) {
+                return r;
+              }
+            }
+          }
+          return null;
+        },
+
+        listaPlatosVinculadosVentaEspecial() {
+          const relaciones = (this.config && Array.isArray(this.config.relaciones)) ? this.config.relaciones : [];
+          const fam = (this.ventaEspecial && this.ventaEspecial.familia) || 'todas';
+          const grupos = new Map();
+          relaciones.forEach((rel) => {
+            if (!rel || !rel.plato || !rel.rubro) return;
+            const nombrePlato = String(rel.plato).trim();
+            const key = this.norm(nombrePlato);
+            if (!key) return;
+            const row = rel.rubro ? this.filaDeRubroRelacion(rel.rubro) : null;
+            if (!grupos.has(key)) {
+              const carta = (this.platosCarta || []).find((c) => this.norm(c.nombre) === key);
+              grupos.set(key, {
+                key,
+                nombre: nombrePlato,
+                familia: (carta && (carta.familia || carta.categoria)) || '',
+                relacionesMap: new Map()
+              });
+            }
+            const g = grupos.get(key);
+            const rKey = rel.id != null ? ('rel:' + rel.id) : ((row && row.id) || this.norm(rel.rubro));
+            const factor = Number(rel.cantidad) > 0 ? Number(rel.cantidad) : 1;
+            if (!g.relacionesMap.has(rKey)) {
+              g.relacionesMap.set(rKey, {
+                relId: rel.id != null ? rel.id : rKey,
+                row,
+                rowId: row ? row.id : rKey,
+                rubro: (row && this.claveDeFila[row.id]) || rel.rubro || '',
+                productoNombre: (row && row.nombre) || rel.rubro || 'Producto',
+                factor,
+                unidad: rel.unidadNota || (row && row.unidad) || 'unid',
+                complemento: rel.complemento || '',
+                unidadNota: rel.unidadNota || ''
+              });
+            }
+          });
+
+          const q = this.norm((this.ventaEspecial && this.ventaEspecial.busqueda) || '');
+          const lista = [];
+          grupos.forEach((g) => {
+            const items = Array.from(g.relacionesMap.values());
+            if (!items.length) return;
+            if (fam !== 'todas' && !items.some((i) => i.row && this.familiaDeFilaConfig(i.row) === fam)) return;
+            const textoBusqueda = this.norm(
+              g.nombre + ' ' + g.familia + ' ' + items.map((i) => i.productoNombre + ' ' + i.complemento).join(' ')
+            );
+            if (q && !textoBusqueda.includes(q)) return;
+            const cantPlatos = this.cantidadPlatoVentaEspecial(g.key);
+            const metaPlato = this.metaPlatoVentaEspecial(g.nombre);
+            const usaOctavo = items.some((i) => this.esFilaOctavo(i.row) || this.esPlatoOctavo(i.row)) || this.esPlatoOctavo({ nombre: g.nombre });
+            const pideCorteLena = this.pideCorteLenaVE(g.nombre, items);
+            const corteElegido = (usaOctavo || pideCorteLena) ? this.cortePlatoVentaEspecial(g.key) : '';
+            const ingredientes = items.map((ing) => {
+              const totalRestar = cantPlatos > 0
+                ? this.cantidadDescargaIngredienteVE(g.key, g.nombre, ing, cantPlatos)
+                : ing.factor;
+              const modoPref = ing.row ? this.modoIngredientePlatoVE(g.key, ing.rowId) : 'crudo';
+              const partes = ing.row ? this.repartirDescargaProductoModo(ing.row, totalRestar, modoPref) : [];
+              const tipos = ing.row ? this.tiposDe(ing.row) : [];
+              const tieneCrudo = tipos.indexOf('crudo') >= 0;
+              const tieneCocido = tipos.indexOf('cocido') >= 0;
+              const stockCrudo = tieneCrudo ? Math.max(0, this.calcSaldoTipo(ing.row, 'crudo')) : 0;
+              const stockCocido = tieneCocido ? Math.max(0, this.calcSaldoTipo(ing.row, 'cocido')) : 0;
+              const stockTotal = this.redondear3(stockCrudo + stockCocido);
+              const descargaCocido = this.redondear3(partes.filter((p) => p.tipo === 'cocido').reduce((a, p) => a + p.cantidad, 0));
+              const descargaCrudo = this.redondear3(partes.filter((p) => p.tipo === 'crudo').reduce((a, p) => a + p.cantidad, 0));
+              const modoEfectivo = descargaCocido > 0 ? 'cocido' : 'crudo';
+              const partesTexto = partes.map((pt) => '−' + this.formatNum(pt.cantidad) + ' ' + (pt.tipo === 'cocido' ? 'Cocido' : 'Crudo') + ' (Queda ' + this.formatNum(pt.stockDespues) + ')').join(' · ');
+              return {
+                key: g.key + ':' + ing.relId,
+                relId: ing.relId,
+                rowId: ing.rowId,
+                row: ing.row,
+                rubro: ing.rubro,
+                nombreProducto: ing.productoNombre,
+                productoNombre: ing.productoNombre,
+                cantidadPorPlato: ing.factor,
+                factor: ing.factor,
+                unidad: ing.unidad,
+                nota: ing.complemento,
+                corteLena: this.corteLenaDeVE(ing),
+                complemento: ing.complemento,
+                tieneCrudo,
+                tieneCocido,
+                soloCocido: !!(ing.row && ing.row.soloCocido),
+                modoElegido: modoPref,
+                modoEfectivo,
+                stockCrudo,
+                stockCocido,
+                stockTotal,
+                descargaCocido,
+                descargaCrudo,
+                textoDescarga: partesTexto,
+                totalRestar: cantPlatos > 0 ? this.redondear3(cantPlatos * ing.factor) : ing.factor,
+                stockResultanteTotal: this.redondear3(stockTotal - (cantPlatos > 0 ? cantPlatos * ing.factor : ing.factor)),
+                partes: partes.map((pt) => Object.assign({}, pt, {
+                  corte: (ing.row && (this.esFilaOctavo(ing.row) || this.esPlatoOctavo(ing.row) || this.corteLenaDeVE(ing))) ? corteElegido : ''
+                }))
+              };
+            });
+            const resumenReceta = ingredientes.map((i) => this.formatNum(i.factor) + ' ' + i.unidad + ' de ' + i.productoNombre).join(' + ');
+            lista.push({
+              key: g.key,
+              nombre: g.nombre,
+              familia: g.familia,
+              resumenReceta,
+              pideCorteOctavo: usaOctavo,
+              pideCorteLena,
+              pideSabores: !!(metaPlato.saboresPorPlato > 0 && ingredientes.some((i) => this.esIngredienteSaborVE(i))),
+              saboresPorPlato: metaPlato.saboresPorPlato,
+              sabores: ingredientes.filter((i) => this.esIngredienteSaborVE(i)).map((i) => ({
+                rowId: i.rowId,
+                nombre: String(i.nota || '').replace(/^sabor:\s*/i, '') || i.nombreProducto,
+                stock: i.stockTotal
+              })),
+              usaOctavo,
+              corteElegido,
+              ingredientes
+            });
+          });
+          // Ordenar: primero los platos con múltiples productos (como Arroz con pollo) y los seleccionados
+          lista.sort((a, b) => {
+            const ca = this.cantidadPlatoVentaEspecial(a.key) > 0 ? 1 : 0;
+            const cb = this.cantidadPlatoVentaEspecial(b.key) > 0 ? 1 : 0;
+            if (ca !== cb) return cb - ca;
+            if (a.ingredientes.length !== b.ingredientes.length) return b.ingredientes.length - a.ingredientes.length;
+            return a.nombre.localeCompare(b.nombre, 'es');
+          });
+          return lista;
+        },
+
+        cantidadPlatoVentaEspecial(platoKey) {
+          return Number(this.ventaEspecial && this.ventaEspecial.cantidadesPlato && this.ventaEspecial.cantidadesPlato[platoKey]) || 0;
+        },
+
+        fijarCantidadPlatoVentaEspecial(platoKey, val) {
+          const n = Math.max(0, Math.round(Number(val) || 0));
+          const map = Object.assign({}, (this.ventaEspecial && this.ventaEspecial.cantidadesPlato) || {});
+          if (n > 0) map[platoKey] = n;
+          else delete map[platoKey];
+          this.ventaEspecial.cantidadesPlato = map;
+        },
+
+        cortePlatoVentaEspecial(platoKey) {
+          const c = this.ventaEspecial && this.ventaEspecial.cortePlato && this.ventaEspecial.cortePlato[platoKey];
+          return c || 'piernas';
+        },
+
+        fijarCortePlatoVentaEspecial(platoKey, corte) {
+          this.ventaEspecial.cortePlato = Object.assign({}, (this.ventaEspecial && this.ventaEspecial.cortePlato) || {}, { [platoKey]: corte });
+        },
+
+        modoIngredientePlatoVE(platoKey, rowOrId) {
+          const row = typeof rowOrId === 'string' ? this.getRow(rowOrId) : rowOrId;
+          if (!row || !row.id) return 'crudo';
+          if (row.soloCocido) return 'cocido';
+          if (!row.tieneCocido) return 'crudo';
+          const k = platoKey + ':' + row.id;
+          const m = this.ventaEspecial && this.ventaEspecial.modoIngredientePlato && this.ventaEspecial.modoIngredientePlato[k];
+          return m || 'auto';
+        },
+
+        fijarModoIngredientePlatoVE(platoKey, rowId, modo) {
+          const k = platoKey + ':' + rowId;
+          this.ventaEspecial.modoIngredientePlato = Object.assign({}, (this.ventaEspecial && this.ventaEspecial.modoIngredientePlato) || {}, { [k]: modo });
+        },
+
+        resumenVentaEspecial() {
+          const map = new Map();
+          const operaciones = [];
+          const acumular = (parte, origenLabel) => {
+            if (!parte || !(parte.cantidad > 0)) return;
+            const k = parte.rowId + '|' + parte.tipo + '|' + (parte.corte || '');
+            const row = this.getRow(parte.rowId);
+            const stockActual = row ? Math.max(0, this.calcSaldoTipo(row, parte.tipo)) : parte.stockActual;
+            if (!map.has(k)) {
+              map.set(k, {
+                key: k,
+                rowId: parte.rowId,
+                rubro: parte.rubro,
+                nombre: parte.productoNombre || parte.nombre,
+                productoNombre: parte.productoNombre || parte.nombre,
+                unidad: parte.unidad || 'unid',
+                tipo: parte.tipo,
+                corte: parte.corte ? (parte.corte === 'piernas' ? 'Pierna' : 'Pecho') : '',
+                corteRaw: parte.corte || '',
+                cantidad: 0,
+                stockActual,
+                stockResultante: stockActual,
+                stockAntes: stockActual,
+                stockDespues: stockActual,
+                origenes: [],
+                origenTexto: ''
+              });
+            }
+            const item = map.get(k);
+            item.cantidad = this.redondear3(item.cantidad + parte.cantidad);
+            item.stockResultante = this.redondear3(item.stockActual - item.cantidad);
+            item.stockDespues = item.stockResultante;
+            if (origenLabel && item.origenes.indexOf(origenLabel) < 0) item.origenes.push(origenLabel);
+            item.origenTexto = item.origenes.join(' · ');
+            operaciones.push(Object.assign({}, parte, { origenLabel }));
+          };
+
+          // 1. Productos directos seleccionados
+          const mapProd = (this.ventaEspecial && this.ventaEspecial.cantidadesProducto) || {};
+          Object.keys(mapProd).forEach((rowId) => {
+            const cant = Number(mapProd[rowId]) || 0;
+            if (!(cant > 0)) return;
+            const row = this.getRow(rowId);
+            if (!row) return;
+            const partes = this.previewDescargaProductoVentaEspecial(row);
+            partes.forEach((pt) => {
+              acumular(pt, 'Directo: ' + row.nombre);
+            });
+          });
+
+          // 2. Platos vinculados seleccionados
+          const mapPlatos = (this.ventaEspecial && this.ventaEspecial.cantidadesPlato) || {};
+          if (Object.keys(mapPlatos).some((k) => Number(mapPlatos[k]) > 0)) {
+            const relaciones = (this.config && Array.isArray(this.config.relaciones)) ? this.config.relaciones : [];
+            Object.keys(mapPlatos).forEach((platoKey) => {
+              const cantPlatos = Number(mapPlatos[platoKey]) || 0;
+              if (!(cantPlatos > 0)) return;
+              let nombrePlato = platoKey;
+              relaciones.forEach((rel) => {
+                if (!rel || this.norm(rel.plato) !== platoKey) return;
+                nombrePlato = rel.plato;
+                const row = rel.rubro ? this.filaDeRubroRelacion(rel.rubro) : null;
+                if (!row || !row.id) return;
+                const factor = Number(rel.cantidad) > 0 ? Number(rel.cantidad) : 1;
+                const ingMini = { rowId: row.id, factor: factor, complemento: rel.complemento, nota: rel.complemento, productoNombre: row.nombre, rubro: rel.rubro, unidadNota: rel.unidadNota };
+                const totalRestar = this.cantidadDescargaIngredienteVE(platoKey, nombrePlato, ingMini, cantPlatos);
+                if (!(totalRestar > 0)) return;
+                const modoPref = this.modoIngredientePlatoVE(platoKey, row.id);
+                const partes = this.repartirDescargaProductoModo(row, totalRestar, modoPref);
+                const pideCorte = this.esFilaOctavo(row) || this.esPlatoOctavo(row) || this.esPlatoOctavo({ nombre: nombrePlato }) || !!this.corteLenaDeVE(ingMini);
+                const corte = pideCorte ? this.cortePlatoVentaEspecial(platoKey) : '';
+                partes.forEach((pt) => {
+                  acumular(
+                    Object.assign({}, pt, { corte: (this.esFilaOctavo(row) || this.esPlatoOctavo(row) || this.corteLenaDeVE(ingMini)) ? corte : '' }),
+                    nombrePlato + ' ×' + this.formatNum(cantPlatos)
+                  );
+                });
+              });
+            });
+          }
+
+          const items = Array.from(map.values());
+          const totalUnidades = this.redondear3(items.reduce((a, it) => a + it.cantidad, 0));
+          const totalCrudo = this.redondear3(items.filter((i) => i.tipo === 'crudo').reduce((a, i) => a + i.cantidad, 0));
+          const totalCocido = this.redondear3(items.filter((i) => i.tipo === 'cocido').reduce((a, i) => a + i.cantidad, 0));
+          const totalLineas = this.conteoProductosVentaEspecial() + this.conteoPlatosVinculadosVentaEspecial();
+          return {
+            items,
+            operaciones,
+            totalItems: items.length,
+            totalLineas,
+            totalCrudo,
+            totalCocido,
+            totalUnidades
+          };
         },
 
         async apartarEvento(ev) {
@@ -10874,12 +12266,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         async aplicarVentaEspecial() {
-          const lineas = this.eventos.filter((ev) => Number(ev.usar) > 0);
-          if (!lineas.length) {
-            this.toastMessage = 'Escribe la cantidad usada de al menos un producto de evento.';
+          const resumen = this.resumenVentaEspecial();
+          const lineasEvento = (this.eventos || []).filter((ev) => Number(ev.usar) > 0);
+          if (!resumen.items.length && !lineasEvento.length) {
+            this.toastMessage = 'Selecciona al menos un Producto o Plato vinculado para aplicar la Venta Especial.';
             return;
           }
-          for (const ev of lineas) {
+          const avisoOpcion = this.avisoOpcionesVentaEspecial();
+          if (avisoOpcion) {
+            this.toastMessage = avisoOpcion;
+            return;
+          }
+          for (const ev of lineasEvento) {
             const n = Number(ev.usar);
             if (!Number.isFinite(n) || n <= 0) continue;
             if (n > Number(ev.disponible)) {
@@ -10887,22 +12285,48 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               return;
             }
           }
-          for (const ev of lineas) {
-            const n = Number(ev.usar);
-            try {
-              await this.paso(ev.clave, 'cocido', n, 'Venta especial', 'egreso');
-            } catch (e) {
-              this.toastMessage = e.message || 'No se guardó la venta especial de ' + ev.nombre + '.';
-              return;
+          this.ventaEspecial.guardando = true;
+          const lote = this.loteVentaManual();
+          const notaUsuario = String((this.ventaEspecial && this.ventaEspecial.motivo) || '').trim();
+          try {
+            for (const item of resumen.items) {
+              const origenTexto = item.origenes.join(' + ');
+              const marcaCorte = item.corteRaw ? (' · ' + this.marcaCorte(item.corteRaw)) : '';
+              const motivo = 'Venta especial'
+                + (origenTexto ? (' · ' + origenTexto) : '')
+                + marcaCorte
+                + (notaUsuario ? (' · ' + notaUsuario) : '');
+              await this.paso(
+                item.rubro,
+                item.tipo,
+                item.cantidad,
+                motivo,
+                'egreso',
+                item.productoNombre + (origenTexto ? (' (' + origenTexto + ')') : ''),
+                null,
+                lote
+              );
             }
-            ev.disponible = (Number(ev.disponible) || 0) - n;
-            ev.usar = '';
+            for (const ev of lineasEvento) {
+              const n = Number(ev.usar);
+              await this.paso(ev.clave, 'cocido', n, 'Venta especial · ' + ev.nombre, 'egreso', ev.nombre, null, lote);
+              ev.disponible = (Number(ev.disponible) || 0) - n;
+              ev.usar = '';
+            }
+            const totalDesc = resumen.items.map((i) => this.formatNum(i.cantidad) + ' ' + i.productoNombre + ' (' + (i.tipo === 'cocido' ? 'Cocido' : 'Crudo') + ')').join(', ');
+            this.limpiarSeleccionVentaEspecial();
+            this.ventaEspecialAbierta = false;
+            this.playUiSound();
+            this.toastMessage = totalDesc
+              ? ('Venta especial aplicada: −' + totalDesc + '.')
+              : 'Venta especial aplicada.';
+            await this.cargarKardex();
+          } catch (e) {
+            this.toastMessage = e.message || 'No se pudo aplicar la venta especial.';
+          } finally {
+            this.ventaEspecial.guardando = false;
           }
-          this.ventaEspecialAbierta = false;
-          this.playUiSound();
-          this.toastMessage = 'Venta especial aplicada. Se restó el stock apartado para evento.';
         },
-
 
         // ===== Bloqueo de inventario =====
         abrirBloqueo() {
@@ -13905,14 +15329,47 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }).sort((a, b) => (b.crudo + b.cocido + b.venta) - (a.crudo + a.cocido + a.venta) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
         },
 
+        platosIngresoOctavo(row) {
+          const todos = this.platosDelOctavo();
+          const lista = this.esFilaOctavo(row) ? todos : todos.filter((p) => p.id === row.id);
+          return lista.map((p) => {
+            const fila = this.filaReal(p.id);
+            return {
+              id: p.id,
+              nombre: (fila && fila.nombre) || p.nombre,
+              cocido: !!p.cocido,
+              piernaCrudo: this.stockOctavoPlato(p.id, 'piernas', 'crudo'),
+              piernaCocido: p.cocido ? this.stockOctavoPlato(p.id, 'piernas', 'cocido') : 0,
+              pechoCrudo: this.stockOctavoPlato(p.id, 'pechugas', 'crudo'),
+              pechoCocido: p.cocido ? this.stockOctavoPlato(p.id, 'pechugas', 'cocido') : 0
+            };
+          });
+        },
+
+        moverOctavoIngreso(platoId, corte, tipo, delta) {
+          const n = Math.round(Number(delta) || 0);
+          if (!n) return;
+          const actual = platoId ? this.stockOctavoPlato(platoId, corte, tipo) : this.octavosStockCorte(corte);
+          const ok = platoId
+            ? this.fijarOctavoPlato(platoId, corte, tipo, actual + n)
+            : this.fijarOctavosStock(corte, actual + n);
+          if (ok === false) return;
+          const row = this.ingresoLupa && this.filaReal(this.ingresoLupa.id);
+          if (row) this.abrirIngresoLupa(row, true);
+        },
+
         abrirIngresoLupa(row, conservarOrden) {
           if (!row) return;
-          const platos = this.platosIngresoDe(row);
+          const esOctavo = this.esFilaOctavo(row) || this.esPlatoOctavo(row);
+          const platos = esOctavo ? this.platosIngresoOctavo(row) : this.platosIngresoDe(row);
           const orden = conservarOrden && this.ingresoLupa && this.ingresoLupa.orden;
           const lista = this.aplicarOrdenPlatos(platos, orden);
           this.ingresoLupa = {
             id: row.id,
             nombre: row.nombre,
+            esOctavo: esOctavo,
+            pierna: esOctavo ? this.octavosStockCorte('piernas') : 0,
+            pecho: esOctavo ? this.octavosStockCorte('pechugas') : 0,
             tieneCocido: !!row.tieneCocido,
             frescos: this.frescosHoy(),
             factorPechuga: Number(this.config.factorPechugasPorFresco) || 2,
@@ -13938,6 +15395,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!this.ingresoLupa) return;
           const row = this.filaReal(this.ingresoLupa.id);
           if (!row) return;
+          if (this.ingresoLupa.esOctavo) {
+            this.ingresoLupa = Object.assign({}, this.ingresoLupa, {
+              platos: this.platosIngresoOctavo(row),
+              pierna: this.octavosStockCorte('piernas'),
+              pecho: this.octavosStockCorte('pechugas')
+            });
+            return;
+          }
           const platos = this.platosIngresoDe(row);
           const antes = (this.ingresoLupa.orden || []).join('|');
           const ahora = platos.map((p) => p.id).join('|');
@@ -14304,6 +15769,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return {
             id: row.id,
             nombre: row.nombre,
+            esOctavo: this.esFilaOctavo(row) || this.esPlatoOctavo(row),
             unidad,
             tieneCocido: !!(row.tieneCocido || row.soloCocido),
             etiquetaPeriodo: etqPeriodo,
