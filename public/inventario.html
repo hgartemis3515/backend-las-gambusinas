@@ -512,15 +512,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       padding: 0.1rem 0.15rem !important;
     }
     /* Ingreso y Corrección: el cuadro del dígito crece con 1, 2 o 3 cifras (y el signo). */
+    main table.tabla-hoja .num-mono {
+      font-size: 17px;
+    }
     main table.tabla-hoja input.num-claro.caja-digitos {
       box-sizing: border-box;
       appearance: textfield;
       -moz-appearance: textfield;
       text-align: center;
-      width: calc(1.7rem + (var(--digitos, 1) - 1) * 0.65rem) !important;
-      min-width: 1.7rem !important;
-      max-width: 5.6rem !important;
-      padding: 0.1rem 0.15rem !important;
+      font-size: 17px;
+      width: calc(2rem + (var(--digitos, 1) - 1) * 0.75rem) !important;
+      min-width: 2rem !important;
+      max-width: 6.4rem !important;
+      padding: 0.15rem 0.2rem !important;
       flex: 0 0 auto;
     }
     main table.tabla-hoja input.num-claro.caja-digitos::-webkit-outer-spin-button,
@@ -1965,7 +1969,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <!-- Contador dinámico de resultados -->
           <div class="text-[11px] text-[#a0a0b8] flex items-center gap-2">
             <span x-show="busqueda || filtroCategoria !== 'todos'" class="px-2 py-0.5 rounded bg-[#d4af37]/15 text-[#d4af37] font-semibold" x-text="filasCoincidentesContador() + ' productos encontrados'"></span>
-            <span class="num-mono" x-text="'Total: ' + rows.length + ' productos'"></span>
+            <span class="num-mono" x-text="'Total: ' + totalProductosTabla() + ' productos'"></span>
           </div>
         </div>
       </div>
@@ -2292,7 +2296,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <!-- Cuadro del número transformado -->
                         <button
                           type="button"
-                          @click="abrirModalTransformacion(row)"
+                          @click="irATransformar(row)"
                           :class="totalTransformacionFila(row) > 0 ? 'caja-transformacion-resta px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer' : 'caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer hover:border-[#d4af37]'"
                           :title="totalTransformacionFila(row) > 0 ? ('Se transformaron ' + formatNum(totalTransformacionFila(row)) + ' ' + (row.unidad || 'unid') + ' (se resta del Ingreso Total para dar el Saldo). Clic para ver gráfico simétrico vertical.') : 'Sin salida por transformación hoy. Clic para ver detalle.'"
                         >
@@ -2313,7 +2317,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <!-- Icono de Lupa de contorno rojo y resaltante a la derecha -->
                         <button
                           type="button"
-                          @click.stop="abrirModalTransformacion(row)"
+                          @click.stop="irATransformar(row)"
                           :class="totalTransformacionFila(row) > 0 ? 'btn-lupa-roja' : 'btn-lupa-roja-suave'"
                           class="w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
                           :aria-label="'Ver gráfico de transformación de ' + row.nombre"
@@ -2521,7 +2525,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="px-2.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-xs uppercase tracking-wide">Flujo Izquierda → Derecha</span>
           </div>
           <p class="text-xs text-[#a0a0b8]">
-            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña, Sandwich y Pecho pachamanca</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pollo pachamanca pierna, Pierna a la leña y Pollada</span>. <span class="text-amber-200 font-semibold">2 Octavos de pollo = 1 Pecho o 1 Pierna</span>, y el octavo abarca Arroz con pollo, Pollo a la olla y Caldo de pollo.
+            <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña, Sandwich y Pecho pachamanca</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pierna a la leña, Pollo pachamanca pierna y Pollada</span>. <span class="text-amber-200 font-semibold">2 Octavos de pollo = 1 Pecho o 1 Pierna</span>, y el octavo abarca Arroz con pollo, Pollo a la olla y Caldo de pollo.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
@@ -2571,7 +2575,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <!-- ================================================================= -->
       <!-- 1. MAPA SEMÁNTICO HORIZONTAL — FAMILIA POLLO FRESCO               -->
       <!-- ================================================================= -->
-      <div class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('pollo-fresco')">
+      <div id="trans-pollo" class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('pollo-fresco')">
         <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
           <div>
             <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pollo-fresco'])"></span>. Mapa Semántico Horizontal — Distribución del Pollo Fresco</h2>
@@ -2831,7 +2835,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-emerald-500/30">
                           <div class="flex items-center gap-2">
                             <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase tracking-wider">CUADRO GRUPAL · PIERNA</span>
-                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pollo pachamanca pierna, Pierna a la leña y Pollada</h4>
+                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Pierna a la leña, Pollo pachamanca pierna y Pollada</h4>
                           </div>
                           <span class="text-[11px] font-mono text-emerald-200">
                             Piernas en este grupo: <strong class="text-white" x-text="piernasEnPlatosGrupo()"></strong> pzas
@@ -3142,12 +3146,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <!-- ================================================================= -->
       <!-- 2. MAPA SEMÁNTICO HORIZONTAL — PANCETA (1=6 TIRAS → TROZOS → PLATOS) -->
       <!-- ================================================================= -->
-      <div class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('panceta')">
+      <div id="trans-panceta" class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('panceta')">
         <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
           <div>
             <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['panceta'])"></span>. Mapa Semántico Horizontal — Panceta (Panceta → Tiras → Trozos → Platos)</h2>
             <p class="text-xs text-[#a0a0b8]">
-              <strong class="text-white">1 panceta = 6 tiras de panceta</strong> (factor fijo). La tira no se vende: se canjea/transforma en <strong class="text-[#d4af37]">Pieza de panceta</strong> (solo cocido), del cual descuentan los platos.
+              <strong class="text-white">1 panceta = 6 tiras</strong>. Al bajar el stock de la panceta, esas tiras entran solas (2 pancetas = 12 tiras). Al subir una pieza se gasta 1 tira. La pieza es solo cocido y de ahí salen los platos.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2.5 text-xs font-mono">
@@ -3180,6 +3184,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
               <p class="caja-stock-mas" x-show="textoIngreso('panceta', 'crudo')" x-text="textoIngreso('panceta', 'crudo')"></p>
               <p class="caja-stock-menos" x-show="textoResto('panceta', 'crudo')" x-text="textoResto('panceta', 'crudo')"></p>
+              <p class="text-[11px] font-mono text-[#a0a0b8]">Crudo <strong class="text-emerald-300" x-text="formatNum(stockCuadro('panceta', 'crudo'))"></strong> · Cocido <strong class="text-[#d4af37]" x-text="formatNum(stockCuadro('panceta', 'cocido'))"></strong></p>
             </div>
           </div>
 
@@ -3199,6 +3204,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <p class="text-2xl font-mono font-extrabold text-sky-300" x-text="formatNum(quedanDe('tira_panceta'))"></p>
               <p class="caja-stock-mas" x-show="textoIngreso('tira_panceta', 'crudo')" x-text="textoIngreso('tira_panceta', 'crudo')"></p>
               <p class="caja-stock-menos" x-show="textoResto('tira_panceta', 'crudo')" x-text="textoResto('tira_panceta', 'crudo')"></p>
+              <p class="text-[11px] font-mono text-[#a0a0b8]">Crudo <strong class="text-emerald-300" x-text="formatNum(stockCuadro('tira_panceta', 'crudo'))"></strong> · Cocido <strong class="text-[#d4af37]" x-text="formatNum(stockCuadro('tira_panceta', 'cocido'))"></strong></p>
             </div>
             <div class="bg-[#14141f] border border-[#26263a] rounded-lg p-1.5 space-y-1">
               <span class="text-[10px] font-bold text-sky-200 block">Pancetas a tiras</span>
@@ -3248,6 +3254,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <p class="text-xl font-mono font-extrabold text-emerald-300" x-text="formatNum(stockCuadro('trozo_panceta', 'cocido'))"></p>
               <p class="caja-stock-mas" x-show="textoIngreso('trozo_panceta', 'cocido')" x-text="textoIngreso('trozo_panceta', 'cocido')"></p>
               <p class="caja-stock-menos" x-show="textoResto('trozo_panceta', 'cocido')" x-text="textoResto('trozo_panceta', 'cocido')"></p>
+              <p class="text-[11px] font-mono text-[#a0a0b8]">Crudo <strong class="text-emerald-300" x-text="formatNum(stockCuadro('trozo_panceta', 'crudo'))"></strong> · Cocido <strong class="text-[#d4af37]" x-text="formatNum(stockCuadro('trozo_panceta', 'cocido'))"></strong></p>
             </div>
             <template x-if="tienePaseCocido('trozo_panceta')">
               <div class="caja-stock caja-stock-cocido">
@@ -3298,7 +3305,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <!-- ================================================================= -->
       <div class="space-y-4">
         <!-- MAPA SEMÁNTICO HORIZONTAL: PESCADO -> PIEZAS DE PESCADO + PLATOS -->
-        <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-3 shadow-xl" x-show="tieneMapa('pescado-trans')">
+        <div id="trans-pescado" class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-3 shadow-xl" x-show="tieneMapa('pescado-trans')">
           <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#26263a]">
             <div>
               <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pescado-trans'])"></span>. Mapa Semántico Horizontal — Pieza de pescado</h2>
@@ -3368,7 +3375,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
 
         <!-- MAPA: PIEZA DE POTA → PLATOS -->
-        <div class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('pota')">
+        <div id="trans-pota" class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('pota')">
           <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
             <div>
               <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pota'])"></span>. Mapa Semántico Horizontal — Pieza de pota</h2>
@@ -3447,7 +3454,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <!-- ================================================================= -->
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <!-- MAPA SEMÁNTICO HORIZONTAL: CARNERO (1 A 1) + CHICHARRÓN DE CHANCHO Y CUY -->
-        <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('carnero')">
+        <div id="trans-carnero" class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('carnero')">
           <div class="pb-2 border-b border-[#26263a]">
             <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['carnero'])"></span>. Mapa Semántico Horizontal — Carnero, Chicharrón de Chancho y Cuy</h2>
             <p class="text-xs text-[#a0a0b8]">Carnero pasa 1 a 1 a Carnero pachamanca y a Seco de carnero (cada uno con crudo y cocido); Chicharrón de chancho crudo y Cuy entran por unidad sin transformación.</p>
@@ -3620,7 +3627,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
 
         <!-- MAPA SEMÁNTICO HORIZONTAL: ARROZ CRUDO -> TIPOS -->
-        <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('arroz')">
+        <div id="trans-arroz" class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('arroz')">
           <div class="pb-2 border-b border-[#26263a] flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['arroz'])"></span>. Mapa Semántico Horizontal — Familia Arroz</h2>
@@ -8511,7 +8518,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="flex items-center gap-2">
             <button
               type="button"
-              @click="showTransformacionModal = false; irA('transformar')"
+              @click="irATransformar(getRow(transformacionInfo.origen.id))"
               class="px-3.5 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] font-extrabold text-xs hover:brightness-110 transition cursor-pointer shadow"
             >
               Editar en Transformar →
@@ -8570,10 +8577,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <span class="text-xs font-mono text-[#a0a0b8]" x-text="transformacionInfo.origen.unidad"></span>
                     <button
                       type="button"
-                      @click="irAFilaProducto(transformacionInfo.origen.id)"
+                      @click="irATransformar(getRow(transformacionInfo.origen.id))"
                       class="px-3 py-1 rounded-lg bg-[#d4af37] hover:brightness-110 text-[#1a1200] font-extrabold text-xs inline-flex items-center gap-1 cursor-pointer shadow transition"
-                      :aria-label="'Ir a la fila de ' + transformacionInfo.origen.nombre"
-                      title="Cerrar modal, desplazarse a esta fila en la tabla y resaltarla"
+                      :aria-label="'Ir a transformar ' + transformacionInfo.origen.nombre"
+                      title="Abrir este producto en la tabla de transformaciones"
                     >
                       <span>Ir</span>
                       <span>↗</span>
@@ -8605,6 +8612,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <span class="text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold">Lo que Queda</span>
                     <span class="text-2xl font-extrabold num-mono text-emerald-300 my-1" x-text="formatNum(transformacionInfo.origen.queda)"></span>
                     <span class="text-[9px] text-[#a0a0b8]" x-text="transformacionInfo.origen.ventas > 0 ? ('Tras −' + formatNum(transformacionInfo.origen.ventas) + ' vta') : 'Queda en origen'"></span>
+                  </div>
+                </div>
+                <div class="mt-2.5 grid grid-cols-2 gap-2">
+                  <div class="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-2 py-1.5">
+                    <span class="text-[9px] uppercase font-extrabold text-emerald-300 block">Crudo</span>
+                    <span class="text-sm font-extrabold num-mono text-emerald-200" x-text="formatNum(transformacionInfo.origen.quedaCrudo)"></span>
+                  </div>
+                  <div class="rounded-lg border border-amber-500/40 bg-amber-950/30 px-2 py-1.5">
+                    <span class="text-[9px] uppercase font-extrabold text-[#d4af37] block">Cocido</span>
+                    <span class="text-sm font-extrabold num-mono text-amber-200" x-text="formatNum(transformacionInfo.origen.quedaCocido)"></span>
                   </div>
                 </div>
 
@@ -8675,10 +8692,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <!-- Botón "Ir" para cerrar el modal, hacer scroll a la fila de este producto transformado y resaltarla -->
                           <button
                             type="button"
-                            @click="irAFilaProducto(dest.id)"
+                            @click="irATransformar(getRow(dest.id))"
                             class="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#062419] font-extrabold text-xs inline-flex items-center gap-1 cursor-pointer shadow-md transition"
-                            :aria-label="'Ir a la fila de ' + dest.nombre"
-                            :title="'Ir a la fila de ' + dest.nombre + ' en la tabla y resaltarla'"
+                            :aria-label="'Ir a transformar ' + dest.nombre"
+                            :title="'Abrir ' + dest.nombre + ' en la tabla de transformaciones'"
                           >
                             <span>Ir</span>
                             <span>↗</span>
@@ -8716,7 +8733,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <span class="text-xs text-[#a0a0b8] num-mono ml-0.5" x-text="dest.unidad"></span>
                           </div>
                         </div>
-                        <div x-show="dest.tieneCocido" class="mt-2 grid grid-cols-2 gap-2">
+                        <div class="mt-2 grid grid-cols-2 gap-2">
                           <div class="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-2 py-1.5">
                             <span class="text-[9px] uppercase font-extrabold text-emerald-300 block">Crudo</span>
                             <span class="text-sm font-extrabold num-mono text-emerald-200" x-text="formatNum(dest.quedaCrudo)"></span>
@@ -8754,10 +8771,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div>
                   <button
                     type="button"
-                    @click="irAFilaProducto(transformacionInfo.origen.id)"
+                    @click="irATransformar(getRow(transformacionInfo.origen.id))"
                     class="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#062419] font-extrabold text-xs inline-flex items-center gap-1.5 cursor-pointer shadow transition"
                   >
-                    <span>Ir a la fila de <span x-text="transformacionInfo.origen.nombre"></span></span>
+                    <span>Ir a transformar <span x-text="transformacionInfo.origen.nombre"></span></span>
                     <span>↗</span>
                   </button>
                 </div>
@@ -8770,7 +8787,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <!-- Pie del Modal -->
         <div class="bg-[#0b0b12] border-t border-[#26263a] px-5 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
           <span class="text-[#a0a0b8]">
-            💡 <strong class="text-white">Flujo Vertical Simétrico:</strong> Pulsa <strong class="text-emerald-300">Ir ↗</strong> en cualquier cuadro para ir a su fila en la tabla y resaltarla.
+            💡 <strong class="text-white">Flujo Vertical Simétrico:</strong> Pulsa <strong class="text-emerald-300">Ir ↗</strong> para abrir ese producto en la tabla de transformaciones.
           </span>
           <button
             type="button"
@@ -13453,7 +13470,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.vistaPachamanca() && !!(row && (row.id === 'pollo_pachamanca' || row.id === 'pecho_pachamanca'));
         },
 
+        filaFueraDeTabla(row) {
+          if (!row || row.id === 'pieza_pescado' || row.id === 'pieza_pota') return false;
+          const id = String(row.id || '');
+          const nombre = this.norm(row.nombre || '');
+          const clave = (this.claveDeFila && this.claveDeFila[id]) || '';
+          if (id === 'pescado_entero' || id === 'pescado' || id === 'pescado_origen' || id === 'pota' || id === 'pota_entera') return true;
+          if (clave === 'pescado-origen' || clave === 'pescado' || clave === 'pota') return true;
+          return nombre === 'pescado' || nombre === 'pota' || nombre === 'pescado entero' || nombre === 'pota entera';
+        },
+
+        totalProductosTabla() {
+          return (this.rows || []).filter((r) => !this.filaFueraDeTabla(r)).length;
+        },
+
         matchesSearch(row) {
+          if (this.filaFueraDeTabla(row)) return false;
           const q = (this.busqueda || '').trim().toLowerCase();
           if (this.vistaPachamanca()) {
             if (!this.filaPachamanca(row)) return false;
@@ -13692,7 +13724,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         getFilteredLooseRows() {
-          return this.ordenarFilas(this.rows.filter(r => r.grupo === null && this.matchesSearch(r)));
+          return this.ordenarFilas(this.rows.filter((r) => {
+            if (r.grupo !== null || !this.matchesSearch(r)) return false;
+            // Cerdo y humita ya van en el grupo Pachamancas. Pintarlos otra vez como sueltos duplicaba la fila.
+            if (this.filtroCategoria === 'todos' && this.filaPachamanca(r)) return false;
+            return true;
+          }));
         },
 
         filaSuelta(row) {
@@ -15994,6 +16031,43 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                  (Number(this.valorTipo(row, 'transformacion', 'cocido')) || 0);
         },
 
+        anclaTransformacion(row) {
+          const id = row && row.id;
+          const pollo = {
+            pollo_fresco: 1, pechuga: 1, pierna: 1, filete: 1, pollo_baby: 1,
+            pollo_pachamanca: 1, pecho_pachamanca: 1, pierna_lena: 1, pollada: 1,
+            pollo_lena: 1, sandwich: 1, octavo_pollo: 1, menu: 1,
+            arroz_con_pollo: 1, pollo_olla: 1, caldo_pollo: 1,
+            chi_pollo_bbq: 1, chi_pollo_acevichada: 1, chicharron_pollo: 1,
+            salt_pollo: 1, chaufa_pollo: 1, milanesa: 1
+          };
+          if (pollo[id]) return 'trans-pollo';
+          if (id === 'panceta' || id === 'tira_panceta' || id === 'trozo_panceta' || id === 'chaufa_chancho' || id === 'chancho_lena' || id === 'chancho_lena_bbq') return 'trans-panceta';
+          if (id === 'carnero' || id === 'carnero_pachamanca' || id === 'seco_carnero' || id === 'chicharron_chancho' || id === 'cuy') return 'trans-carnero';
+          if (id === 'arroz' || id === 'arroz_blanco' || id === 'arroz_verde' || id === 'arroz_beata') return 'trans-arroz';
+          if (id === 'pieza_pescado') return 'trans-pescado';
+          if (id === 'pieza_pota') return 'trans-pota';
+          return '';
+        },
+
+        irATransformar(row) {
+          if (!row) return;
+          const ancla = this.anclaTransformacion(row);
+          if (!ancla) {
+            this.abrirModalTransformacion(row);
+            return;
+          }
+          this.showTransformacionModal = false;
+          this.irA('transformar');
+          this.toastMessage = 'Transformar: ' + (row.nombre || '');
+          setTimeout(() => {
+            const el = document.getElementById(ancla);
+            if (el && typeof el.scrollIntoView === 'function') {
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 80);
+        },
+
         abrirModalTransformacion(row) {
           if (!row) return;
           this.transformacionInfo = this.construirDetalleTransformacion(row);
@@ -16026,6 +16100,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               transformado,
               ventas,
               queda,
+              quedaCrudo: this.calcSaldoRealTipo(row, 'crudo'),
+              quedaCocido: this.calcSaldoRealTipo(row, 'cocido'),
               pctTransformado,
               pctQueda
             },
@@ -16068,7 +16144,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               queda: this.calcSaldoReal(fila),
               tieneCocido,
               quedaCrudo: this.calcSaldoRealTipo(fila, 'crudo'),
-              quedaCocido: tieneCocido ? this.calcSaldoRealTipo(fila, 'cocido') : 0,
+              quedaCocido: this.calcSaldoRealTipo(fila, 'cocido'),
               pasaronCocido,
               color: color || 'gold',
               tieneSubTransformacion: tieneSub,
@@ -16914,15 +16990,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
 
 
-        // La caja de Panceta entera es su stock. Si se escribe un número menor, la diferencia pasa a tiras;
-        // si es mayor, se devuelven pancetas desde las tiras (si las tiras aún están).
-
-        // La caja de Panceta entera es su stock y funciona como ingreso: + suma, − resta, o se escribe el número.
-        // Para pasar panceta a tiras se usa "Pancetas a tiras" en el cuadro de Tira de panceta.
-
-        // La caja de Panceta entera es su stock y funciona como ingreso: + suma, − resta, o se escribe el número.
-        // Si el ingreso de hoy no alcanza para restar (el stock viene del saldo anterior), la resta va a Corrección.
-        // Para pasar panceta a tiras se usa "Pancetas a tiras" en el cuadro de Tira de panceta.
+        // Bajar la panceta la convierte en tiras (1 = 6). Subirla es un ingreso nuevo, no deshace tiras.
         fijarStockPanceta(val) {
           const row = this.filaReal('panceta');
           if (!row) return false;
@@ -16930,8 +16998,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const delta = next - this.quedanDe('panceta');
           if (!delta) return false;
           this.transformWarning = '';
+          if (delta < 0) return this.fijarPancetasSalen(this.pancetasHoy() + (-delta));
           const ingreso = Number(row.ingreso) || 0;
-          if (delta > 0 || ingreso + delta >= 0) return this.moverCampo('panceta', 'ingreso', 'crudo', delta);
+          if (ingreso + delta >= 0) return this.moverCampo('panceta', 'ingreso', 'crudo', delta);
           return this.moverCampo('panceta', 'correccion', 'crudo', delta);
         },
 
@@ -16943,10 +17012,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
 
-        // Stock de Pieza de panceta = piezas que salieron de las tiras − piezas usadas (ventas) ± corrección.
-        // Subir: suma piezas que salieron (pide tiras usadas). Bajar: primero quita piezas que salieron en el
-        // período; lo que falte (stock que viene del saldo anterior) va a Corrección cocido.
-        // Antes la resta se cortaba en las piezas de hoy: con stock del día anterior, − no hacía nada.
+        // Subir piezas gasta 1 tira por pieza. Bajar quita primero las de hoy y devuelve esas tiras.
         fijarStockTrozos(valor) {
           const row = this.filaReal('trozo_panceta');
           const clave = this.claveDeFila.trozo_panceta;
@@ -16976,15 +17042,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const next = Math.max(0, parseInt(val, 10) || 0);
           const delta = next - this.trozosHoy();
           if (!delta) return false;
-          if (delta > 0 && !(this.tirasUsadasHoy() > 0)) {
-            return this.avisoTransformar('Aviso ámbar: indica primero cuántas tiras de panceta se usaron.');
+          if (delta > 0) {
+            const hay = this.quedanDe('tira_panceta');
+            if (hay + 0.0001 < delta) {
+              return this.avisoTransformar('Aviso ámbar: no hay tiras para esas piezas. Quedan ' + this.formatNum(Math.max(0, hay)) + '. Cada pieza gasta 1 tira.');
+            }
+            return this.transferir({
+              origenId: 'tira_panceta',
+              salen: delta,
+              destinos: [{ id: 'trozo_panceta', entran: delta, tipo: 'cocido' }],
+              motivo: 'Pasa a trozos',
+              historial: 'Tiras → Piezas de panceta'
+            });
           }
+          const devolver = Math.min(-delta, this.tirasUsadasHoy());
           return this.transferir({
             origenId: 'tira_panceta',
-            salen: 0,
+            salen: devolver ? -devolver : 0,
             destinos: [{ id: 'trozo_panceta', entran: delta, tipo: 'cocido' }],
             motivo: 'Pasa a trozos',
-            historial: 'Tiras → Trozos de panceta'
+            historial: 'Devolución de piezas a tiras'
           });
         },
 
@@ -17156,8 +17233,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         aderezosDeCorte(corte) {
           const defs = corte === 'piernas'
             ? [
-                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna' },
                 { id: 'pierna_lena', nombre: 'Pierna a la leña' },
+                { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna' },
                 { id: 'pollada', nombre: 'Pollada' }
               ]
             : [
