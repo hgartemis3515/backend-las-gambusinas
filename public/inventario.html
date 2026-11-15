@@ -8071,6 +8071,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     </div>
   </template>
 
+  <div x-show="modalComandaVer" x-cloak class="fixed inset-0 z-[120] bg-black/75" @click="cerrarVerComanda()"></div>
+  <div x-show="modalComandaVer" x-cloak class="fixed inset-0 z-[121] flex items-center justify-center p-3 pointer-events-none">
+    <iframe x-show="comandaVerUrl" :src="comandaVerUrl" class="pointer-events-auto w-full max-w-[920px] h-[92vh] bg-transparent border-0" title="Ver comanda"></iframe>
+  </div>
+
   <template x-if="ventaManualAbierta && ventaManualFila">
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaManualAbierta = false" @keydown.escape.window="ventaManualAbierta = false" role="dialog" aria-modal="true" aria-label="Venta manual" data-testid="modal-venta-manual">
       <div class="w-full max-w-lg bg-[#14141f] border-2 border-[#ff0000] p-5 rounded-xl space-y-4 max-h-[92vh] overflow-y-auto shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
@@ -9583,6 +9588,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             window.location.href = '/index.html';
             return;
           }
+          this._onCerrarVerComanda = (ev) => {
+            if (ev.origin !== window.location.origin) return;
+            if (ev.data && ev.data.type === 'cerrar-ver-comanda') this.cerrarVerComanda();
+          };
+          window.addEventListener('message', this._onCerrarVerComanda);
           this.initSoundClip();
           this.$watch('toastMessage', (msg) => {
             clearTimeout(this._toastTimer);
@@ -10108,6 +10118,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaCargando: false,
         reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
         ventaAbierta: false,
+        modalComandaVer: false,
+        comandaVerUrl: '',
         ventaCerrando: false,
         ventaFiltroUso: 'todos',
         ventaBusqueda: '',
@@ -10855,9 +10867,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         verComandaVenta(linea) {
           if (!linea || !linea.comandaId) return;
-          const q = new URLSearchParams({ id: String(linea.comandaId) });
+          const q = new URLSearchParams({ id: String(linea.comandaId), embed: '1' });
           if (linea.nombre) q.set('plato', linea.nombre);
-          window.location.href = '/comandas.html?' + q.toString();
+          this.comandaVerUrl = '/comandas.html?' + q.toString();
+          this.modalComandaVer = true;
+        },
+
+        cerrarVerComanda() {
+          this.modalComandaVer = false;
+          this.comandaVerUrl = '';
         },
 
         motivoEscritoVenta(motivo) {
@@ -11043,6 +11061,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         cerrarVenta() {
+          if (this.modalComandaVer) {
+            this.cerrarVerComanda();
+            return;
+          }
           if (!this.ventaAbierta || this.ventaCerrando) return;
           this.ventaCerrando = true;
           this.sonarVenta('cerrar');

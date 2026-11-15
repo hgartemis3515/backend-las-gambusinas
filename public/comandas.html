@@ -4382,6 +4382,13 @@ formatearNombreMesa(mesa, mesaObj = null) {
   || ['admin', 'supervisor'].includes(this.userRole);
  console.log('👤 Rol usuario:', this.userRole, '| Puede aplicar descuento:', this.puedeAplicarDescuento);
 
+ const openComandaId = new URLSearchParams(window.location.search).get('id')
+   || new URLSearchParams(window.location.search).get('comanda');
+ if (this.embedVer && openComandaId) {
+  await this.cargarSoloEstaComanda(openComandaId);
+  return;
+ }
+
  // Inicializar Socket.io
  this.initSocket();
 
@@ -4397,8 +4404,6 @@ formatearNombreMesa(mesa, mesaObj = null) {
  await this.loadComandas();
  await this.loadVentasTotales();
  await this.cargarPlantillaComandaLocal();
- const openComandaId = new URLSearchParams(window.location.search).get('id')
-   || new URLSearchParams(window.location.search).get('comanda');
  if (openComandaId) await this.openDetailModal({ _id: openComandaId });
  this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
  this.programarCorteOperativo();
@@ -4414,6 +4419,13 @@ formatearNombreMesa(mesa, mesaObj = null) {
      e.returnValue = '';
    }
  });
+ },
+
+ // Embed (inventario / cierre): solo GET /comanda/:id. No lista, ni ventas, ni socket.
+ async cargarSoloEstaComanda(id) {
+  this.loading = false;
+  await Promise.all([this.loadConfigMoneda(), this.loadConfigTiemposMozos()]);
+  await this.openDetailModal({ _id: id });
  },
 
  async loadConfigTiemposMozos() {
@@ -5224,6 +5236,7 @@ handleComandaCocineroSocket(data) {
 },
 
 scheduleRefreshListaComandas() {
+  if (this.embedVer) return;
   clearTimeout(this._refreshListaTimer);
   this._refreshListaTimer = setTimeout(() => {
     this.loadComandas();
@@ -5231,6 +5244,7 @@ scheduleRefreshListaComandas() {
 },
 
 scheduleRefreshVentasTotales() {
+  if (this.embedVer) return;
   clearTimeout(this._refreshVentasTimer);
   this._refreshVentasTimer = setTimeout(() => {
     this.loadVentasTotales();
@@ -5314,7 +5328,7 @@ async fetchAndAddComanda(comandaId) {
     }
   } catch (error) {
     console.error('❌ Error obteniendo comanda:', error);
-    // Fallback: recargar todas las comandas
+    if (this.embedVer) return;
     await this.loadComandas();
   }
 },
@@ -5335,6 +5349,7 @@ this.scheduleRefreshVentasTotales();
  },
 
  async loadComandas() {
+ if (this.embedVer) return;
  this.loading = true;
 
  const rango = this.rangoFiltroFechas;
