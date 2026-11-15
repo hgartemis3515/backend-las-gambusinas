@@ -1884,12 +1884,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="text-[10px] uppercase tracking-wider text-[#a0a0b8] font-bold">Ordenar:</span>
             <select
               x-model="ordenHoja"
+              @change="alCambiarOrdenHoja()"
               aria-label="Ordenar filas por"
               class="bg-[#14141f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white font-semibold focus:outline-none focus:border-[#d4af37]"
             >
               <option value="hoja">Hoja (Original)</option>
               <option value="cantidad">Mayor venta</option>
               <option value="nombre">Nombre (A-Z)</option>
+              <option value="personalizado">Personalizado</option>
             </select>
           </label>
         </div>
@@ -2050,7 +2052,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <template x-for="bloque in bloquesHoja()" :key="bloque.key">
               <tbody x-show="bloque.suelto || groupHasMatch(bloque.group.id)" class="divide-y divide-[#26263a] text-sm border-t-2 border-[#26263a]">
                 <template x-if="!bloque.suelto">
-                <tr x-show="esGrupoSinDatos(bloque.group)" @click="toggleGroup(bloque.group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer" :style="colorFondoGrupo(bloque.group) ? ('background-color:' + colorFondoGrupo(bloque.group)) : ''">
+                <tr x-show="esGrupoSinDatos(bloque.group) || bloque.group.id === 'pachamancas'" @click="toggleGroup(bloque.group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer" :style="colorFondoGrupo(bloque.group) ? ('background-color:' + colorFondoGrupo(bloque.group)) : ''">
                   <td class="py-3 px-4 font-bold text-white sticky left-0" :class="colorFondoGrupo(bloque.group) ? '' : 'bg-[#1a1a28]'" :style="colorFondoGrupo(bloque.group) ? ('background-color:' + colorFondoGrupo(bloque.group)) : ''">
                     <div class="flex items-center gap-2.5">
                       <span class="w-6 h-6 rounded-md bg-[#0a0a0f] border border-[#26263a] inline-flex items-center justify-center text-xs text-[#d4af37]" :class="bloque.group.open ? 'rotate-0' : '-rotate-90'">▼</span>
@@ -2059,8 +2061,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </div>
                   </td>
                   <td :colspan="columnasRestoGrupo()" class="py-3 px-4 text-xs text-[#a0a0b8]">
-                    <span x-text="getRowsByGroup(bloque.group.id).length + (bloque.group.id === 'carnes' ? ' carnes' : ' bebidas')"></span>
-                    <span class="ml-2" x-text="bloque.group.id === 'carnes' ? 'El grupo no suma. Cada carne tiene su ingreso y su venta.' : 'El grupo no suma. Cada bebida tiene su ingreso y su venta.'"></span>
+                    <span x-show="bloque.group.id === 'pachamancas'" x-text="bloque.filas.length + ' pachamancas'"></span>
+                    <span x-show="bloque.group.id !== 'pachamancas'" x-text="getRowsByGroup(bloque.group.id).length + (bloque.group.id === 'carnes' ? ' carnes' : ' bebidas')"></span>
+                    <span class="ml-2" x-show="bloque.group.id === 'pachamancas'">Fuera de Pollo, Carnes y Carnero. Aquí están todas juntas.</span>
+                    <span class="ml-2" x-show="bloque.group.id !== 'pachamancas'" x-text="bloque.group.id === 'carnes' ? 'El grupo no suma. Cada carne tiene su ingreso y su venta.' : 'El grupo no suma. Cada bebida tiene su ingreso y su venta.'"></span>
                   </td>
                 </tr>
                 </template>
@@ -2112,6 +2116,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             >▼</button>
                           </span>
                           <span class="font-semibold text-white whitespace-nowrap" x-text="item.nombre"></span>
+                          <span x-show="ordenHoja === 'personalizado'" class="inline-flex flex-col leading-none ml-1">
+                            <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, -1)" :aria-label="'Subir ' + row.nombre">▲</button>
+                            <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, 1)" :aria-label="'Bajar ' + row.nombre">▼</button>
+                          </span>
                           <span x-show="productoBloqueado(row.id)" class="px-1.5 py-0.5 rounded bg-[#ff0000]/20 border border-[#ff0000]/50 text-[10px] font-extrabold text-red-200" title="Bloqueado para los mozos">Bloqueado</span>
                           <span x-show="item.hasChildren" class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200] tracking-wide">GRUPO</span>
                           <button
@@ -2139,6 +2147,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="nombre-producto-fila">
                       <span class="w-6 h-6 shrink-0" aria-hidden="true"></span>
                       <span class="text-white font-bold whitespace-nowrap" x-text="row.nombre"></span>
+                      <span x-show="ordenHoja === 'personalizado'" class="inline-flex flex-col leading-none ml-1">
+                        <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, -1)" :aria-label="'Subir ' + row.nombre">▲</button>
+                        <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, 1)" :aria-label="'Bajar ' + row.nombre">▼</button>
+                      </span>
                       <span x-show="productoBloqueado(row.id)" class="px-1.5 py-0.5 rounded bg-[#ff0000]/20 border border-[#ff0000]/50 text-[10px] font-extrabold text-red-200" title="Bloqueado para los mozos">Bloqueado</span>
                       <button
                         type="button"
@@ -6991,7 +7003,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <h3 class="sec-title text-sm">Arroz — Factores por 1 unidad de Arroz Crudo</h3>
               <span class="text-xs text-[#a0a0b8]">Rendimiento según olla o preparación</span>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
               <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
                 <span class="text-[#a0a0b8] block mb-1">Blanco</span>
                 <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozBlanco" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
@@ -7003,6 +7015,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
                 <span class="text-[#a0a0b8] block mb-1">Beata</span>
                 <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozBeata" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
+              </label>
+              <label class="bg-[#0a0a0f] border border-[#26263a] p-2.5 rounded-lg block">
+                <span class="text-[#a0a0b8] block mb-1">Rio lindo</span>
+                <input type="number" min="0" step="any" x-model.number="draftConfig.factorArrozRioLindo" class="w-full bg-[#14141f] border border-[#26263a] rounded px-2 py-1 text-white num-mono font-bold text-center">
               </label>
             </div>
           </div>
@@ -7537,7 +7553,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </div>
                   </div>
 
-                  <template x-if="plato.pideSabores && cantidadPlatoVentaEspecial(plato.key) > 0">
+                  <template x-if="plato.pideSabores && plato.saboresPorPlato === 1">
+                    <div class="mt-2.5 rounded-lg border border-[#d4af37]/40 bg-[#14141f] p-2.5 space-y-2">
+                      <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#d4af37]">Elige 1 sabor. Solo ese se resta.</span>
+                      <div class="flex flex-wrap gap-1.5">
+                        <template x-for="op in plato.sabores" :key="'ve-sab1-' + plato.key + '-' + op.rowId">
+                          <button
+                            type="button"
+                            class="px-2 py-1 rounded-lg border text-xs font-bold cursor-pointer"
+                            :class="saborElegidoVE(plato.key, op.rowId) > 0 ? 'border-[#d4af37] bg-[#d4af37] text-[#1a1200]' : 'border-[#26263a] bg-[#0a0a0f] text-white'"
+                            @click="elegirSaborPlatoVE(plato.key, op.rowId)"
+                            x-text="op.nombre + ' · stock ' + formatNum(op.stock)"
+                          ></button>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                  <template x-if="plato.pideSabores && plato.saboresPorPlato > 1 && cantidadPlatoVentaEspecial(plato.key) > 0">
                     <div class="mt-2.5 rounded-lg border border-[#d4af37]/40 bg-[#14141f] p-2.5 space-y-2" data-testid="ve-sabores-pachamanca">
                       <div class="flex items-center justify-between gap-2">
                         <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#d4af37]">Sabores de la pachamanca</span>
@@ -9055,6 +9087,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         busqueda: '',
         busquedaEscrita: '',
         ordenHoja: 'cantidad',
+        ordenPersonal: [],
+        grupoPachamancas: { id: 'pachamancas', nombre: 'Pachamancas', open: true, staggerKey: 1, nota: 'Pollo, pecho, carne, carnero, cerdo y humita' },
         configMenuOpen: false,
         showConversionesModal: false,
         showTransformacionModal: false,
@@ -9208,7 +9242,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             children: [
               { id: 'arroz_blanco', nombre: 'Arroz blanco' },
               { id: 'arroz_verde', nombre: 'Arroz verde + Pato' },
-              { id: 'arroz_beata', nombre: 'Arroz Beata' }
+              { id: 'arroz_beata', nombre: 'Arroz Beata' },
+              { id: 'arroz_rio_lindo', nombre: 'Arroz Rio lindo' }
             ]
           }
         },
@@ -9257,6 +9292,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorArrozBlanco: 8,
           factorArrozVerde: 6,
           factorArrozBeata: 1,
+          factorArrozRioLindo: 1,
           aderezos: [
             { id: 'pollada', nombre: 'Pollada', aceptaPierna: true, aceptaPechuga: false },
             { id: 'pollo_pachamanca', nombre: 'Pollo pachamanca pierna', aceptaPierna: true, aceptaPechuga: false },
@@ -9310,6 +9346,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           factorArrozBlanco: 8,
           factorArrozVerde: 6,
           factorArrozBeata: 1,
+          factorArrozRioLindo: 1,
           aderezos: [],
           relaciones: []
         },
@@ -9527,6 +9564,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           arroz_blanco: 'arroz-blanco',
           arroz_verde: 'arroz-verde',
           arroz_beata: 'arroz-beata',
+          arroz_rio_lindo: 'arroz-rio-lindo',
           papas: 'papas',
           tamal: 'tamal',
           humita: 'humita',
@@ -9560,6 +9598,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.leerConfigLocal();
           this.cargarColoresLocal();
           this.cargarVistaTablaLocal();
+          this.cargarOrdenPersonal();
           await Promise.all([this.cargarMapas(), this.cargarRelacionesGuardadas()]);
           await this.cargarPlatos();
           await this.refrescarTurnos(false);
@@ -9660,7 +9699,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return {
             factorArrozBlanco: 8,
             factorArrozVerde: 6,
-            factorArrozBeata: 1
+            factorArrozBeata: 1,
+            factorArrozRioLindo: 1
           };
         },
 
@@ -9680,14 +9720,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         camposArroz() {
-          return ['arrozBlanco', 'arrozVerde', 'arrozBeata'];
+          return ['arrozBlanco', 'arrozVerde', 'arrozBeata', 'arrozRioLindo'];
         },
 
         destinosArroz() {
           return [
             { campo: 'arrozBlanco', id: 'arroz_blanco', clave: 'arroz-blanco', nombre: 'Arroz blanco', factorKey: 'factorArrozBlanco' },
             { campo: 'arrozVerde', id: 'arroz_verde', clave: 'arroz-verde', nombre: 'Arroz verde + Pato', factorKey: 'factorArrozVerde' },
-            { campo: 'arrozBeata', id: 'arroz_beata', clave: 'arroz-beata', nombre: 'Arroz Beata', factorKey: 'factorArrozBeata' }
+            { campo: 'arrozBeata', id: 'arroz_beata', clave: 'arroz-beata', nombre: 'Arroz Beata', factorKey: 'factorArrozBeata' },
+            { campo: 'arrozRioLindo', id: 'arroz_rio_lindo', clave: 'arroz-rio-lindo', nombre: 'Arroz Rio lindo', factorKey: 'factorArrozRioLindo' }
           ];
         },
 
@@ -10756,6 +10797,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             arroz_blanco: ['arroz-blanco'],
             arroz_verde: ['arroz-verde', 'arroz-pato'],
             arroz_beata: ['arroz-beata'],
+            arroz_rio_lindo: ['arroz-rio-lindo'],
             trozo_panceta: ['trozo-panceta', 'chancho-lena', 'chancho-lena-bbq', 'chaufa-chancho', 'mix-lena'],
             chicharron_chancho: ['chicharron-chancho', 'fuente-chicharron-chancho', 'medio-chicharron-chancho', 'desayuno-criollo'],
             pieza_pescado: ['pieza-pescado', 'duo-marino', 'ceviche', 'ceviche-pescado', 'chicharron-pescado', 'jalea-pescado', 'pescado-frito'],
@@ -11939,6 +11981,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             'arroz blanco': 'arroz_blanco',
             'arroz-beata': 'arroz_beata',
             'arroz a la beata': 'arroz_beata',
+            'arroz-rio-lindo': 'arroz_rio_lindo',
+            'arroz rio lindo': 'arroz_rio_lindo',
             'octavo-pollo': 'octavo_pollo',
             'octavo de pollo': 'octavo_pollo',
             'trozo-panceta': 'trozo_panceta',
@@ -12116,6 +12160,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (n > 0) map[platoKey] = n;
           else delete map[platoKey];
           this.ventaEspecial.cantidadesPlato = map;
+          const sab = Object.assign({}, (this.ventaEspecial.saboresPlato || {})[platoKey] || {});
+          const elegidos = Object.keys(sab).filter((k) => Number(sab[k]) > 0);
+          if (elegidos.length !== 1) return;
+          let nombre = platoKey;
+          ((this.config && this.config.relaciones) || []).forEach((rel) => {
+            if (rel && this.norm(rel.plato) === platoKey) nombre = rel.plato;
+          });
+          if (this.metaPlatoVentaEspecial(nombre).saboresPorPlato !== 1) return;
+          const todos = Object.assign({}, this.ventaEspecial.saboresPlato || {});
+          todos[platoKey] = n > 0 ? { [elegidos[0]]: n } : {};
+          this.ventaEspecial.saboresPlato = todos;
+        },
+
+        elegirSaborPlatoVE(platoKey, rowId) {
+          const cant = Math.max(1, this.cantidadPlatoVentaEspecial(platoKey));
+          if (!this.cantidadPlatoVentaEspecial(platoKey)) this.fijarCantidadPlatoVentaEspecial(platoKey, 1);
+          const todos = Object.assign({}, this.ventaEspecial.saboresPlato || {});
+          todos[platoKey] = { [rowId]: cant };
+          this.ventaEspecial.saboresPlato = todos;
         },
 
         cortePlatoVentaEspecial(platoKey) {
@@ -12824,6 +12887,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (group.open) {
             group.staggerKey = (group.staggerKey || 1) + 1;
           }
+          if (group && group.id === 'pachamancas') this.tocarHoja();
         },
 
         toggleNodo(node) {
@@ -12859,7 +12923,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               venta += Number(rows[i] && rows[i].ventaCocido) || 0;
             }
           }
-          return [this.busqueda || '', this.ordenHoja || '', this.filtroCategoria || '', this._revHoja || 0, rows.length, venta].join('\u0001');
+          return [this.busqueda || '', this.ordenHoja || '', this._ordenRev || 0, this.filtroCategoria || '', this._revHoja || 0, rows.length, venta].join('\u0001');
         },
 
         filasPollo(raiz, troncoDesde, troncoHasta) {
@@ -12887,6 +12951,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!coincide(node)) return;
             const row = filaReal(node.id);
             if (!row) return;
+            if (this.filtroCategoria === 'todos' && this.filaPachamanca(row)) return;
             const key = node.alias || node.id;
             const currentBranch = depth === 0 ? 'root' : (depth === 1 ? key : branchGroup);
             const mostrar = !vistaPacha || this.filaPachamanca(row);
@@ -12914,10 +12979,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
             const nextOpen = mostrar ? (ancestorsOpen && Boolean(node.open)) : true;
             let hijos = node.children || [];
-            if (this.ordenHoja === 'cantidad' || this.ordenHoja === 'nombre') {
+            if (this.ordenHoja === 'cantidad' || this.ordenHoja === 'nombre' || this.ordenHoja === 'personalizado') {
               hijos = hijos.slice().sort((a, b) => {
                 const na = String(a.nombre || a.id);
                 const nb = String(b.nombre || b.id);
+                if (this.ordenHoja === 'personalizado') return this.indiceOrdenPersonal(a.id) - this.indiceOrdenPersonal(b.id);
                 if (this.ordenHoja === 'nombre') return na.localeCompare(nb, 'es');
                 const va = Number((filaReal(a.id) || {}).venta) || 0;
                 const vb = Number((filaReal(b.id) || {}).venta) || 0;
@@ -13104,7 +13170,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Panceta', [['panceta', 'Panceta'], ['trozo_panceta', 'Pieza de panceta']]),
             cuadro('Carnes', [['carne_bistec', 'Carne Bistec'], ['lomo_fino', 'Lomo Fino'], ['carne_guiso', 'Seco de Res']]),
             cuadro('Trucha', [['trucha_entera', 'Trucha entera'], ['filete_trucha', 'Filete de trucha']]),
-            cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde + Pato'], ['arroz_beata', 'Arroz Beata']]),
+            cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde + Pato'], ['arroz_beata', 'Arroz Beata'], ['arroz_rio_lindo', 'Arroz Rio lindo']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pecho de Pato'], ['pierna_pato', 'Pierna de pato']]),
             cuadro('Pota', [['pieza_pota', 'Pieza de pota']]),
             cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal'], ['humita', 'Humita'], ['yuca', 'Yuca']]),
@@ -13301,6 +13367,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'arroz_blanco', grupo: 'arroz', nombre: 'Arroz blanco', detalle: '1 crudo = 8', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 6 },
             { id: 'arroz_verde', grupo: 'arroz', nombre: 'Arroz verde + Pato', detalle: '1 crudo = 6. El pato sale de este mismo arroz', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'arroz_beata', grupo: 'arroz', nombre: 'Arroz Beata', detalle: '1 crudo = el factor de Beata', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'arroz_rio_lindo', grupo: 'arroz', nombre: 'Arroz Rio lindo', detalle: '1 crudo = el factor de Rio lindo', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'tamal', grupo: null, nombre: 'Tamal', detalle: 'Guarnición y plato', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'humita', grupo: null, nombre: 'Humita', detalle: '1 sabor = 1, 2 sabores = 2, 3 = 3, 4 = 4. La pieza no cambia la cuenta', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -13395,8 +13462,77 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             out.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
           } else if (this.ordenHoja === 'cantidad') {
             out.sort((a, b) => (Number(b.venta) || 0) - (Number(a.venta) || 0) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
+          } else if (this.ordenHoja === 'personalizado') {
+            out.sort((a, b) => this.indiceOrdenPersonal(a.id) - this.indiceOrdenPersonal(b.id));
           }
           return out;
+        },
+
+        indiceOrdenPersonal(id) {
+          const i = (this.ordenPersonal || []).indexOf(id);
+          return i === -1 ? 100000 : i;
+        },
+
+        cargarOrdenPersonal() {
+          try {
+            const raw = localStorage.getItem('inventario-orden-personal');
+            const lista = raw ? JSON.parse(raw) : [];
+            this.ordenPersonal = Array.isArray(lista) ? lista : [];
+          } catch (e) {
+            this.ordenPersonal = [];
+          }
+        },
+
+        guardarOrdenPersonal() {
+          try {
+            localStorage.setItem('inventario-orden-personal', JSON.stringify(this.ordenPersonal || []));
+          } catch (e) {}
+        },
+
+        alCambiarOrdenHoja() {
+          if (this.ordenHoja === 'personalizado' && !(this.ordenPersonal || []).length) this.sembrarOrdenPersonal();
+          this.tocarHoja();
+        },
+
+        idsVisiblesHoja() {
+          const ids = [];
+          this.bloquesHoja().forEach((b) => {
+            (b.filas || []).forEach((f) => {
+              if (f && f.row && f.row.id) ids.push(f.row.id);
+            });
+          });
+          return ids;
+        },
+
+        sembrarOrdenPersonal() {
+          this.ordenPersonal = this.idsVisiblesHoja();
+          this.guardarOrdenPersonal();
+        },
+
+        moverFilaOrden(id, dir) {
+          if (!id || this.ordenHoja !== 'personalizado') return;
+          let lista = (this.ordenPersonal || []).slice();
+          if (!lista.length) lista = this.idsVisiblesHoja();
+          let visibles = [];
+          this.bloquesHoja().some((b) => {
+            const ids = (b.filas || []).filter((f) => f && f.row && f.visible !== false).map((f) => f.row.id);
+            if (ids.indexOf(id) === -1) return false;
+            visibles = ids;
+            return true;
+          });
+          const pos = visibles.indexOf(id);
+          const vecino = visibles[pos + dir];
+          if (pos < 0 || !vecino) return;
+          if (lista.indexOf(id) < 0) lista.push(id);
+          if (lista.indexOf(vecino) < 0) lista.push(vecino);
+          const i = lista.indexOf(id);
+          const j = lista.indexOf(vecino);
+          lista[i] = vecino;
+          lista[j] = id;
+          this.ordenPersonal = lista;
+          this._ordenRev = (this._ordenRev || 0) + 1;
+          this.guardarOrdenPersonal();
+          this.tocarHoja();
         },
 
         ordenarNodos(nodos) {
@@ -13409,6 +13545,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const vb = Number((this.filaReal(b.id) || {}).venta) || 0;
               return vb - va || String(a.nombre || a.id).localeCompare(String(b.nombre || b.id), 'es');
             });
+          } else if (this.ordenHoja === 'personalizado') {
+            out.sort((a, b) => this.indiceOrdenPersonal(a.id) - this.indiceOrdenPersonal(b.id));
           }
           return out;
         },
@@ -13492,6 +13630,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         groupHasMatch(groupId) {
+          if (groupId === 'pachamancas') return this.filtroCategoria === 'todos' && this.filasVistaPachamanca().length > 0;
           if (this.vistaPachamanca()) {
             if (['pollo', 'panceta', 'carnes', 'carnero'].indexOf(groupId) === -1) return false;
           } else if (this.filtroCategoria && this.filtroCategoria !== 'todos') {
@@ -13519,7 +13658,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         getFilteredRowsByGroup(groupId) {
-          return this.ordenarFilas(this.rows.filter(r => r.grupo === groupId && this.matchesSearch(r)));
+          return this.ordenarFilas(this.rows.filter((r) => {
+            if (r.grupo !== groupId || !this.matchesSearch(r)) return false;
+            if (this.filtroCategoria === 'todos' && this.filaPachamanca(r)) return false;
+            return true;
+          }));
         },
 
         getLooseRows() {
@@ -13587,6 +13730,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           for (let i = 0; i < groups.length; i++) {
             const group = groups[i];
             list.push({ key: 'g-' + group.id, suelto: false, group: group, filas: this.filasDeGrupo(group) });
+            if (group.id === 'pollo' && this.filtroCategoria === 'todos') {
+              list.push({
+                key: 'g-pachamancas',
+                suelto: false,
+                group: this.grupoPachamancas,
+                filas: this.filasVistaPachamanca().map((f) => Object.assign({}, f, { enGrupo: true, visible: this.grupoPachamancas.open !== false }))
+              });
+            }
           }
           list.push({ key: 'sueltos', suelto: true, group: null, filas: this.filasSueltas() });
           this._bloques = { firma, list };
@@ -16052,6 +16203,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               arroz_blanco: 'arroz',
               arroz_verde: 'arroz',
               arroz_beata: 'arroz',
+              arroz_rio_lindo: 'arroz',
               arroz_con_pollo: 'octavo_pollo',
               pollo_olla: 'octavo_pollo',
               caldo_pollo: 'octavo_pollo',
@@ -17541,6 +17693,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             octavo_pollo: ['Octavo de pollo'],
             arroz_verde: ['Arroz verde + Pato', 'Arroz verde', 'Arroz pato', 'Arroz con pato'],
             arroz_beata: ['Arroz Beata'],
+            arroz_rio_lindo: ['Arroz Rio lindo'],
             trozo_panceta: ['Pieza de panceta', 'Trozo de panceta', 'Panceta'],
             chicharron_chancho: ['Chicharrón de chancho crudo', 'Chicharrón de chancho'],
             pechuga_pato: ['Pechuga de pato', 'Pecho de Pato', 'Pato'],

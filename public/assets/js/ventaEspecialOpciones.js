@@ -31,7 +31,16 @@
   }
 
   function esIngredienteSabor(ing) {
-    return norm(ing && (ing.complemento || ing.nota || '')).includes('sabor:');
+    const c = norm([
+      ing && ing.complemento,
+      ing && ing.nota,
+      ing && ing.productoNombre,
+      ing && ing.nombreProducto,
+      ing && ing.rubro
+    ].filter(Boolean).join(' '));
+    if (c.includes('sabor:')) return true;
+    if (!c.includes('pachamanca')) return false;
+    return c.includes('pollo') || c.includes('cerdo') || c.includes('chancho') || c.includes('carne') || c.includes('res') || c.includes('carnero') || c.includes('cordero');
   }
 
   function corteLenaDe(ing) {

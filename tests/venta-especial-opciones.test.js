@@ -6,6 +6,8 @@ test('pachamanca 3 sabores sale del nombre y 2 sabores puede venir de la ficha',
   expect(op.metaPlato('Pachamanca de Cordero').saboresPorPlato).toBe(0);
   expect(op.metaPlato('1/4 pollo a la leña').esLena).toBe(true);
   expect(op.metaPlato('1/4 pollo a la leña').esPacha).toBe(false);
+  expect(op.esIngredienteSabor({ productoNombre: 'Pollo pachamanca pierna', complemento: '' })).toBe(true);
+  expect(op.esIngredienteSabor({ productoNombre: 'Humita', complemento: '1 humita' })).toBe(false);
 });
 
 test('un plato de 2 sabores solo resta los sabores elegidos', () => {
