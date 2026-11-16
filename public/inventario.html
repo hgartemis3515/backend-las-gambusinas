@@ -17099,18 +17099,55 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.transferir({ origenId: 'pota', salen: 0, destinos: [{ id: 'pieza_pota', entran: delta }], motivo: 'Pasa a piezas', historial: 'Pota → Piezas' });
         },
 
+        cantidadRelacionPlato(nombre, rubros) {
+          const n = this.norm(nombre);
+          if (!n) return null;
+          const aceptados = {};
+          (rubros || []).forEach((rubro) => {
+            const k = this.norm(rubro);
+            if (k) aceptados[k] = true;
+          });
+          const rels = (this.config && this.config.relaciones) || [];
+          for (let i = 0; i < rels.length; i++) {
+            const rel = rels[i];
+            if (!rel || this.norm(rel.plato) !== n || !aceptados[this.norm(rel.rubro)]) continue;
+            if (rel.cantidad === '—' || rel.cantidad === '-') return null;
+            const cant = Number(rel.cantidad);
+            return cant > 0 ? cant : null;
+          }
+          return null;
+        },
+
+        conConsumoDeRubros(lista, rubros) {
+          return (lista || []).map((pl) => {
+            const cant = this.cantidadRelacionPlato(pl && pl.nombre, rubros);
+            if (!(cant > 0) || cant === Number(pl.cantidad)) return pl;
+            return Object.assign({}, pl, { cantidad: cant });
+          });
+        },
+
+        conConsumoDeFila(lista, rowId) {
+          return this.conConsumoDeRubros(lista, this.rubrosRelacionDeFila(rowId));
+        },
+
+        conConsumoDeClave(lista, clave, nombre) {
+          const id = this.idDeClaveExacto(clave);
+          const rubros = (id ? this.rubrosRelacionDeFila(id) : []).concat([nombre, clave]);
+          return this.conConsumoDeRubros(lista, rubros);
+        },
+
         platosDeTrozoPanceta() {
-          return [
+          return this.conConsumoDeFila([
             { id: 'chancho-lena-frejol', nombre: 'Chancho a la Leña + Frejol + Arroz', cantidad: 4 },
             { id: 'chancho-lena-papa', nombre: 'Chancho a la Leña + PF + Arroz + Ensalada', cantidad: 4 },
             { id: 'mix-lena', nombre: 'Mixto leña 1/4 pollo + 300gr panceta + P-frita + Arroz + ensalada', cantidad: 3 },
             { id: 'chancho-bbq', nombre: 'Chancho a la Leña BBQ', cantidad: 6 },
             { id: 'chaufa-chancho', nombre: 'Arroz Chaufa Chancho', cantidad: 1 }
-          ];
+          ], 'trozo_panceta');
         },
 
         platosDePiezaPescado() {
-          return [
+          return this.conConsumoDeFila([
             { id: 'duo-marino', nombre: 'Duo Marino Ceviche Chicharron de pescado', cantidad: 2 },
             { id: 'ceviche', nombre: 'Ceviche', cantidad: 1 },
             { id: 'ceviche-pescado', nombre: 'Ceviche de pescado + Huancaína', cantidad: 1 },
@@ -17118,30 +17155,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'chicharron-pescado-corto', nombre: 'Chicharron de Pescado', cantidad: 1 },
             { id: 'jalea-pescado', nombre: 'Jalea de Pescado + yuca frita c/zarza', cantidad: 1 },
             { id: 'pescado-frito', nombre: 'Pescado Frito + Arroz + Papa Frita', cantidad: 1 }
-          ];
+          ], 'pieza_pescado');
         },
 
         platosDePiezaPota() {
-          return [
+          return this.conConsumoDeFila([
             { id: 'chicharron-pota', nombre: 'Chicharrón de Pota + yuca + zarza', cantidad: 1 },
             { id: 'ceviche-chicharron-pota', nombre: 'Ceviche c/ Chicharrón de Pota', cantidad: 1 }
-          ];
+          ], 'pieza_pota');
         },
 
         platosDeChicharronChancho() {
-          return [
+          return this.conConsumoDeFila([
             { id: 'fuente-chicharron-chancho', nombre: 'Fuente de Chicharrón de chancho', cantidad: 2 },
             { id: 'medio-chicharron-chancho', nombre: '1/2 Chicharrón de chancho + 4 panes', cantidad: 0.5 },
             { id: 'medio-chicharron-camote', nombre: '1/2 Chicharron de chancho + camote frito + zarza criolla', cantidad: 0.5 },
             { id: 'desayuno-criollo-gambusinas', nombre: 'Desayuno Criollo Gambusinas', cantidad: 0.5 }
-          ];
+          ], 'chicharron_chancho');
         },
 
         platosDeCuy() {
-          return [
+          return this.conConsumoDeFila([
             { id: 'cuy-entero', nombre: 'Cuy entero frito + arroz + papas doradas + zarza criolla', cantidad: 1 },
             { id: 'medio-cuy', nombre: '1/2 cuy frito + arroz + papas doradas + zarza criolla', cantidad: 0.5 }
-          ];
+          ], 'cuy');
         },
 
         stepField(rowId, field, delta) {
@@ -19842,7 +19879,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 nombre: corte.nombre,
                 color: colores[i % colores.length],
                 corte: corte,
-                platos: platos.filter((p) => p.cuelgaDe === corte.clave)
+                platos: this.conConsumoDeClave(platos.filter((p) => p.cuelgaDe === corte.clave), corte.clave, corte.nombre)
               });
             });
           }
@@ -19854,7 +19891,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               nombre: 'Platos de ' + mapa.origen.nombre,
               color: mapa.tipo === 'directo' ? '#d4af37' : colores[ramas.length % colores.length],
               corte: null,
-              platos: delOrigen
+              platos: this.conConsumoDeClave(delOrigen, mapa.origen && mapa.origen.clave, mapa.origen && mapa.origen.nombre)
             });
           }
           return ramas;
@@ -19870,7 +19907,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const pollo = (fuente || []).find((m) => m.id === 'pollo-fresco');
           const base = ((pollo && pollo.platos) || []).filter((p) => p.cuelgaDe === 'filete');
           const lista = base.length ? base : (this.mapasRespaldo()[0].platos || []).filter((p) => p.cuelgaDe === 'filete');
-          return lista.filter((p) => !this.esVentaDirectaDeFilete(p.id));
+          return this.conConsumoDeFila(lista.filter((p) => !this.esVentaDirectaDeFilete(p.id)), 'filete');
         },
 
         textoMapa(mapa) {

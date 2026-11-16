@@ -98,6 +98,60 @@ function rubroDeGuarnicion(nombre) {
     return null;
 }
 
+const ALIAS_RUBRO_RELACION = {
+    'chicharron de chancho crudo': 'chicharron-chancho',
+    'trozo de panceta': 'trozo-panceta',
+    'filete de pollo': 'filete',
+    'filete pollo crudo': 'filete',
+    'pechuga de pollo': 'pechuga-pollo',
+    'pierna de pollo': 'pierna-pollo',
+    'carnero crudo': 'carnero',
+    'arroz verde': 'arroz-verde',
+    'arroz pato': 'arroz-verde',
+    'arroz con pato': 'arroz-verde',
+    'arroz beata': 'arroz-beata',
+    'frugos 1.5lt': 'frugos-1-5l'
+};
+
+function claveDeRubroRelacion(rubro) {
+    const n = norm(rubro);
+    if (!n) return '';
+    if (!claveDeRubroRelacion.indice) {
+        const indice = Object.assign({}, ALIAS_RUBRO_RELACION);
+        const { clavesGuardables } = require('./inventarioRubros');
+        clavesGuardables().forEach((def) => {
+            const nombre = norm(def && def.nombre);
+            if (nombre && !indice[nombre]) indice[nombre] = def.clave;
+        });
+        claveDeRubroRelacion.indice = indice;
+    }
+    return claveDeRubroRelacion.indice[n] || '';
+}
+
+/** La cantidad editada en Relación de platos reemplaza el factor fijo del mismo producto. */
+function aplicarFactoresRelacion(nombre, lista, relaciones) {
+    if (!nombre || !lista || !lista.length || !relaciones || !relaciones.length) return lista;
+    const n = norm(nombre);
+    const factorPorRubro = {};
+    relaciones.forEach((rel) => {
+        if (!rel || norm(rel.plato) !== n) return;
+        if (rel.cantidad === '—' || rel.cantidad === '-') return;
+        const cant = Number(rel.cantidad);
+        if (!(cant > 0)) return;
+        const clave = claveDeRubroRelacion(rel.rubro);
+        if (!clave || clave === 'humita') return;
+        factorPorRubro[clave] = cant;
+    });
+    const claves = Object.keys(factorPorRubro);
+    if (!claves.length) return lista;
+    return lista.map((item) => {
+        if (!item || item.unidades != null) return item;
+        const cant = factorPorRubro[item.rubro];
+        if (!(cant > 0) || Number(item.factor) === cant) return item;
+        return Object.assign({}, item, { factor: cant });
+    });
+}
+
 function filasDelContador(contador) {
     if (!contador) return [];
     const bebidas = (contador.guarniciones || [])
@@ -137,7 +191,11 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
         detalle[rubro][key].platos += Number(platos) || 0;
     };
     for (const fila of filas || []) {
-        const mapas = rubrosDeFila(fila, mapasVenta, meta && meta.bebidas);
+        const mapas = aplicarFactoresRelacion(
+            fila && fila.nombre,
+            rubrosDeFila(fila, mapasVenta, meta && meta.bebidas),
+            meta && meta.relaciones
+        );
         const cantidad = Number(fila && fila.cantidad) || 0;
         if (!mapas.length || cantidad <= 0) continue;
         const fuentes = fila && fila.fuentes && typeof fila.fuentes === 'object' ? fila.fuentes : null;
@@ -485,6 +543,14 @@ async function egresosVentaHasta(hasta) {
             logger.warn('Inventario usa los mapas de semilla', { error: errorMapa.message });
         }
         const bebidas = indiceBebidas(catalogo);
+        let relaciones = [];
+        try {
+            const Modelo = require('../database/models/inventarioMapa.model');
+            const docRel = await Modelo.findOne({ clave: 'relaciones' }).select('relaciones').lean();
+            relaciones = docRel && Array.isArray(docRel.relaciones) ? docRel.relaciones : [];
+        } catch (errorRel) {
+            logger.warn('Inventario usa los factores fijos de platos', { error: errorRel.message });
+        }
         for (const comanda of comandas || []) {
             const lineas = lineasDeComanda(comanda);
             if (!comanda || !comanda.createdAt || !lineas.length) continue;
@@ -494,7 +560,7 @@ async function egresosVentaHasta(hasta) {
                 filasDelContador(armarContadorPlatos(lineas, catalogo)),
                 etiqueta,
                 mapasVenta,
-                { comandaId: comanda._id, hora: comanda.createdAt, bebidas: bebidas }
+                { comandaId: comanda._id, hora: comanda.createdAt, bebidas: bebidas, relaciones: relaciones }
             );
             const humita = unidadesHumitaPachamanca(lineas, catalogo);
             if (humita.total > 0) {
@@ -537,6 +603,7 @@ module.exports = {
     aplicarMapa,
     rubroDeGuarnicion,
     rubrosDeNombre,
+    aplicarFactoresRelacion,
     partirSalida,
     filasDelContador,
     indiceBebidas,

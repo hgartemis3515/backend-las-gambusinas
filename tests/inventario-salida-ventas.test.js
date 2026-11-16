@@ -1,4 +1,4 @@
-const { aplicarMapa, filasDelContador, indiceBebidas } = require('../src/utils/inventarioSalidaVentas');
+const { aplicarMapa, filasDelContador, indiceBebidas, partirSalida } = require('../src/utils/inventarioSalidaVentas');
 const { filasDeRubros } = require('../src/utils/inventarioRubros');
 
 function dia(ymd, hora) {
@@ -419,6 +419,33 @@ test('yuca, inca 300, carnero, frugos y pizza descuentan su fila', () => {
     expect(otros['frugos-1-5l']).toBe(3);
     expect(otros['pizza-20x20']).toBe(2);
     expect(otros['pizza-30x30']).toBe(1);
+});
+
+test('la relación de platos reemplaza el factor fijo del mismo producto', () => {
+    const relaciones = [
+        { plato: '1/2 Chicharron de chancho + camote frito + zarza criolla', rubro: 'Chicharrón de chancho crudo', cantidad: 1 },
+        { plato: '1/2 Chicharrón de chancho + 4 panes', rubro: 'Chicharrón de chancho crudo', cantidad: 1 },
+        { plato: 'Desayuno Criollo Gambusinas', rubro: 'Chicharrón de chancho crudo', cantidad: 1 },
+        { plato: '1/2 Chicharron de chancho + camote frito + zarza criolla', rubro: 'Papas', cantidad: 1 },
+        { plato: '1/4 Pollo a la leña + papa frita + arroz + ensalada', rubro: 'Pierna de Pollo', cantidad: 1 }
+    ];
+    const sinRelacion = partirSalida([
+        { nombre: '1/2 Chicharron de chancho + camote frito + zarza criolla', cantidad: 2 }
+    ], '', null, {});
+    expect(sinRelacion.porRubro['chicharron-chancho']).toBe(1);
+    const conRelacion = partirSalida([
+        { nombre: '1/2 Chicharron de chancho + camote frito + zarza criolla', cantidad: 2 },
+        { nombre: '1/2 Chicharrón de chancho + 4 panes', cantidad: 1 },
+        { nombre: 'Desayuno Criollo Gambusinas', cantidad: 1 },
+        { nombre: 'Fuente de Chicharrón de chancho', cantidad: 1 }
+    ], '', null, { relaciones });
+    expect(conRelacion.porRubro['chicharron-chancho']).toBe(6);
+    expect(conRelacion.porRubro.papas).toBeUndefined();
+    const lena = partirSalida([
+        { nombre: '1/4 Pollo a la leña + papa frita + arroz + ensalada', cantidad: 2, cortes: { Pecho: 2 } }
+    ], '', null, { relaciones });
+    expect(lena.porRubro['pollo-lena']).toBe(2);
+    expect(lena.porRubro['pierna-pollo']).toBeUndefined();
 });
 
 test('la venta del día entra en salida y al día siguiente abre el saldo anterior', () => {
