@@ -421,7 +421,7 @@ test('yuca, inca 300, carnero, frugos y pizza descuentan su fila', () => {
     expect(otros['pizza-30x30']).toBe(1);
 });
 
-test('la relación de platos reemplaza el factor fijo del mismo producto', () => {
+test('la relación de platos cambia la cantidad y suma los otros productos vinculados', () => {
     const relaciones = [
         { plato: '1/2 Chicharron de chancho + camote frito + zarza criolla', rubro: 'Chicharrón de chancho crudo', cantidad: 1 },
         { plato: '1/2 Chicharrón de chancho + 4 panes', rubro: 'Chicharrón de chancho crudo', cantidad: 1 },
@@ -440,12 +440,48 @@ test('la relación de platos reemplaza el factor fijo del mismo producto', () =>
         { nombre: 'Fuente de Chicharrón de chancho', cantidad: 1 }
     ], '', null, { relaciones });
     expect(conRelacion.porRubro['chicharron-chancho']).toBe(6);
-    expect(conRelacion.porRubro.papas).toBeUndefined();
+    expect(conRelacion.porRubro.papas).toBe(2);
     const lena = partirSalida([
         { nombre: '1/4 Pollo a la leña + papa frita + arroz + ensalada', cantidad: 2, cortes: { Pecho: 2 } }
     ], '', null, { relaciones });
     expect(lena.porRubro['pollo-lena']).toBe(2);
-    expect(lena.porRubro['pierna-pollo']).toBeUndefined();
+    expect(lena.porRubro['pierna-pollo']).toBe(2);
+});
+
+test('un plato con varios productos vinculados resta cada uno', () => {
+    const relaciones = [
+        { plato: 'Ceviche de chicharrón de pota', rubro: 'Pieza de pota', cantidad: 2 },
+        { plato: 'Ceviche de chicharrón de pota', rubro: 'Pieza de pescado', cantidad: 1 }
+    ];
+    const uno = partirSalida([
+        { nombre: 'Ceviche de chicharrón de pota', cantidad: 1 }
+    ], '', null, { relaciones });
+    expect(uno.porRubro['pieza-pota']).toBe(2);
+    expect(uno.porRubro['pieza-pescado']).toBe(1);
+    const tres = partirSalida([
+        { nombre: 'Ceviche de chicharrón de pota', cantidad: 3 }
+    ], '', null, { relaciones });
+    expect(tres.porRubro['pieza-pota']).toBe(6);
+    expect(tres.porRubro['pieza-pescado']).toBe(3);
+    const sin = partirSalida([
+        { nombre: 'Ceviche de chicharrón de pota', cantidad: 1 }
+    ], '', null, {});
+    expect(sin.porRubro['pieza-pota']).toBe(1);
+    expect(sin.porRubro['pieza-pescado']).toBeUndefined();
+});
+
+test('un plato sin regla fija resta solo lo vinculado', () => {
+    const relaciones = [
+        { plato: 'Parihuela especial', rubro: 'Pieza de pescado', cantidad: 1 },
+        { plato: 'Parihuela especial', rubro: 'Pieza de pota', cantidad: 2 },
+        { plato: 'Parihuela especial', rubro: 'Humita', cantidad: 4 }
+    ];
+    const out = partirSalida([
+        { nombre: 'Parihuela especial', cantidad: 2 }
+    ], '', null, { relaciones });
+    expect(out.porRubro['pieza-pescado']).toBe(2);
+    expect(out.porRubro['pieza-pota']).toBe(4);
+    expect(out.porRubro.humita).toBeUndefined();
 });
 
 test('la venta del día entra en salida y al día siguiente abre el saldo anterior', () => {

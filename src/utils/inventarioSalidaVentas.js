@@ -128,9 +128,14 @@ function claveDeRubroRelacion(rubro) {
     return claveDeRubroRelacion.indice[n] || '';
 }
 
-/** La cantidad editada en Relación de platos reemplaza el factor fijo del mismo producto. */
+/**
+ * Cada producto vinculado al plato se resta.
+ * Si la venta ya lo traía, la cantidad del vínculo reemplaza el factor fijo.
+ * Si no estaba, se suma. La humita sigue por su cuenta, para no contarla dos veces.
+ */
 function aplicarFactoresRelacion(nombre, lista, relaciones) {
-    if (!nombre || !lista || !lista.length || !relaciones || !relaciones.length) return lista;
+    const base = Array.isArray(lista) ? lista : [];
+    if (!nombre || !relaciones || !relaciones.length) return base;
     const n = norm(nombre);
     const factorPorRubro = {};
     relaciones.forEach((rel) => {
@@ -143,13 +148,22 @@ function aplicarFactoresRelacion(nombre, lista, relaciones) {
         factorPorRubro[clave] = cant;
     });
     const claves = Object.keys(factorPorRubro);
-    if (!claves.length) return lista;
-    return lista.map((item) => {
+    if (!claves.length) return base;
+    const out = base.map((item) => {
         if (!item || item.unidades != null) return item;
         const cant = factorPorRubro[item.rubro];
         if (!(cant > 0) || Number(item.factor) === cant) return item;
         return Object.assign({}, item, { factor: cant });
     });
+    const ya = {};
+    out.forEach((item) => {
+        if (item && item.rubro) ya[item.rubro] = true;
+    });
+    claves.forEach((clave) => {
+        if (ya[clave]) return;
+        out.push({ rubro: clave, factor: factorPorRubro[clave] });
+    });
+    return out;
 }
 
 function filasDelContador(contador) {

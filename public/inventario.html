@@ -2286,7 +2286,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <button type="button" class="btn-lupa-venta w-7 h-7 rounded-lg border border-[#26263a] bg-[#1c1c2b] text-[#d4af37] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a]" :class="ventaColumna(row) > 0 ? 'con-venta' : ''" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="$el.classList.remove('pulso'); void $el.offsetWidth; $el.classList.add('pulso'); abrirVentaFila(row)">
                           <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                         </button>
-                        <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Venta manual de ' + row.nombre" title="Venta manual: resta cocido, luego crudo y luego la reserva" @click="abrirVentaManual(row)">−</button>
+                        <button type="button" class="w-7 h-7 rounded-lg border-2 border-[#ff0000] bg-transparent text-[#ff0000] inline-flex items-center justify-center cursor-pointer hover:bg-[#ff0000]/10 font-extrabold text-lg leading-none" :aria-label="'Descarga manual de ' + row.nombre" title="Descarga manual: resta cocido, luego crudo y luego la reserva" @click="abrirVentaManual(row)">−</button>
                       </div>
                     </td>
 
@@ -7975,7 +7975,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="min-w-0">
               <p class="text-[10px] uppercase tracking-wider font-bold text-[#5a5a7a]">Venta comandas</p>
               <h3 class="text-lg font-semibold text-[#d4af37] truncate" x-text="ventaInfo.nombre"></h3>
-              <p class="text-[11px] text-[#a0a0b8] mt-0.5">Qué restó cada venta: cocido, crudo o la pieza de reserva. <span class="text-white">Ver</span> abre la comanda; eliminar una venta manual devuelve el stock.</p>
+              <p class="text-[11px] text-[#a0a0b8] mt-0.5">Qué restó cada venta: cocido, crudo o la pieza de reserva. <span class="text-white">Ver</span> abre la comanda; eliminar una descarga manual devuelve el stock.</p>
             </div>
           </div>
           <button type="button" class="shrink-0 w-8 h-8 rounded-lg text-[#a0a0b8] hover:text-white hover:bg-[#26263a] text-xl leading-none transition" @click="cerrarVenta()" aria-label="Cerrar">×</button>
@@ -8084,12 +8084,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </div>
 
   <template x-if="ventaManualAbierta && ventaManualFila">
-    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaManualAbierta = false" @keydown.escape.window="ventaManualAbierta = false" role="dialog" aria-modal="true" aria-label="Venta manual" data-testid="modal-venta-manual">
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ventaManualAbierta = false" @keydown.escape.window="ventaManualAbierta = false" role="dialog" aria-modal="true" aria-label="Descarga manual" data-testid="modal-venta-manual">
       <div class="w-full max-w-lg bg-[#14141f] border-2 border-[#ff0000] p-5 rounded-xl space-y-4 max-h-[92vh] overflow-y-auto shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="flex items-center gap-2">
-              <h3 class="text-lg font-semibold text-[#ff0000]">Venta manual</h3>
+              <h3 class="text-lg font-semibold text-[#ff0000]">Descarga manual</h3>
               <span class="px-2 py-0.5 rounded bg-[#0a0a0f] border border-[#26263a] text-xs font-mono text-[#d4af37]" x-text="'Queda: ' + formatNum(saldoRealColumna(ventaManualFila)) + ' ' + (ventaManualFila.unidad || 'unid')"></span>
             </div>
             <p class="text-sm font-bold text-white mt-1" x-text="ventaManualFila.nombre"></p>
@@ -8203,7 +8203,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
 
         <label class="block text-xs text-[#a0a0b8]">Motivo <span class="text-[#5a5a7a]">(opcional)</span>
-          <textarea x-model="ventaManualMotivo" maxlength="180" rows="2" placeholder="Si quieres, anota por qué se resta" aria-label="Motivo de la venta manual" class="mt-1 w-full rounded-lg border border-[#ff0000]/50 bg-[#0a0a0f] px-3 py-2 text-sm text-white focus:outline-none"></textarea>
+          <div class="mt-1.5 flex flex-wrap gap-2">
+            <button type="button" @click="ponerMotivoDescarga('Beata')" :aria-pressed="ventaManualMotivo === 'Beata'" aria-label="Motivo Beata" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition" :class="ventaManualMotivo === 'Beata' ? 'bg-[#ff0000] text-white border-[#ff0000]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a] hover:text-white'">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11h16"/><path d="M6 11c.4 4.2 2.6 7 6 7s5.6-2.8 6-7"/><path d="M9 8c.6-1.6 1.6-2.5 3-2.5S14.4 6.4 15 8"/></svg>
+              Beata
+            </button>
+            <button type="button" @click="ponerMotivoDescarga('Rio Lindo')" :aria-pressed="ventaManualMotivo === 'Rio Lindo'" aria-label="Motivo Rio Lindo" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition" :class="ventaManualMotivo === 'Rio Lindo' ? 'bg-[#ff0000] text-white border-[#ff0000]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a] hover:text-white'">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M3 13c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M3 18c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/></svg>
+              Rio Lindo
+            </button>
+          </div>
+          <textarea x-model="ventaManualMotivo" maxlength="180" rows="2" placeholder="Si quieres, anota por qué se resta" aria-label="Motivo de la descarga manual" class="mt-2 w-full rounded-lg border border-[#ff0000]/50 bg-[#0a0a0f] px-3 py-2 text-sm text-white focus:outline-none"></textarea>
         </label>
         <div class="flex items-center justify-end gap-2">
           <button type="button" class="px-4 py-2 rounded-lg bg-[#1c1c2b] text-white text-sm font-semibold cursor-pointer" @click="ventaManualAbierta = false">Cancelar</button>
@@ -10943,11 +10953,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             });
             const escrito = g.movs.map((m) => this.motivoEscritoVenta(m.motivo)).find((t) => t) || '';
             lineas.push({
-              nombre: primero.nombre || (f && f.nombre) || 'Venta manual',
+              nombre: primero.nombre || (f && f.nombre) || 'Descarga manual',
               cantidad,
               platos: cantidad,
               factor: 1,
-              comanda: 'Venta manual',
+              comanda: 'Descarga manual',
               comandaId: '',
               hora: primero.fecha,
               uso: usos.join(' · '),
@@ -10964,7 +10974,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         async eliminarVentaManual(linea) {
           if (!linea || !linea.manual || this.ventaEliminando) return;
           const cual = linea.nota ? (linea.nombre + ' · ' + linea.nota) : linea.nombre;
-          if (!window.confirm('¿Eliminar esta venta manual de ' + cual + '? Se devuelve el stock que restó.')) return;
+          if (!window.confirm('¿Eliminar esta descarga manual de ' + cual + '? Se devuelve el stock que restó.')) return;
           const filtro = this.ventaFiltro;
           const desdeReporte = this.ventaDesdeReporte;
           this.ventaEliminando = true;
@@ -10973,7 +10983,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               method: 'POST',
               body: JSON.stringify(linea.lote ? { lote: linea.lote } : { ids: linea.ids || [] })
             });
-            this.toastMessage = 'Venta manual eliminada. El stock volvió.';
+            this.toastMessage = 'Descarga manual eliminada. El stock volvió.';
             this.sonarVenta('borrar');
             await this.cargarKardex();
             if (desdeReporte && this.reporteDiaAbierto) await this.cargarReporteDia();
@@ -10983,7 +10993,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               : { ventas: this.ventasPeriodo || [], movimientos: this.movimientosPeriodo || [] };
             this.abrirVenta(filtro, pack, desdeReporte);
           } catch (e) {
-            this.toastMessage = e.message || 'No se pudo eliminar la venta manual';
+            this.toastMessage = e.message || 'No se pudo eliminar la descarga manual';
           } finally {
             this.ventaEliminando = false;
           }
@@ -11439,6 +11449,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
+
+        ponerMotivoDescarga(texto) {
+          this.ventaManualMotivo = this.ventaManualMotivo === texto ? '' : texto;
+        },
 
         abrirVentaManual(row) {
           if (!row) return;
@@ -14411,7 +14425,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         textoOperacionAuditoria(mov) {
           const motivo = String(mov && mov.motivo || '');
           if (motivo.indexOf('Saldo anterior') === 0) return 'Saldo anterior';
-          if (motivo.indexOf('Venta manual') === 0) return 'Venta manual';
+          if (motivo.indexOf('Venta manual') === 0) return 'Descarga manual';
           if (!mov) return '';
           if (mov.clase === 'correccion') return 'Corrección (opcional)';
           if (mov.clase === 'ingreso') return 'Ingreso';
