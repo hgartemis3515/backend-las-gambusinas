@@ -83,11 +83,20 @@ function cadenaMixPechoLena() {
     ];
 }
 
+/** Platos de Pecho y Pierna: la venta solo baja el cocido del plato, nunca la pieza. */
+const PLATOS_POLLO_SOLO_COCIDO = [
+    'pollada', 'pierna-lena', 'pachamanca-pollo',
+    'pollo-lena', 'sandwiches', 'pachamanca-pollo-pecho'
+];
+
+function platoPolloSoloCocido(clave) {
+    return PLATOS_POLLO_SOLO_COCIDO.indexOf(String(clave || '')) !== -1;
+}
+
 function cadenaDe(rubro, opciones) {
     const op = opciones || {};
     if (esMateria(rubro)) return [{ rubro: rubro, tipo: 'crudo' }];
-    // Pierna a la leña solo gasta su cocido. No baja el crudo de Pierna de Pollo.
-    if (rubro === 'pierna-lena') return [{ rubro: 'pierna-lena', tipo: 'cocido' }];
+    if (platoPolloSoloCocido(rubro)) return [{ rubro: rubro, tipo: 'cocido' }];
     if (rubro === 'trozo-panceta') return [{ rubro: 'trozo-panceta', tipo: 'cocido' }];
     const cadena = [];
     if (op.tieneCocido) cadena.push({ rubro: rubro, tipo: 'cocido' });
@@ -218,13 +227,14 @@ function atribuirVentas(movimientos, ventas, opciones) {
         const cant = Number(v.cantidad) || 0;
         if (!rubro || cant <= 0) return;
         const op = (opciones && opciones[rubro]) || semillaCocido(rubro);
-        const mixPecho = rubro === 'pollo-lena' && esMixPechoLena(v);
-        const pachaPollo = rubro === 'pachamanca-pollo';
+        const mixPecho = !platoPolloSoloCocido(rubro) && rubro === 'pollo-lena' && esMixPechoLena(v);
+        const pachaPollo = !platoPolloSoloCocido(rubro) && rubro === 'pachamanca-pollo';
         let cadena;
-        if (mixPecho) cadena = cadenaMixPechoLena();
+        if (platoPolloSoloCocido(rubro)) cadena = [{ rubro: rubro, tipo: 'cocido' }];
+        else if (mixPecho) cadena = cadenaMixPechoLena();
         else if (pachaPollo) cadena = cadenaPachamancaPollo();
         else cadena = cadenaDe(rubro, op);
-        if (!mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
+        if (!platoPolloSoloCocido(rubro) && !mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
         const partes = repartirVenta(cant, cadena, bases);
         const algunaLocal = partes.some((p) => p.rubro === rubro);
         let cubierta = 0;
@@ -267,6 +277,7 @@ module.exports = {
     esMateria,
     semillaCocido,
     cadenaDe,
+    platoPolloSoloCocido,
     cadenaMixPechoLena,
     cadenaPachamancaPollo,
     esReservaValida,
