@@ -96,7 +96,7 @@ function platoPolloSoloCocido(clave) {
 function cadenaDe(rubro, opciones) {
     const op = opciones || {};
     if (esMateria(rubro) || rubro === 'panceta' || rubro === 'tira-panceta') return [{ rubro: rubro, tipo: 'crudo' }];
-    if (platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta') return [{ rubro: rubro, tipo: 'cocido' }];
+    if (platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || rubro === 'tamal-chancho' || rubro === 'tamal-pollo') return [{ rubro: rubro, tipo: 'cocido' }];
     // Con el cuadro de cocido activo, la venta solo baja ese cocido. No toca el crudo ni el producto principal.
     if (op.tieneCocido) return [{ rubro: rubro, tipo: 'cocido' }];
     const cadena = [{ rubro: rubro, tipo: 'crudo' }];

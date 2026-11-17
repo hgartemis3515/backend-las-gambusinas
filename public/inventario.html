@@ -2558,7 +2558,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-rose-400/80" title="Viene de comandas"></span>
                         <div class="flex items-center gap-1">
-                          <span class="text-[9px] font-bold font-sans text-[#d4af37]">Cocido</span>
+                          <span x-show="!stockGeneral(row)" class="text-[9px] font-bold font-sans text-[#d4af37]">Cocido</span>
                           <span class="caja-venta-cocido num-mono font-semibold" :class="ventaSinCocido(row) ? 'saldo-anterior-alarma' : ''" :title="tituloVentaCocido(row)" x-text="formatNum(ventaComandasCocido(row))"></span>
                         </div>
                         <button type="button" class="btn-lupa-venta lupa-cuadro w-7 h-7 rounded-lg border inline-flex items-center justify-center cursor-pointer" :class="ventaColumna(row) > 0 ? 'con-venta' : ''" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="$el.classList.remove('pulso'); void $el.offsetWidth; $el.classList.add('pulso'); abrirVentaFila(row)">
@@ -14053,8 +14053,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'arroz_beata', grupo: 'arroz', nombre: 'Arroz Beata', detalle: '1 crudo = el factor de Beata', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'arroz_rio_lindo', grupo: 'arroz', nombre: 'Arroz Rio lindo', detalle: '1 crudo = el factor de Rio lindo', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'tamal_chancho', grupo: null, nombre: 'Tamal de chancho', detalle: 'Tamal de chancho', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'tamal_pollo', grupo: null, nombre: 'Tamal de pollo', detalle: 'Tamal de pollo', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'tamal_chancho', grupo: null, nombre: 'Tamal de chancho', detalle: 'Solo cocido. El ingreso y la venta usan el mismo stock', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, soloCocido: true, tieneCocido: false, crudo: 0, cocido: 0 },
+            { id: 'tamal_pollo', grupo: null, nombre: 'Tamal de pollo', detalle: 'Solo cocido. El ingreso y la venta usan el mismo stock', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, soloCocido: true, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'humita', grupo: null, nombre: 'Humita', detalle: '1 sabor = 1, 2 sabores = 2, 3 = 3, 4 = 4. La pieza no cambia la cuenta', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'yuca', grupo: null, nombre: 'Yuca', detalle: '1 por chicharrón de pota, pescado, pollo, trucha, jalea de pescado, fuente de pollo y dúo truchero', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'delicias', grupo: null, nombre: 'Delicias', detalle: 'Venta del plato Delicia', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -14689,8 +14689,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(n);
         },
 
+        stockGeneral(row) {
+          if (!row) return false;
+          const grupo = row.grupo;
+          if (grupo === 'gaseosas' || grupo === 'licores' || grupo === 'bebidas') return true;
+          const id = String(row.id || '');
+          const clave = String((this.claveDeFila && this.claveDeFila[id]) || id);
+          if (id === 'helados' || id === 'frugos_15' || id === 'pizza_30' || id === 'pizza_20') return true;
+          return clave === 'helados' || clave.indexOf('frugos') === 0 || clave.indexOf('pizza') === 0 || clave.indexOf('gaseosa-') === 0 || clave.indexOf('licor-') === 0 || clave.indexOf('agua-') === 0;
+        },
+
+        faltaStockGeneral(row) {
+          if (!row || !this.stockGeneral(row)) return 0;
+          const venta = this.tiposDe(row).reduce((a, t) => a + this.ventaNetaTipo(row, t), 0);
+          if (!(venta > 0.0004)) return 0;
+          const queda = this.tiposDe(row).reduce((a, t) => a + this.quedaSinTopeTipo(row, t), 0);
+          return queda < -0.0004 ? this.redondear3(queda) : 0;
+        },
+
         emergenciaTipo(row, tipo) {
           if (!row || this.esFilaPapas(row)) return false;
+          if (this.stockGeneral(row)) return tipo === 'crudo' && this.faltaStockGeneral(row) < -0.0004;
           if (!(this.ventaNetaTipo(row, tipo) > 0.0004)) return false;
           return this.quedaSinTopeTipo(row, tipo) < -0.0004;
         },
@@ -14758,7 +14777,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (vistos.has(marca)) return;
               const emergencia = this.emergenciaTipo(row, tipo);
               if (emergencia && tipo === 'crudo' && this.ventaSinCocido(row)) return;
-              const real = emergencia ? this.quedaSinTopeTipo(row, tipo) : this.huecoSaldoTipo(row, tipo);
+              const real = (emergencia && this.stockGeneral(row))
+                ? this.faltaStockGeneral(row)
+                : (emergencia ? this.quedaSinTopeTipo(row, tipo) : this.huecoSaldoTipo(row, tipo));
               if (real >= -0.0004) return;
               vistos.add(marca);
               out.push({
@@ -14926,7 +14947,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         faltanteCocidoVenta(row) {
-          if (!row || this.esFilaPapas(row)) return 0;
+          if (!row || this.esFilaPapas(row) || this.stockGeneral(row)) return 0;
           const vendido = this.ventaComandasCocido(row);
           if (!(vendido > 0.0004)) return 0;
           if (row.tieneCocido || row.soloCocido) {
@@ -15063,6 +15084,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               row.tieneCocido = false;
               row.soloCocido = true;
             }
+            if (clave === 'tamal-chancho' || clave === 'tamal-pollo' || row.id === 'tamal_chancho' || row.id === 'tamal_pollo') {
+              row.tieneCocido = false;
+              row.soloCocido = true;
+            }
             if (clave === 'carnero' || row.id === 'carnero') row.tieneCocido = true;
             if (clave === 'menu' || clave === 'menu-pecho' || clave === 'menu-pierna' || clave === 'caldo-pollo') row.tieneCocido = false;
             if (clave === 'arroz-pollo' || row.id === 'arroz_con_pollo') row.tieneCocido = true;
@@ -15143,7 +15168,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
 
         cadenaDeFila(clave, row) {
-          if (clave === 'trozo-panceta' || this.platoPolloSoloCocido(clave)) return [{ rubro: clave, tipo: 'cocido' }];
+          if (clave === 'trozo-panceta' || clave === 'tamal-chancho' || clave === 'tamal-pollo' || this.platoPolloSoloCocido(clave)) return [{ rubro: clave, tipo: 'cocido' }];
           if (this.esMateriaClave(clave)) return [{ rubro: clave, tipo: 'crudo' }];
           if (row && (row.tieneCocido || row.soloCocido)) return [{ rubro: clave, tipo: 'cocido' }];
           const cadena = [];
