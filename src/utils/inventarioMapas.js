@@ -40,13 +40,10 @@ const SEMILLA = [
     },
     {
         id: 'carnero',
-        nombre: 'Carnero Crudo',
-        tipo: 'despiece',
-        origen: { clave: 'carnero', nombre: 'Carnero Crudo' },
-        cortes: [
-            { clave: 'pachamanca-cordero', nombre: 'Carnero pachamanca', factor: 1, factorDesde: '' },
-            { clave: 'seco-cordero', nombre: 'Seco de carnero', factor: 1, factorDesde: '' }
-        ],
+        nombre: 'Seco de carnero',
+        tipo: 'directo',
+        origen: { clave: 'seco-cordero', nombre: 'Seco de carnero' },
+        cortes: [],
         platos: []
     },
     {

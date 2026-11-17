@@ -257,7 +257,7 @@ async function opcionesCocido() {
         if (d.clave === 'pierna-lena') reservaClave = '';
         if (d.clave === 'pollada' || d.clave === 'pachamanca-pollo') reservaClave = 'pierna-pollo';
         if (d.clave === 'pachamanca-pollo-pecho') reservaClave = 'pechuga-pollo';
-        if (d.clave === 'seco-cordero') reservaClave = 'carnero';
+        if (d.clave === 'seco-cordero') reservaClave = '';
         if (d.clave === 'pollo-lena' || d.clave === 'caldo-pollo') reservaClave = '';
         if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
         if (d.clave === 'panceta' || d.clave === 'tira-panceta' || d.clave === 'trozo-panceta') tieneCocido = false;
