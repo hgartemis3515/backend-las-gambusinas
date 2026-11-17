@@ -7405,6 +7405,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarPatoFresco" @change="setOcultarPatoFresco($event.target.checked)">
               <span>Ocultar fila Pato fresco</span>
             </label>
+            <label class="flex items-center gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarPolloFresco" @change="setOcultarPolloFresco($event.target.checked)">
+              <span>Ocultar fila Pollo fresco</span>
+            </label>
           </div>
           <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3 max-w-xl">
             <h3 class="sec-title text-sm">Cuadros de Transformar</h3>
@@ -9407,6 +9411,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         mostrarMasMenosIngreso: false,
         mostrarTransformacion: false,
         mostrarPatoFresco: false,
+        mostrarPolloFresco: false,
         mostrarEncabezadoMapa: false,
         compactView: false,
         soundEnabled: true,
@@ -13437,7 +13442,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               venta += Number(rows[i] && rows[i].ventaCocido) || 0;
             }
           }
-          return [this.busqueda || '', this.ordenHoja || '', this._ordenRev || 0, this.filtroCategoria || '', this._revHoja || 0, rows.length, venta, this.mostrarPatoFresco ? '1' : '0'].join('\u0001');
+          return [this.busqueda || '', this.ordenHoja || '', this._ordenRev || 0, this.filtroCategoria || '', this._revHoja || 0, rows.length, venta, this.mostrarPatoFresco ? '1' : '0', this.mostrarPolloFresco ? '1' : '0'].join('\u0001');
         },
 
         filasPollo(raiz, troncoDesde, troncoHasta) {
@@ -15977,6 +15982,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.mostrarMasMenosIngreso = ver('inventario-tabla-mas-menos-ingreso');
             this.mostrarTransformacion = ver('inventario-tabla-transformacion');
             this.mostrarPatoFresco = ver('inventario-tabla-pato-fresco');
+            this.mostrarPolloFresco = ver('inventario-tabla-pollo-fresco');
             this.mostrarEncabezadoMapa = ver('inventario-transformar-encabezado-mapa');
           } catch (e) {}
         },
@@ -16031,9 +16037,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.tocarHoja();
         },
 
+        setOcultarPolloFresco(ocultar) {
+          this.mostrarPolloFresco = !ocultar;
+          try {
+            localStorage.setItem('inventario-tabla-pollo-fresco', this.mostrarPolloFresco ? '1' : '0');
+          } catch (e) {}
+          this.tocarHoja();
+        },
+
         filaTablaVisible(row) {
           if (!row) return true;
           if (!this.mostrarPatoFresco && (row.id === 'pato_fresco' || this.norm(row.nombre) === 'pato fresco')) return false;
+          if (!this.mostrarPolloFresco && (row.id === 'pollo_fresco' || this.norm(row.nombre) === 'pollo fresco')) return false;
           return true;
         },
 
