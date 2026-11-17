@@ -1020,6 +1020,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     }
     .caja-stock-step input::-webkit-outer-spin-button,
     .caja-stock-step input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .arroz-formula { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 6px; }
+    .arroz-campo { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 4.6rem; }
+    .arroz-etiq { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #c8c8d8; }
+    .arroz-caja { display: inline-flex; align-items: center; gap: 2px; background: #14141f; border: 1px solid #3a3a52; border-radius: 10px; padding: 2px 6px; }
+    .arroz-caja-ing { border-color: rgba(52, 211, 153, 0.75); }
+    main .arroz-caja input[type="number"] {
+      field-sizing: content; width: fit-content !important; min-width: 2.2rem !important; max-width: 5.5rem !important;
+      padding: 2px 2px !important; text-align: center; background: transparent !important; color: #fff !important;
+      -webkit-text-fill-color: #fff !important; font-weight: 800; font-size: 20px !important; border: 0 !important;
+      box-shadow: none !important; -moz-appearance: textfield; appearance: textfield;
+    }
+    .arroz-caja input::-webkit-outer-spin-button,
+    .arroz-caja input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .arroz-unidad { font-size: 13px; font-weight: 800; color: #d4af37; }
+    .arroz-caja-ing .arroz-unidad { color: #34d399; }
+    .arroz-op { font-size: 20px; font-weight: 800; color: #d4af37; padding-bottom: 22px; line-height: 1; }
+    .arroz-kg { font-size: 13px; font-weight: 800; color: #e8e8f0; min-height: 1rem; font-variant-numeric: tabular-nums; }
+    .arroz-kg-ing { color: #34d399; }
+    .arroz-total { display: flex; flex-direction: column; align-items: center; gap: 2px; padding-bottom: 16px; }
+    .arroz-total strong { font-size: 20px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
     .caja-stock-mas, .caja-stock-menos { font-weight: 800; font-size: 13px; margin: 4px 0 0; font-variant-numeric: tabular-nums; }
     @keyframes saldo-anterior-alarma {
       0%, 100% { background-color: #dc2626; color: #fff; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
@@ -1649,6 +1669,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .btn-lupa-venta:active { transform: scale(0.94); }
     .btn-lupa-venta.con-venta { border-color: #0284c7 !important; }
     .btn-lupa-venta.pulso { animation: ventaLupaPulso 600ms ease-out; }
+    .btn-lupa-ingreso {
+      background-color: #fff7e6 !important;
+      color: #8a5a00 !important;
+      border-color: #d4af37 !important;
+    }
+    .btn-lupa-ingreso:hover { background-color: #d4af37 !important; color: #1a1200 !important; }
+    .rep-titulo { font-size: 1.9rem; line-height: 1.15; }
+    .rep-lead { font-size: 1.05rem; line-height: 1.45; }
+    .rep-cifra { font-size: 2.45rem; line-height: 1.05; }
+    .rep-nombre { font-size: 1.2rem; }
+    .rep-num { font-size: 1.75rem; }
+    .rep-fila { padding: 0.75rem 0; border-bottom: 1px solid #26263a; }
+    .rep-kicker { font-size: 0.85rem; letter-spacing: 0.04em; }
+    .rep-panel-ing { border-color: rgba(6, 95, 70, 0.7); }
+    .rep-panel-ven { border-color: rgba(159, 18, 57, 0.6); }
+    .rep-kpi-ing { border-color: rgba(6, 95, 70, 0.75); }
+    .rep-kpi-ven { border-color: rgba(159, 18, 57, 0.65); }
+    .ori-caja-t { background: rgba(67, 20, 7, 0.55); border-color: rgba(194, 65, 12, 0.6); }
+    .ori-caja-i { background: rgba(2, 44, 34, 0.45); border-color: rgba(6, 95, 70, 0.6); }
     .btn-dm-venta {
       background-color: #4ade80 !important;
       color: #111111 !important;
@@ -2046,14 +2085,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </button>
             <button
               type="button"
-              @click="abrirSectores()"
-              title="Descargas de Beata, Personal, Evento y Rio Lindo"
-              class="px-3.5 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] border border-[#d4af37]/60 text-[#d4af37] text-xs font-extrabold hover:brightness-110 transition cursor-pointer flex items-center gap-1.5 shadow-md"
-            >
-              Sectores
-            </button>
-            <button
-              type="button"
               @click="abrirVentaEspecial()"
               class="px-3.5 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] text-xs font-extrabold hover:brightness-110 transition cursor-pointer flex items-center gap-1.5 shadow-md"
             >
@@ -2068,15 +2099,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             >
               Descuadre
               <span x-show="filasDescuadre().length" class="min-w-[1.1rem] px-1 rounded bg-red-600 text-white text-[10px] leading-4 text-center" x-text="filasDescuadre().length"></span>
-            </button>
-            <button
-              type="button"
-              @click="imprimirHoja()"
-              class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] text-[#d4af37] border border-[#d4af37]/30 text-xs font-semibold cursor-pointer transition flex items-center gap-1.5"
-              title="Imprimir hoja de producción"
-            >
-              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-              Imprimir
             </button>
           </div>
         </div>
@@ -2454,9 +2476,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="flex items-center gap-1">
                             <span x-show="row.tieneCocido || row.soloCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo, row)"></span>
                             <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
-                              
                               <input type="number" step="any" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
-                              
+                              <button type="button" class="btn-lupa-ingreso lupa-cuadro w-6 h-6 rounded-md inline-flex items-center justify-center cursor-pointer shrink-0" :aria-label="'Ver la transformación del ingreso ' + tipo + ' de ' + row.nombre" title="Ver qué se ingresó o se transformó para llegar a este ingreso" @click="abrirOrigenIngreso(row, tipo)">
+                                <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                              </button>
                             </div>
                           </div>
                         </template>
@@ -2882,7 +2905,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-[11px] text-[#a0a0b8]">El número es cuántos crudos pasan. Nacen según el factor.</span>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
               <template x-for="d in destinosArroz()" :key="'arroz-dest-' + d.campo">
                 <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1">
                   <span class="flex items-center justify-between gap-1">
@@ -2890,15 +2913,39 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + d.nombre" title="Editar stock" @click="abrirEditarStock(d.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                   </span>
                   <span class="flex items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
-                    <span>1 → <span x-text="config[d.factorKey] || 1"></span></span>
-                    <span>Se usaron <strong class="text-white font-mono" x-text="formatNum(arrozHacia(d))"></strong> de arroz crudo</span>
+                    <span>1 crudo → <span x-text="config[d.factorKey] || 1"></span> <span x-text="esArrozPorcion(d) ? 'p' : 'kg'"></span></span>
+                    <span x-show="!esArrozPorcion(d)">Se usaron <strong class="text-white font-mono" x-text="formatNum(arrozHacia(d))"></strong> de arroz crudo</span>
+                    <span x-show="esArrozPorcion(d)">El ingreso transforma crudo en porciones</span>
                   </span>
-                  <div class="caja-stock">
-                    <p class="caja-stock-etiq" x-text="tipoArrozDestino(d) === 'cocido' ? 'Stock actual (Cocido):' : 'Stock actual (Crudo):'"></p>
+                  <div class="arroz-formula" x-show="esArrozPorcion(d)">
+                    <label class="arroz-campo">
+                      <span class="arroz-etiq">Stock</span>
+                      <span class="arroz-caja">
+                        <input type="number" min="0" step="any" :aria-label="'Stock anterior de ' + d.nombre" :value="stockAnteriorArroz(d)" @focus="vaciarSiCero($event)" @change="fijarStockAnteriorArroz(d, $event.target.value)">
+                        <span class="arroz-unidad">p</span>
+                      </span>
+                      <span class="arroz-kg" x-text="textoKgArroz(d, stockAnteriorArroz(d))"></span>
+                    </label>
+                    <span class="arroz-op" aria-hidden="true">+</span>
+                    <label class="arroz-campo">
+                      <span class="arroz-etiq">Ingreso</span>
+                      <span class="arroz-caja arroz-caja-ing">
+                        <input type="number" min="0" step="any" :aria-label="'Ingreso por transformación de ' + d.nombre" :value="ingresoTransformaArroz(d)" @focus="vaciarSiCero($event)" @change="fijarIngresoArrozPorciones(d.campo, $event.target.value)">
+                        <span class="arroz-unidad">p</span>
+                      </span>
+                      <span class="arroz-kg arroz-kg-ing" x-text="textoKgArroz(d, ingresoTransformaArroz(d))"></span>
+                    </label>
+                    <span class="arroz-op" aria-hidden="true">=</span>
+                    <div class="arroz-total">
+                      <span class="arroz-etiq">Total</span>
+                      <strong x-text="formatNum(totalPorcionesArroz(d)) + ' p'"></strong>
+                    </div>
+                  </div>
+                  <div class="caja-stock" x-show="!esArrozPorcion(d)">
+                    <p class="caja-stock-etiq">Stock actual</p>
                     <div class="caja-stock-step">
-
-                      <input type="number" min="0" step="any" :aria-label="'Stock de ' + d.nombre" :value="porcionesArroz(d)" @change="fijarStockArrozTipo(d.campo, $event.target.value)">
-
+                      <input type="number" min="0" step="any" :aria-label="'Stock de ' + d.nombre" :value="porcionesArroz(d)" @focus="vaciarSiCero($event)" @change="fijarStockArrozTipo(d.campo, $event.target.value)">
+                      <span class="arroz-unidad">kg</span>
                     </div>
                     <p class="caja-stock-mas" x-show="textoIngreso(d.id, tipoArrozDestino(d))" x-text="textoIngreso(d.id, tipoArrozDestino(d))"></p>
                     <p class="caja-stock-menos" x-show="textoResto(d.id, tipoArrozDestino(d))" x-text="textoResto(d.id, tipoArrozDestino(d))"></p>
@@ -6766,7 +6813,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="stock-editor-grid" :class="!editarStock.tieneCocido ? 'stock-editor-grid-single' : ''">
               <template x-for="tipo in (editarStock.soloCocido ? ['cocido'] : (editarStock.tieneCocido ? ['crudo', 'cocido'] : ['crudo']))" :key="'stock-simple-' + tipo">
                 <div class="stock-editor-field stock-editor-card" style="margin-top:0">
-                  <label class="stock-editor-field-label" :for="'stock-editor-simple-' + tipo" x-text="tipo === 'cocido' ? 'Stock cocido' : (editarStock.tieneCocido ? 'Stock crudo' : 'Stock')"></label>
+                  <label class="stock-editor-field-label" :for="'stock-editor-simple-' + tipo" x-text="editarStock.saldoAnterior ? 'Stock (saldo anterior)' : (tipo === 'cocido' ? 'Stock cocido' : (editarStock.tieneCocido ? 'Stock crudo' : 'Stock'))"></label>
                   <span class="stock-editor-stepper">
                     
                     <input :id="'stock-editor-simple-' + tipo" type="number" min="0" step="any" inputmode="decimal" x-model.number="editarStock[tipo]" :aria-label="'Nuevo stock ' + tipo" @keydown.enter.prevent="guardarModalStock()">
@@ -8008,58 +8055,137 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </template>
 
   <template x-if="reporteDiaAbierto">
-    <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" @click.self="reporteDiaAbierto = false" @keydown.escape.window="reporteDiaAbierto = false" role="dialog" aria-modal="true" aria-label="Reporte del día">
-      <div class="w-full max-w-3xl bg-[#14141f] border border-[#d4af37] p-5 max-h-[90vh] overflow-y-auto rounded-xl">
-        <div class="flex items-start justify-between gap-3 mb-3">
+    <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-3 sm:p-5" @click.self="reporteDiaAbierto = false" @keydown.escape.window="reporteDiaAbierto = false" role="dialog" aria-modal="true" aria-label="Reporte del día">
+      <div class="w-full max-w-6xl bg-[#14141f] border-2 border-[#d4af37] p-6 sm:p-5 max-h-[92vh] overflow-y-auto rounded-2xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
+        <div class="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h3 class="text-lg font-semibold text-[#d4af37]" x-text="tituloReporteDia()"></h3>
-            <p class="text-xs text-[#a0a0b8] mt-1" x-text="textoReporteDia()"></p>
+            <h3 class="rep-titulo font-extrabold tracking-tight text-[#d4af37]" x-text="tituloReporteDia()"></h3>
+            <p class="rep-lead text-[#c8c8dc] mt-2" x-text="textoReporteDia()"></p>
           </div>
-          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="reporteDiaAbierto = false" aria-label="Cerrar">×</button>
+          <button type="button" class="text-[#a0a0b8] hover:text-white text-2xl leading-none px-2 cursor-pointer" @click="reporteDiaAbierto = false" aria-label="Cerrar">×</button>
         </div>
         <div class="flex flex-wrap items-center gap-2 mb-4">
-          <button type="button" @click="irReporteDia('ayer')" class="px-3 py-1 text-xs font-semibold rounded-md" :class="marcaReporteDia() === 'Ayer' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#a0a0b8] border border-[#26263a]'">Ayer</button>
-          <button type="button" @click="irReporteDia('hoy')" class="px-3 py-1 text-xs font-semibold rounded-md" :class="marcaReporteDia() === 'Hoy' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#a0a0b8] border border-[#26263a]'">Hoy</button>
-          <button type="button" @click="irReporteDia('manana')" class="px-3 py-1 text-xs font-semibold rounded-md" :class="marcaReporteDia() === 'Mañana' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#a0a0b8] border border-[#26263a]'">Mañana</button>
-          <span class="text-xs font-mono text-[#5a5a7a]" x-text="reporteDiaFecha"></span>
+          <button type="button" @click="irReporteDia('ayer')" class="rep-btn px-4 py-2 text-base font-bold rounded-lg cursor-pointer" :class="marcaReporteDia() === 'Ayer' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#c8c8dc] border border-[#26263a]'">Ayer</button>
+          <button type="button" @click="irReporteDia('hoy')" class="rep-btn px-4 py-2 text-base font-bold rounded-lg cursor-pointer" :class="marcaReporteDia() === 'Hoy' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#c8c8dc] border border-[#26263a]'">Hoy</button>
+          <button type="button" @click="irReporteDia('manana')" class="rep-btn px-4 py-2 text-base font-bold rounded-lg cursor-pointer" :class="marcaReporteDia() === 'Mañana' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#c8c8dc] border border-[#26263a]'">Mañana</button>
+          <span class="text-base font-mono text-[#a0a0b8]" x-text="reporteDiaFecha"></span>
         </div>
-        <p x-show="reporteDiaCargando" class="text-sm text-[#a0a0b8]">Cargando…</p>
-        <div x-show="!reporteDiaCargando">
-          <div class="grid grid-cols-2 gap-2 mb-4">
-            <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2">
-              <p class="text-[11px] uppercase text-[#5a5a7a]">Ingreso</p>
-              <p class="text-lg font-mono font-bold text-emerald-300" x-text="reporteDiaVista.ingreso"></p>
+        <p x-show="reporteDiaCargando" class="text-lg text-[#c8c8dc]">Cargando…</p>
+        <div x-show="!reporteDiaCargando" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rep-kpi-ing bg-[#0a0a0f] border rounded-2xl px-5 py-4">
+              <p class="rep-kicker uppercase font-bold text-emerald-300">Ingresó en el día</p>
+              <p class="rep-cifra font-mono font-extrabold text-emerald-300 mt-1" x-text="formatNum(reporteDiaVista.ingreso)"></p>
             </div>
-            <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2">
-              <p class="text-[11px] uppercase text-[#5a5a7a]">Venta comandas</p>
-              <p class="text-lg font-mono font-bold text-rose-200" x-text="reporteDiaVista.venta"></p>
+            <div class="rep-kpi-ven bg-[#0a0a0f] border rounded-2xl px-5 py-4">
+              <p class="rep-kicker uppercase font-bold text-rose-200">Se vendió</p>
+              <p class="rep-cifra font-mono font-extrabold text-rose-200 mt-1" x-text="formatNum(reporteDiaVista.venta)"></p>
             </div>
           </div>
-          <div class="overflow-x-auto rounded-lg border border-[#26263a]">
-            <table class="w-full text-xs">
-              <thead>
-                <tr class="bg-[#0a0a0f] text-[#5a5a7a] uppercase text-[11px]">
-                  <th class="text-left px-3 py-2">Producto</th>
-                  <th class="text-right px-3 py-2">Ingreso</th>
-                  <th class="text-right px-3 py-2">Venta comandas</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="(f, i) in reporteDiaVista.filas" :key="'hoja-' + i">
-                  <tr class="border-t border-[#26263a]">
-                    <td class="px-3 py-1.5 font-semibold" x-text="f.nombre"></td>
-                    <td class="px-3 py-1.5 text-right font-mono text-emerald-300" x-text="f.ingreso"></td>
-                    <td class="px-3 py-1.5 text-right">
-                      <button type="button" class="font-mono font-bold text-rose-200 underline decoration-dotted underline-offset-2" @click="abrirVenta(f, reporteDiaVista)" :aria-label="'Ver en qué se vendió ' + f.nombre" x-text="f.venta"></button>
-                    </td>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <section class="rep-panel-ing rounded-2xl border bg-[#0e0e16] p-4 sm:p-5">
+              <h4 class="text-xl font-extrabold text-emerald-300 mb-3">Qué ingresó</h4>
+              <p x-show="filasReporteIngreso().length === 0" class="text-base text-[#a0a0b8] py-4">Este día no tiene ingresos en la hoja.</p>
+              <template x-for="(f, i) in filasReporteIngreso()" :key="'rep-ing-' + i">
+                <div class="rep-fila flex items-center justify-between gap-3">
+                  <span class="rep-nombre font-bold text-white leading-snug" x-text="f.nombre"></span>
+                  <span class="rep-num font-mono font-extrabold text-emerald-300 shrink-0" x-text="formatNum(f.ingreso)"></span>
+                </div>
+              </template>
+            </section>
+            <section class="rep-panel-ven rounded-2xl border bg-[#0e0e16] p-4 sm:p-5">
+              <h4 class="text-xl font-extrabold text-rose-200 mb-3">Qué se vendió</h4>
+              <p x-show="filasReporteVenta().length === 0" class="text-base text-[#a0a0b8] py-4">Este día no tiene ventas por comandas.</p>
+              <template x-for="(f, i) in filasReporteVenta()" :key="'rep-ven-' + i">
+                <div class="rep-fila flex items-center justify-between gap-3">
+                  <span class="rep-nombre font-bold text-white leading-snug" x-text="f.nombre"></span>
+                  <button type="button" class="rep-num font-mono font-extrabold text-rose-200 underline decoration-dotted underline-offset-2 shrink-0 cursor-pointer" @click="abrirVenta(f, reporteDiaVista)" :aria-label="'Ver en qué se vendió ' + f.nombre" x-text="formatNum(f.venta)"></button>
+                </div>
+              </template>
+            </section>
+          </div>
+          <section class="rounded-2xl border border-[#d4af37]/40 bg-[#0e0e16] p-4 sm:p-5">
+            <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+              <div>
+                <h4 class="text-xl font-extrabold text-[#d4af37]">Sectores</h4>
+                <p class="text-base text-[#c8c8dc] mt-1">Descargas de Beata, Personal, Evento y Rio Lindo en este día.</p>
+              </div>
+              <p class="text-lg font-mono font-bold text-[#d4af37]" x-text="formatNum(totalReporteSectores()) + ' en total'"></p>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-4">
+              <button type="button" class="px-4 py-2 rounded-xl border text-base font-bold cursor-pointer" :class="reporteDiaSector === 'todos' ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'bg-[#0a0a0f] text-[#c8c8dc] border-[#26263a]'" @click="reporteDiaSector = 'todos'">Todos</button>
+              <template x-for="sug in sectoresDescarga()" :key="'rep-sec-' + sug.id">
+                <button type="button" class="px-4 py-2 rounded-xl border text-base font-bold cursor-pointer" :class="reporteDiaSector === sug.nombre ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'bg-[#0a0a0f] text-[#c8c8dc] border-[#26263a]'" @click="reporteDiaSector = sug.nombre">
+                  <span x-text="sug.nombre"></span>
+                  <span class="ml-2 font-mono" x-text="formatNum(totalSectorReporte(sug.nombre))"></span>
+                </button>
+              </template>
+            </div>
+            <p x-show="filasReporteSectores().length === 0" class="text-base text-[#a0a0b8] py-3">No hay descargas de estos sectores en este día.</p>
+            <div x-show="filasReporteSectores().length" class="overflow-x-auto rounded-xl border border-[#26263a]">
+              <table class="w-full text-base">
+                <thead>
+                  <tr class="bg-[#0a0a0f] text-[#a0a0b8] uppercase text-sm">
+                    <th class="text-left px-4 py-3">Hora</th>
+                    <th class="text-left px-4 py-3">Sector</th>
+                    <th class="text-left px-4 py-3">Producto</th>
+                    <th class="text-left px-4 py-3">Tipo</th>
+                    <th class="text-right px-4 py-3">Cantidad</th>
                   </tr>
-                </template>
-                <tr x-show="reporteDiaVista.filas.length === 0">
-                  <td class="px-3 py-3 text-[#5a5a7a]" colspan="3">Este día no tiene ingresos ni ventas por comandas.</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <template x-for="(fila, i) in filasReporteSectores()" :key="'rep-sec-fila-' + i">
+                    <tr class="border-t border-[#26263a]">
+                      <td class="px-4 py-3 font-mono text-[#c8c8dc]" x-text="fila.hora"></td>
+                      <td class="px-4 py-3 font-extrabold text-[#d4af37]" x-text="fila.sector"></td>
+                      <td class="px-4 py-3 text-lg font-semibold text-white" x-text="fila.producto + (fila.corte ? (' · ' + fila.corte) : '')"></td>
+                      <td class="px-4 py-3 text-[#c8c8dc]" x-text="fila.tipo === 'cocido' ? 'Cocido' : 'Crudo'"></td>
+                      <td class="px-4 py-3 text-right text-xl font-mono font-extrabold" :class="fila.cantidad < 0 ? 'text-emerald-300' : 'text-rose-200'" x-text="(fila.cantidad < 0 ? '+' : '−') + formatNum(Math.abs(fila.cantidad))"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template x-if="origenIngreso">
+    <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-4" @click.self="origenIngreso = null" @keydown.escape.window="origenIngreso = null" role="dialog" aria-modal="true" aria-label="Transformación del ingreso">
+      <div class="w-full max-w-xl bg-[#14141f] border-2 border-[#d4af37] p-6 max-h-[90vh] overflow-y-auto rounded-2xl">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <p class="text-sm uppercase tracking-wide font-bold text-orange-300">Transformación</p>
+            <h3 class="text-2xl font-extrabold text-white mt-1" x-text="'Ingreso de ' + origenIngreso.nombre"></h3>
+            <p class="text-base text-[#c8c8dc] mt-1" x-text="origenIngreso.etiqueta + ' · ' + formatNum(origenIngreso.total) + ' ' + origenIngreso.unidad"></p>
           </div>
+          <button type="button" class="text-[#a0a0b8] hover:text-white text-2xl leading-none px-1 cursor-pointer" @click="origenIngreso = null" aria-label="Cerrar">×</button>
+        </div>
+        <p class="text-base text-[#c8c8dc] mb-4">Qué se ingresó o qué se transformó para llegar a este cuadro.</p>
+            <div class="grid grid-cols-2 gap-2 mb-4">
+          <div class="ori-caja-t rounded-xl border px-3 py-2">
+            <p class="text-xs uppercase font-bold text-orange-200">Transformado</p>
+            <p class="rep-num font-mono font-extrabold text-orange-200" x-text="formatNum(origenIngreso.transformado)"></p>
+          </div>
+          <div class="ori-caja-i rounded-xl border px-3 py-2">
+            <p class="text-xs uppercase font-bold text-emerald-200">Ingresado</p>
+            <p class="rep-num font-mono font-extrabold text-emerald-300" x-text="formatNum(origenIngreso.anotado)"></p>
+          </div>
+        </div>
+        <p x-show="!origenIngreso.lineas.length" class="text-base text-[#a0a0b8] py-3">Este cuadro no tiene transformación ni ingreso anotado en el período.</p>
+        <div class="space-y-2">
+          <template x-for="(linea, i) in origenIngreso.lineas" :key="'ori-ing-' + i">
+            <div class="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" :class="linea.clase === 'transformacion' ? 'ori-caja-t' : 'ori-caja-i'">
+              <div class="min-w-0">
+                <p class="text-xs uppercase font-bold" :class="linea.clase === 'transformacion' ? 'text-orange-300' : 'text-emerald-300'" x-text="linea.clase === 'transformacion' ? 'Transformación' : 'Ingreso'"></p>
+                <p class="text-lg font-bold text-white leading-snug" x-text="linea.texto"></p>
+                <p class="text-sm text-[#a0a0b8]" x-text="linea.hora + (linea.veces > 1 ? (' · ' + linea.veces + ' veces') : '')"></p>
+              </div>
+              <p class="text-2xl font-mono font-extrabold shrink-0" :class="linea.cantidad < 0 ? 'text-rose-200' : 'text-emerald-300'" x-text="(linea.cantidad > 0 ? '+' : '−') + formatNum(Math.abs(linea.cantidad))"></p>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -8446,72 +8572,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="flex items-center justify-end gap-2">
           <button type="button" class="px-4 py-2 rounded-lg bg-[#1c1c2b] text-white text-sm font-semibold cursor-pointer" @click="ventaManualAbierta = false">Cancelar</button>
           <button type="button" data-testid="btn-confirmar-venta-manual" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando || (ventaManualModo === 'plato' && !platoVentaManualElegido()) || (ventaManualPideCorte() && !ventaManualCorte)" @click="confirmarVentaManual()">Restar</button>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <template x-if="sectoresAbierto">
-    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="sectoresAbierto = false" @keydown.escape.window="sectoresAbierto = false" role="dialog" aria-modal="true" aria-label="Sectores">
-      <div class="w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#14141f] border-2 border-[#d4af37] rounded-xl overflow-hidden shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
-        <div class="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-[#26263a]">
-          <div>
-            <h3 class="text-lg font-semibold text-[#d4af37]">Sectores</h3>
-            <p class="text-xs text-[#a0a0b8] mt-1">Descargas de Beata, Personal, Evento y Rio Lindo, separadas por la fecha del período. Incluye Descarga especial y los cuadros de Transformar.</p>
-          </div>
-          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1 cursor-pointer" @click="sectoresAbierto = false" aria-label="Cerrar">×</button>
-        </div>
-        <div class="shrink-0 px-5 py-3 border-b border-[#26263a] flex flex-wrap items-center gap-2">
-          <button type="button" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer" :class="sectoresSector === 'todos' ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a]'" @click="sectoresSector = 'todos'">Todos</button>
-          <template x-for="sug in sectoresDescarga()" :key="'sec-filtro-' + sug.id">
-            <button type="button" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer" :class="sectoresSector === sug.nombre ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a]'" @click="sectoresSector = sug.nombre" x-text="sug.nombre"></button>
-          </template>
-          <button type="button" x-show="sectoresProductoFijo" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer" :class="sectoresProducto ? 'bg-[#1c1c2b] text-white border-[#d4af37]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a]'" @click="sectoresProducto = sectoresProducto ? '' : sectoresProductoFijo" x-text="sectoresProducto ? 'Ver todos los productos' : 'Solo este producto'"></button>
-        </div>
-        <div class="shrink-0 px-5 py-2 border-b border-[#26263a] flex flex-wrap items-center gap-1.5">
-          <span class="text-[10px] uppercase tracking-wider text-[#a0a0b8] font-bold mr-1">Período:</span>
-          <template x-for="p in periodosVisibles()" :key="'sec-periodo-' + p.id">
-            <button type="button" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer transition" :class="sectoresPeriodo === p.id ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'text-[#a0a0b8] hover:text-white hover:bg-[#1c1c2b]'" @click="setPeriodoSectores(p.id)" x-text="p.label"></button>
-          </template>
-          <div class="flex items-center gap-1 pl-1 border-l border-[#26263a]">
-            <input type="date" x-model="sectoresCustomDesde" @change="usarRangoSectores()" aria-label="Desde" class="bg-[#0a0a0f] border border-[#26263a] rounded px-1.5 py-1 text-[11px] text-white">
-            <span class="text-[#5a5a7a] text-xs">→</span>
-            <input type="date" x-model="sectoresCustomHasta" @change="usarRangoSectores()" aria-label="Hasta" class="bg-[#0a0a0f] border border-[#26263a] rounded px-1.5 py-1 text-[11px] text-white">
-          </div>
-        </div>
-        <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
-          <p x-show="sectoresCargando" class="text-sm text-[#a0a0b8]">Cargando descargas…</p>
-          <p x-show="!sectoresCargando && periodosSectores().length === 0" class="text-sm text-[#a0a0b8]">No hay descargas de estos sectores en ese período.</p>
-          <template x-for="periodo in periodosSectores()" :key="'sec-dia-' + periodo.dia">
-            <section class="rounded-xl border border-[#26263a] overflow-hidden">
-              <div class="flex items-center justify-between gap-2 px-3 py-2 bg-[#0a0a0f]">
-                <h4 class="text-sm font-extrabold text-white" x-text="periodo.etiqueta"></h4>
-                <span class="text-[11px] font-mono text-[#d4af37]" x-text="formatNum(periodo.total) + ' en total'"></span>
-              </div>
-              <table class="w-full text-xs">
-                <thead>
-                  <tr class="text-[#5a5a7a] uppercase text-[10px]">
-                    <th class="text-left px-3 py-2">Hora</th>
-                    <th class="text-left px-3 py-2">Sector</th>
-                    <th class="text-left px-3 py-2">Producto</th>
-                    <th class="text-left px-3 py-2">Tipo</th>
-                    <th class="text-right px-3 py-2">Cantidad</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template x-for="(fila, i) in periodo.filas" :key="periodo.dia + '-' + i">
-                    <tr class="border-t border-[#26263a]">
-                      <td class="px-3 py-2 font-mono text-[#a0a0b8]" x-text="fila.hora"></td>
-                      <td class="px-3 py-2 font-bold text-[#d4af37]" x-text="fila.sector"></td>
-                      <td class="px-3 py-2 text-white" x-text="fila.producto + (fila.corte ? (' · ' + fila.corte) : '')"></td>
-                      <td class="px-3 py-2 text-[#a0a0b8]" x-text="fila.tipo === 'cocido' ? 'Cocido' : 'Crudo'"></td>
-                      <td class="px-3 py-2 text-right font-mono font-bold" :class="fila.cantidad < 0 ? 'text-emerald-300' : 'text-rose-200'" x-text="(fila.cantidad < 0 ? '+' : '−') + formatNum(Math.abs(fila.cantidad))"></td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </section>
-          </template>
         </div>
       </div>
     </div>
@@ -10456,6 +10516,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaFecha: '',
         reporteDiaCargando: false,
         reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
+        reporteDiaSector: 'todos',
+        origenIngreso: null,
         ventaAbierta: false,
         modalComandaVer: false,
         comandaVerUrl: '',
@@ -11111,6 +11173,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         async abrirReporteDia(fecha) {
           this.reporteDiaFecha = fecha || this.ymdOperativo();
+          this.reporteDiaSector = 'todos';
           this.reporteDiaAbierto = true;
           await this.cargarReporteDia();
         },
@@ -11138,6 +11201,117 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           } finally {
             this.reporteDiaCargando = false;
           }
+        },
+
+        filasReporteIngreso() {
+          return (this.reporteDiaVista.filas || []).filter((f) => f.ingreso);
+        },
+
+        filasReporteVenta() {
+          return (this.reporteDiaVista.filas || []).filter((f) => f.venta);
+        },
+
+        lineasSectoresReporte() {
+          const filas = [];
+          (this.reporteDiaVista.movimientos || []).forEach((m) => {
+            if (!m || m.clase !== 'egreso') return;
+            const nombreSector = this.sectorDeMotivo(m.motivo);
+            if (!nombreSector) return;
+            const motivo = this.norm(m.motivo);
+            const corte = /(?:^|·)\s*pierna\s*$/.test(motivo) ? 'Pierna' : (/(?:^|·)\s*pecho\s*$/.test(motivo) ? 'Pecho' : '');
+            const fecha = new Date(m.fecha).getTime();
+            filas.push({
+              hora: this.horaVenta(m.fecha),
+              fecha: Number.isFinite(fecha) ? fecha : 0,
+              sector: nombreSector,
+              producto: m.nombre || m.rubro,
+              tipo: m.tipoProducto || 'crudo',
+              corte: corte,
+              cantidad: Number(m.cantidad) || 0
+            });
+          });
+          filas.sort((a, b) => b.fecha - a.fecha);
+          return filas;
+        },
+
+        filasReporteSectores() {
+          const sector = this.reporteDiaSector || 'todos';
+          const todas = this.lineasSectoresReporte();
+          if (sector === 'todos') return todas;
+          return todas.filter((f) => f.sector === sector);
+        },
+
+        totalSectorReporte(nombre) {
+          const n = this.lineasSectoresReporte().reduce((a, f) => a + (f.sector === nombre ? f.cantidad : 0), 0);
+          return this.redondear3(n);
+        },
+
+        totalReporteSectores() {
+          const n = this.filasReporteSectores().reduce((a, f) => a + f.cantidad, 0);
+          return this.redondear3(n);
+        },
+
+        textoOrigenIngreso(motivo) {
+          const m = String(motivo || '');
+          if (m.indexOf('Sale de ') === 0) return 'Se transformó desde ' + m.slice('Sale de '.length);
+          if (m.indexOf('Devuelve a ') === 0) return 'Devolvió a ' + m.slice('Devuelve a '.length);
+          if (this.esPaseEntreTipos(m)) return m.indexOf('Pasa de ') === 0 ? ('Llegó por pase: ' + m) : ('Salió por pase: ' + m);
+          if (m.indexOf('Ingreso de emergencia') === 0) return 'Ingreso de emergencia';
+          if (m.indexOf('Ingreso directo') === 0) return 'Ingreso anotado en la hoja';
+          if (m.indexOf('Ingreso ') === 0) return 'Ingreso anotado (' + m.slice('Ingreso '.length) + ')';
+          return m || 'Ingreso';
+        },
+
+        claseOrigenIngreso(motivo) {
+          const m = String(motivo || '');
+          if (m.indexOf('Sale de ') === 0 || m.indexOf('Devuelve a ') === 0 || this.esPaseEntreTipos(m)) return 'transformacion';
+          return 'ingreso';
+        },
+
+        abrirOrigenIngreso(row, tipo) {
+          if (!row) return;
+          const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
+          const tiposMov = (row.soloCocido || !row.tieneCocido) ? ['crudo', 'cocido'] : [tipoOk];
+          const clave = this.claveDeFila[row.id];
+          const grupos = new Map();
+          (this.movimientosPeriodo || []).forEach((m) => {
+            if (!m || m.clase !== 'ingreso' || !clave || m.rubro !== clave) return;
+            const tp = m.tipoProducto === 'cocido' ? 'cocido' : 'crudo';
+            if (tiposMov.indexOf(tp) === -1) return;
+            const motivo = String(m.motivo || '');
+            if (motivo.indexOf('Saldo anterior') === 0) return;
+            if (motivo.indexOf('Pasa a ') === 0 && !this.esPaseEntreTipos(motivo)) return;
+            const n = Number(m.cantidad) || 0;
+            if (!n) return;
+            const clase = this.claseOrigenIngreso(motivo);
+            const key = clase + '|' + motivo;
+            const t = new Date(m.fecha).getTime();
+            let g = grupos.get(key);
+            if (!g) {
+              g = { clase: clase, texto: this.textoOrigenIngreso(motivo), cantidad: 0, veces: 0, fecha: 0 };
+              grupos.set(key, g);
+            }
+            g.cantidad = this.redondear3(g.cantidad + n);
+            g.veces += 1;
+            if (Number.isFinite(t) && t >= g.fecha) g.fecha = t;
+          });
+          const lineas = Array.from(grupos.values()).sort((a, b) => b.fecha - a.fecha).map((g) => ({
+            clase: g.clase,
+            texto: g.texto,
+            cantidad: g.cantidad,
+            veces: g.veces,
+            hora: g.fecha ? this.horaVenta(g.fecha) : ''
+          }));
+          const suma = (clase) => this.redondear3(lineas.reduce((a, l) => a + (l.clase === clase ? l.cantidad : 0), 0));
+          this.origenIngreso = {
+            nombre: row.nombre,
+            etiqueta: this.etiquetaTipo(tipoOk, row),
+            unidad: row.unidad || 'unid',
+            total: this.valorTipo(row, 'ingreso', tipoOk),
+            transformado: suma('transformacion'),
+            anotado: suma('ingreso'),
+            lineas: lineas
+          };
         },
 
         lineaEsDePecho(rubro, nombre) {
@@ -11809,15 +11983,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         async abrirSectores() {
-          const hoy = this.fechaHoy();
-          this.sectoresProductoFijo = '';
-          this.sectoresProducto = '';
-          this.sectoresSector = 'todos';
-          this.sectoresPeriodo = 'hoy';
-          this.sectoresCustomDesde = hoy;
-          this.sectoresCustomHasta = hoy;
-          this.sectoresAbierto = true;
-          await this.cargarSectores();
+          await this.abrirReporteDia(this.ymdOperativo());
         },
 
         rangoSectores() {
@@ -15441,6 +15607,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.toastMessage = 'Ese producto no está en la hoja';
             return;
           }
+          if (this.esArrozPorcion(row.id)) {
+            const tipo = this.tipoArrozDestino({ id: row.id });
+            const n = this.stockAnteriorArroz(row.id);
+            this.editarStock = {
+              abierto: true,
+              id: row.id,
+              nombre: row.nombre,
+              tieneCocido: false,
+              soloCocido: tipo === 'cocido',
+              saldoAnterior: true,
+              octavo: false,
+              cortes: false,
+              grupo: false,
+              lineas: [],
+              crudo: tipo === 'cocido' ? 0 : n,
+              cocido: tipo === 'cocido' ? n : 0,
+              pecho: 0,
+              pierna: 0,
+              antes: n,
+              motivo: '',
+              error: '',
+              guardando: false,
+              desdeTabla: !!desdeTabla
+            };
+            this.enfocarEditarStock();
+            return;
+          }
           const solo = !!row.soloCocido;
           const tiene = !!row.tieneCocido && !solo;
           const linea = this.lineaEditarDe(row);
@@ -15697,7 +15890,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const tipos = linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
               for (const tipo of tipos) {
                 if (linea.porCorte) movs.push(...this.movimientosSaldoCortes(row, tipo, this.redondear3(leer(linea.pecho[tipo])), this.redondear3(leer(linea.pierna[tipo])), f.motivo, false));
-                else {
+                else if (f.saldoAnterior) {
+                  const actual = this.stockAnteriorArroz(row.id);
+                  const delta = this.redondear3(leer(linea[tipo]) - actual);
+                  if (delta) {
+                    const campo = this.campoTipo('saldoAnterior', tipo);
+                    row[campo] = this.redondear3((Number(row[campo]) || 0) + delta);
+                    movs.push({
+                      rubro: this.claveDeFila[row.id],
+                      clase: 'ingreso',
+                      tipoProducto: tipo,
+                      cantidad: delta,
+                      motivo: this.motivoSaldoAnterior(f.motivo),
+                      fecha: this.fechaSaldoAnterior(),
+                      nombre: row.nombre
+                    });
+                  }
+                } else {
                   const delta = this.redondear3(leer(linea[tipo])) - this.redondear3(this.calcSaldoTipo(row, tipo));
                   const mov = this.movSaldoDirecto(row, tipo, delta, f.motivo);
                   if (mov) movs.push(mov);
@@ -15714,7 +15923,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               movs.push(...delOctavo);
             }
             if (movs.length) {
-              for (const m of movs) await this.paso(m.rubro, m.tipoProducto, m.cantidad, m.motivo, m.clase, m.nombre);
+              for (const m of movs) await this.paso(m.rubro, m.tipoProducto, m.cantidad, m.motivo, m.clase, m.nombre, m.fecha, m.lote);
               frescos.forEach((c) => {
                 if (c.id === 'pollo_fresco') this.convertirFrescosEntrantes(c.delta);
                 else this.convertirPatosEntrantes(c.delta);
@@ -18616,6 +18825,72 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         tipoArrozDestino(d) {
           const row = d && this.filaReal(d.id);
           return row && row.tieneCocido ? 'cocido' : 'crudo';
+        },
+
+        esArrozPorcion(d) {
+          const id = d && d.id ? d.id : d;
+          return id === 'arroz_blanco' || id === 'arroz_verde';
+        },
+
+        vaciarSiCero(ev) {
+          const el = ev && ev.target;
+          if (el && !(Number(el.value) > 0)) el.value = '';
+        },
+
+        stockAnteriorArroz(d) {
+          const id = d && d.id ? d.id : d;
+          const row = this.filaReal(id);
+          if (!row) return 0;
+          const tipo = this.tipoArrozDestino({ id: id });
+          return Math.max(0, this.redondear3(this.valorTipo(row, 'saldoAnterior', tipo)));
+        },
+
+        ingresoTransformaArroz(d) {
+          const factor = Number(this.config[d.factorKey]) || 1;
+          return this.redondear3(this.arrozHacia(d) * factor);
+        },
+
+        totalPorcionesArroz(d) {
+          return this.redondear3(this.stockAnteriorArroz(d) + this.ingresoTransformaArroz(d));
+        },
+
+        textoKgArroz(d, porciones) {
+          const factor = Number(this.config[d.factorKey]) || 1;
+          return this.formatNum(this.redondear3((Number(porciones) || 0) / factor)) + ' kg';
+        },
+
+        fijarStockAnteriorArroz(d, valor) {
+          const row = d && this.filaReal(d.id);
+          const clave = row && this.claveDeFila[row.id];
+          if (!row || !clave) return false;
+          const tipo = this.tipoArrozDestino(d);
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const delta = this.redondear3(next - this.stockAnteriorArroz(d));
+          if (!delta) return false;
+          const campo = this.campoTipo('saldoAnterior', tipo);
+          row[campo] = this.redondear3((Number(row[campo]) || 0) + delta);
+          const mov = {
+            rubro: clave,
+            clase: 'ingreso',
+            tipoProducto: tipo,
+            cantidad: delta,
+            motivo: 'Saldo anterior',
+            fecha: this.fechaSaldoAnterior(),
+            fechaFija: this.fechaSaldoAnterior(),
+            nombre: row.nombre
+          };
+          this.anotarMovs([mov]);
+          this.pulseRowTotal(row.id);
+          this.encolarMovimientos([mov]);
+          return true;
+        },
+
+        fijarIngresoArrozPorciones(campo, valor) {
+          const d = this.destinosArroz().find((x) => x.campo === campo);
+          if (!d) return false;
+          const factor = Number(this.config[d.factorKey]) || 1;
+          const porciones = Math.max(0, this.redondear3(Number(valor) || 0));
+          return this.fijarArrozDestino(campo, porciones / factor);
         },
 
         fijarStockArrozTipo(campo, valor) {
