@@ -499,3 +499,17 @@ test('la venta del día entra en salida y al día siguiente abre el saldo anteri
     expect(manana.egreso).toBe(0);
     expect(manana.ingresos).toBe(0);
 });
+
+test('tamal de chancho y tamal de pollo descuentan su propia fila', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Tamal Chancho + zarza criolla', cantidad: 2 },
+        { nombre: 'Tamal Pollo + Zarza criolla', cantidad: 3 },
+        { nombre: 'Tamal con 2 panes', cantidad: 1 }
+    ]);
+    expect(porRubro['tamal-chancho']).toBe(2);
+    expect(porRubro['tamal-pollo']).toBe(3);
+    expect(porRubro.tamal).toBeUndefined();
+    const filas = filasDeRubros([], dia('2026-11-16', '04:00:00'), dia('2026-11-17', '03:59:59'), {});
+    expect(filas.some((f) => f.rubro === 'tamal-chancho' && f.nombre === 'Tamal de chancho')).toBe(true);
+    expect(filas.some((f) => f.rubro === 'tamal-pollo' && f.nombre === 'Tamal de pollo')).toBe(true);
+});

@@ -134,7 +134,7 @@ test('la pieza de panceta solo gasta cocido', () => {
     ]);
 });
 
-test('el pollo baby gasta primero el cocido y después su crudo', () => {
+test('el pollo baby con cocido activo solo gasta cocido', () => {
     const movimientos = [
         { rubro: 'pollo-baby', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-11-10T09:00:00-05:00' },
         { rubro: 'pollo-baby', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 2, fecha: '2026-11-10T09:00:00-05:00' }
@@ -142,10 +142,22 @@ test('el pollo baby gasta primero el cocido y después su crudo', () => {
     const venta = { rubro: 'pollo-baby', nombre: 'Pollo Baby', cantidad: 2, fecha: '2026-11-10T13:00:00-05:00', detalle: [] };
     const out = atribuirVentas(movimientos, [venta], { 'pollo-baby': semillaCocido('pollo-baby') }).filter((v) => !v.sinSaldo);
     expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual([
-        'pollo-baby|cocido:1',
-        'pollo-baby|crudo:1'
+        'pollo-baby|cocido:2'
     ]);
+    expect(out.some((v) => v.tipoProducto === 'crudo')).toBe(false);
     expect(semillaCocido('pollo-baby').reservaClave).toBe('');
+});
+
+test('cerdo pachamanca con cocido activo no toca el crudo', () => {
+    const movimientos = [
+        { rubro: 'pachamanca-chancho', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-11-16T12:00:00-05:00' },
+        { rubro: 'pachamanca-chancho', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 8, fecha: '2026-11-16T12:00:00-05:00' }
+    ];
+    const venta = { rubro: 'pachamanca-chancho', nombre: 'Cerdo pachamanca', cantidad: 3, fecha: '2026-11-16T18:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], { 'pachamanca-chancho': semillaCocido('pachamanca-chancho') }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual([
+        'pachamanca-chancho|cocido:3'
+    ]);
 });
 
 test('el pollo saltado resta primero el cocido', () => {
@@ -154,20 +166,36 @@ test('el pollo saltado resta primero el cocido', () => {
     expect(bases['salt-pollo|cocido']).toBe(1);
 });
 
-test('sin cocido usa el crudo y luego la pechuga', () => {
+test('con cocido activo el saltado no pasa al crudo ni a la pechuga', () => {
     const bases = { 'salt-pollo|cocido': 1, 'salt-pollo|crudo': 1, 'pechuga-pollo|crudo': 10 };
     expect(vender(4, bases)).toEqual([
-        { rubro: 'salt-pollo', tipo: 'cocido', cantidad: 1 },
-        { rubro: 'salt-pollo', tipo: 'crudo', cantidad: 1 },
-        { rubro: 'pechuga-pollo', tipo: 'crudo', cantidad: 2 }
+        { rubro: 'salt-pollo', tipo: 'cocido', cantidad: 4 }
     ]);
-    expect(bases['pechuga-pollo|crudo']).toBe(8);
+    expect(bases['salt-pollo|cocido']).toBe(-3);
+    expect(bases['salt-pollo|crudo']).toBe(1);
+    expect(bases['pechuga-pollo|crudo']).toBe(10);
 });
 
-test('si nada tiene saldo la pechuga queda en negativo', () => {
+test('si el cocido activo no tiene saldo, el faltante queda en el cocido', () => {
     const bases = {};
-    expect(vender(1, bases)).toEqual([{ rubro: 'pechuga-pollo', tipo: 'crudo', cantidad: 1 }]);
-    expect(bases['pechuga-pollo|crudo']).toBe(-1);
+    expect(vender(1, bases)).toEqual([{ rubro: 'salt-pollo', tipo: 'cocido', cantidad: 1 }]);
+    expect(bases['salt-pollo|cocido']).toBe(-1);
+    expect(bases['pechuga-pollo|crudo']).toBeUndefined();
+});
+
+test('panceta y tira quedan en crudo y la pieza solo en cocido', () => {
+    expect(validarCocidoConfig('panceta', { tieneCocido: true })).toEqual({ valido: true, tieneCocido: false, reservaClave: '' });
+    expect(validarCocidoConfig('tira-panceta', { tieneCocido: true, reservaClave: 'filete' })).toEqual({ valido: true, tieneCocido: false, reservaClave: '' });
+    expect(cadenaDe('panceta', { tieneCocido: true })).toEqual([{ rubro: 'panceta', tipo: 'crudo' }]);
+    expect(cadenaDe('tira-panceta', { tieneCocido: true })).toEqual([{ rubro: 'tira-panceta', tipo: 'crudo' }]);
+    expect(cadenaDe('trozo-panceta', { tieneCocido: true })).toEqual([{ rubro: 'trozo-panceta', tipo: 'cocido' }]);
+    const movimientos = [
+        { rubro: 'panceta', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 4, fecha: '2026-11-10T09:00:00-05:00' },
+        { rubro: 'panceta', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 2, fecha: '2026-11-10T09:00:00-05:00' }
+    ];
+    const venta = { rubro: 'panceta', nombre: 'Panceta', cantidad: 1, fecha: '2026-11-10T13:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], { panceta: { tieneCocido: true, reservaClave: '' } }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['panceta|crudo:1']);
 });
 
 test('la materia no tiene cocido ni reserva', () => {
@@ -213,18 +241,11 @@ test('una venta usa el ingreso de cocido guardado antes en el mismo día', () =>
     const out = atribuirVentas(movs, ventas, { 'salt-pollo': saltado });
     const stock = out.filter((v) => !v.sinSaldo);
     expect(stock.map((v) => [v.rubro, v.tipoProducto, v.cantidad])).toEqual([
-        ['pechuga-pollo', 'crudo', 1],
-        ['salt-pollo', 'cocido', 2],
-        ['pechuga-pollo', 'crudo', 1]
+        ['salt-pollo', 'cocido', 1],
+        ['salt-pollo', 'cocido', 3]
     ]);
-    expect(stock[1].detalle).toEqual([]);
-    expect(stock[1].usoNombre).toBe('Cocido');
-    expect(stock[2].usoNombre).toBe('Principal — Pecho de Pollo');
-    expect(stock[0].usoNombre).toBe('Principal — Pecho de Pollo');
-    expect(out.filter((v) => v.sinSaldo).map((v) => [v.rubro, v.cantidad])).toEqual([
-        ['salt-pollo', 1],
-        ['salt-pollo', 1]
-    ]);
+    expect(stock.every((v) => v.usoNombre === 'Cocido')).toBe(true);
+    expect(out.some((v) => v.sinSaldo || v.rubro === 'pechuga-pollo')).toBe(false);
 });
 
 test('la milanesa junior resta cocido, luego crudo y al final el filete', () => {
@@ -263,7 +284,7 @@ test('un rubro sin cuadro cocido gasta antes el cocido que quedó', () => {
     ]);
 });
 
-test('el seco de carnero gasta su cocido, su crudo y al final el Carnero Crudo (cocido y crudo)', () => {
+test('el seco de carnero con cocido activo no toca su crudo ni el carnero', () => {
     const movimientos = [
         { rubro: 'seco-cordero', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 1, fecha: '2026-11-10T09:00:00-05:00' },
         { rubro: 'seco-cordero', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 1, fecha: '2026-11-10T09:00:00-05:00' },
@@ -273,11 +294,9 @@ test('el seco de carnero gasta su cocido, su crudo y al final el Carnero Crudo (
     const venta = { rubro: 'seco-cordero', nombre: 'Seco de carnero', cantidad: 4, fecha: '2026-11-10T13:00:00-05:00', detalle: [] };
     const out = atribuirVentas(movimientos, [venta], { 'seco-cordero': semillaCocido('seco-cordero') }).filter((v) => !v.sinSaldo);
     expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual([
-        'seco-cordero|cocido:1',
-        'seco-cordero|crudo:1',
-        'carnero|cocido:1',
-        'carnero|crudo:1'
+        'seco-cordero|cocido:4'
     ]);
+    expect(out.some((v) => v.rubro === 'carnero' || v.tipoProducto === 'crudo')).toBe(false);
 });
 
 test('el sabor Pollo de pachamanca solo gasta el cocido de su plato', () => {

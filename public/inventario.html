@@ -571,6 +571,43 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       min-width: 1.7rem;
       padding: 0.2rem 0.45rem;
     }
+    main table.tabla-hoja th.col-blanca,
+    main table.tabla-hoja td.col-blanca {
+      background-color: #ffffff !important;
+      color: #111111 !important;
+    }
+    main table.tabla-hoja th.col-amarilla,
+    main table.tabla-hoja td.col-amarilla {
+      background-color: #ffe14a !important;
+      color: #111111 !important;
+    }
+    main table.tabla-hoja td.col-blanca .num-mono,
+    main table.tabla-hoja td.col-blanca .font-sans,
+    main table.tabla-hoja td.col-amarilla .num-mono,
+    main table.tabla-hoja td.col-amarilla .font-sans,
+    main table.tabla-hoja td.col-blanca .total-cell-base,
+    main table.tabla-hoja td.col-amarilla .total-cell-base {
+      color: #111111 !important;
+      -webkit-text-fill-color: #111111 !important;
+    }
+    main table.tabla-hoja td.col-blanca .caja-ingreso-total,
+    main table.tabla-hoja td.col-blanca .total-cell-base {
+      background-color: #ffffff !important;
+      border-color: #d4d4d8 !important;
+    }
+    main table.tabla-hoja td.col-amarilla .caja-clara,
+    main table.tabla-hoja td.col-amarilla input.num-claro {
+      background-color: #ffe14a !important;
+      color: #111111 !important;
+      -webkit-text-fill-color: #111111 !important;
+      border-color: #e0c200 !important;
+    }
+    main table.tabla-hoja td.col-blanca .saldo-anterior-alarma,
+    main table.tabla-hoja td.col-amarilla .saldo-anterior-alarma {
+      background-color: #dc2626 !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
     main table.tabla-hoja td.ingreso-total-td {
       text-align: center !important;
       overflow: visible;
@@ -657,15 +694,48 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .platos-grupo {
       display: flex;
       flex-wrap: wrap;
-      align-items: flex-start;
+      align-items: stretch;
       gap: 0.5rem;
+      width: 100%;
     }
     .platos-grupo > * {
-      flex: 0 0 auto;
-      width: max-content;
+      flex: 1 1 13rem;
+      width: auto;
+      min-width: min(100%, 13rem);
       max-width: 100%;
       height: auto;
-      align-self: flex-start;
+    }
+    /* El nombre del producto y del plato va al mismo tamaño que el número del cuadro (20px). */
+    #panel-transformar h3,
+    #panel-transformar h4,
+    #panel-transformar span.text-white.font-semibold,
+    #panel-transformar span.text-white.font-bold,
+    #panel-transformar span.text-white.font-extrabold {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.2;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: unset;
+    }
+    #panel-transformar .cuadro-grupal-semantico .grid {
+      grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    }
+    #panel-transformar .regla-mapa span,
+    #panel-transformar .fixed span.text-white {
+      font-size: inherit;
+      font-weight: 600;
+      line-height: inherit;
+      white-space: inherit;
+    }
+    #panel-transformar .platos-grupo > * span.flex,
+    #panel-transformar .cuadro-grupal-semantico span.flex {
+      align-items: flex-start;
+    }
+    #panel-transformar .platos-grupo > * span.flex > span,
+    #panel-transformar .cuadro-grupal-semantico span.flex > span.text-white {
+      flex: 1;
+      min-width: 0;
     }
     .cuadro-grupal-semantico::before {
       content: '';
@@ -1004,6 +1074,95 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     }
     .cuadro-grupal-octavo-salida::before {
       background: #f43f5e;
+    }
+    #panel-transformar .octavo-modelo .tr-node {
+      background: #0b0c14;
+      border-radius: 13px;
+      padding: 12px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.42);
+    }
+    #panel-transformar .octavo-modelo .tr-node-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    #panel-transformar .octavo-modelo .tr-node-badge {
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1.35;
+      white-space: nowrap;
+    }
+    #panel-transformar .octavo-modelo h4.tr-node-title,
+    #panel-transformar .octavo-modelo .tr-dish-title {
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: 0;
+      text-transform: none;
+      white-space: normal;
+    }
+    #panel-transformar .octavo-modelo .tr-dish-title { font-size: 13px; font-weight: 700; flex: none; width: 100%; min-width: 0; text-align: center; }
+    #panel-transformar .octavo-modelo .tr-dish-card {
+      background: #0b0c14;
+      border: 1px solid #26283e;
+      border-radius: 10px;
+      padding: 10px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      height: 100%;
+    }
+    #panel-transformar .octavo-modelo .tr-dish-head {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+    }
+    #panel-transformar .octavo-modelo .tr-dish-head .btn-lapiz-stock {
+      position: absolute;
+      right: 0;
+      top: 0;
+    }
+    #panel-transformar .octavo-modelo .platos-grupo-octavo {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+      width: 100%;
+    }
+    #panel-transformar .octavo-modelo .octavo-sector {
+      border: 2px solid #ef4444;
+    }
+    #panel-transformar .octavo-modelo .octavo-sector:hover {
+      border-color: #ff6b6b;
+    }
+    #panel-transformar .octavo-modelo .octavo-cortes {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+      width: 100%;
+      align-items: start;
+    }
+    #panel-transformar .cuadro-grupal-semantico .octavo-cortes {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    #panel-transformar .octavo-modelo .octavo-cortes .caja-stock-step {
+      width: 100%;
+      max-width: 100%;
+    }
+    #panel-transformar .octavo-modelo .octavo-cortes .caja-stock-step input[type="number"] {
+      width: 100% !important;
+      max-width: none !important;
+      min-width: 0 !important;
     }
 
     /* ===================================================================== */
@@ -1834,6 +1993,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </button>
             <button
               type="button"
+              @click="abrirSectores()"
+              title="Descargas de Beata, Personal, Evento y Rio Lindo"
+              class="px-3.5 py-1.5 rounded-lg bg-[#1c1c2b] hover:bg-[#26263a] border border-[#d4af37]/60 text-[#d4af37] text-xs font-extrabold hover:brightness-110 transition cursor-pointer flex items-center gap-1.5 shadow-md"
+            >
+              Sectores
+            </button>
+            <button
+              type="button"
               @click="abrirVentaEspecial()"
               class="px-3.5 py-1.5 rounded-lg bg-[#d4af37] text-[#1a1200] text-xs font-extrabold hover:brightness-110 transition cursor-pointer flex items-center gap-1.5 shadow-md"
             >
@@ -1996,6 +2163,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
               :class="filtroCategoria === 'pachamanca' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]'"
             >🍲 Pachamanca</button>
+            <button
+              type="button"
+              @click="setFiltroCategoria('emergencia')"
+              class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition"
+              :class="filasEmergencia().length ? 'saldo-anterior-alarma border border-red-400' : (filtroCategoria === 'emergencia' ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'bg-[#0a0a0f] text-[#a0a0b8] hover:text-white border border-[#26263a]')"
+            >Emergencia <span x-show="filasEmergencia().length" x-text="filasEmergencia().length"></span></button>
           </div>
 
           <!-- Contador dinámico de resultados -->
@@ -2063,20 +2236,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <tr class="bg-[#101018] uppercase font-bold">
                 <th colspan="2" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-[#26263a] text-[#d4af37]">1. Apertura</th>
                 <th :colspan="mostrarCorreccion ? 3 : 2" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-emerald-300">2. Entró hoy</th>
-                <th colspan="2" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-amber-300">3. Salió hoy</th>
+                <th :colspan="mostrarTransformacion ? 2 : 1" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-amber-300">3. Salió hoy</th>
                 <th :colspan="columnasCierre()" class="sticky top-0 z-30 bg-[#101018] text-left px-3 py-2 border-b border-l border-[#26263a] text-sky-300">4. Queda (cierre y auditoría)</th>
               </tr>
               <tr class="font-semibold">
                 <th class="sticky top-[32px] left-0 z-40 bg-[#1e2436] text-white text-left px-3 py-2">Producto</th>
-                <th class="sticky top-[32px] z-30 bg-[#232038] text-purple-200 text-right px-2.5 py-2">Saldo ant.</th>
-                <th class="sticky top-[32px] z-30 bg-[#16302b] text-emerald-200 text-center px-2.5 py-2">Ingreso</th>
+                <th class="sticky top-[32px] z-30 col-blanca text-right px-2.5 py-2">Saldo ant.</th>
+                <th class="sticky top-[32px] z-30 col-amarilla text-center px-2.5 py-2">Ingreso</th>
                 <th x-show="mostrarCorreccion" class="sticky top-[32px] z-30 bg-[#332818] text-amber-200 text-center px-2.5 py-2" title="Solo si hay que ajustar. Si queda en 0, no se registra.">Corrección <span class="block text-[9px] font-bold tracking-wide text-amber-400/80">OPCIONAL</span></th>
-                <th class="sticky top-[32px] z-30 bg-[#182e38] text-cyan-200 text-center px-2.5 py-2">Ingreso total</th>
-                <th class="sticky top-[32px] z-30 bg-[#361c24] text-rose-200 text-right px-2.5 py-2">Venta comandas</th>
-                <th class="sticky top-[32px] z-30 bg-[#2f2416] text-orange-200 text-left px-2.5 py-2">Transformación</th>
+                <th class="sticky top-[32px] z-30 col-blanca text-center px-2.5 py-2">Ingreso total</th>
+                <th class="sticky top-[32px] z-30 col-amarilla text-right px-2.5 py-2">Venta comandas</th>
+                <th x-show="mostrarTransformacion" class="sticky top-[32px] z-30 bg-[#2f2416] text-orange-200 text-left px-2.5 py-2">Transformación</th>
                 <th x-show="mostrarSaldoYConteo" class="sticky top-[32px] z-30 bg-[#1a2740] text-sky-200 text-right px-2.5 py-2">Saldo</th>
                 <th x-show="mostrarSaldoYConteo" class="sticky top-[32px] z-30 bg-[#1d2b3a] text-blue-200 text-center px-2.5 py-2">Conteo</th>
-                <th class="sticky top-[32px] z-30 bg-[#2b2210] text-[#d4af37] text-right px-2.5 py-2 font-extrabold">Queda (Saldo real)</th>
+                <th class="sticky top-[32px] z-30 col-blanca text-right px-2.5 py-2 font-extrabold">Queda (Saldo real)</th>
                 <th x-show="mostrarDiferencia" class="sticky top-[32px] z-30 bg-[#2b1f33] text-pink-200 text-center px-2.5 py-2">Diferencia</th>
                 <th x-show="mostrarEstado" class="sticky top-[32px] z-30 bg-[#1a1a28] text-white text-left px-3 py-2">Estado</th>
               </tr>
@@ -2107,7 +2280,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <template x-for="(item, idx) in bloque.filas" :key="item.key + '-' + (bloque.group ? bloque.group.staggerKey : 's')">
                   <tr
                     :id="'fila-prod-' + row.id"
-                    x-show="!item.enGrupo || item.visible || (busqueda || '').trim() !== ''"
+                    x-show="(!item.enGrupo || item.visible || (busqueda || '').trim() !== '') && filaTablaVisible(item.row)"
                     x-data="{ get row() { return item.row } }"
                     x-transition:enter="transition ease-out duration-300 transform"
                     x-transition:enter-start="opacity-0 -translate-y-2"
@@ -2183,6 +2356,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="nombre-producto-fila">
                       <span class="w-6 h-6 shrink-0" aria-hidden="true"></span>
                       <span class="text-white font-bold whitespace-nowrap" x-text="row.nombre"></span>
+                      <span x-show="emergenciaFila(row)" class="saldo-anterior-alarma px-1.5 py-0.5 rounded text-[10px] font-extrabold" title="Hay ventas y Queda quedó en negativo. Hay que ingresar stock.">Emergencia</span>
                       <span x-show="ordenHoja === 'personalizado'" class="inline-flex flex-col leading-none ml-1">
                         <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, -1)" :aria-label="'Subir ' + row.nombre">▲</button>
                         <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, 1)" :aria-label="'Bajar ' + row.nombre">▼</button>
@@ -2202,7 +2376,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   </td>
                     </template>
                     <!-- Saldo anterior: si el real es negativo, la hoja usa 0 y el cuadro queda rojo -->
-                    <td class="px-3 py-2.5 py-fila text-right num-mono font-semibold border-r border-[#26263a]/40">
+                    <td class="col-blanca px-3 py-2.5 py-fila text-right num-mono font-semibold border-r border-[#26263a]/40">
                       <template x-if="row.tieneCocido">
                         <div class="flex flex-col items-end gap-1 py-0.5">
                           <div class="flex items-center gap-1.5">
@@ -2221,7 +2395,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Ingreso: Crudo arriba, Cocido abajo -->
-                    <td class="px-3 py-2.5 py-fila text-right">
+                    <td class="col-amarilla px-3 py-2.5 py-fila text-right">
                       <div class="flex flex-col items-end gap-1">
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-ing-' + tipo">
                           <div class="flex items-center gap-1">
@@ -2254,7 +2428,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Ingreso total con flechas de Arriba (Verde = Sumando) y Abajo (Rojo = Restando), ocultas si son 0 -->
-                    <td class="ingreso-total-td px-3 py-2.5 py-fila border-r border-[#26263a]/40">
+                    <td class="col-blanca ingreso-total-td px-3 py-2.5 py-fila border-r border-[#26263a]/40">
                       <template x-if="row.tieneCocido">
                         <div class="ingreso-total-stack text-xs">
                           <div class="ingreso-total-linea text-[11px]">
@@ -2268,7 +2442,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="ingreso-total-numero">
                             <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/40 border-cyan-800/50 text-xs" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(ingresoTotalColumna(row))"></span>
                             <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
-                            <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
+                            <div x-show="mostrarMasMenosIngreso && (sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0)" class="ingreso-total-flechas">
                               <span
                                 x-show="sumaIngresoTotalFila(row) > 0"
                                 class="badge-flecha-up-verde"
@@ -2287,7 +2461,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="ingreso-total-numero">
                           <span class="total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200 bg-cyan-950/30 border-cyan-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(ingresoTotalColumna(row))"></span>
                             <button type="button" class="w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
-                          <div x-show="sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0" class="ingreso-total-flechas">
+                          <div x-show="mostrarMasMenosIngreso && (sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0)" class="ingreso-total-flechas">
                             <span
                               x-show="sumaIngresoTotalFila(row) > 0"
                               class="badge-flecha-up-verde"
@@ -2304,7 +2478,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Venta (solo lectura, viene de comandas) -->
-                    <td class="px-3 py-2.5 py-fila text-right num-mono">
+                    <td class="col-amarilla px-3 py-2.5 py-fila text-right num-mono">
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-rose-400/80" title="Viene de comandas"></span>
                         <div class="flex flex-col items-end gap-1">
@@ -2323,7 +2497,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Transformación (en negativo y rojo resaltante con flecha si resta > 0 + icono Lupa de contorno rojo) -->
-                    <td class="px-3 py-2.5 py-fila text-right border-r border-[#26263a]/40">
+                    <td x-show="mostrarTransformacion" class="px-3 py-2.5 py-fila text-right border-r border-[#26263a]/40">
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <!-- Cuadro del número transformado -->
                         <button
@@ -2395,26 +2569,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </td>
 
                     <!-- Queda (saldo real) + Icono de Lupa de procedimiento a la derecha -->
-                    <td class="px-3 py-2.5 py-fila text-right">
+                    <td class="col-blanca px-3 py-2.5 py-fila text-right">
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <template x-if="row.tieneCocido">
                           <div class="flex flex-col items-end gap-0.5 text-xs">
                             <div class="flex items-center gap-1">
                               <span class="text-[10px] text-[#a0a0b8] font-sans">Crudo:</span>
-                              <span class="num-mono font-bold text-teal-300" x-text="formatNum(saldoRealColumnaTipo(row, 'crudo'))"></span>
+                              <span class="num-mono font-bold rounded px-1" :class="emergenciaTipo(row, 'crudo') ? 'saldo-anterior-alarma' : 'text-teal-300'" :title="tituloQueda(row, 'crudo')" x-text="textoQueda(row, 'crudo')"></span>
                             </div>
                             <div class="flex items-center gap-1">
                               <span class="text-[10px] text-[#d4af37] font-sans">Cocido:</span>
-                              <span class="num-mono font-bold text-teal-200" x-text="formatNum(saldoRealColumnaTipo(row, 'cocido'))"></span>
+                              <span class="num-mono font-bold rounded px-1" :class="emergenciaTipo(row, 'cocido') ? 'saldo-anterior-alarma' : 'text-teal-200'" :title="tituloQueda(row, 'cocido')" x-text="textoQueda(row, 'cocido')"></span>
                             </div>
                             <div class="border-t border-teal-500/30 pt-0.5 flex items-center gap-1">
                               <span class="text-[9px] text-[#a0a0b8] font-sans uppercase">Total:</span>
-                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(saldoRealColumna(row))"></span>
+                              <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40 text-xs py-0.5 px-1.5" :class="[updatedRows[row.id] ? 'total-gold-flash' : '', emergenciaFila(row) ? 'saldo-anterior-alarma' : '']" :title="tituloQueda(row)" x-text="textoQueda(row)"></span>
                             </div>
                           </div>
                         </template>
                         <template x-if="!row.tieneCocido">
-                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(saldoRealColumna(row))"></span>
+                          <span class="total-cell-base num-mono font-bold text-teal-200 bg-teal-950/35 border-teal-800/40" :class="[updatedRows[row.id] ? 'total-gold-flash' : '', emergenciaFila(row) ? 'saldo-anterior-alarma' : '']" :title="tituloQueda(row)" x-text="textoQueda(row)"></span>
                         </template>
 
                         <!-- Icono de Lupa a la derecha de Queda (Saldo real) -->
@@ -2548,15 +2722,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <!-- PESTAÑA 3: TRANSFORMAR (MAPA SEMÁNTICO HORIZONTAL Y GRUPAL)         -->
     <!-- =================================================================== -->
     <template x-if="tabMontada.transformar">
-    <section x-show="activeTab === 'transformar'" x-cloak class="space-y-6">
+    <section id="panel-transformar" x-show="activeTab === 'transformar'" x-cloak class="space-y-6">
       <!-- Encabezado y resumen de reglas semánticas -->
-      <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3" x-show="mostrarEncabezadoMapa" x-cloak>
         <div class="space-y-1">
           <div class="flex flex-wrap items-center gap-2.5">
             <h1 class="sec-title">Mapa Semántico Horizontal de Transformación y Grupos</h1>
             <span class="px-2.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-xs uppercase tracking-wide">Flujo Izquierda → Derecha</span>
           </div>
-          <p class="text-xs text-[#a0a0b8]">
+          <p class="text-xs text-[#a0a0b8] regla-mapa">
             <strong class="text-white">Regla Pollo Fresco:</strong> 1 Pollo Fresco = <span class="text-sky-300 font-semibold">2 Pechos de Pollo</span> + <span class="text-emerald-300 font-semibold">2 Piernas de Pollo</span> · 1 Pecho = <span class="text-[#d4af37] font-semibold" x-text="(config.factorFiletesPorPechuga || 1) + ' Filete de pollo'"></span> · Filete de pollo abarca su grupo de filetes, oculto en este mapa · Pecho de Pollo abarca <span class="text-white font-semibold">Pecho leña, Sandwich y Pecho pachamanca</span>. Pierna de Pollo abarca <span class="text-white font-semibold">Pierna a la leña, Pollo pachamanca pierna y Pollada</span>. <span class="text-amber-200 font-semibold">2 Octavos de pollo = 1 Pecho o 1 Pierna</span>, y el octavo abarca Arroz con pollo, Pollo a la olla y Caldo de pollo.
           </p>
         </div>
@@ -2602,6 +2776,93 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       >
         <span x-text="transformWarning"></span>
         <button type="button" @click="transformWarning = ''" class="text-xs underline text-amber-100 cursor-pointer">Cerrar</button>
+      </div>
+
+      <!-- MAPA SEMÁNTICO HORIZONTAL: ARROZ CRUDO -> TIPOS -->
+      <div id="trans-arroz" class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('arroz')">
+        <div class="pb-2 border-b border-[#26263a] flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['arroz'])"></span>. Mapa Semántico Horizontal — Familia Arroz</h2>
+            <p class="text-xs text-[#a0a0b8]">1 arroz crudo nace 8 blanco, 6 verde + pato, o beata según su factor.</p>
+          </div>
+          <span class="px-2.5 py-1 rounded bg-[#0a0a0f] border border-[#26263a] text-xs font-mono text-white">
+            Crudo libre: <strong class="text-emerald-300" x-text="arrozLibre()"></strong>
+          </span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <!-- Nodo Origen: Arroz crudo -->
+          <div class="sm:w-52 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3.5 shrink-0 space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen crudo</span>
+              <span class="inline-flex items-center gap-1">
+                <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('arroz'))"></strong></span>
+                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Arroz" title="Editar stock" @click="abrirEditarStock('arroz')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              </span>
+            </div>
+            <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
+            <div class="caja-stock">
+              <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+              <div class="caja-stock-step">
+
+                <input type="number" min="0" step="any" aria-label="Stock actual de arroz crudo" :value="stockCuadro('arroz', 'crudo')" @change="fijarStockDirecto('arroz', 'crudo', $event.target.value)">
+
+              </div>
+              <p class="caja-stock-mas" x-show="textoIngreso('arroz', 'crudo')" x-text="textoIngreso('arroz', 'crudo')"></p>
+              <p class="caja-stock-menos" x-show="textoResto('arroz', 'crudo')" x-text="textoResto('arroz', 'crudo')"></p>
+            </div>
+            <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz')">Ingreso</button>
+            <div class="ingreso-panel" x-show="ingresoAbierto.arroz" x-cloak>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
+                <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('arroz')">Cerrar</button>
+              </div>
+              <div class="mt-2 inline-flex items-center gap-0.5">
+
+                <input type="number" min="0" aria-label="Ingreso de arroz crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('arroz').ingreso" :style="'--digitos:' + digitosDe(getRow('arroz').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('arroz', $event.target.value)">
+
+              </div>
+            </div>
+            <p class="text-[11px] text-[#a0a0b8]">Repartido: <strong class="text-white font-mono" x-text="arrozUsado()"></strong></p>
+          </div>
+
+          <div class="hidden sm:flex w-10 shrink-0 items-center">
+            <div class="conector-h-barra-oro"></div>
+          </div>
+
+          <!-- Cuadro Grupal: Destinos de Arroz -->
+          <div class="flex-1 cuadro-grupal-semantico space-y-2">
+            <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
+              <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · ARROZ</span>
+              <span class="text-[11px] text-[#a0a0b8]">El número es cuántos crudos pasan. Nacen según el factor.</span>
+            </div>
+
+            <div class="space-y-2">
+              <template x-for="d in destinosArroz()" :key="'arroz-dest-' + d.campo">
+                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1">
+                  <span class="flex items-center justify-between gap-1">
+                    <span class="text-xs font-bold text-white block" x-text="d.nombre"></span>
+                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + d.nombre" title="Editar stock" @click="abrirEditarStock(d.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  </span>
+                  <span class="flex items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
+                    <span>1 → <span x-text="config[d.factorKey] || 1"></span></span>
+                    <span>Se usaron <strong class="text-white font-mono" x-text="formatNum(arrozHacia(d))"></strong> de arroz crudo</span>
+                  </span>
+                  <div class="caja-stock">
+                    <p class="caja-stock-etiq" x-text="tipoArrozDestino(d) === 'cocido' ? 'Stock actual (Cocido):' : 'Stock actual (Crudo):'"></p>
+                    <div class="caja-stock-step">
+
+                      <input type="number" min="0" step="any" :aria-label="'Stock de ' + d.nombre" :value="porcionesArroz(d)" @change="fijarStockArrozTipo(d.campo, $event.target.value)">
+
+                    </div>
+                    <p class="caja-stock-mas" x-show="textoIngreso(d.id, tipoArrozDestino(d))" x-text="textoIngreso(d.id, tipoArrozDestino(d))"></p>
+                    <p class="caja-stock-menos" x-show="textoResto(d.id, tipoArrozDestino(d))" x-text="textoResto(d.id, tipoArrozDestino(d))"></p>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ================================================================= -->
@@ -2908,38 +3169,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
 
               <!-- PECHO O PIERNA → OCTAVO DE POLLO → ARROZ, OLLA Y CALDO -->
-              <div class="arbol-hijo ultimo" style="--c:#fbbf24">
+              <div class="arbol-hijo ultimo octavo-modelo" style="--c:#fbbf24">
                 <i class="arbol-punta"></i>
                 <div class="arbol">
-                  <div class="w-[280px] arbol-nodo">
-                    <div class="bg-[#0a0a0f] border-2 border-amber-400/80 rounded-xl p-3 space-y-2 shadow-md">
-                      <div class="flex items-center justify-between gap-1.5">
-                        <span class="px-1.5 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase">2 = 1</span>
+                  <div class="w-[238px] arbol-nodo">
+                    <div class="tr-node border-2 border-amber-400/80">
+                      <div class="tr-node-head">
+                        <span class="tr-node-badge bg-amber-400 text-[#1a1200]">2 = 1</span>
                         <button type="button" class="btn-lapiz-stock" aria-label="Editar octavos de pecho y pierna" title="Editar stock" @click="abrirEditarOctavo()"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                       </div>
-                      <h4 class="text-sm font-bold text-white">Octavo de pollo</h4>
-                      <div class="caja-stock">
-                        <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                        <p class="text-xl font-mono font-extrabold text-amber-200" x-text="formatNum(totalOctavosLibres())"></p>
+                      <h4 class="tr-node-title">Octavo de pollo</h4>
+                      <div class="bg-[#131522] border border-[#282a40] rounded-lg px-3 py-2 text-center">
+                        <p class="text-[10.5px] font-semibold text-[#a9adc4]">Stock total (Crudo)</p>
+                        <p class="text-xl font-mono font-extrabold text-amber-200 leading-tight mt-0.5" x-text="formatNum(totalOctavosLibres())"></p>
                         <p class="caja-stock-mas" x-show="textoIngreso('octavo_pollo', 'crudo')" x-text="textoIngreso('octavo_pollo', 'crudo')"></p>
                       </div>
-                      <div class="space-y-2 pt-1.5 border-t border-[#26263a] w-full">
-                        <div class="flex flex-col items-center">
-                          <p class="caja-stock-corte text-sky-200">Desde pecho</p>
-                          <p class="caja-stock-etiq">Octavos de pecho: <strong class="text-white" x-text="formatNum(octavosStockCorte('pechugas'))"></strong></p>
+                      <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-[#24263b]">
+                        <div class="flex flex-col items-stretch">
+                          <p class="caja-stock-corte text-sky-300">Pecho</p>
                           <div class="caja-stock-step">
-                            
                             <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosStockCorte('pechugas')" @change="fijarOctavosStock('pechugas', $event.target.value)">
-                            
                           </div>
                         </div>
-                        <div class="flex flex-col items-center">
-                          <p class="caja-stock-corte text-emerald-200">Desde pierna</p>
-                          <p class="caja-stock-etiq">Octavos de pierna: <strong class="text-white" x-text="formatNum(octavosStockCorte('piernas'))"></strong></p>
+                        <div class="flex flex-col items-stretch">
+                          <p class="caja-stock-corte text-emerald-300">Pierna</p>
                           <div class="caja-stock-step">
-                            
                             <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosStockCorte('piernas')" @change="fijarOctavosStock('piernas', $event.target.value)">
-                            
                           </div>
                         </div>
                       </div>
@@ -2948,71 +3203,71 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <div class="arbol-hijos" style="--rama:#fbbf24">
                     <div class="arbol-hijo solo" style="--c:#fbbf24">
                       <i class="arbol-punta"></i>
-                      <div class="flex flex-col gap-3 min-w-0">
-                      <div class="cuadro-grupal-semantico cuadro-grupal-octavo">
-                        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-amber-400/30">
-                          <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase tracking-wider">CUADRO GRUPAL · OCTAVO</span>
-                            <h4 class="text-xs font-extrabold text-white uppercase tracking-wide">Arroz con pollo, Pollo a la olla, Caldo, Beata, Personal y Eventos</h4>
+                      <div class="cuadro-grupal-semantico cuadro-grupal-octavo w-full">
+                        <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-amber-400/25">
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span class="tr-node-badge bg-amber-400 text-[#1a1200]">CUADRO GRUPAL · OCTAVO</span>
+                            <h4 class="tr-node-title">Arroz con pollo, Pollo a la olla, Caldo, Beata, Personal, Evento y Rio Lindo</h4>
                           </div>
                           <span class="text-[11px] font-mono text-amber-200">
-                            Octavos en este grupo: <strong class="text-white" x-text="octavosUsadosEnPlatos()"></strong>
+                            Octavos en grupo: <strong class="text-white" x-text="octavosUsadosEnPlatos()"></strong>
                           </span>
                         </div>
-                        <div class="platos-grupo">
-                          <template x-for="plato in platosDelOctavo()" :key="'map-octavo-' + plato.id">
-                            <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-amber-400/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
-                              <span class="flex items-center justify-between gap-1">
-                                <span class="text-xs font-semibold text-white block truncate" x-text="plato.nombre"></span>
+                        <div class="platos-grupo-octavo">
+                          <template x-for="(plato, pIdx) in platosDelOctavo()" :key="'map-octavo-' + plato.id">
+                            <div class="tr-dish-card hover:border-amber-400/60" :class="platosDelOctavo().length === 3 && pIdx === 2 ? 'col-span-2' : ''">
+                              <div class="tr-dish-head">
+                                <span class="tr-dish-title" x-text="plato.nombre"></span>
                                 <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                              </span>
-                              <template x-for="corte in ['piernas', 'pechugas']" :key="plato.id + '-' + corte">
-                                <div>
-                                  <p class="caja-stock-corte" :class="corte === 'piernas' ? 'text-emerald-200' : 'text-sky-200'" x-text="corte === 'piernas' ? 'Pierna' : 'Pecho'"></p>
-                                  <div class="caja-stock">
-                                    <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                                    <div class="caja-stock-step">
-                                      
-                                      <input type="number" min="0" step="1" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="fijarOctavoPlato(plato.id, corte, 'crudo', $event.target.value)">
-                                      
-                                    </div>
-                                    <p class="caja-stock-mas" x-show="textoIngreso(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoIngreso(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
-                                    <p class="caja-stock-menos" x-show="textoResto(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoResto(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
-                                  </div>
-                                  <template x-if="plato.cocido">
-                                    <div class="caja-stock caja-stock-cocido">
-                                      <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                              </div>
+                              <div class="octavo-cortes">
+                                <template x-for="corte in ['pechugas', 'piernas']" :key="plato.id + '-' + corte">
+                                  <div class="space-y-1.5 bg-[#11121d] border border-[#222438] rounded-lg p-1.5">
+                                    <p class="caja-stock-corte" :class="corte === 'piernas' ? 'text-emerald-300' : 'text-sky-300'" x-text="corte === 'piernas' ? 'Pierna' : 'Pecho'"></p>
+                                    <div class="caja-stock">
+                                      <p class="caja-stock-etiq">Crudo</p>
                                       <div class="caja-stock-step">
-                                        
-                                        <input type="number" min="0" step="1" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="fijarOctavoPlato(plato.id, corte, 'cocido', $event.target.value)">
-                                        
+                                        <input type="number" min="0" step="1" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="fijarOctavoPlato(plato.id, corte, 'crudo', $event.target.value)">
                                       </div>
-                                      <p class="caja-stock-mas" x-show="textoIngreso(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoIngreso(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
-                                      <p class="caja-stock-menos" x-show="textoResto(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoResto(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
+                                      <p class="caja-stock-mas" x-show="textoIngreso(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoIngreso(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
+                                      <p class="caja-stock-menos" x-show="textoResto(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoResto(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
                                     </div>
-                                  </template>
-                                </div>
-                              </template>
+                                    <template x-if="plato.cocido">
+                                      <div class="caja-stock caja-stock-cocido">
+                                        <p class="caja-stock-etiq">Cocido</p>
+                                        <div class="caja-stock-step">
+                                          <input type="number" min="0" step="1" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="fijarOctavoPlato(plato.id, corte, 'cocido', $event.target.value)">
+                                        </div>
+                                        <p class="caja-stock-mas" x-show="textoIngreso(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoIngreso(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
+                                        <p class="caja-stock-menos" x-show="textoResto(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoResto(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
+                                      </div>
+                                    </template>
+                                  </div>
+                                </template>
+                              </div>
                             </div>
                           </template>
                           <template x-for="dest in destinosOctavoExtra()" :key="'octavo-dest-' + dest.id">
-                            <div class="bg-[#0a0a0f] border border-rose-500/40 rounded-lg px-2.5 py-2 space-y-1.5">
-                              <span class="text-xs font-semibold text-white" x-text="dest.nombre"></span>
-                              <template x-for="corte in ['piernas', 'pechugas']" :key="dest.id + '-' + corte">
-                                <div>
-                                  <p class="caja-stock-corte" :class="corte === 'piernas' ? 'text-emerald-200' : 'text-sky-200'" x-text="corte === 'piernas' ? 'Pierna' : 'Pecho'"></p>
-                                  <div class="caja-stock">
-                                    <p class="caja-stock-etiq">Descarga:</p>
-                                    <div class="caja-stock-step">
-                                      <input type="number" min="0" step="1" :aria-label="'Octavos de ' + corte + ' en ' + dest.nombre" :value="octavosEnDestino(dest.id, corte)" @change="fijarOctavoDestino(dest.id, corte, $event.target.value)">
+                            <div class="tr-dish-card octavo-sector">
+                              <div class="tr-dish-head">
+                                <span class="tr-dish-title" x-text="dest.nombre"></span>
+                              </div>
+                              <div class="octavo-cortes">
+                                <template x-for="corte in ['pechugas', 'piernas']" :key="dest.id + '-' + corte">
+                                  <div class="space-y-1.5 bg-[#11121d] border border-red-900/50 rounded-lg p-1.5">
+                                    <p class="caja-stock-corte" :class="corte === 'piernas' ? 'text-emerald-300' : 'text-sky-300'" x-text="corte === 'piernas' ? 'Pierna' : 'Pecho'"></p>
+                                    <div class="caja-stock">
+                                      <p class="caja-stock-etiq">Descarga</p>
+                                      <div class="caja-stock-step">
+                                        <input type="number" min="0" step="1" :aria-label="'Octavos de ' + corte + ' en ' + dest.nombre" :value="octavosEnDestino(dest.id, corte)" @change="fijarOctavoDestino(dest.id, corte, $event.target.value)">
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </template>
+                                </template>
+                              </div>
                             </div>
                           </template>
                         </div>
-                      </div>
                       </div>
                     </div>
                   </div>
@@ -3188,6 +3443,85 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </template>
 
       <!-- ================================================================= -->
+      <!-- MAPA SEMÁNTICO HORIZONTAL — POLLO BABY (SOLO CRUDO → COCIDO)      -->
+      <!-- ================================================================= -->
+      <div id="trans-pollo-baby" class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
+          <div>
+            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pollo-baby'])"></span>. Mapa Semántico Horizontal — Pollo Baby</h2>
+            <p class="text-xs text-[#a0a0b8]">
+              El Pollo Baby no se despieza. <strong class="text-white">Solo se transforma de crudo a cocido</strong>, uno por uno. El 1/2 pollo a la leña baby come 0.5 del cocido.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5 text-xs font-mono">
+            <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-emerald-500/40 text-emerald-200">
+              Crudo: <strong x-text="formatNum(stockCuadro('pollo_baby', 'crudo'))"></strong>
+            </span>
+            <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-[#d4af37]/50 text-[#d4af37]">
+              Cocido: <strong x-text="formatNum(stockCuadro('pollo_baby', 'cocido'))"></strong>
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-col xl:flex-row items-stretch xl:items-center gap-3">
+          <div class="xl:w-56 bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">Origen crudo</span>
+              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pollo Baby" title="Editar stock" @click="abrirEditarStock('pollo_baby')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+            </div>
+            <h3 class="text-sm font-extrabold text-white">Pollo Baby</h3>
+            <div class="caja-stock">
+              <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+              <div class="caja-stock-step">
+                <input type="number" min="0" step="1" aria-label="Stock crudo de Pollo Baby" :value="stockCuadro('pollo_baby', 'crudo')" @change="fijarStockDirecto('pollo_baby', 'crudo', $event.target.value)">
+              </div>
+              <p class="caja-stock-mas" x-show="textoIngreso('pollo_baby', 'crudo')" x-text="textoIngreso('pollo_baby', 'crudo')"></p>
+              <p class="caja-stock-menos" x-show="textoResto('pollo_baby', 'crudo')" x-text="textoResto('pollo_baby', 'crudo')"></p>
+            </div>
+            <p class="text-[11px] text-emerald-200">Siempre entra crudo. De aquí solo pasa a cocido.</p>
+          </div>
+
+          <div class="hidden xl:flex w-8 shrink-0 items-center">
+            <div class="conector-h-barra-oro"></div>
+          </div>
+
+          <div class="xl:w-56 bg-[#0a0a0f] border-2 border-[#d4af37]/80 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
+            <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Crudo → Cocido</span>
+            <h3 class="text-sm font-extrabold text-white">Pollo Baby cocido</h3>
+            <div class="caja-stock caja-stock-cocido">
+              <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+              <div class="caja-stock-step">
+                <input type="number" min="0" step="1" aria-label="Pasar Pollo Baby de crudo a cocido" :value="stockCuadro('pollo_baby', 'cocido')" @change="fijarPaseCrudoACocido('pollo_baby', $event.target.value)">
+              </div>
+              <p class="caja-stock-mas" x-show="textoIngreso('pollo_baby', 'cocido')" x-text="textoIngreso('pollo_baby', 'cocido')"></p>
+              <p class="caja-stock-menos" x-show="textoResto('pollo_baby', 'cocido')" x-text="textoResto('pollo_baby', 'cocido')"></p>
+            </div>
+            <p class="text-[11px] text-[#d4af37]">1 crudo = 1 cocido. Subir el cocido gasta crudo. Bajarlo lo devuelve.</p>
+          </div>
+
+          <div class="hidden xl:flex w-8 shrink-0 items-center">
+            <div class="conector-h-barra-oro"></div>
+          </div>
+
+          <div class="flex-1 cuadro-grupal-semantico space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-[#26263a]">
+              <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · POLLO BABY</span>
+              <span class="text-[11px] font-mono text-[#a0a0b8]">Come del cocido</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <template x-for="pl in platosDePolloBaby()" :key="'pl-baby-' + pl.id">
+                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                  <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
+                  <span class="text-[11px] font-mono font-bold text-[#d4af37] shrink-0" x-text="'Come ' + pl.cantidad"></span>
+                </div>
+              </template>
+            </div>
+            <p class="text-[10px] text-[#5a5a7a]">La venta resta el cocido de Pollo Baby. Aquí no se reparte a otro corte.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
       <!-- 2. MAPA SEMÁNTICO HORIZONTAL — PANCETA (1=6 TIRAS → TROZOS → PLATOS) -->
       <!-- ================================================================= -->
       <div id="trans-panceta" class="bg-[#14141f] border border-[#26263a] p-5 rounded-xl space-y-4 shadow-2xl" x-show="tieneMapa('panceta')">
@@ -3195,7 +3529,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div>
             <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['panceta'])"></span>. Mapa Semántico Horizontal — Panceta (Panceta → Tiras → Trozos → Platos)</h2>
             <p class="text-xs text-[#a0a0b8]">
-              <strong class="text-white">1 panceta = 6 tiras</strong>. Al bajar el stock de la panceta, esas tiras entran solas (2 pancetas = 12 tiras). Al subir una pieza se gasta 1 tira. La pieza es solo cocido y de ahí salen los platos.
+              <strong class="text-white">1 panceta entera = 6 tiras</strong>. La panceta y la tira quedan siempre en crudo. Al subir una pieza se gasta 1 tira. La pieza es solo cocido.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2.5 text-xs font-mono">
@@ -3228,7 +3562,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
               <p class="caja-stock-mas" x-show="textoIngreso('panceta', 'crudo')" x-text="textoIngreso('panceta', 'crudo')"></p>
               <p class="caja-stock-menos" x-show="textoResto('panceta', 'crudo')" x-text="textoResto('panceta', 'crudo')"></p>
-              <p class="text-[11px] font-mono text-[#a0a0b8]">Crudo <strong class="text-emerald-300" x-text="formatNum(stockCuadro('panceta', 'crudo'))"></strong> · Cocido <strong class="text-[#d4af37]" x-text="formatNum(stockCuadro('panceta', 'cocido'))"></strong></p>
+              <p class="text-[11px] text-[#a0a0b8]">De una panceta entera salen <strong class="text-white">6 tiras</strong>. Siempre crudo.</p>
             </div>
           </div>
 
@@ -3248,7 +3582,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <p class="text-2xl font-mono font-extrabold text-sky-300" x-text="formatNum(quedanDe('tira_panceta'))"></p>
               <p class="caja-stock-mas" x-show="textoIngreso('tira_panceta', 'crudo')" x-text="textoIngreso('tira_panceta', 'crudo')"></p>
               <p class="caja-stock-menos" x-show="textoResto('tira_panceta', 'crudo')" x-text="textoResto('tira_panceta', 'crudo')"></p>
-              <p class="text-[11px] font-mono text-[#a0a0b8]">Crudo <strong class="text-emerald-300" x-text="formatNum(stockCuadro('tira_panceta', 'crudo'))"></strong> · Cocido <strong class="text-[#d4af37]" x-text="formatNum(stockCuadro('tira_panceta', 'cocido'))"></strong></p>
+              <p class="text-[11px] text-sky-200">Siempre crudo. El pase desde la panceta entra aquí, nunca en cocido.</p>
             </div>
             <div class="bg-[#14141f] border border-[#26263a] rounded-lg p-1.5 space-y-1">
               <span class="text-[10px] font-bold text-sky-200 block">Pancetas a tiras</span>
@@ -3298,7 +3632,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <p class="text-xl font-mono font-extrabold text-emerald-300" x-text="formatNum(stockCuadro('trozo_panceta', 'cocido'))"></p>
               <p class="caja-stock-mas" x-show="textoIngreso('trozo_panceta', 'cocido')" x-text="textoIngreso('trozo_panceta', 'cocido')"></p>
               <p class="caja-stock-menos" x-show="textoResto('trozo_panceta', 'cocido')" x-text="textoResto('trozo_panceta', 'cocido')"></p>
-              <p class="text-[11px] font-mono text-[#a0a0b8]">Crudo <strong class="text-emerald-300" x-text="formatNum(stockCuadro('trozo_panceta', 'crudo'))"></strong> · Cocido <strong class="text-[#d4af37]" x-text="formatNum(stockCuadro('trozo_panceta', 'cocido'))"></strong></p>
+              <p class="text-[11px] text-emerald-200">Solo cocido. Cada pieza gasta 1 tira cruda.</p>
             </div>
             <template x-if="tienePaseCocido('trozo_panceta')">
               <div class="caja-stock caja-stock-cocido">
@@ -3353,7 +3687,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#26263a]">
             <div>
               <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pescado-trans'])"></span>. Mapa Semántico Horizontal — Pieza de pescado</h2>
-              <p class="text-xs text-[#a0a0b8]">El stock es de piezas. Los platos vinculados restan Pieza de pescado.</p>
+              <p class="text-xs text-[#a0a0b8]">El stock es de piezas.</p>
             </div>
             <span class="px-2.5 py-1 rounded bg-[#0a0a0f] border border-sky-500/40 text-xs font-mono text-sky-200">
               Queda: <strong class="text-white" x-text="formatNum(calcSaldoReal(getRow('pieza_pescado')))"></strong>
@@ -3393,28 +3727,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
               </div>
             </div>
-
-            <div class="hidden sm:flex w-8 shrink-0 items-center">
-              <div class="conector-h-barra-oro"></div>
-            </div>
-
-            <div class="flex-1 cuadro-grupal-semantico space-y-2.5">
-              <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-[#26263a]">
-                <div class="flex items-center gap-2">
-                  <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · PIEZA DE PESCADO</span>
-                </div>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Venta comandas: <strong class="text-rose-200" x-text="formatNum(getRow('pieza_pescado').venta)"></strong></span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                <template x-for="pl in platosDePiezaPescado()" :key="'pl-pez-' + pl.id">
-                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
-                    <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
-                    <span class="text-[11px] font-mono font-bold text-sky-300 shrink-0" x-text="'Come ' + pl.cantidad + (pl.cantidad === 1 ? ' pieza' : ' piezas')"></span>
-                  </div>
-                </template>
-              </div>
-              <p class="text-[10px] text-[#5a5a7a]">Trucha y dúo truchero no entran aquí.</p>
-            </div>
           </div>
         </div>
 
@@ -3423,9 +3735,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#26263a]">
             <div>
               <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pota'])"></span>. Mapa Semántico Horizontal — Pieza de pota</h2>
-              <p class="text-xs text-[#a0a0b8]">
-                El stock es de piezas. Chicharrón de pota y Ceviche con chicharrón de pota usan <strong class="text-[#d4af37]">1 pieza</strong> cada uno.
-              </p>
+              <p class="text-xs text-[#a0a0b8]">El stock es de piezas.</p>
             </div>
             <span class="px-3 py-1 rounded-lg bg-[#0a0a0f] border border-emerald-500/40 text-xs font-mono text-emerald-200">
               Queda: <strong x-text="formatNum(calcSaldoReal(getRow('pieza_pota')))"></strong>
@@ -3465,43 +3775,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
               </div>
             </div>
-
-            <div class="hidden lg:flex w-8 shrink-0 items-center">
-              <div class="conector-h-barra-oro"></div>
-            </div>
-
-            <div class="flex-1 cuadro-grupal-semantico space-y-2">
-              <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-[#26263a]">
-                <div class="flex items-center gap-2">
-                  <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · PIEZA DE POTA</span>
-                  <span class="text-xs font-bold text-white">Platos que descuentan piezas</span>
-                </div>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">
-                  Venta comandas: <strong class="text-rose-200" x-text="formatNum(getRow('pieza_pota').venta)"></strong> piezas
-                </span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <template x-for="pl in platosDePiezaPota()" :key="'pl-pota-' + pl.id">
-                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                    <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
-                    <span class="px-2 py-0.5 rounded bg-[#14141f] border border-emerald-500/40 text-[11px] font-mono font-bold text-emerald-300 shrink-0" x-text="'Come ' + pl.cantidad + (pl.cantidad === 1 ? ' pieza' : ' piezas')"></span>
-                  </div>
-                </template>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
       <!-- ================================================================= -->
-      <!-- 4. MAPAS SEMÁNTICOS HORIZONTALES: CARNERO Y ARROZ                  -->
+      <!-- 4. MAPAS SEMÁNTICOS HORIZONTALES: CARNERO                  -->
       <!-- ================================================================= -->
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-4">
         <!-- MAPA SEMÁNTICO HORIZONTAL: CARNERO (1 A 1) + CHICHARRÓN DE CHANCHO Y CUY -->
         <div id="trans-carnero" class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('carnero')">
           <div class="pb-2 border-b border-[#26263a]">
             <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['carnero'])"></span>. Mapa Semántico Horizontal — Carnero, Chicharrón de Chancho y Cuy</h2>
-            <p class="text-xs text-[#a0a0b8]">Carnero pasa 1 a 1 a Carnero pachamanca y a Seco de carnero (cada uno con crudo y cocido); Chicharrón de chancho crudo y Cuy entran por unidad sin transformación.</p>
+            <p class="text-xs text-[#a0a0b8]">Carnero pasa 1 a 1 a Seco de carnero (crudo y cocido). Chicharrón de chancho crudo y Cuy entran por unidad.</p>
           </div>
 
           <!-- Flujo Horizontal Carnero -->
@@ -3546,7 +3832,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="flex-1 cuadro-grupal-semantico">
               <div class="flex items-center justify-between gap-2 mb-1">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CARNERO</span>
-                <span class="text-[11px] text-[#d4af37] font-mono">Carnero pachamanca y Seco de carnero</span>
+                <span class="text-[11px] text-[#d4af37] font-mono">Seco de carnero</span>
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <template x-for="pl in platosDelCarnero()" :key="'map-carnero-' + pl.id">
@@ -3605,25 +3891,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <p class="caja-stock-menos" x-show="textoResto('chicharron_chancho', 'crudo')" x-text="textoResto('chicharron_chancho', 'crudo')"></p>
               </div>
             </div>
-
-            <div class="hidden sm:flex w-8 shrink-0 items-center">
-              <div class="conector-h-barra-oro"></div>
-            </div>
-
-            <div class="flex-1 cuadro-grupal-semantico space-y-2">
-              <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
-                <span class="px-2 py-0.5 rounded bg-amber-400 text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CHICHARRÓN DE CHANCHO</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Venta: <strong class="text-rose-200" x-text="formatNum(getRow('chicharron_chancho').venta)"></strong></span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                <template x-for="pl in platosDeChicharronChancho()" :key="'pl-chich-' + pl.id">
-                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
-                    <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
-                    <span class="text-[11px] font-mono font-bold text-amber-300 shrink-0" x-text="'Come ' + pl.cantidad"></span>
-                  </div>
-                </template>
-              </div>
-            </div>
           </div>
 
           <!-- Flujo Horizontal: Cuy (Ingreso directo por unidad, no se transforma) -->
@@ -3648,114 +3915,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <p class="caja-stock-menos" x-show="textoResto('cuy', 'crudo')" x-text="textoResto('cuy', 'crudo')"></p>
               </div>
             </div>
-
-            <div class="hidden sm:flex w-8 shrink-0 items-center">
-              <div class="conector-h-barra-oro"></div>
-            </div>
-
-            <div class="flex-1 cuadro-grupal-semantico space-y-2">
-              <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
-                <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CUY</span>
-                <span class="text-[11px] font-mono text-[#a0a0b8]">Venta: <strong class="text-rose-200" x-text="formatNum(getRow('cuy').venta)"></strong></span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                <template x-for="pl in platosDeCuy()" :key="'pl-cuy-' + pl.id">
-                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2">
-                    <span class="text-xs font-bold text-white" x-text="pl.nombre"></span>
-                    <span class="text-[11px] font-mono font-bold text-emerald-300 shrink-0" x-text="'Come ' + pl.cantidad"></span>
-                  </div>
-                </template>
-              </div>
-            </div>
           </div>
         </div>
 
-        <!-- MAPA SEMÁNTICO HORIZONTAL: ARROZ CRUDO -> TIPOS -->
-        <div id="trans-arroz" class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('arroz')">
-          <div class="pb-2 border-b border-[#26263a] flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['arroz'])"></span>. Mapa Semántico Horizontal — Familia Arroz</h2>
-              <p class="text-xs text-[#a0a0b8]">1 arroz crudo nace 8 blanco, 6 verde + pato, o beata según su factor.</p>
-            </div>
-            <span class="px-2.5 py-1 rounded bg-[#0a0a0f] border border-[#26263a] text-xs font-mono text-white">
-              Crudo libre: <strong class="text-emerald-300" x-text="arrozLibre()"></strong>
-            </span>
-          </div>
-
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <!-- Nodo Origen: Arroz crudo -->
-            <div class="sm:w-52 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3.5 shrink-0 space-y-2">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen crudo</span>
-                <span class="inline-flex items-center gap-1">
-                  <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('arroz'))"></strong></span>
-                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Arroz" title="Editar stock" @click="abrirEditarStock('arroz')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                </span>
-              </div>
-              <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
-              <div class="caja-stock">
-                <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                <div class="caja-stock-step">
-                  
-                  <input type="number" min="0" step="any" aria-label="Stock actual de arroz crudo" :value="stockCuadro('arroz', 'crudo')" @change="fijarStockDirecto('arroz', 'crudo', $event.target.value)">
-                  
-                </div>
-                <p class="caja-stock-mas" x-show="textoIngreso('arroz', 'crudo')" x-text="textoIngreso('arroz', 'crudo')"></p>
-                <p class="caja-stock-menos" x-show="textoResto('arroz', 'crudo')" x-text="textoResto('arroz', 'crudo')"></p>
-              </div>
-              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz')">Ingreso</button>
-              <div class="ingreso-panel" x-show="ingresoAbierto.arroz" x-cloak>
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
-                  <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('arroz')">Cerrar</button>
-                </div>
-                <div class="mt-2 inline-flex items-center gap-0.5">
-                  
-                  <input type="number" min="0" aria-label="Ingreso de arroz crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('arroz').ingreso" :style="'--digitos:' + digitosDe(getRow('arroz').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('arroz', $event.target.value)">
-                  
-                </div>
-              </div>
-              <p class="text-[11px] text-[#a0a0b8]">Repartido: <strong class="text-white font-mono" x-text="arrozUsado()"></strong></p>
-            </div>
-
-            <div class="hidden sm:flex w-10 shrink-0 items-center">
-              <div class="conector-h-barra-oro"></div>
-            </div>
-
-            <!-- Cuadro Grupal: Destinos de Arroz -->
-            <div class="flex-1 cuadro-grupal-semantico space-y-2">
-              <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
-                <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · ARROZ</span>
-                <span class="text-[11px] text-[#a0a0b8]">El número es cuántos crudos pasan. Nacen según el factor.</span>
-              </div>
-
-              <div class="space-y-2">
-                <template x-for="d in destinosArroz()" :key="'arroz-dest-' + d.campo">
-                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1">
-                    <span class="flex items-center justify-between gap-1">
-                      <span class="text-xs font-bold text-white block" x-text="d.nombre"></span>
-                      <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + d.nombre" title="Editar stock" @click="abrirEditarStock(d.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                    </span>
-                    <span class="flex items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
-                      <span>1 → <span x-text="config[d.factorKey] || 1"></span></span>
-                      <span>Se usaron <strong class="text-white font-mono" x-text="formatNum(arrozHacia(d))"></strong> de arroz crudo</span>
-                    </span>
-                    <div class="caja-stock">
-                      <p class="caja-stock-etiq" x-text="tipoArrozDestino(d) === 'cocido' ? 'Stock actual (Cocido):' : 'Stock actual (Crudo):'"></p>
-                      <div class="caja-stock-step">
-                        
-                        <input type="number" min="0" step="any" :aria-label="'Stock de ' + d.nombre" :value="porcionesArroz(d)" @change="fijarStockArrozTipo(d.campo, $event.target.value)">
-                        
-                      </div>
-                      <p class="caja-stock-mas" x-show="textoIngreso(d.id, tipoArrozDestino(d))" x-text="textoIngreso(d.id, tipoArrozDestino(d))"></p>
-                      <p class="caja-stock-menos" x-show="textoResto(d.id, tipoArrozDestino(d))" x-text="textoResto(d.id, tipoArrozDestino(d))"></p>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ================================================================= -->
@@ -3764,7 +3926,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4" x-show="tieneMapa('carnes-directo')">
           <div class="pb-2 border-b border-[#26263a]">
-            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['carnes-directo'])"></span>. Mapa Semántico Horizontal — Grupo Carnes y Trucha</h2>
+            <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['carnes-directo'])"></span>. Mapa Semántico Horizontal — Grupo Carnes</h2>
             <p class="text-xs text-[#a0a0b8]">
               Flujo horizontal de carnes porcionadas de ingreso directo y sus platos vinculados en la carta.
             </p>
@@ -3775,7 +3937,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-48 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3 shrink-0 space-y-1.5">
               <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Familia Directa</span>
               <h3 class="text-sm font-extrabold text-white">Grupo Carnes</h3>
-              <p class="text-[11px] text-[#a0a0b8]">5 cortes directos en la hoja con pase Crudo → Cocido en Pachamancas.</p>
+              <p class="text-[11px] text-[#a0a0b8]">3 cortes directos en la hoja.</p>
             </div>
 
             <div class="hidden sm:flex w-8 shrink-0 items-center">
@@ -3785,10 +3947,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="flex-1 cuadro-grupal-semantico space-y-2">
               <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · CARNES</span>
-                <span class="text-[11px] text-[#a0a0b8] font-mono">5 cortes agrupados</span>
+                <span class="text-[11px] text-[#a0a0b8] font-mono">3 cortes agrupados</span>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <template x-for="corteId in ['carne_bistec', 'lomo_fino', 'carne_pachamanca', 'cerdo_pachamanca', 'carne_guiso']" :key="'sem-carne-' + corteId">
+                <template x-for="corteId in ['carne_bistec', 'lomo_fino', 'carne_guiso']" :key="'sem-carne-' + corteId">
                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
                     <span class="flex items-center justify-between gap-1">
                       <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
@@ -3822,45 +3984,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
           </div>
 
-          <!-- Flujo Horizontal: Grupo Trucha -->
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-3 border-t border-[#26263a]/60">
-            <div class="sm:w-48 bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3 shrink-0 space-y-1.5">
-              <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">Familia Directa</span>
-              <h3 class="text-sm font-extrabold text-white">Grupo Trucha</h3>
-              <p class="text-[11px] text-[#a0a0b8]">Ingreso directo por unidad o filete.</p>
-            </div>
-
-            <div class="hidden sm:flex w-8 shrink-0 items-center">
-              <div class="conector-h-barra-oro"></div>
-            </div>
-
-            <div class="flex-1 cuadro-grupal-semantico space-y-2">
-              <div class="flex items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
-                <span class="px-2 py-0.5 rounded bg-sky-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · TRUCHA</span>
-                <span class="text-[10px] text-[#a0a0b8]">Ingreso directo</span>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <template x-for="trId in ['trucha_entera', 'filete_trucha']" :key="'sem-tr-' + trId">
-                  <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2.5 py-2 space-y-1">
-                    <span class="flex items-center justify-between gap-1">
-                      <span class="text-xs font-bold text-white block" x-text="getRow(trId).nombre"></span>
-                      <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + getRow(trId).nombre" title="Editar stock" @click="abrirEditarStock(trId)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                    </span>
-                    <div class="caja-stock">
-                      <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                      <div class="caja-stock-step">
-                        
-                        <input type="number" min="0" step="any" :aria-label="'Stock de ' + getRow(trId).nombre" :value="stockCuadro(trId, 'crudo')" @change="fijarStockDirecto(trId, 'crudo', $event.target.value)">
-                        
-                      </div>
-                      <p class="caja-stock-mas" x-show="textoIngreso(trId, 'crudo')" x-text="textoIngreso(trId, 'crudo')"></p>
-                      <p class="caja-stock-menos" x-show="textoResto(trId, 'crudo')" x-text="textoResto(trId, 'crudo')"></p>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- CUADRO GRUPAL: APARTAR PARA EVENTO -->
@@ -3886,6 +4009,57 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     
                     <button type="button" @click="apartarEvento(ev)" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-[#1a1200] text-xs font-bold cursor-pointer">Pasar</button>
                   </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="trans-pachamanca" class="bg-[#14141f] border border-[#26263a] p-4 rounded-xl space-y-4">
+        <div class="pb-2 border-b border-[#26263a]">
+          <h2 class="text-sm font-bold text-[#d4af37] uppercase tracking-wider"><span x-text="numeroMapa(['pachamanca-grupo'])"></span>. Mapa Semántico Horizontal — Grupo de pachamanca</h2>
+          <p class="text-xs text-[#a0a0b8]">Carne pachamanca, Cerdo pachamanca y Carnero pachamanca, con su crudo y su cocido.</p>
+        </div>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div class="sm:w-48 bg-[#0a0a0f] border-2 border-[#d4af37]/70 rounded-xl p-3 shrink-0 space-y-1.5">
+            <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Familia Directa</span>
+            <h3 class="text-sm font-extrabold text-white">Grupo de pachamanca</h3>
+            <p class="text-[11px] text-[#a0a0b8]">Tres sabores. Cada uno lleva crudo y cocido.</p>
+          </div>
+          <div class="hidden sm:flex w-8 shrink-0 items-center">
+            <div class="conector-h-barra-oro"></div>
+          </div>
+          <div class="flex-1 cuadro-grupal-semantico space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-[#26263a]">
+              <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">CUADRO GRUPAL · PACHAMANCA</span>
+              <span class="text-[11px] text-[#a0a0b8] font-mono">3 sabores</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <template x-for="corteId in ['carne_pachamanca', 'cerdo_pachamanca', 'carnero_pachamanca']" :key="'sem-pacha-' + corteId">
+                <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
+                  <span class="flex items-center justify-between gap-1">
+                    <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
+                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + getRow(corteId).nombre" title="Editar stock" @click="abrirEditarStock(corteId)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  </span>
+                  <div class="caja-stock">
+                    <p class="caja-stock-etiq">Stock actual (Crudo):</p>
+                    <div class="caja-stock-step">
+                      <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="fijarStockDirecto(corteId, 'crudo', $event.target.value)">
+                    </div>
+                    <p class="caja-stock-mas" x-show="textoIngreso(corteId, 'crudo')" x-text="textoIngreso(corteId, 'crudo')"></p>
+                    <p class="caja-stock-menos" x-show="textoResto(corteId, 'crudo')" x-text="textoResto(corteId, 'crudo')"></p>
+                  </div>
+                  <template x-if="tienePaseCocido(corteId)">
+                    <div class="caja-stock caja-stock-cocido">
+                      <p class="caja-stock-etiq">Stock actual (Cocido):</p>
+                      <div class="caja-stock-step">
+                        <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="fijarStockDirecto(corteId, 'cocido', $event.target.value)">
+                      </div>
+                      <p class="caja-stock-mas" x-show="textoIngreso(corteId, 'cocido')" x-text="textoIngreso(corteId, 'cocido')"></p>
+                      <p class="caja-stock-menos" x-show="textoResto(corteId, 'cocido')" x-text="textoResto(corteId, 'cocido')"></p>
+                    </div>
+                  </template>
                 </div>
               </template>
             </div>
@@ -7166,7 +7340,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         type="checkbox"
                         x-model="d.tieneCocido"
                         class="accent-[#d4af37] w-4 h-4"
-                        :disabled="d.materia"
+                        :disabled="d.materia || d.clave === 'panceta' || d.clave === 'tira-panceta' || d.clave === 'trozo-panceta'"
                       />
                     </td>
                     <td class="px-4 py-2.5">
@@ -7242,6 +7416,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarCorreccion" @change="setOcultarCorreccion($event.target.checked)">
               <span>Ocultar columna Corrección</span>
             </label>
+            <label class="flex items-center gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarMasMenosIngreso" @change="setOcultarMasMenosIngreso($event.target.checked)">
+              <span>Ocultar el + y el − de Ingreso Total</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarTransformacion" @change="setOcultarTransformacion($event.target.checked)">
+              <span>Ocultar columna Transformación</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarPatoFresco" @change="setOcultarPatoFresco($event.target.checked)">
+              <span>Ocultar fila Pato fresco</span>
+            </label>
+          </div>
+          <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3 max-w-xl">
+            <h3 class="sec-title text-sm">Cuadros de Transformar</h3>
+            <p class="text-xs text-[#a0a0b8]">El cuadro de resumen de Transformar queda oculto al entrar. La opción se guarda en este equipo.</p>
+            <label class="flex items-start gap-2 text-sm text-white cursor-pointer pt-2 border-t border-[#26263a]">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4 mt-0.5" :checked="!mostrarEncabezadoMapa" @change="setOcultarEncabezadoMapa($event.target.checked)">
+              <span>Ocultar cuadro de Mapa Semántico Horizontal de Transformación y Grupos</span>
+            </label>
           </div>
         </div>
 
@@ -7273,12 +7467,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-[#26263a]">
           <div>
             <h3 class="text-lg font-semibold text-red-200">Descuadre</h3>
-            <p class="text-xs text-[#a0a0b8] mt-1">Ingreso total y Queda no bajan de 0. El faltante queda en Saldo anterior, en rojo que parpadea, como <strong class="text-white">0 (−1)</strong>. Aquí se deja en 0 y la alarma se apaga.</p>
+            <p class="text-xs text-[#a0a0b8] mt-1">Si hay ventas y Queda queda en negativo, parpadea en rojo: no hay de dónde sumar y hay que renovar stock. Esas filas suben al inicio. Aquí el ingreso de emergencia las deja en 0. Papas no entra. El saldo anterior negativo se sigue dejando en 0.</p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1 cursor-pointer" @click="descuadreAbierto = false" aria-label="Cerrar">×</button>
         </div>
         <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-          <p x-show="filasDescuadre().length === 0" class="text-sm text-emerald-200">No hay saldos anteriores en negativo. La hoja está en 0 o en positivo.</p>
+          <p x-show="filasDescuadre().length === 0" class="text-sm text-emerald-200">No hay emergencias ni saldos anteriores en negativo.</p>
           <div x-show="filasDescuadre().length" class="overflow-x-auto rounded-lg border border-[#26263a]">
             <table class="w-full text-xs">
               <thead>
@@ -7292,13 +7486,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <tbody>
                 <template x-for="item in filasDescuadre()" :key="'descuadre-' + item.id + '-' + item.tipo">
                   <tr class="border-t border-[#26263a]">
-                    <td class="px-3 py-2 font-semibold text-white" x-text="item.nombre"></td>
+                    <td class="px-3 py-2 font-semibold text-white"><span x-text="item.nombre"></span> <span x-show="item.emergencia" class="ml-1 saldo-anterior-alarma px-1 rounded text-[10px]">Emergencia</span></td>
                     <td class="px-3 py-2 text-[#a0a0b8]" x-text="item.etiqueta"></td>
                     <td class="px-3 py-2 text-right">
                       <span class="inline-block rounded bg-red-600 text-white font-mono font-bold px-1.5 py-0.5" x-text="item.texto"></span>
                     </td>
                     <td class="px-3 py-2 text-right">
-                      <button type="button" class="px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="dejarDescuadreEnCero(item)">Dejar en 0</button>
+                      <button type="button" class="px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="dejarDescuadreEnCero(item)" x-text="item.emergencia ? 'Ingresar stock' : 'Dejar en 0'"></button>
                     </td>
                   </tr>
                 </template>
@@ -7308,7 +7502,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
         <div class="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t border-[#26263a]">
           <button type="button" class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] text-[#a0a0b8] text-xs font-semibold cursor-pointer" @click="descuadreAbierto = false">Cerrar</button>
-          <button type="button" x-show="filasDescuadre().length" class="px-3.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-extrabold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="dejarTodosDescuadresEnCero()" x-text="descuadreGuardando === 'todos' ? 'Dejando en 0…' : 'Dejar todos en 0'"></button>
+          <button type="button" x-show="filasDescuadre().length" class="px-3.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-extrabold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="dejarTodosDescuadresEnCero()" x-text="descuadreGuardando === 'todos' ? 'Resolviendo…' : 'Resolver todos'"></button>
         </div>
       </div>
     </div>
@@ -7518,7 +7712,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               @click="fijarModoTipoProductoVentaEspecial(f.id, 'auto')"
                               class="px-2 py-1 rounded cursor-pointer transition"
                               :class="modoTipoProductoVentaEspecial(f.id) === 'auto' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#a0a0b8] hover:text-white'"
-                              title="Descuenta primero Cocido y luego Crudo"
+                              title="Solo descuenta el cocido"
                             >Auto</button>
                             <button
                               type="button"
@@ -7789,12 +7983,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <span class="text-[10px] text-[#5a5a7a]">Opcional</span>
                 </div>
                 <div class="flex flex-wrap gap-1">
-                  <template x-for="sug in ['Evento', 'Venta directa', 'Degustación', 'Pedido corporativo', 'Personal', 'Merma']" :key="'ve-sug-' + sug">
+                  <template x-for="sug in sectoresDescarga()" :key="'ve-sug-' + sug.id">
                     <button
                       type="button"
-                      @click="usarMotivoVentaEspecial(sug)"
-                      class="px-2 py-0.5 rounded-md border border-[#26263a] bg-[#0a0a0f] text-[10px] font-semibold text-[#a0a0b8] hover:text-white hover:border-[#d4af37]/50 cursor-pointer transition"
-                      x-text="sug"
+                      @click="usarMotivoVentaEspecial(sug.nombre)"
+                      class="px-2 py-0.5 rounded-md border text-[10px] font-semibold cursor-pointer transition"
+                      :class="sectorMotivoVentaEspecial() === sug.nombre ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'border-[#26263a] bg-[#0a0a0f] text-[#a0a0b8] hover:text-white hover:border-[#d4af37]/50'"
+                      x-text="sug.nombre"
                     ></button>
                   </template>
                 </div>
@@ -7802,7 +7997,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   id="ve-motivo-input"
                   maxlength="200"
                   x-model="ventaEspecial.motivo"
-                  placeholder="Ej. Evento salón · 15 platos especiales"
+                  placeholder="Beata, Personal, Evento o Rio Lindo. Puedes anotar el detalle."
                   class="flex-1 min-h-[8rem] w-full resize-none rounded-lg border border-[#26263a] bg-[#0a0a0f] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#d4af37]"
                 ></textarea>
               </div>
@@ -8261,20 +8456,81 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <label class="block text-xs text-[#a0a0b8]">Motivo <span class="text-[#5a5a7a]">(opcional)</span>
           <div class="mt-1.5 flex flex-wrap gap-2">
-            <button type="button" @click="ponerMotivoDescarga('Beata')" :aria-pressed="ventaManualMotivo === 'Beata'" aria-label="Motivo Beata" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition" :class="ventaManualMotivo === 'Beata' ? 'bg-[#ff0000] text-white border-[#ff0000]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a] hover:text-white'">
-              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11h16"/><path d="M6 11c.4 4.2 2.6 7 6 7s5.6-2.8 6-7"/><path d="M9 8c.6-1.6 1.6-2.5 3-2.5S14.4 6.4 15 8"/></svg>
-              Beata
-            </button>
-            <button type="button" @click="ponerMotivoDescarga('Rio Lindo')" :aria-pressed="ventaManualMotivo === 'Rio Lindo'" aria-label="Motivo Rio Lindo" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition" :class="ventaManualMotivo === 'Rio Lindo' ? 'bg-[#ff0000] text-white border-[#ff0000]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a] hover:text-white'">
-              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M3 13c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M3 18c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/></svg>
-              Rio Lindo
-            </button>
+            <template x-for="sug in sectoresDescarga()" :key="'dm-sector-' + sug.id">
+              <button type="button" @click="ponerMotivoDescarga(sug.nombre)" :aria-pressed="ventaManualMotivo === sug.nombre" :aria-label="'Motivo ' + sug.nombre" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition" :class="ventaManualMotivo === sug.nombre ? 'bg-[#ff0000] text-white border-[#ff0000]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a] hover:text-white'" x-text="sug.nombre"></button>
+            </template>
           </div>
           <textarea x-model="ventaManualMotivo" maxlength="180" rows="2" placeholder="Si quieres, anota por qué se resta" aria-label="Motivo de la descarga manual" class="mt-2 w-full rounded-lg border border-[#ff0000]/50 bg-[#0a0a0f] px-3 py-2 text-sm text-white focus:outline-none"></textarea>
         </label>
         <div class="flex items-center justify-end gap-2">
           <button type="button" class="px-4 py-2 rounded-lg bg-[#1c1c2b] text-white text-sm font-semibold cursor-pointer" @click="ventaManualAbierta = false">Cancelar</button>
           <button type="button" data-testid="btn-confirmar-venta-manual" class="px-4 py-2 rounded-lg bg-[#ff0000] text-white text-sm font-extrabold cursor-pointer disabled:opacity-50" :disabled="ventaManualGuardando || (ventaManualModo === 'plato' && !platoVentaManualElegido()) || (ventaManualPideCorte() && !ventaManualCorte)" @click="confirmarVentaManual()">Restar</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template x-if="sectoresAbierto">
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="sectoresAbierto = false" @keydown.escape.window="sectoresAbierto = false" role="dialog" aria-modal="true" aria-label="Sectores">
+      <div class="w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#14141f] border-2 border-[#d4af37] rounded-xl overflow-hidden shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
+        <div class="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-[#26263a]">
+          <div>
+            <h3 class="text-lg font-semibold text-[#d4af37]">Sectores</h3>
+            <p class="text-xs text-[#a0a0b8] mt-1">Descargas de Beata, Personal, Evento y Rio Lindo, separadas por la fecha del período. Incluye Descarga especial y los cuadros de Transformar.</p>
+          </div>
+          <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1 cursor-pointer" @click="sectoresAbierto = false" aria-label="Cerrar">×</button>
+        </div>
+        <div class="shrink-0 px-5 py-3 border-b border-[#26263a] flex flex-wrap items-center gap-2">
+          <button type="button" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer" :class="sectoresSector === 'todos' ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a]'" @click="sectoresSector = 'todos'">Todos</button>
+          <template x-for="sug in sectoresDescarga()" :key="'sec-filtro-' + sug.id">
+            <button type="button" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer" :class="sectoresSector === sug.nombre ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a]'" @click="sectoresSector = sug.nombre" x-text="sug.nombre"></button>
+          </template>
+          <button type="button" x-show="sectoresProductoFijo" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer" :class="sectoresProducto ? 'bg-[#1c1c2b] text-white border-[#d4af37]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a]'" @click="sectoresProducto = sectoresProducto ? '' : sectoresProductoFijo" x-text="sectoresProducto ? 'Ver todos los productos' : 'Solo este producto'"></button>
+        </div>
+        <div class="shrink-0 px-5 py-2 border-b border-[#26263a] flex flex-wrap items-center gap-1.5">
+          <span class="text-[10px] uppercase tracking-wider text-[#a0a0b8] font-bold mr-1">Período:</span>
+          <template x-for="p in periodosVisibles()" :key="'sec-periodo-' + p.id">
+            <button type="button" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer transition" :class="sectoresPeriodo === p.id ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'text-[#a0a0b8] hover:text-white hover:bg-[#1c1c2b]'" @click="setPeriodoSectores(p.id)" x-text="p.label"></button>
+          </template>
+          <div class="flex items-center gap-1 pl-1 border-l border-[#26263a]">
+            <input type="date" x-model="sectoresCustomDesde" @change="usarRangoSectores()" aria-label="Desde" class="bg-[#0a0a0f] border border-[#26263a] rounded px-1.5 py-1 text-[11px] text-white">
+            <span class="text-[#5a5a7a] text-xs">→</span>
+            <input type="date" x-model="sectoresCustomHasta" @change="usarRangoSectores()" aria-label="Hasta" class="bg-[#0a0a0f] border border-[#26263a] rounded px-1.5 py-1 text-[11px] text-white">
+          </div>
+        </div>
+        <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
+          <p x-show="sectoresCargando" class="text-sm text-[#a0a0b8]">Cargando descargas…</p>
+          <p x-show="!sectoresCargando && periodosSectores().length === 0" class="text-sm text-[#a0a0b8]">No hay descargas de estos sectores en ese período.</p>
+          <template x-for="periodo in periodosSectores()" :key="'sec-dia-' + periodo.dia">
+            <section class="rounded-xl border border-[#26263a] overflow-hidden">
+              <div class="flex items-center justify-between gap-2 px-3 py-2 bg-[#0a0a0f]">
+                <h4 class="text-sm font-extrabold text-white" x-text="periodo.etiqueta"></h4>
+                <span class="text-[11px] font-mono text-[#d4af37]" x-text="formatNum(periodo.total) + ' en total'"></span>
+              </div>
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="text-[#5a5a7a] uppercase text-[10px]">
+                    <th class="text-left px-3 py-2">Hora</th>
+                    <th class="text-left px-3 py-2">Sector</th>
+                    <th class="text-left px-3 py-2">Producto</th>
+                    <th class="text-left px-3 py-2">Tipo</th>
+                    <th class="text-right px-3 py-2">Cantidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(fila, i) in periodo.filas" :key="periodo.dia + '-' + i">
+                    <tr class="border-t border-[#26263a]">
+                      <td class="px-3 py-2 font-mono text-[#a0a0b8]" x-text="fila.hora"></td>
+                      <td class="px-3 py-2 font-bold text-[#d4af37]" x-text="fila.sector"></td>
+                      <td class="px-3 py-2 text-white" x-text="fila.producto + (fila.corte ? (' · ' + fila.corte) : '')"></td>
+                      <td class="px-3 py-2 text-[#a0a0b8]" x-text="fila.tipo === 'cocido' ? 'Cocido' : 'Crudo'"></td>
+                      <td class="px-3 py-2 text-right font-mono font-bold" :class="fila.cantidad < 0 ? 'text-emerald-300' : 'text-rose-200'" x-text="(fila.cantidad < 0 ? '+' : '−') + formatNum(Math.abs(fila.cantidad))"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </section>
+          </template>
         </div>
       </div>
     </div>
@@ -9171,6 +9427,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         mostrarDiferencia: false,
         mostrarEstado: false,
         mostrarCorreccion: false,
+        mostrarMasMenosIngreso: false,
+        mostrarTransformacion: false,
+        mostrarPatoFresco: false,
+        mostrarEncabezadoMapa: false,
         compactView: false,
         soundEnabled: true,
         busqueda: '',
@@ -9320,7 +9580,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             nombre: 'Carnero Crudo',
             open: true,
             children: [
-              { id: 'carnero_pachamanca', nombre: 'Carnero pachamanca' },
               { id: 'seco_carnero', nombre: 'Seco de carnero' }
             ]
           },
@@ -9417,7 +9676,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 5, rubro: 'Pollo pachamanca pierna', plato: 'Pachamanca 1 sabor', complemento: 'Sabor: Pollo', cantidad: 1, unidadNota: 'pieza de Pollo pachamanca pierna' },
             { id: 6, rubro: 'Papas', plato: 'Filete de pollo + papas fritas + arroz + ensalada', complemento: 'Guarnición: papa fritas', cantidad: 1, unidadNota: 'papa fritas' },
             { id: 8, rubro: 'Papas', plato: '1/4 pollo + papas fritas + ensalada', complemento: 'Guarnición: papa fritas', cantidad: 1, unidadNota: 'papa fritas' },
-            { id: 9, rubro: 'Tamal', plato: 'Tamal', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'tamal' },
+            { id: 9, rubro: 'Tamal de chancho', plato: 'Tamal Chancho + zarza criolla', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'tamal' },
+            { id: 91, rubro: 'Tamal de pollo', plato: 'Tamal Pollo + Zarza criolla', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'tamal' },
             { id: 14, rubro: 'Humita', plato: 'Humita', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'humita' },
             { id: 19, rubro: 'Carne Bistec', plato: 'Bistec', complemento: 'Producto de inventario', cantidad: 1, unidadNota: 'bistec' },
             { id: 15, rubro: 'Humita', plato: 'Pachamanca 1 sabor', complemento: '1 humita, da igual la pieza', cantidad: 1, unidadNota: 'humita' },
@@ -9657,7 +9917,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           arroz_beata: 'arroz-beata',
           arroz_rio_lindo: 'arroz-rio-lindo',
           papas: 'papas',
-          tamal: 'tamal',
+          tamal_chancho: 'tamal-chancho',
+          tamal_pollo: 'tamal-pollo',
           humita: 'humita',
           delicias: 'delicias',
           helados: 'helados',
@@ -9950,7 +10211,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!n || n.includes('ensalada') || n.includes('zarza') || n.includes('frijol') || n.includes('frejol')) return null;
           if (n.includes('yuca')) return { rubro: 'Yuca', nota: 'yuca' };
           if (n.includes('papa')) return { rubro: 'Papas', nota: 'papa' };
-          if (n.includes('tamal')) return { rubro: 'Tamal', nota: 'tamal' };
+          if (n.includes('tamal') && n.includes('pollo')) return { rubro: 'Tamal de pollo', nota: 'tamal' };
+          if (n.includes('tamal') && (n.includes('chancho') || n.includes('cerdo'))) return { rubro: 'Tamal de chancho', nota: 'tamal' };
           if (n.includes('arroz') && n.includes('verde')) return { rubro: 'Arroz verde + Pato', nota: 'arroz verde' };
           if (n.includes('arroz') && (n.includes('pato'))) return { rubro: 'Arroz verde + Pato', nota: 'arroz pato' };
           if (n.includes('arroz') && n.includes('beata')) return { rubro: 'Arroz Beata', nota: 'arroz beata' };
@@ -10063,7 +10325,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               else if (n.includes('arroz con pollo')) push(p, 'Arroz con pollo', 1, 'octavo', 'Sale de Octavo de pollo');
               else if (n.includes('pollo a la olla') || (n.includes('pollo') && /\bolla\b/.test(n))) push(p, 'Pollo a la olla', 1, 'octavo', 'Sale de Octavo de pollo');
               else if (n.includes('caldo') && n.includes('pollo')) push(p, 'Caldo de pollo', 1, 'octavo', 'Sale de Octavo de pollo. Solo crudo');
-              else if (/\btamal\b/.test(n)) push(p, 'Tamal', 1, 'tamal');
+              else if (/\btamal\b/.test(n) && n.includes('pollo')) push(p, 'Tamal de pollo', 1, 'tamal');
+              else if (/\btamal\b/.test(n) && (n.includes('chancho') || n.includes('cerdo'))) push(p, 'Tamal de chancho', 1, 'tamal');
               else if (n === 'delicia' || n.includes('delicias')) push(p, 'Delicias', 1, 'delicia');
               else if (/\bhelados?\b/.test(n)) push(p, 'Helados', 1, 'helado');
               else if (n.includes('salchipapa') || n.includes('hotdog') || n.includes('hot dog')) push(p, 'Hotdog', 1, 'hotdog');
@@ -10091,8 +10354,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (!tieneGuarni && /\barroz\b/.test(texto) && !esChaufa && !n.includes('marisco') && !n.includes('beata') && !n.includes('arroz verde') && !n.includes('arroz con pollo') && !n.includes('arroz con pato') && !n.includes('arroz de pato') && !ya('Arroz blanco') && !ya('Arroz verde + Pato') && !ya('Arroz Beata')) {
                 push(p, 'Arroz blanco', 1, 'arroz blanco', guarnicion('Guarnición: arroz blanco'));
               }
-              if (/\btamal\b/.test(texto) && !ya('Tamal')) {
-                push(p, 'Tamal', 1, 'tamal', guarnicion('Guarnición: tamal'));
+              if (/\btamal\b/.test(n) && n.includes('pollo') && !ya('Tamal de pollo')) {
+                push(p, 'Tamal de pollo', 1, 'tamal', guarnicion('Guarnición: tamal de pollo'));
+              }
+              if (/\btamal\b/.test(n) && (n.includes('chancho') || n.includes('cerdo')) && !ya('Tamal de chancho')) {
+                push(p, 'Tamal de chancho', 1, 'tamal', guarnicion('Guarnición: tamal de chancho'));
               }
               if ((n === 'humita' || n.startsWith('humita ')) && !ya('Humita')) {
                 push(p, 'Humita', 1, 'humita');
@@ -10236,6 +10502,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ventaManualPlatoKey: '',
         ventaManualPlatos: 1,
         ventaManualCorte: '',
+        sectoresAbierto: false,
+        sectoresCargando: false,
+        sectoresMovs: [],
+        sectoresSector: 'todos',
+        sectoresProducto: '',
+        sectoresProductoFijo: '',
+        sectoresPeriodo: 'hoy',
+        sectoresCustomDesde: '',
+        sectoresCustomHasta: '',
         bloqueo: {
           abierto: false, tab: 'productos', busqueda: '', motivo: '', hasta: '', desde: '', duracionTexto: '', vencido: false, lineas: {},
           // modo: 'sin' (sin límite) · 'preset' · 'custom' (N horas/días/semanas) · 'fecha' (fecha exacta) · 'mantener' (el fin ya guardado)
@@ -11100,6 +11375,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const rubro = v && (v.rubro || v.plato);
             const origen = v && v.origen;
             const plato = (v && v.nombre) || rubro || '';
+            const detalleJunior = Array.isArray(v && v.detalle) && v.detalle.some((d) => {
+              const n = this.norm(d && d.nombre);
+              return n.includes('filete') && n.includes('junior');
+            });
+            if ((this.norm(plato).includes('filete') && this.norm(plato).includes('junior')) || detalleJunior) {
+              return 'Principal — Filete de pollo';
+            }
             if (origen && rubro && origen !== rubro) {
               if (v.usoNombre && String(v.usoNombre).indexOf('Principal') === 0) return v.usoNombre;
               return 'Principal — ' + (v.usoNombre || rubro);
@@ -11486,6 +11768,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (vals) Object.assign(row, vals);
           });
           this.syncIngresoDirecto();
+          this.tocarHoja();
           this.eventos.forEach((ev) => {
             const partes = porClave[ev.clave] || [];
             if (!partes.length) return;
@@ -11522,6 +11805,132 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         ponerMotivoDescarga(texto) {
           this.ventaManualMotivo = this.ventaManualMotivo === texto ? '' : texto;
+        },
+
+        sectoresDescarga() {
+          return [
+            { id: 'beata', nombre: 'Beata' },
+            { id: 'personal', nombre: 'Personal' },
+            { id: 'evento', nombre: 'Evento' },
+            { id: 'rio-lindo', nombre: 'Rio Lindo' }
+          ];
+        },
+
+        sectorDeMotivo(motivo) {
+          const partes = this.norm(motivo).split('·').map((s) => s.trim());
+          for (let i = 0; i < partes.length; i++) {
+            const p = partes[i].replace(/^sector\s+/, '');
+            if (p === 'rio lindo' || p.indexOf('rio lindo ') === 0) return 'Rio Lindo';
+            if (p === 'beata' || p.indexOf('beata ') === 0) return 'Beata';
+            if (p === 'personal' || p.indexOf('personal ') === 0) return 'Personal';
+            if (p === 'evento' || p === 'eventos' || p.indexOf('evento ') === 0 || p.indexOf('eventos ') === 0) return 'Evento';
+          }
+          return '';
+        },
+
+        async abrirSectores() {
+          const hoy = this.fechaHoy();
+          this.sectoresProductoFijo = '';
+          this.sectoresProducto = '';
+          this.sectoresSector = 'todos';
+          this.sectoresPeriodo = 'hoy';
+          this.sectoresCustomDesde = hoy;
+          this.sectoresCustomHasta = hoy;
+          this.sectoresAbierto = true;
+          await this.cargarSectores();
+        },
+
+        rangoSectores() {
+          const hoy = this.fechaHoy();
+          const p = this.sectoresPeriodo || 'hoy';
+          if (window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(p)) {
+            const r = window.TurnosDiaNoche.rangoDe(p, this);
+            if (r) return { desde: r.desde, hasta: r.hasta };
+          }
+          if (p === 'ayer') {
+            const ayer = this.diaOffset(hoy, -1);
+            return { desde: ayer, hasta: ayer };
+          }
+          if (p === '7dias') return { desde: this.diaOffset(hoy, -6), hasta: hoy };
+          if (p === '30dias') return { desde: this.diaOffset(hoy, -29), hasta: hoy };
+          if (p === 'mes') return { desde: hoy.slice(0, 7) + '-01', hasta: hoy };
+          if (p === 'anio') return { desde: this.diaOffset(hoy, -364), hasta: hoy };
+          if (p === 'custom') return { desde: this.sectoresCustomDesde || hoy, hasta: this.sectoresCustomHasta || hoy };
+          return { desde: hoy, hasta: hoy };
+        },
+
+        setPeriodoSectores(id) {
+          this.sectoresPeriodo = id || 'hoy';
+          const r = this.rangoSectores();
+          if (r.desde && String(r.desde).indexOf('T') === -1) {
+            this.sectoresCustomDesde = r.desde;
+            this.sectoresCustomHasta = r.hasta;
+          }
+          this.cargarSectores();
+        },
+
+        usarRangoSectores() {
+          this.sectoresPeriodo = 'custom';
+          this.cargarSectores();
+        },
+
+        async cargarSectores() {
+          const r = this.rangoSectores();
+          if (!r.desde || !r.hasta) return;
+          this.sectoresCargando = true;
+          try {
+            const data = await this.api('/inventario/movimientos?ciclo=04&desde=' + encodeURIComponent(r.desde) + '&hasta=' + encodeURIComponent(r.hasta));
+            this.sectoresMovs = data.movimientos || [];
+          } catch (e) {
+            this.sectoresMovs = [];
+            this.toastMessage = (e && e.message) || 'No se cargaron los sectores';
+          } finally {
+            this.sectoresCargando = false;
+          }
+        },
+
+        periodosSectores() {
+          const sector = this.sectoresSector || 'todos';
+          const row = this.sectoresProducto ? this.filaReal(this.sectoresProducto) : null;
+          const clave = row ? this.claveDeFila[row.id] : '';
+          const rango = this.rangoSectores();
+          const ini = this.instanteRango(rango.desde, false);
+          const fin = this.instanteRango(rango.hasta, true);
+          const grupos = new Map();
+          (this.sectoresMovs || []).forEach((m) => {
+            if (!m || m.clase !== 'egreso') return;
+            const t = new Date(m.fecha).getTime();
+            if (!Number.isFinite(t) || t < ini || t > fin) return;
+            const nombreSector = this.sectorDeMotivo(m.motivo);
+            if (!nombreSector || (sector !== 'todos' && nombreSector !== sector)) return;
+            if (row && clave && m.rubro !== clave) return;
+            const dia = this.ymdOperativo(m.fecha);
+            if (!grupos.has(dia)) grupos.set(dia, []);
+            const motivo = this.norm(m.motivo);
+            const corte = /(?:^|·)\s*pierna\s*$/.test(motivo) ? 'Pierna' : (/(?:^|·)\s*pecho\s*$/.test(motivo) ? 'Pecho' : '');
+            const hora = new Intl.DateTimeFormat('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(m.fecha));
+            grupos.get(dia).push({
+              hora: hora,
+              fecha: new Date(m.fecha).getTime(),
+              sector: nombreSector,
+              producto: m.nombre || m.rubro,
+              tipo: m.tipoProducto || 'crudo',
+              corte: corte,
+              cantidad: Number(m.cantidad) || 0
+            });
+          });
+          const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+          return Array.from(grupos.keys()).sort((a, b) => b.localeCompare(a)).map((dia) => {
+            const filas = grupos.get(dia).sort((a, b) => b.fecha - a.fecha);
+            const partes = dia.split('-');
+            let etiqueta = Number(partes[2]) + ' ' + meses[Number(partes[1]) - 1] + ' ' + partes[0];
+            if (window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(this.sectoresPeriodo)) {
+              const et = window.TurnosDiaNoche.etiqueta(this.sectoresPeriodo, this.primerCierreHoyAt, this);
+              if (et) etiqueta = et;
+            }
+            const total = this.redondear3(filas.reduce((a, f) => a + f.cantidad, 0));
+            return { dia: dia, etiqueta: etiqueta, filas: filas, total: total };
+          });
         },
 
         abrirVentaManual(row) {
@@ -11903,7 +12312,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         usarMotivoVentaEspecial(m) {
-          this.ventaEspecial.motivo = this.ventaEspecial.motivo === m ? '' : m;
+          const marca = 'Sector ' + m;
+          const actual = String((this.ventaEspecial && this.ventaEspecial.motivo) || '').trim();
+          const limpio = actual.replace(/^Sector (Beata|Personal|Evento|Rio Lindo)(?: · )?/, '').trim();
+          this.ventaEspecial.motivo = actual.indexOf(marca) === 0 ? limpio : (limpio ? (marca + ' · ' + limpio) : marca);
+        },
+
+        sectorMotivoVentaEspecial() {
+          return this.sectorDeMotivo(this.ventaEspecial && this.ventaEspecial.motivo);
         },
 
         conteoProductosVentaEspecial() {
@@ -12042,7 +12458,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             stockAntes: disp,
             stockDespues: this.redondear3(disp - cant)
           });
-          if (row.soloCocido || clave === 'pierna-lena' || clave === 'trozo-panceta') {
+          if (row.soloCocido || clave === 'pierna-lena' || clave === 'trozo-panceta' || (row.tieneCocido && modo !== 'crudo')) {
             const disp = Math.max(0, this.calcSaldoTipo(row, 'cocido'));
             return [buildPart('cocido', n, disp)];
           }
@@ -13296,7 +13712,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cuadro('Arroz', [['arroz', 'Arroz crudo'], ['arroz_blanco', 'Arroz blanco'], ['arroz_verde', 'Arroz verde + Pato'], ['arroz_beata', 'Arroz Beata'], ['arroz_rio_lindo', 'Arroz Rio lindo']]),
             cuadro('Pato', [['pato_fresco', 'Pato fresco'], ['pechuga_pato', 'Pecho de Pato'], ['pierna_pato', 'Pierna de pato']]),
             cuadro('Pota', [['pieza_pota', 'Pieza de pota']]),
-            cuadro('Guarnición', [['papas', 'Papas'], ['tamal', 'Tamal'], ['humita', 'Humita'], ['yuca', 'Yuca']]),
+            cuadro('Guarnición', [['papas', 'Papas'], ['tamal_chancho', 'Tamal de chancho'], ['tamal_pollo', 'Tamal de pollo'], ['humita', 'Humita'], ['yuca', 'Yuca']]),
             cuadro('Carta', [['delicias', 'Delicias'], ['helados', 'Helados'], ['hotdog', 'Hotdog'], ['frugos_15', 'Frugos 1.5L'], ['pizza_30', 'Pizza grande 30x30'], ['pizza_20', 'Pizza 20x20']])
           ].filter((c) => c.filas.length);
         },
@@ -13492,7 +13908,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'arroz_beata', grupo: 'arroz', nombre: 'Arroz Beata', detalle: '1 crudo = el factor de Beata', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'arroz_rio_lindo', grupo: 'arroz', nombre: 'Arroz Rio lindo', detalle: '1 crudo = el factor de Rio lindo', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
-            { id: 'tamal', grupo: null, nombre: 'Tamal', detalle: 'Guarnición y plato', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'tamal_chancho', grupo: null, nombre: 'Tamal de chancho', detalle: 'Tamal de chancho', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'tamal_pollo', grupo: null, nombre: 'Tamal de pollo', detalle: 'Tamal de pollo', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'humita', grupo: null, nombre: 'Humita', detalle: '1 sabor = 1, 2 sabores = 2, 3 = 3, 4 = 4. La pieza no cambia la cuenta', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'yuca', grupo: null, nombre: 'Yuca', detalle: '1 por chicharrón de pota, pescado, pollo, trucha, jalea de pescado, fuente de pollo y dúo truchero', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'delicias', grupo: null, nombre: 'Delicias', detalle: 'Venta del plato Delicia', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -13583,7 +14000,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!q || this.busquedaEsPachamanca()) return true;
             return row.nombre.toLowerCase().includes(q) || (row.detalle && row.detalle.toLowerCase().includes(q));
           }
-          if (this.filtroCategoria && this.filtroCategoria !== 'todos') {
+          if (this.filtroCategoria === 'emergencia') {
+            if (!this.emergenciaFila(row)) return false;
+          } else if (this.filtroCategoria && this.filtroCategoria !== 'todos') {
             if (this.filtroCategoria === 'bebidas') {
               if (row.grupo !== 'gaseosas' && row.grupo !== 'licores' && row.grupo !== 'bebidas') return false;
             } else if (row.grupo !== this.filtroCategoria) {
@@ -13864,6 +14283,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           const firma = this.claveVistaHoja() + '|' + opens;
           if (this._bloques && this._bloques.firma === firma) return this._bloques.list;
+          if (this.filtroCategoria === 'emergencia') {
+            const q = (this.busqueda || '').trim().toLowerCase();
+            const rows = this.filasEmergencia().filter((row) => !q || row.nombre.toLowerCase().includes(q) || (row.detalle && row.detalle.toLowerCase().includes(q)));
+            this._bloques = { firma, list: [{ key: 'emergencia', suelto: true, group: null, filas: rows.map((row) => this.filaSuelta(row)) }] };
+            return this._bloques.list;
+          }
           if (this.vistaPachamanca()) {
             const solo = [{ key: 'pachamanca', suelto: true, group: null, filas: this.filasVistaPachamanca() }];
             this._bloques = { firma, list: solo };
@@ -13885,6 +14310,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           list.push({ key: 'sueltos', suelto: true, group: null, filas: this.filasSueltas() });
           this._bloques = { firma, list };
           return list;
+        },
+
+        filasEmergencia() {
+          return (this.rows || []).filter((row) => row && !this.filaFueraDeTabla(row) && this.emergenciaFila(row));
         },
 
         claseFilaHoja(item) {
@@ -14095,6 +14524,45 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return Math.min(0, ant);
         },
 
+        esFilaPapas(row) {
+          if (!row) return false;
+          if (row.id === 'papas') return true;
+          const n = this.norm(row.nombre || '');
+          return n === 'papas' || n === 'papa';
+        },
+
+        quedaSinTopeTipo(row, tipo) {
+          const n = this.calcIngresoTotalTipo(row, tipo) - this.valorTipo(row, 'venta', tipo) - this.valorTipo(row, 'transformacion', tipo) + this.valorTipo(row, 'cubierta', tipo);
+          return this.redondear3(n);
+        },
+
+        emergenciaTipo(row, tipo) {
+          if (!row || this.esFilaPapas(row)) return false;
+          if (!(this.ventaNetaTipo(row, tipo) > 0.0004)) return false;
+          return this.quedaSinTopeTipo(row, tipo) < -0.0004;
+        },
+
+        emergenciaFila(row) {
+          if (!row || this.esFilaPapas(row)) return false;
+          return this.tiposDe(row).some((tipo) => this.emergenciaTipo(row, tipo));
+        },
+
+        textoQueda(row, tipo) {
+          if (tipo && this.emergenciaTipo(row, tipo)) return '0 (' + this.formatNum(this.quedaSinTopeTipo(row, tipo)) + ')';
+          if (!tipo && this.emergenciaFila(row)) {
+            const n = this.redondear3(this.tiposDe(row).reduce((a, t) => a + Math.min(0, this.quedaSinTopeTipo(row, t)), 0));
+            return '0 (' + this.formatNum(n) + ')';
+          }
+          return this.formatNum(tipo ? this.saldoRealColumnaTipo(row, tipo) : this.saldoRealColumna(row));
+        },
+
+        tituloQueda(row, tipo) {
+          const emergencia = tipo ? this.emergenciaTipo(row, tipo) : this.emergenciaFila(row);
+          if (!emergencia) return 'Queda';
+          const n = tipo ? this.quedaSinTopeTipo(row, tipo) : this.tiposDe(row).reduce((a, t) => a + Math.min(0, this.quedaSinTopeTipo(row, t)), 0);
+          return 'Emergencia: faltan ' + this.formatNum(Math.abs(n)) + '. Hay ventas y Queda no puede bajar de 0. Ingresa stock en Descuadre.';
+        },
+
         descuadrePropio(row, tipo) {
           if (!row) return 0;
           const tipos = tipo ? [tipo] : this.tiposDe(row);
@@ -14125,23 +14593,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const vistos = new Set();
           const out = [];
           (this.rows || []).forEach((row) => {
-            if (!row || !row.id) return;
+            if (!row || !row.id || this.esFilaPapas(row)) return;
             this.tiposDe(row).forEach((tipo) => {
-              const real = this.huecoSaldoTipo(row, tipo);
               const marca = row.id + '|' + tipo;
-              if (real >= -0.0004 || vistos.has(marca)) return;
+              if (vistos.has(marca)) return;
+              const emergencia = this.emergenciaTipo(row, tipo);
+              const real = emergencia ? this.quedaSinTopeTipo(row, tipo) : this.huecoSaldoTipo(row, tipo);
+              if (real >= -0.0004) return;
               vistos.add(marca);
               out.push({
                 id: row.id,
                 nombre: row.nombre,
                 tipo: tipo,
+                emergencia: emergencia,
                 etiqueta: (row.tieneCocido || row.soloCocido) ? this.etiquetaTipo(tipo) : 'Crudo',
                 real: real,
                 texto: '0 (' + this.formatNum(real) + ')'
               });
             });
           });
-          out.sort((a, b) => (a.real - b.real) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
+          out.sort((a, b) => (Number(b.emergencia) - Number(a.emergencia)) || (a.real - b.real) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
           return out;
         },
 
@@ -14173,9 +14644,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const row = this.filaReal(item.id);
               const clave = row && this.claveDeFila[row.id];
               const real = this.redondear3(item.real);
-              if (!row || !clave || real >= -0.0004) continue;
-              await this.paso(clave, item.tipo, this.redondear3(-real), 'Saldo anterior', 'ingreso', row.nombre, this.fechaSaldoAnterior());
-              row[this.campoTipo('saldoAnterior', item.tipo)] = this.redondear3(this.valorTipo(row, 'saldoAnterior', item.tipo) - real);
+              if (!row || !clave || real >= -0.0004 || this.esFilaPapas(row)) continue;
+              const cant = this.redondear3(-real);
+              if (item.emergencia) {
+                await this.paso(clave, item.tipo, cant, 'Ingreso de emergencia ' + item.tipo, 'ingreso', row.nombre);
+                row[this.campoTipo('ingreso', item.tipo)] = this.redondear3(this.valorTipo(row, 'ingreso', item.tipo) + cant);
+              } else {
+                await this.paso(clave, item.tipo, cant, 'Saldo anterior', 'ingreso', row.nombre, this.fechaSaldoAnterior());
+                row[this.campoTipo('saldoAnterior', item.tipo)] = this.redondear3(this.valorTipo(row, 'saldoAnterior', item.tipo) + cant);
+              }
             }
             await this.cargarKardex();
           } catch (e) {
@@ -14368,6 +14845,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             row.tieneCocido = !materia && !soloCrudo && base.tieneCocido === true;
             if (clave === 'pierna-lena' || row.id === 'pierna_lena') row.tieneCocido = true;
             if (clave === 'pollo-baby' || row.id === 'pollo_baby') row.tieneCocido = true;
+            if (clave === 'panceta' || row.id === 'panceta' || clave === 'tira-panceta' || row.id === 'tira_panceta') {
+              row.tieneCocido = false;
+              row.soloCocido = false;
+            }
             if (clave === 'trozo-panceta' || row.id === 'trozo_panceta') {
               row.tieneCocido = false;
               row.soloCocido = true;
@@ -14454,8 +14935,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         cadenaDeFila(clave, row) {
           if (clave === 'trozo-panceta' || this.platoPolloSoloCocido(clave)) return [{ rubro: clave, tipo: 'cocido' }];
           if (this.esMateriaClave(clave)) return [{ rubro: clave, tipo: 'crudo' }];
+          if (row && (row.tieneCocido || row.soloCocido)) return [{ rubro: clave, tipo: 'cocido' }];
           const cadena = [];
-          if (row && row.tieneCocido) cadena.push({ rubro: clave, tipo: 'cocido' });
           cadena.push({ rubro: clave, tipo: 'crudo' });
           if (row && row.reservaClave && this.esMateriaClave(row.reservaClave)) {
             cadena.push({ rubro: row.reservaClave, tipo: 'crudo' });
@@ -15454,6 +15935,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.mostrarDiferencia = ver('inventario-tabla-diferencia');
             this.mostrarEstado = ver('inventario-tabla-estado');
             this.mostrarCorreccion = ver('inventario-tabla-correccion');
+            this.mostrarMasMenosIngreso = ver('inventario-tabla-mas-menos-ingreso');
+            this.mostrarTransformacion = ver('inventario-tabla-transformacion');
+            this.mostrarPatoFresco = ver('inventario-tabla-pato-fresco');
+            this.mostrarEncabezadoMapa = ver('inventario-transformar-encabezado-mapa');
           } catch (e) {}
         },
 
@@ -15485,12 +15970,46 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           } catch (e) {}
         },
 
+        setOcultarMasMenosIngreso(ocultar) {
+          this.mostrarMasMenosIngreso = !ocultar;
+          try {
+            localStorage.setItem('inventario-tabla-mas-menos-ingreso', this.mostrarMasMenosIngreso ? '1' : '0');
+          } catch (e) {}
+        },
+
+        setOcultarTransformacion(ocultar) {
+          this.mostrarTransformacion = !ocultar;
+          try {
+            localStorage.setItem('inventario-tabla-transformacion', this.mostrarTransformacion ? '1' : '0');
+          } catch (e) {}
+        },
+
+        setOcultarPatoFresco(ocultar) {
+          this.mostrarPatoFresco = !ocultar;
+          try {
+            localStorage.setItem('inventario-tabla-pato-fresco', this.mostrarPatoFresco ? '1' : '0');
+          } catch (e) {}
+        },
+
+        filaTablaVisible(row) {
+          if (!row) return true;
+          if (!this.mostrarPatoFresco && (row.id === 'pato_fresco' || this.norm(row.nombre) === 'pato fresco')) return false;
+          return true;
+        },
+
+        setOcultarEncabezadoMapa(ocultar) {
+          this.mostrarEncabezadoMapa = !ocultar;
+          try {
+            localStorage.setItem('inventario-transformar-encabezado-mapa', this.mostrarEncabezadoMapa ? '1' : '0');
+          } catch (e) {}
+        },
+
         columnasCierre() {
           return (this.mostrarSaldoYConteo ? 2 : 0) + 1 + (this.mostrarDiferencia ? 1 : 0) + (this.mostrarEstado ? 1 : 0);
         },
 
         columnasRestoGrupo() {
-          return (this.mostrarCorreccion ? 6 : 5) + this.columnasCierre();
+          return (this.mostrarCorreccion ? 5 : 4) + (this.mostrarTransformacion ? 1 : 0) + this.columnasCierre();
         },
 
         // Necesidad predictiva: sugiere pedido mínimo para mañana según tasa de Venta actual y Saldo
@@ -15886,7 +16405,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!row) return 0;
           const corNeg = this.tiposDe(row).reduce((a, t) => a + Math.abs(Math.min(0, Number(this.valorTipo(row, 'correccion', t)) || 0)), 0);
           const trans = this.totalTransformacionFila(row);
-          const vtas = this.tiposDe(row).reduce((a, t) => a + Math.max(0, Number(this.valorTipo(row, 'venta', t)) || 0), 0);
+          const vtas = this.tiposDe(row).reduce((a, t) => a + Math.max(0, this.ventaNetaTipo(row, t)), 0);
           return corNeg + trans + vtas;
         },
 
@@ -16217,16 +16736,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         anclaTransformacion(row) {
           const id = row && row.id;
           const pollo = {
-            pollo_fresco: 1, pechuga: 1, pierna: 1, filete: 1, pollo_baby: 1,
+            pollo_fresco: 1, pechuga: 1, pierna: 1, filete: 1,
             pollo_pachamanca: 1, pecho_pachamanca: 1, pierna_lena: 1, pollada: 1,
             pollo_lena: 1, sandwich: 1, octavo_pollo: 1, menu: 1,
             arroz_con_pollo: 1, pollo_olla: 1, caldo_pollo: 1,
             chi_pollo_bbq: 1, chi_pollo_acevichada: 1, chicharron_pollo: 1,
             salt_pollo: 1, chaufa_pollo: 1, milanesa: 1
           };
+          if (id === 'pollo_baby') return 'trans-pollo-baby';
           if (pollo[id]) return 'trans-pollo';
           if (id === 'panceta' || id === 'tira_panceta' || id === 'trozo_panceta' || id === 'chaufa_chancho' || id === 'chancho_lena' || id === 'chancho_lena_bbq') return 'trans-panceta';
-          if (id === 'carnero' || id === 'carnero_pachamanca' || id === 'seco_carnero' || id === 'chicharron_chancho' || id === 'cuy') return 'trans-carnero';
+          if (id === 'carne_pachamanca' || id === 'cerdo_pachamanca' || id === 'carnero_pachamanca') return 'trans-pachamanca';
+          if (id === 'carnero' || id === 'seco_carnero' || id === 'chicharron_chancho' || id === 'cuy') return 'trans-carnero';
           if (id === 'arroz' || id === 'arroz_blanco' || id === 'arroz_verde' || id === 'arroz_beata') return 'trans-arroz';
           if (id === 'pieza_pescado') return 'trans-pescado';
           if (id === 'pieza_pota') return 'trans-pota';
@@ -16433,12 +16954,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               makeDest('pieza_pota', 'Variable', potas, piezas, 'sky', false, 'Las ventas descuentan Pieza de pota')
             ];
           } else if (id === 'carnero') {
-            const fCar = Number(this.config.factorCarneroPachamanca) || 1;
-            const aPacha = this.carneroHoy('carnero_pachamanca');
             const aSeco = this.carneroHoy('seco_carnero');
-            info.resumenConversion = (aPacha + aSeco) + ' Carnero → ' + (aPacha * fCar) + ' Carnero pachamanca y ' + aSeco + ' Seco de carnero';
+            info.resumenConversion = aSeco + ' Carnero → ' + aSeco + ' Seco de carnero';
             info.destinos = [
-              makeDest('carnero_pachamanca', '1 → ' + fCar + ' Pachamanca', aPacha, aPacha * fCar, 'emerald', false),
               makeDest('seco_carnero', '1 → 1 Seco', aSeco, aSeco, 'gold', false)
             ];
           } else if (id === 'arroz') {
@@ -16916,7 +17434,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!entran) continue;
             // Una fila «solo cocido» (Pieza de panceta) siempre recibe en cocido: antes caía en crudo,
             // el cuadro no se movía y al restar pedía un crudo que la fila no tiene.
-            destinos.push({ row, clave, entran, tipo: row.soloCocido ? 'cocido' : (d.tipo === 'cocido' && row.tieneCocido ? 'cocido' : 'crudo') });
+            const soloCrudoPanceta = clave === 'panceta' || clave === 'tira-panceta' || id === 'panceta' || id === 'tira_panceta';
+            const soloCocidoPanceta = !soloCrudoPanceta && (row.soloCocido || clave === 'trozo-panceta' || id === 'trozo_panceta');
+            destinos.push({ row, clave, entran, tipo: soloCrudoPanceta ? 'crudo' : (soloCocidoPanceta ? 'cocido' : (d.tipo === 'cocido' && row.tieneCocido ? 'cocido' : 'crudo')) });
           }
           if (!salen && !destinos.length) return false;
           if (salen > 0 && this.productoBloqueado(op.origenId)) {
@@ -17042,7 +17562,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         platosDelCarnero() {
           return [
-            { id: 'carnero_pachamanca', nombre: 'Carnero pachamanca', clave: 'pachamanca-cordero', factor: Number(this.config.factorCarneroPachamanca) || 1, nota: 'Sabor carnero de la pachamanca' },
             { id: 'seco_carnero', nombre: 'Seco de carnero', clave: 'seco-cordero', factor: 1, nota: 'Plato Seco de carnero o de cordero' }
           ];
         },
@@ -17153,7 +17672,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.transferir({
             origenId: 'panceta',
             salen: delta,
-            destinos: [{ id: 'tira_panceta', entran: delta * 6 }],
+            destinos: [{ id: 'tira_panceta', entran: delta * 6, tipo: 'crudo' }],
             motivo: 'Pasa a tiras',
             historial: 'Panceta → Tiras (1 = 6)'
           });
@@ -17352,6 +17871,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           ], 'cuy');
         },
 
+        platosDePolloBaby() {
+          return this.conConsumoDeFila([
+            { id: 'medio-pollo-baby', nombre: '1/2 pollo a la leña baby', cantidad: 0.5 }
+          ], 'pollo_baby');
+        },
+
         stepField(rowId, field, delta) {
           return this.moverCampo(rowId, field, 'crudo', delta);
         },
@@ -17506,8 +18031,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return [
             { id: 'beata', nombre: 'Beata' },
             { id: 'personal', nombre: 'Personal' },
-            { id: 'eventos', nombre: 'Eventos' }
+            { id: 'eventos', nombre: 'Evento' },
+            { id: 'rio-lindo', nombre: 'Rio Lindo' }
           ];
+        },
+
+        nombresSectorOctavo(dest) {
+          if (!dest) return [];
+          if (dest.id === 'eventos') return ['Evento', 'Eventos'];
+          return [dest.nombre];
         },
 
         motivoOctavoDestino(nombre, corte) {
@@ -17518,11 +18050,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const dest = this.destinosOctavoExtra().find((d) => d.id === id);
           const clave = this.claveDeFila.octavo_pollo;
           if (!dest || !clave) return 0;
-          const prefijo = 'Venta manual · ' + dest.nombre;
+          const prefijos = this.nombresSectorOctavo(dest).map((nombre) => 'Venta manual · ' + nombre);
           const total = (this.movimientosPeriodo || []).reduce((a, m) => {
             if (!m || m.rubro !== clave || m.clase !== 'egreso') return a;
             const motivo = String(m.motivo || '');
-            if (motivo.indexOf(prefijo) !== 0 || !this.motivoEsCorte(motivo, corte)) return a;
+            if (!prefijos.some((prefijo) => motivo.indexOf(prefijo) === 0) || !this.motivoEsCorte(motivo, corte)) return a;
             return a + (Number(m.cantidad) || 0);
           }, 0);
           return Math.max(0, this.redondear3(total));
@@ -18187,7 +18719,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             carnero: ['Carnero', 'Carnero crudo', 'Carnero Crudo'],
             cuy: ['Cuy'],
             papas: ['Papas'],
-            tamal: ['Tamal'],
+            tamal_chancho: ['Tamal de chancho', 'Tamal chancho'],
+            tamal_pollo: ['Tamal de pollo', 'Tamal pollo'],
             humita: ['Humita'],
             yuca: ['Yuca'],
             hotdog: ['Hotdog', 'Salchipapa'],
@@ -18313,7 +18846,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             pieza_pescado: () => this.platosDePiezaPescado(),
             pieza_pota: () => this.platosDePiezaPota(),
             chicharron_chancho: () => this.platosDeChicharronChancho(),
-            cuy: () => this.platosDeCuy()
+            cuy: () => this.platosDeCuy(),
+            pollo_baby: () => this.platosDePolloBaby()
           };
           if (listas[row.id]) listas[row.id]().forEach((p) => push(p.nombre, p.cantidad));
           if (!out.length) {
@@ -19600,7 +20134,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (lower === 'delicia' || lower === 'delicias') rubro = 'Delicias';
           if (lower === 'helado' || lower === 'helados') rubro = 'Helados';
           if (lower === 'hotdog' || lower === 'hot dog') rubro = 'Hotdog';
-          if (lower === 'tamal' || lower === 'tamales') rubro = 'Tamal';
+          if (lower === 'tamal de chancho' || lower === 'tamal chancho') rubro = 'Tamal de chancho';
+          if (lower === 'tamal de pollo' || lower === 'tamal pollo') rubro = 'Tamal de pollo';
           this.nuevaRelacion.rubro = rubro;
 
           if (!rubro) {
@@ -19612,7 +20147,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const existeEnTabla = (this.rows || []).some((r) => {
             const aceptados = this.rubrosRelacionDeFila(r.id).concat([r.nombre, this.nombreVistaProductoRelacion(r), this.claveDeFila[r.id]]);
             return aceptados.some((a) => this.norm(a) === this.norm(rubro));
-          }) || ['papas', 'tamal', 'gaseosas', 'bebidas', 'delicias', 'helados', 'hotdog'].includes(this.norm(rubro));
+          }) || ['papas', 'tamal de chancho', 'tamal de pollo', 'gaseosas', 'bebidas', 'delicias', 'helados', 'hotdog'].includes(this.norm(rubro));
 
           if (!existeEnTabla) {
             this.relacionError = '«' + rubroTrim + '»: falta en la carta (no se controla como producto con stock en Inventario Tabla).';
@@ -19659,7 +20194,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               clave,
               nombre: r.nombre,
               materia,
-              tieneCocido: materia ? false : base.tieneCocido === true,
+              tieneCocido: materia || clave === 'panceta' || clave === 'tira-panceta' || clave === 'trozo-panceta' ? false : base.tieneCocido === true,
               reservaClave: materia ? '' : (base.reservaClave || '')
             };
           });
@@ -19777,7 +20312,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         mapasSueltos() {
-          const fijos = new Set(['pollo-fresco', 'panceta', 'carnero', 'arroz', 'carnes-directo', 'pescado-trans', 'pota']);
+          const fijos = new Set(['pollo-fresco', 'panceta', 'carnero', 'arroz', 'carnes-directo', 'pescado-trans', 'pota', 'pollo-baby']);
           const primero = ['pato-fresco'];
           const fuente = this.mapasCargados ? (this.mapas || []) : this.mapasRespaldo();
           const lista = fuente.filter((m) => m && m.origen && !fijos.has(m.id));
@@ -20191,10 +20726,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         ordenMapas() {
-          const grupos = [['pollo-fresco']]
+          const grupos = [['arroz'], ['pollo-fresco']]
             .concat(this.mapasSueltos().map((m) => [m.id]))
-            .concat([['panceta', 'carnero'], ['arroz'], ['carnes-directo'], ['pescado-trans']]);
-          return grupos.filter((g) => g.some((id) => this.tieneMapa(id)));
+            .concat([['pollo-baby'], ['panceta', 'carnero'], ['carnes-directo'], ['pachamanca-grupo'], ['pescado-trans']]);
+          return grupos.filter((g) => g[0] === 'pollo-baby' || g[0] === 'pachamanca-grupo' || g.some((id) => this.tieneMapa(id)));
         },
 
         numeroMapa(ids) {

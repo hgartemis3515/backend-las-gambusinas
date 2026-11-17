@@ -95,12 +95,11 @@ function platoPolloSoloCocido(clave) {
 
 function cadenaDe(rubro, opciones) {
     const op = opciones || {};
-    if (esMateria(rubro)) return [{ rubro: rubro, tipo: 'crudo' }];
-    if (platoPolloSoloCocido(rubro)) return [{ rubro: rubro, tipo: 'cocido' }];
-    if (rubro === 'trozo-panceta') return [{ rubro: 'trozo-panceta', tipo: 'cocido' }];
-    const cadena = [];
-    if (op.tieneCocido) cadena.push({ rubro: rubro, tipo: 'cocido' });
-    cadena.push({ rubro: rubro, tipo: 'crudo' });
+    if (esMateria(rubro) || rubro === 'panceta' || rubro === 'tira-panceta') return [{ rubro: rubro, tipo: 'crudo' }];
+    if (platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta') return [{ rubro: rubro, tipo: 'cocido' }];
+    // Con el cuadro de cocido activo, la venta solo baja ese cocido. No toca el crudo ni el producto principal.
+    if (op.tieneCocido) return [{ rubro: rubro, tipo: 'cocido' }];
+    const cadena = [{ rubro: rubro, tipo: 'crudo' }];
     if (op.reservaClave && esMateria(op.reservaClave)) {
         cadena.push({ rubro: op.reservaClave, tipo: 'crudo' });
     } else if (op.reservaClave && RESERVAS_CON_COCIDO.indexOf(op.reservaClave) !== -1) {
@@ -173,6 +172,9 @@ function detalleParaParte(detalle, cantidadParte, cantidadTotal) {
 function validarCocidoConfig(clave, config) {
     const body = config || {};
     if (esMateria(clave)) return { valido: true, tieneCocido: false, reservaClave: '' };
+    if (clave === 'panceta' || clave === 'tira-panceta' || clave === 'trozo-panceta') {
+        return { valido: true, tieneCocido: false, reservaClave: '' };
+    }
     const reserva = String(body.reservaClave || '').trim();
     if (reserva && !esReservaValida(reserva)) {
         return {
@@ -227,14 +229,18 @@ function atribuirVentas(movimientos, ventas, opciones) {
         const cant = Number(v.cantidad) || 0;
         if (!rubro || cant <= 0) return;
         const op = (opciones && opciones[rubro]) || semillaCocido(rubro);
-        const mixPecho = !platoPolloSoloCocido(rubro) && rubro === 'pollo-lena' && esMixPechoLena(v);
-        const pachaPollo = !platoPolloSoloCocido(rubro) && rubro === 'pachamanca-pollo';
+        const pancetaCruda = rubro === 'panceta' || rubro === 'tira-panceta';
+        const soloCocido = !pancetaCruda && (op.tieneCocido === true || platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta');
+        const mixPecho = !soloCocido && rubro === 'pollo-lena' && esMixPechoLena(v);
+        const pachaPollo = !soloCocido && rubro === 'pachamanca-pollo';
         let cadena;
-        if (platoPolloSoloCocido(rubro)) cadena = [{ rubro: rubro, tipo: 'cocido' }];
+        if (rubro === 'filete-junior') cadena = [{ rubro: 'filete', tipo: 'crudo' }];
+        else if (pancetaCruda) cadena = [{ rubro: rubro, tipo: 'crudo' }];
+        else if (soloCocido) cadena = [{ rubro: rubro, tipo: 'cocido' }];
         else if (mixPecho) cadena = cadenaMixPechoLena();
         else if (pachaPollo) cadena = cadenaPachamancaPollo();
         else cadena = cadenaDe(rubro, op);
-        if (!platoPolloSoloCocido(rubro) && !mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
+        if (!pancetaCruda && rubro !== 'filete-junior' && !soloCocido && !mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
         const partes = repartirVenta(cant, cadena, bases);
         const algunaLocal = partes.some((p) => p.rubro === rubro);
         let cubierta = 0;
@@ -263,7 +269,7 @@ function atribuirVentas(movimientos, ventas, opciones) {
                 fecha: v.fecha,
                 motivo: v.motivo,
                 detalle: algunaLocal ? [] : detalleParaParte(v.detalle, cubierta, cant),
-                tipoProducto: op.tieneCocido ? 'cocido' : 'crudo',
+                tipoProducto: pancetaCruda ? 'crudo' : (op.tieneCocido ? 'cocido' : 'crudo'),
                 usoNombre: algunaLocal ? '' : nombreUso(rubro, partes[partes.length - 1]),
                 sinSaldo: true
             });

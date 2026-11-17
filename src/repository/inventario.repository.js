@@ -260,7 +260,7 @@ async function opcionesCocido() {
         if (d.clave === 'seco-cordero') reservaClave = 'carnero';
         if (d.clave === 'pollo-lena' || d.clave === 'caldo-pollo') reservaClave = '';
         if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
-        if (d.clave === 'trozo-panceta') tieneCocido = false;
+        if (d.clave === 'panceta' || d.clave === 'tira-panceta' || d.clave === 'trozo-panceta') tieneCocido = false;
         if (d.clave === 'menu' || d.clave === 'menu-pecho' || d.clave === 'menu-pierna') tieneCocido = false;
         return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
     });

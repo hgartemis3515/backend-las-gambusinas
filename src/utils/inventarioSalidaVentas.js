@@ -84,12 +84,22 @@ function indiceBebidas(catalogo) {
  * Guarnición elegida por el mozo → producto del inventario.
  * Ensalada, frijol y zarza no tienen fila.
  */
+function rubroTamal(n) {
+    if (!n || !n.includes('tamal')) return '';
+    if (n.includes('pollo')) return 'tamal-pollo';
+    if (n.includes('chancho') || n.includes('cerdo')) return 'tamal-chancho';
+    return '';
+}
+
 function rubroDeGuarnicion(nombre) {
     const n = norm(nombre);
     if (!n || n.includes('ensalada') || n.includes('zarza') || n.includes('frijol') || n.includes('frejol')) return null;
     if (n.includes('yuca')) return { rubro: 'yuca', factor: 1 };
     if (n.includes('papa')) return { rubro: 'papas', factor: 1 };
-    if (n.includes('tamal')) return { rubro: 'tamal', factor: 1 };
+    if (n.includes('tamal')) {
+        const rubro = rubroTamal(n);
+        return rubro ? { rubro, factor: 1 } : null;
+    }
     if (n.includes('arroz') && n.includes('verde')) return { rubro: 'arroz-verde', factor: 1 };
     if (n.includes('arroz') && n.includes('pato')) return { rubro: 'arroz-verde', factor: 1 };
     if (n.includes('arroz') && n.includes('beata')) return { rubro: 'arroz-beata', factor: 1 };
@@ -205,11 +215,15 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
         detalle[rubro][key].platos += Number(platos) || 0;
     };
     for (const fila of filas || []) {
-        const mapas = aplicarFactoresRelacion(
+        let mapas = aplicarFactoresRelacion(
             fila && fila.nombre,
             rubrosDeFila(fila, mapasVenta, meta && meta.bebidas),
             meta && meta.relaciones
         );
+        const nombreFila = norm(fila && fila.nombre);
+        if (nombreFila.includes('filete') && nombreFila.includes('junior') && mapas.some((m) => m && (m.rubro === 'filete-junior' || m.rubro === 'filete_junior'))) {
+            mapas = mapas.filter((m) => m && m.rubro !== 'filete' && m.rubro !== 'filete-pollo');
+        }
         const cantidad = Number(fila && fila.cantidad) || 0;
         if (!mapas.length || cantidad <= 0) continue;
         const fuentes = fila && fila.fuentes && typeof fila.fuentes === 'object' ? fila.fuentes : null;
@@ -351,7 +365,7 @@ function rubrosDeFila(fila, mapas, bebidas) {
     else if (n.includes('saltado') && n.includes('pollo')) add('salt-pollo');
     else if (n.includes('pan con pollo') || (n.includes('sandwich') && n.includes('pollo'))) add('sandwiches');
     else if (n.includes('pollada')) add('pollada');
-    else if (n.includes('tamal')) add('tamal');
+    else if (rubroTamal(n)) add(rubroTamal(n));
     else if (bebidas && bebidas[n]) add(bebidas[n]);
     else if (claveBebida(nombre)) add(claveBebida(nombre));
     const propio = rubroPropioDeNombre(n);
