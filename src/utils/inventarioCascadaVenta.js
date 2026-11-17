@@ -93,10 +93,20 @@ function platoPolloSoloCocido(clave) {
     return PLATOS_POLLO_SOLO_COCIDO.indexOf(String(clave || '')) !== -1;
 }
 
+/** Arroz blanco y arroz verde + pato nacen cocidos al transformar. No tienen crudo. */
+function arrozPorcionCocida(rubro) {
+    return rubro === 'arroz-blanco' || rubro === 'arroz-verde';
+}
+
+function tipoProductoDe(rubro, tipo) {
+    if (arrozPorcionCocida(rubro)) return 'cocido';
+    return tipo === 'cocido' ? 'cocido' : 'crudo';
+}
+
 function cadenaDe(rubro, opciones) {
     const op = opciones || {};
     if (esMateria(rubro) || rubro === 'panceta' || rubro === 'tira-panceta') return [{ rubro: rubro, tipo: 'crudo' }];
-    if (platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || rubro === 'tamal-chancho' || rubro === 'tamal-pollo') return [{ rubro: rubro, tipo: 'cocido' }];
+    if (platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || rubro === 'tamal-chancho' || rubro === 'tamal-pollo' || arrozPorcionCocida(rubro)) return [{ rubro: rubro, tipo: 'cocido' }];
     // Con el cuadro de cocido activo, la venta solo baja ese cocido. No toca el crudo ni el producto principal.
     if (op.tieneCocido) return [{ rubro: rubro, tipo: 'cocido' }];
     const cadena = [{ rubro: rubro, tipo: 'crudo' }];
@@ -189,7 +199,7 @@ function validarCocidoConfig(clave, config) {
 
 function aplicarMovimiento(bases, mov) {
     if (!mov || !mov.rubro) return;
-    const key = mov.rubro + '|' + (mov.tipoProducto === 'cocido' ? 'cocido' : 'crudo');
+    const key = mov.rubro + '|' + tipoProductoDe(mov.rubro, mov.tipoProducto);
     const n = Number(mov.cantidad) || 0;
     if (mov.clase === 'inventario') {
         bases[key] = n;
@@ -230,7 +240,7 @@ function atribuirVentas(movimientos, ventas, opciones) {
         if (!rubro || cant <= 0) return;
         const op = (opciones && opciones[rubro]) || semillaCocido(rubro);
         const pancetaCruda = rubro === 'panceta' || rubro === 'tira-panceta';
-        const soloCocido = !pancetaCruda && (op.tieneCocido === true || platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta');
+        const soloCocido = !pancetaCruda && (op.tieneCocido === true || platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || arrozPorcionCocida(rubro));
         const mixPecho = !soloCocido && rubro === 'pollo-lena' && esMixPechoLena(v);
         const pachaPollo = !soloCocido && rubro === 'pachamanca-pollo';
         let cadena;
@@ -283,6 +293,8 @@ module.exports = {
     esMateria,
     semillaCocido,
     cadenaDe,
+    arrozPorcionCocida,
+    tipoProductoDe,
     platoPolloSoloCocido,
     cadenaMixPechoLena,
     cadenaPachamancaPollo,

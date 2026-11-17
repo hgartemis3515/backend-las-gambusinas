@@ -5,6 +5,7 @@ const {
     atribuirVentas,
     semillaCocido
 } = require('../src/utils/inventarioCascadaVenta');
+const { filasDeRubros } = require('../src/utils/inventarioRubros');
 
 const saltado = { tieneCocido: true, reservaClave: 'pechuga-pollo' };
 
@@ -322,4 +323,27 @@ test('el cocido agregado antes de la venta se gasta primero (pecho de pato)', ()
     const venta = { rubro: 'pechuga-pato', nombre: 'Arroz con pato', cantidad: 1, fecha: '2026-11-10T10:00:00-05:00', detalle: [] };
     const out = atribuirVentas(movimientos, [venta], { 'pechuga-pato': semillaCocido('pechuga-pato') }).filter((v) => !v.sinSaldo);
     expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['pechuga-pato|cocido:1']);
+});
+
+test('arroz blanco y arroz verde son cocido y la venta resta ese stock', () => {
+    expect(cadenaDe('arroz-blanco', {})).toEqual([{ rubro: 'arroz-blanco', tipo: 'cocido' }]);
+    expect(cadenaDe('arroz-verde', { tieneCocido: false })).toEqual([{ rubro: 'arroz-verde', tipo: 'cocido' }]);
+    const movimientos = [
+        { rubro: 'arroz-blanco', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 16, fecha: '2026-11-17T15:00:00-05:00' },
+        { rubro: 'arroz-verde', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 6, fecha: '2026-11-17T15:00:00-05:00' }
+    ];
+    const ventas = [
+        { rubro: 'arroz-blanco', nombre: 'Arroz blanco', cantidad: 5, fecha: '2026-11-17T18:00:00-05:00', detalle: [] },
+        { rubro: 'arroz-verde', nombre: 'Arroz verde + Pato', cantidad: 2, fecha: '2026-11-17T18:10:00-05:00', detalle: [] }
+    ];
+    const out = atribuirVentas(movimientos, ventas, {}).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual([
+        'arroz-blanco|cocido:5',
+        'arroz-verde|cocido:2'
+    ]);
+    const filas = filasDeRubros(movimientos, new Date('2026-11-17T09:00:00.000Z'), new Date('2026-11-18T08:59:59.999Z'));
+    const cocido = filas.find((f) => f.rubro === 'arroz-blanco' && f.tipoProducto === 'cocido');
+    const crudo = filas.find((f) => f.rubro === 'arroz-blanco' && f.tipoProducto === 'crudo');
+    expect(cocido.ingresos).toBe(16);
+    expect(crudo.ingresos).toBe(0);
 });

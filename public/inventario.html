@@ -11825,6 +11825,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             rubro = 'filete';
             tipo = 'crudo';
             if (v.platos != null && !(Number(v.factor) > 0)) n = Number(v.platos) * 1;
+          } else if (rubro === 'arroz-blanco' || rubro === 'arroz-verde') {
+            tipo = 'cocido';
           } else if (rubro === 'filete-junior' || rubro === 'filete_junior') {
             rubro = 'filete';
             tipo = 'crudo';
@@ -14048,8 +14050,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             // FILAS SOLAS (Directas en la tabla, sin grupo de despiece)
             { id: 'cerdo_pachamanca', grupo: null, nombre: 'Cerdo pachamanca', detalle: 'Sabor de pachamanca. La venta de Cerdo de pachamanca resta aquí', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'arroz', grupo: 'arroz', nombre: 'Arroz crudo', detalle: 'Lo que ingresa', unidad: 'unid', saldoAnterior: 0, ingreso: 20, correccion: 0, venta: 0, ritmoVentaDiario: 10, transformacion: 18, destinoTrans: '→ tipos', inventario: null, crudo: 2, cocido: 0 },
-            { id: 'arroz_blanco', grupo: 'arroz', nombre: 'Arroz blanco', detalle: '1 crudo = 8', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 6 },
-            { id: 'arroz_verde', grupo: 'arroz', nombre: 'Arroz verde + Pato', detalle: '1 crudo = 6. El pato sale de este mismo arroz', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
+            { id: 'arroz_blanco', grupo: 'arroz', nombre: 'Arroz blanco', detalle: '1 crudo = 8. El stock es cocido y la venta lo resta', unidad: 'unid', saldoAnterior: 0, ingreso: 6, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, soloCocido: true, tieneCocido: false, crudo: 0, cocido: 6 },
+            { id: 'arroz_verde', grupo: 'arroz', nombre: 'Arroz verde + Pato', detalle: '1 crudo = 6. El stock es cocido y la venta lo resta', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, soloCocido: true, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'arroz_beata', grupo: 'arroz', nombre: 'Arroz Beata', detalle: '1 crudo = el factor de Beata', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'arroz_rio_lindo', grupo: 'arroz', nombre: 'Arroz Rio lindo', detalle: '1 crudo = el factor de Rio lindo', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'papas', grupo: null, nombre: 'Papas', detalle: 'Papa fritas de la carta', unidad: 'porc', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -15088,6 +15090,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               row.tieneCocido = false;
               row.soloCocido = true;
             }
+            if (clave === 'arroz-blanco' || clave === 'arroz-verde' || row.id === 'arroz_blanco' || row.id === 'arroz_verde') {
+              row.tieneCocido = false;
+              row.soloCocido = true;
+            }
             if (clave === 'carnero' || row.id === 'carnero') row.tieneCocido = true;
             if (clave === 'menu' || clave === 'menu-pecho' || clave === 'menu-pierna' || clave === 'caldo-pollo') row.tieneCocido = false;
             if (clave === 'arroz-pollo' || row.id === 'arroz_con_pollo') row.tieneCocido = true;
@@ -15168,7 +15174,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
 
         cadenaDeFila(clave, row) {
-          if (clave === 'trozo-panceta' || clave === 'tamal-chancho' || clave === 'tamal-pollo' || this.platoPolloSoloCocido(clave)) return [{ rubro: clave, tipo: 'cocido' }];
+          if (clave === 'trozo-panceta' || clave === 'tamal-chancho' || clave === 'tamal-pollo' || clave === 'arroz-blanco' || clave === 'arroz-verde' || this.platoPolloSoloCocido(clave)) return [{ rubro: clave, tipo: 'cocido' }];
           if (this.esMateriaClave(clave)) return [{ rubro: clave, tipo: 'crudo' }];
           if (row && (row.tieneCocido || row.soloCocido)) return [{ rubro: clave, tipo: 'cocido' }];
           const cadena = [];
@@ -18848,8 +18854,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
 
         tipoArrozDestino(d) {
+          if (this.esArrozPorcion(d)) return 'cocido';
           const row = d && this.filaReal(d.id);
-          return row && row.tieneCocido ? 'cocido' : 'crudo';
+          return row && (row.tieneCocido || row.soloCocido) ? 'cocido' : 'crudo';
         },
 
         esArrozPorcion(d) {
@@ -18936,11 +18943,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const delta = this.redondear3(next - this.arrozHacia(d));
           if (!delta) return false;
           const factor = Number(this.config[d.factorKey]) || 1;
-          const row = this.filaReal(d.id);
           return this.transferir({
             origenId: 'arroz',
             salen: delta,
-            destinos: [{ id: d.id, entran: delta * factor, tipo: row && row.tieneCocido ? 'cocido' : 'crudo' }],
+            destinos: [{ id: d.id, entran: delta * factor, tipo: this.tipoArrozDestino(d) }],
             motivo: this.motivoHacia(d.id),
             historial: 'Arroz crudo → ' + d.nombre + ' (1 = ' + factor + ')'
           });

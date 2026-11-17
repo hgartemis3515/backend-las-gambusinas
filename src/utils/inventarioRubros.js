@@ -1,6 +1,7 @@
 'use strict';
 
 const { armarKardex } = require('./inventarioKardex');
+const { tipoProductoDe } = require('./inventarioCascadaVenta');
 
 /** Productos de la tabla Kardex. `suma` arma la fila con esas piezas. */
 const KARDEX = [
@@ -199,7 +200,7 @@ function filasDeRubros(movimientos, desde, hasta, umbralPorClave, extras) {
     }));
     const movs = (movimientos || []).map((m) => ({
         plato: m.rubro,
-        tipoProducto: m.tipoProducto,
+        tipoProducto: tipoProductoDe(m.rubro, m.tipoProducto),
         clase: m.clase,
         cantidad: m.cantidad,
         fecha: m.fecha,
