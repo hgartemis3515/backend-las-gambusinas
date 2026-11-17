@@ -14490,7 +14490,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         saldoAnteriorColumnaTipo(row, tipo) {
-          return this.redondear3(Math.max(0, this.valorTipo(row, 'saldoAnterior', tipo)) + this.sumaDeTransformaciones(row, (hijo) => Math.max(0, this.valorTipo(hijo, 'saldoAnterior', tipo))));
+          const propio = Math.max(0, this.valorTipo(row, 'saldoAnterior', tipo));
+          const hijos = this.sumaDeTransformaciones(row, (hijo) => {
+            if (this.tiposDe(hijo).indexOf(tipo) === -1) return 0;
+            return this.calcIngresoTotalTipo(hijo, tipo);
+          });
+          return this.redondear3(propio + hijos);
         },
 
         huecoSaldoTipo(row, tipo) {
@@ -14548,7 +14553,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         saldoAnteriorColumna(row) {
-          return this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.saldoAnteriorColumnaTipo(row, t), 0));
+          const propio = this.tiposDe(row).reduce((a, t) => a + this.saldoAnteriorColumnaTipo(row, t), 0);
+          const otrosTipos = this.sumaDeTransformaciones(row, (hijo) => this.tiposDe(hijo).reduce((s, t) => {
+            if (this.tiposDe(row).indexOf(t) !== -1) return s;
+            return s + this.calcIngresoTotalTipo(hijo, t);
+          }, 0));
+          return this.redondear3(propio + otrosTipos);
         },
 
         textoSaldoAnterior(row, tipo) {
@@ -16553,14 +16563,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const signo = (v) => (v >= 0 ? '+' : '−') + n(Math.abs(v));
 
           // 1. Apertura: exactamente lo que suma la columna Saldo ant.
-          const pAnt = this.partesFamilia(fam.apertura, row, (m, t) => Math.max(0, this.valorTipo(m, 'saldoAnterior', t)), true);
+          const pAnt = this.partesFamilia(fam.apertura, row, (m, t) => {
+            if (m.id === row.id) return Math.max(0, this.valorTipo(m, 'saldoAnterior', t));
+            return this.calcIngresoTotalTipo(m, t);
+          }, true);
           const sAnt = this.sumaPartes(pAnt);
           const colAnt = this.redondear3(this.saldoAnteriorColumna(row));
 
-          // 2-3. Ingreso y corrección de la fila y de sus platos (los que entran en Ingreso total).
-          const pIng = this.partesFamilia(fam.apertura, row, (m, t) => this.valorTipo(m, 'ingreso', t));
+          // 2-3. Ingreso y corrección de la pieza. Lo de los platos ya entra en Saldo anterior.
+          const pIng = this.partesFamilia([row], row, (m, t) => this.valorTipo(m, 'ingreso', t));
           const sIng = this.sumaPartes(pIng);
-          const pCor = this.partesFamilia(fam.apertura, row, (m, t) => this.valorTipo(m, 'correccion', t));
+          const pCor = this.partesFamilia([row], row, (m, t) => this.valorTipo(m, 'correccion', t));
           const sCor = this.sumaPartes(pCor);
           const colIngFila = this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'ingreso', t), 0));
           const colIT = this.redondear3(this.ingresoTotalColumna(row));
