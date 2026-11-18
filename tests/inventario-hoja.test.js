@@ -1,0 +1,278 @@
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const { armarLibro } = require('../src/utils/inventarioLibro');
+const { perfilRubro, esStockGeneral, normalizarVenta, semillaCocido } = require('../src/utils/inventarioCascadaVenta');
+const { boundsDiaOperativo } = require('../src/utils/diaOperativoRestaurante');
+
+const html = fs.readFileSync(path.join(__dirname, '../public/inventario.html'), 'utf8');
+const factoryCode = html.slice(html.indexOf('function inventarioApp()'), html.lastIndexOf('</script>'));
+
+function crearApp() {
+    const store = {};
+    const localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
+    const fabrica = vm.runInNewContext('(' + factoryCode.trim() + ')', {
+        window: {}, localStorage, sessionStorage: localStorage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0
+    });
+    const app = fabrica();
+    app.$nextTick = (f) => f && f();
+    app.$watch = () => {};
+    app.$refs = {};
+    app.sonarVenta = () => {};
+    app.animarContadorVenta = () => {};
+    app.restaurarEjemploDespiece(true);
+    app.vaciarNumeros();
+    app.aplicarOpcionesCocido([]);
+    return app;
+}
+
+const hora = (h) => '2026-11-11T' + h + ':00-05:00';
+const horaAyer = (h) => '2026-11-10T' + h + ':00-05:00';
+const mov = (rubro, clase, cantidad, fecha, motivo, tipoProducto = 'crudo') => ({ rubro, clase, cantidad, fecha, tipoProducto, motivo: motivo || 'Ingreso crudo' });
+
+function pintar(app, movimientos, ventas, ymd = '2026-11-11') {
+    const b = boundsDiaOperativo(ymd);
+    const libro = armarLibro({ movimientos, ventas: ventas || [], desde: b.inicio, hasta: b.fin });
+    app.ventasPeriodo = libro.ventas;
+    app.movimientosPeriodo = movimientos;
+    app.aplicarKardex(libro.filas, movimientos, libro.ventas);
+    return libro;
+}
+
+test('la hoja y el servidor usan la misma regla de cocido en todas las filas', () => {
+    const app = crearApp();
+    const opciones = [{ clave: 'sandwiches', tieneCocido: true, reservaClave: 'pechuga-pollo' }, { clave: 'milanesa', tieneCocido: true, reservaClave: 'filete' }];
+    app.aplicarOpcionesCocido(opciones);
+    app.rows.forEach((row) => {
+        const clave = app.claveDeFila[row.id];
+        if (!clave) return;
+        const op = opciones.find((o) => o.clave === clave);
+        expect([clave, perfilRubro(clave, op)]).toEqual([clave, { tieneCocido: !!row.tieneCocido, soloCocido: !!row.soloCocido }]);
+        expect([clave, esStockGeneral(clave)]).toEqual([clave, app.esVentaStockGeneral(clave)]);
+        expect(semillaCocido(clave).tieneCocido).toBe(app.opcionCocidoDe(clave).tieneCocido);
+    });
+});
+
+test('la hoja normaliza las ventas igual que el servidor', () => {
+    const app = crearApp();
+    [
+        { rubro: 'filete-pollo', cantidad: 2, tipoProducto: 'crudo', nombre: 'Filete' },
+        { rubro: 'filete-junior', cantidad: 1, tipoProducto: 'crudo', nombre: 'Filete junior', sinSaldo: true },
+        { rubro: 'arroz-blanco', cantidad: 3, tipoProducto: 'crudo', nombre: 'Arroz' },
+        { rubro: 'milanesa-junior', cantidad: 1, tipoProducto: 'crudo', nombre: 'Milanesa junior' },
+        { rubro: 'filete', cantidad: 1, tipoProducto: 'crudo', nombre: 'Milanesa junior', detalle: [{ nombre: 'Milanesa junior', platos: 1 }] }
+    ].forEach((v) => {
+        expect(JSON.parse(JSON.stringify(app.ventaKardexNormalizada(v)))).toEqual(normalizarVenta(v));
+    });
+});
+
+test('«Hoy» es el día operativo también después de medianoche', () => {
+    const app = crearApp();
+    expect(app.ymdOperativo(new Date('2026-11-18T02:30:00-05:00'))).toBe('2026-11-17');
+    expect(app.ymdOperativo('2026-11-18T05:30:00-05:00')).toBe('2026-11-18');
+    app.ymdOperativo = () => '2026-11-17';
+    expect(app.fechaHoy()).toBe('2026-11-17');
+    expect(app.rangoDe('hoy')).toEqual({ desde: '2026-11-17', hasta: '2026-11-17' });
+    expect(app.rangoDe('ayer')).toEqual({ desde: '2026-11-16', hasta: '2026-11-16' });
+});
+
+test('cada fila cuadra sola y el grupo va aparte', () => {
+    const app = crearApp();
+    const movs = [
+        mov('pierna-pollo', 'ingreso', 10, horaAyer('10:00')),
+        mov('pollada', 'ingreso', 4, horaAyer('10:00')),
+        mov('pierna-pollo', 'ingreso', 5, hora('10:00')),
+        mov('pierna-pollo', 'ingreso', -3, hora('11:00'), 'Pasa a Pollada'),
+        mov('pollada', 'ingreso', 3, hora('11:00'), 'Sale de Pierna de Pollo')
+    ];
+    pintar(app, movs, [{ rubro: 'pollada', nombre: 'Pollada', cantidad: 2, fecha: hora('13:00'), detalle: [] }]);
+    const pierna = app.filaReal('pierna');
+    expect(app.saldoAnteriorColumna(pierna)).toBe(10);
+    expect(app.valorTipo(pierna, 'ingreso', 'crudo')).toBe(5);
+    expect(app.ingresoTotalColumna(pierna)).toBe(15);
+    expect(app.saldoRealColumna(pierna)).toBe(12);
+    expect(app.stockCuadro('pierna', 'crudo')).toBe(12);
+    expect(app.tieneGrupo(pierna)).toBe(true);
+    expect(app.saldoAnteriorGrupo(pierna)).toBe(14);
+    expect(app.ingresoTotalGrupo(pierna)).toBe(22);
+    expect(app.quedaGrupo(pierna)).toBe(17);
+    expect(app.ventaColumna(pierna)).toBe(0);
+    expect(app.ventaGrupo(pierna)).toBe(2);
+});
+
+test('un día sin datos deja la fila en 0 en vez de repetir el período anterior', () => {
+    const app = crearApp();
+    pintar(app, [mov('cuy', 'ingreso', 5, hora('10:00'))]);
+    expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(5);
+    app.claveDeFila.cuy = 'cuy-sin-datos';
+    app.aplicarKardex([], [], []);
+    expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(0);
+});
+
+test('el modal de ventas muestra un plato una vez, con de dónde salió', () => {
+    const app = crearApp();
+    const movs = [
+        mov('pollada', 'ingreso', 1, hora('09:00'), 'Ingreso cocido', 'cocido'),
+        mov('pollada', 'ingreso', 5, hora('09:00'))
+    ];
+    const detalle = [{ nombre: 'Pollada', cantidad: 2, platos: 2, factor: 1, comanda: 'Comanda 42', comandaId: 'c42', hora: hora('12:00') }];
+    pintar(app, movs, [{ rubro: 'pollada', nombre: 'Pollada', cantidad: 2, fecha: hora('12:00'), detalle }]);
+    const row = app.filaReal('pollada');
+    app.abrirVentaFila(row);
+    expect(app.ventaInfo.lineas).toHaveLength(1);
+    expect(app.ventaInfo.lineas[0]).toMatchObject({ nombre: 'Pollada', cantidad: 2, platos: 2 });
+    expect(app.ventaInfo.lineas[0].usos.map((u) => u.cantidad)).toEqual([1, 1]);
+    expect(app.ventaInfo.total).toBe(app.ventaColumna(row));
+    expect(app.resumenVenta()).toMatchObject({ total: 2, comandas: 1, platos: 1 });
+});
+
+test('un plato que gasta dos productos cuenta una vez como plato', () => {
+    const app = crearApp();
+    const d = (cantidad) => [{ nombre: 'Arroz Chaufa Chancho', cantidad, platos: 1, factor: cantidad, comanda: 'Comanda 7', comandaId: 'c7' }];
+    pintar(app, [mov('trozo-panceta', 'ingreso', 5, hora('09:00'), 'Ingreso cocido', 'cocido')], [
+        { rubro: 'trozo-panceta', nombre: 'Pieza de panceta', cantidad: 1, fecha: hora('12:00'), detalle: d(1) },
+        { rubro: 'chaufa-chancho', nombre: 'Chaufa de chancho', cantidad: 1, fecha: hora('12:00'), detalle: d(1) }
+    ]);
+    app.abrirVentaFila(app.filaReal('trozo_panceta'));
+    expect(app.ventaInfo.lineas).toHaveLength(1);
+    expect(app.ventaInfo.lineas[0]).toMatchObject({ platos: 1, cantidad: 2, propia: 1 });
+    expect(app.ventaInfo.propia).toBe(app.ventaColumna(app.filaReal('trozo_panceta')));
+    expect(app.ventaInfo.nota).toContain('De esta fila se restaron 1');
+});
+
+test('editar stock guarda un ajuste, no un ingreso, y deja el número escrito', async () => {
+    const app = crearApp();
+    const guardados = [mov('cuy', 'ingreso', 10, hora('09:00'))];
+    app.fechaCierreVista = () => undefined;
+    app.cargarKardex = async () => { pintar(app, guardados); };
+    app.paso = async (rubro, tipoProducto, cantidad, motivo, clase) => { guardados.push(mov(rubro, clase, cantidad, hora('15:00'), motivo, tipoProducto)); };
+    app.pulseRowTotal = () => {};
+    app.anotarHistorial = () => {};
+    await app.cargarKardex();
+    app.abrirEditarStock('cuy');
+    expect(app.editarStock.crudo).toBe(10);
+    app.editarStock.crudo = 7;
+    expect(await app.guardarModalStock()).toBe(true);
+    const ajuste = guardados[guardados.length - 1];
+    expect(ajuste).toMatchObject({ clase: 'regulacion', cantidad: -3 });
+    expect(ajuste.motivo.indexOf('Ajuste de stock')).toBe(0);
+    const row = app.filaReal('cuy');
+    expect(app.valorTipo(row, 'ingreso', 'crudo')).toBe(10);
+    expect(app.ingresoTotalColumna(row)).toBe(10);
+    expect(app.saldoRealColumna(row)).toBe(7);
+    expect(app.stockCuadro('cuy', 'crudo')).toBe(7);
+});
+
+test('editar stock usa el número más reciente si entró una venta con el modal abierto', async () => {
+    const app = crearApp();
+    const guardados = [mov('cuy', 'ingreso', 10, hora('09:00'))];
+    const ventas = [];
+    app.fechaCierreVista = () => undefined;
+    app.cargarKardex = async () => { pintar(app, guardados, ventas); };
+    app.paso = async (rubro, tipoProducto, cantidad, motivo, clase) => { guardados.push(mov(rubro, clase, cantidad, hora('15:00'), motivo, tipoProducto)); };
+    app.pulseRowTotal = () => {};
+    app.anotarHistorial = () => {};
+    await app.cargarKardex();
+    app.abrirEditarStock('cuy');
+    ventas.push({ rubro: 'cuy', nombre: 'Cuy', cantidad: 4, fecha: hora('14:00'), detalle: [] });
+    app.editarStock.crudo = 8;
+    await app.guardarModalStock();
+    expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(8);
+});
+
+test('en un día pasado el ajuste se guarda al cierre de ese día', () => {
+    const app = crearApp();
+    app.ymdOperativo = () => '2026-11-17';
+    app.activeTab = 'tabla';
+    app.periodo = 'ayer';
+    expect(app.fechaCierreVista()).toBe('2026-11-17T03:59:00-05:00');
+    expect(app.notaEditarStock()).toContain('día pasado');
+    app.periodo = 'hoy';
+    expect(app.fechaCierreVista()).toBeUndefined();
+});
+
+test('descuadre: dice qué pasó y cómo resolverlo, sin falsas alarmas', async () => {
+    const app = crearApp();
+    const guardados = [
+        mov('chicharron-chancho', 'ingreso', 5, hora('09:00')),
+        mov('cuy', 'ingreso', 1, hora('09:00')),
+        mov('pollada', 'ingreso', 3, hora('09:00')),
+        mov('yuca', 'ingreso', 6, horaAyer('09:00')),
+        mov('yuca', 'ingreso', -2, hora('08:00'), 'Ajuste apertura'),
+        mov('helados', 'ingreso', 9, hora('09:00')),
+        mov('helados', 'inventario', 7, hora('10:00'), 'Conteo crudo')
+    ];
+    const ventas = [
+        { rubro: 'chicharron-chancho', nombre: 'Chicharrón', cantidad: 2, fecha: hora('12:00'), detalle: [] },
+        { rubro: 'cuy', nombre: 'Cuy', cantidad: 3, fecha: hora('12:00'), detalle: [] }
+    ];
+    app.cargarKardex = async () => { pintar(app, guardados, ventas); };
+    app.paso = async (rubro, tipoProducto, cantidad, motivo, clase) => { guardados.push(mov(rubro, clase, cantidad, hora('20:00'), motivo, tipoProducto)); };
+    app.fechaCierreVista = () => undefined;
+    app.fechaSaldoAnterior = () => hora('04:00');
+    await app.cargarKardex();
+    const lista = app.filasDescuadre();
+    expect(lista.map((i) => [i.clase, i.id])).toEqual([['emergencia', 'cuy'], ['apertura', 'yuca'], ['conteo', 'helados']]);
+    expect(lista[0]).toMatchObject({ falta: 2, titulo: 'Faltan 2' });
+    expect(app.cuentaDescuadre()).toBe(2);
+    await app.resolverDescuadre(lista[0], 'ingreso');
+    expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(0);
+    expect(app.emergenciaFila(app.filaReal('cuy'))).toBe(false);
+    await app.resolverDescuadre(app.filasDescuadre().find((i) => i.clase === 'apertura'), 'apertura');
+    expect(app.saldoAnteriorColumna(app.filaReal('yuca'))).toBe(6);
+    expect(app.filasDescuadre().map((i) => i.clase)).toEqual(['conteo']);
+    expect(app.cuentaDescuadre()).toBe(0);
+});
+
+test('descuadre: si hay crudo libre, primero se pasa a cocido', async () => {
+    const app = crearApp();
+    const guardados = [mov('pollo-baby', 'ingreso', 5, hora('09:00')), mov('pollo-baby', 'ingreso', 1, hora('09:00'), 'Ingreso cocido', 'cocido')];
+    const ventas = [{ rubro: 'pollo-baby', nombre: 'Pollo baby', cantidad: 3, fecha: hora('12:00'), detalle: [] }];
+    app.cargarKardex = async () => { pintar(app, guardados, ventas); };
+    app.encolarMovimientos = (movs) => { movs.forEach((m) => guardados.push(mov(m.rubro, m.clase, m.cantidad, hora('20:00'), m.motivo, m.tipoProducto))); };
+    app.anotarHistorial = () => {};
+    app.pulseRowTotal = () => {};
+    await app.cargarKardex();
+    const item = app.filasDescuadre()[0];
+    expect(item).toMatchObject({ clase: 'emergencia', tipo: 'cocido', falta: 2, crudoLibre: 5 });
+    await app.resolverDescuadre(item, 'crudo');
+    const row = app.filaReal('pollo_baby');
+    expect(app.quedaSinTopeTipo(row, 'cocido')).toBe(0);
+    expect(app.saldoRealColumnaTipo(row, 'crudo')).toBe(3);
+});
+
+test('el cuadro de ingreso total explica la suma', () => {
+    const app = crearApp();
+    app.frescosHoy = () => 0;
+    pintar(app, [mov('cuy', 'ingreso', 4, horaAyer('09:00')), mov('cuy', 'ingreso', 6, hora('09:00'))]);
+    app.abrirIngresoLupa(app.filaReal('cuy'));
+    expect(app.ingresoLupa).toMatchObject({ saldoAnterior: 4, ingresoDia: 6, ingresoTotal: 10 });
+});
+
+test('la lupa de Queda cuadra con las columnas', () => {
+    const app = crearApp();
+    pintar(app, [
+        mov('cuy', 'ingreso', 4, horaAyer('09:00')),
+        mov('cuy', 'ingreso', 6, hora('09:00')),
+        mov('cuy', 'regulacion', -1, hora('10:00'), 'Ajuste de stock')
+    ], [{ rubro: 'cuy', nombre: 'Cuy', cantidad: 2, fecha: hora('12:00'), detalle: [] }]);
+    app.diasMultiplicadorPeriodo = () => 1;
+    const info = app.construirProcedimientoSaldoReal(app.filaReal('cuy'));
+    expect(info).toMatchObject({ saldoAnterior: 4, ingreso: 6, ingresoTotal: 10, ventas: 2, correccion: -1, quedaSaldoReal: 7, cuadra: true });
+});
+
+test('una etiqueta de Transformar no cuenta un ajuste de stock como ingreso', () => {
+    const app = crearApp();
+    app.rangoTurnoCuadro = () => ({ desde: hora('04:00'), hasta: hora('23:59') });
+    app.movimientosTurno = [
+        { rubro: 'cuy', clase: 'ingreso', tipoProducto: 'crudo', cantidad: 2, motivo: 'Ingreso crudo', fecha: hora('10:00') },
+        { rubro: 'cuy', clase: 'regulacion', tipoProducto: 'crudo', cantidad: 5, motivo: 'Ajuste de stock', fecha: hora('11:00') }
+    ];
+    expect(app.partesMovimiento('cuy', 'crudo')).toEqual({ ingreso: 2, resto: 0 });
+});
+
+test('una bebida que acompaña un plato conserva su nombre', () => {
+    const app = crearApp();
+    app.asegurarFilasVendidas([{ rubro: 'gaseosa-inca-kola-300ml', nombre: 'Inca Kola 300ml', cantidad: 1, detalle: [{ nombre: 'Seco de Res + frijoles + arroz' }] }]);
+    expect(app.filaPorClave('gaseosa-inca-kola-300ml').nombre).toBe('Inca Kola 300ml');
+});

@@ -80,25 +80,6 @@ function armarKardex(platos, movimientos, desde, hasta) {
     }).flat();
 }
 
-function aplicarVentasEnFilas(filas, ventas) {
-    const ventaPor = {};
-    (ventas || []).forEach((v) => {
-        const rubro = v && (v.rubro || v.plato);
-        const cantidad = Number(v && v.cantidad) || 0;
-        if (!rubro || cantidad <= 0 || v.sinSaldo) return;
-        const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
-        ventaPor[key] = (ventaPor[key] || 0) + cantidad;
-    });
-    return (filas || []).map((f) => {
-        if (!f) return f;
-        const venta = ventaPor[(f.rubro || f.plato) + '|' + f.tipoProducto] || 0;
-        if (!venta) return f;
-        const balance = (f.cierre != null ? Number(f.cierre) : Number(f.baja) || 0) - venta;
-        const minimo = Number(f.umbral) || 0;
-        return { ...f, cierre: balance, critico: minimo > 0 && balance <= minimo };
-    });
-}
-
 function alertasDeFilas(filas) {
     return (filas || [])
         .filter((f) => f.critico)
@@ -131,39 +112,11 @@ function cambioDeAlerta(antes, despues, plato, tipo) {
     };
 }
 
-/**
- * Queda que muestra la hoja: un saldo anterior negativo se ve como 0,
- * y el stock tampoco baja de 0. Mañana tiene que abrir con este número,
- * no con el cierre matemático, o el hueco reaparece al día siguiente.
- */
-function quedaComoHoja(fila) {
-    const ant = Number(fila && fila.saldoInicial) || 0;
-    const ing = Number(fila && fila.ingresos) || 0;
-    const reg = Number(fila && fila.regulacion) || 0;
-    const egr = Number(fila && fila.egreso) || 0;
-    const venta = Number(fila && fila.venta) || 0;
-    const base = Math.max(0, Math.max(0, ant) + ing + reg);
-    return Math.max(0, base - egr - venta);
-}
-
-function gapAperturaHoja(fila) {
-    const ant = Number(fila && fila.saldoInicial) || 0;
-    const ing = Number(fila && fila.ingresos) || 0;
-    const reg = Number(fila && fila.regulacion) || 0;
-    const egr = Number(fila && fila.egreso) || 0;
-    const venta = Number(fila && fila.venta) || 0;
-    const matematica = ant + ing + reg - egr - venta;
-    return Math.max(0, quedaComoHoja(fila) - matematica);
-}
-
 module.exports = {
     TIPOS,
     aporte,
     filaDesdeSumas,
     armarKardex,
     alertasDeFilas,
-    aplicarVentasEnFilas,
-    cambioDeAlerta,
-    quedaComoHoja,
-    gapAperturaHoja
+    cambioDeAlerta
 };

@@ -47,6 +47,63 @@ function esMateria(clave) {
     return MATERIAS.indexOf(String(clave || '')) !== -1;
 }
 
+/** Filas que solo manejan crudo aunque la configuración diga otra cosa. */
+const SOLO_CRUDO = [
+    'milanesa', 'milanesa-junior', 'filete-junior', 'salt-pollo', 'chaufa-pollo',
+    'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada', 'caldo-pollo'
+];
+
+/** Productos con un solo stock: la venta resta su crudo y no pasa por cocido ni reserva. */
+function esStockGeneral(clave) {
+    const c = String(clave || '');
+    return c === 'helados' || c === 'delicias' || c === 'yuca' || c === 'cuy' || c === 'bisteck'
+        || c === 'lomo-fino' || c === 'carne-guiso' || c === 'seco-res' || c === 'humita'
+        || c === 'trucha' || c === 'filete-trucha' || c === 'pieza-pescado' || c === 'filete'
+        || c.indexOf('frugos') === 0 || c.indexOf('pizza') === 0
+        || c.indexOf('gaseosa-') === 0 || c.indexOf('licor-') === 0 || c.indexOf('agua-') === 0;
+}
+
+/**
+ * Qué tipos de stock tiene un producto en la hoja. Es la misma regla que
+ * aplicarOpcionesCocido en inventario.html: la prueba inventario-hoja las compara fila por fila.
+ */
+function perfilRubro(clave, opcion) {
+    const c = String(clave || '');
+    const base = opcion && typeof opcion.tieneCocido === 'boolean' ? opcion : semillaCocido(c);
+    let tieneCocido = !esMateria(c) && SOLO_CRUDO.indexOf(c) === -1 && base.tieneCocido === true;
+    let soloCocido = false;
+    if (c === 'pierna-lena' || c === 'pollo-baby') tieneCocido = true;
+    if (c === 'panceta') tieneCocido = false;
+    if (c === 'tira-panceta' || c === 'trozo-panceta' || c === 'tamal-chancho' || c === 'tamal-pollo') {
+        tieneCocido = false;
+        soloCocido = true;
+    }
+    if (esStockGeneral(c)) {
+        tieneCocido = false;
+        soloCocido = false;
+    }
+    if (c === 'arroz-blanco' || c === 'arroz-verde') {
+        tieneCocido = false;
+        soloCocido = true;
+    }
+    if (c === 'carnero') tieneCocido = true;
+    if (c === 'menu' || c === 'menu-pecho' || c === 'menu-pierna') tieneCocido = false;
+    if (c === 'arroz-pollo' || c === 'pollo-olla' || c === 'caldo-pollo') tieneCocido = true;
+    if (c === 'seco-cordero' || c === 'pachamanca-pollo-pecho') tieneCocido = true;
+    if (c === 'pollada') {
+        tieneCocido = true;
+        soloCocido = false;
+    }
+    return { tieneCocido, soloCocido };
+}
+
+/** Cubeta real de un movimiento: sin cuadro de cocido, crudo y cocido son el mismo stock. */
+function cubetaDe(perfil, tipo) {
+    if (perfil && perfil.soloCocido) return 'cocido';
+    if (!perfil || !perfil.tieneCocido) return 'crudo';
+    return tipo === 'cocido' ? 'cocido' : 'crudo';
+}
+
 /**
  * Reservas que no son piezas de pollo. El seco de carnero, si no tiene cocido ni crudo propio,
  * gasta el Carnero Crudo (primero su cocido, después su crudo).
@@ -168,20 +225,135 @@ function nombreUso(origen, parte) {
     return parte.tipo === 'cocido' ? 'Cocido' : 'Crudo';
 }
 
-function detalleParaParte(detalle, cantidadParte, cantidadTotal) {
-    if (!Array.isArray(detalle) || !detalle.length || typeof detalle[0] !== 'object') return [];
-    const total = detalle.reduce((a, d) => a + (Number(d && d.cantidad) || 0), 0);
-    if (!(cantidadParte > 0)) return [];
-    if (!(total > 0) || Math.abs(total - cantidadParte) < 0.001) {
-        return detalle.map((d) => Object.assign({}, d));
+/**
+ * Reparte las líneas de plato de una venta entre sus partes, sin repetir ninguna.
+ * Antes cada parte volvía a leer desde la primera línea: un plato salía dos veces y otro no salía.
+ */
+function repartirDetalle(detalle, cantidades) {
+    if (!Array.isArray(detalle) || !detalle.length || typeof detalle[0] !== 'object') return cantidades.map(() => []);
+    if (cantidades.length === 1) {
+        const total = detalle.reduce((a, d) => a + (Number(d && d.cantidad) || 0), 0);
+        if (!(total > 0) || Math.abs(total - cantidades[0]) < 0.001) return [detalle.map((d) => Object.assign({}, d))];
     }
-    let queda = cantidadParte;
-    return detalle.map((d) => {
-        const n = Math.min(queda, Number(d && d.cantidad) || 0);
-        queda -= n;
-        const factor = Number(d && d.factor) > 0 ? Number(d.factor) : 1;
-        return Object.assign({}, d, { cantidad: n, platos: factor ? n / factor : n });
-    }).filter((d) => (Number(d.cantidad) || 0) > 0);
+    const pendientes = detalle.map((d) => ({ d, queda: Number(d && d.cantidad) || 0 }));
+    return cantidades.map((cantidad) => {
+        let falta = Number(cantidad) || 0;
+        const salida = [];
+        for (const p of pendientes) {
+            if (falta <= 0.000001) break;
+            if (p.queda <= 0.000001) continue;
+            const toma = Math.min(falta, p.queda);
+            p.queda -= toma;
+            falta -= toma;
+            const factor = Number(p.d && p.d.factor) > 0 ? Number(p.d.factor) : 1;
+            salida.push(Object.assign({}, p.d, { cantidad: toma, platos: toma / factor }));
+        }
+        return salida;
+    });
+}
+
+function detalleParaParte(detalle, cantidadParte) {
+    if (!(cantidadParte > 0)) return [];
+    return repartirDetalle(detalle, [cantidadParte])[0];
+}
+
+/** Orden en que una venta busca stock. Cada eslabón es { rubro, tipo }. */
+function cadenaDeVenta(venta, opcion) {
+    const rubro = venta.rubro || venta.plato;
+    const op = opcion || semillaCocido(rubro);
+    const pancetaCruda = rubro === 'panceta';
+    const stockGeneral = esStockGeneral(rubro);
+    const soloCocido = !stockGeneral && rubro !== 'pollada' && !pancetaCruda && (op.tieneCocido === true || esPlatoOctavoVenta(rubro) || platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || rubro === 'tira-panceta' || arrozPorcionCocida(rubro));
+    const mixPecho = !soloCocido && rubro === 'pollo-lena' && esMixPechoLena(venta);
+    const pachaPollo = !soloCocido && rubro === 'pachamanca-pollo';
+    let cadena;
+    if (rubro === 'pollada') cadena = [{ rubro: 'pollada', tipo: 'cocido' }, { rubro: 'pollada', tipo: 'crudo' }];
+    else if (stockGeneral) cadena = [{ rubro: rubro, tipo: 'crudo' }];
+    else if (rubro === 'filete-junior') cadena = [{ rubro: 'filete', tipo: 'crudo' }];
+    else if (pancetaCruda) cadena = [{ rubro: rubro, tipo: 'crudo' }];
+    else if (soloCocido) cadena = [{ rubro: rubro, tipo: 'cocido' }];
+    else if (mixPecho) cadena = cadenaMixPechoLena();
+    else if (pachaPollo) cadena = cadenaPachamancaPollo();
+    else cadena = cadenaDe(rubro, op);
+    if (!pancetaCruda && !stockGeneral && rubro !== 'filete-junior' && !soloCocido && !mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') {
+        cadena = [{ rubro: rubro, tipo: 'cocido' }].concat(cadena);
+    }
+    return cadena;
+}
+
+/** Filas de venta que salen de repartir una venta: una por parte y, si otro producto la cubrió, la del plato. */
+function registrosDeVenta(venta, opcion, partes) {
+    const rubro = venta.rubro || venta.plato;
+    const op = opcion || semillaCocido(rubro);
+    const pancetaCruda = rubro === 'panceta';
+    const detalles = repartirDetalle(venta.detalle, partes.map((p) => p.cantidad));
+    const algunaLocal = partes.some((p) => p.rubro === rubro);
+    const out = [];
+    let cubierta = 0;
+    partes.forEach((p, i) => {
+        if (p.rubro !== rubro) cubierta += p.cantidad;
+        out.push({
+            rubro: p.rubro,
+            origen: rubro,
+            nombre: venta.nombre,
+            cantidad: p.cantidad,
+            fecha: venta.fecha,
+            motivo: venta.motivo,
+            detalle: detalles[i] || [],
+            tipoProducto: p.tipo,
+            usoNombre: nombreUso(rubro, p),
+            sinSaldo: false
+        });
+    });
+    if (cubierta > 0) {
+        out.push({
+            rubro: rubro,
+            origen: rubro,
+            nombre: venta.nombre,
+            cantidad: cubierta,
+            fecha: venta.fecha,
+            motivo: venta.motivo,
+            detalle: algunaLocal ? [] : detalleParaParte(venta.detalle, cubierta),
+            tipoProducto: pancetaCruda ? 'crudo' : (op.tieneCocido ? 'cocido' : 'crudo'),
+            usoNombre: algunaLocal ? '' : nombreUso(rubro, partes[partes.length - 1]),
+            sinSaldo: true
+        });
+    }
+    return out;
+}
+
+/**
+ * Cuánto y de qué stock resta una línea de venta en la hoja.
+ * Filete de la carta y filete junior salen del filete crudo. Milanesa junior va por su pieza.
+ * null = no entra al inventario.
+ */
+function normalizarVenta(v) {
+    let rubro = v && (v.rubro || v.plato);
+    if (!rubro || rubro === 'milanesa-junior' || rubro === 'milanesa_junior' || v.codigo === 'T643') return null;
+    let n = Number(v.cantidad) || 0;
+    let tipo = v.tipoProducto === 'crudo' ? 'crudo' : 'cocido';
+    if (rubro === 'filete-pollo' || rubro === 'filete_pollo') {
+        rubro = 'filete';
+        tipo = 'crudo';
+        if (v.platos != null && !(Number(v.factor) > 0)) n = Number(v.platos);
+    } else if (rubro === 'arroz-blanco' || rubro === 'arroz-verde') {
+        tipo = 'cocido';
+    } else if (rubro === 'filete-junior' || rubro === 'filete_junior') {
+        rubro = 'filete';
+        tipo = 'crudo';
+        if (v.platos != null) n = Number(v.platos) * 0.5;
+        else if (Number(v.factor) !== 0.5) n *= 0.5;
+    }
+    const texto = [v.nombre].concat(v.detalle || []).map((d) => (d && d.nombre) || d).join(' ')
+        .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (texto.includes('milanesa') && texto.includes('junior') && (rubro === 'filete' || rubro === 'milanesa')) {
+        const platos = v.platos != null ? Number(v.platos) : ((v.detalle && v.detalle[0] && Number(v.detalle[0].platos)) || 0);
+        if (platos > 0 && n + 0.001 >= platos) n = Math.round(platos * 500) / 1000;
+        rubro = 'filete';
+        tipo = 'crudo';
+    }
+    if (n <= 0) return null;
+    return { rubro, tipo, n, sinSaldo: !!v.sinSaldo };
 }
 
 function validarCocidoConfig(clave, config) {
@@ -244,54 +416,8 @@ function atribuirVentas(movimientos, ventas, opciones) {
         const cant = Number(v.cantidad) || 0;
         if (!rubro || cant <= 0) return;
         const op = (opciones && opciones[rubro]) || semillaCocido(rubro);
-        const pancetaCruda = rubro === 'panceta';
-        const stockGeneral = rubro === 'humita' || rubro === 'trucha' || rubro === 'filete-trucha' || rubro === 'pieza-pescado' || rubro === 'filete' || rubro === 'helados' || rubro === 'delicias' || rubro === 'yuca' || rubro === 'cuy' || rubro === 'bisteck' || rubro === 'lomo-fino' || rubro === 'carne-guiso' || rubro === 'seco-res' || rubro.indexOf('gaseosa-') === 0 || rubro.indexOf('licor-') === 0 || rubro.indexOf('agua-') === 0 || rubro.indexOf('frugos') === 0 || rubro.indexOf('pizza') === 0;
-        const soloCocido = !stockGeneral && rubro !== 'pollada' && !pancetaCruda && (op.tieneCocido === true || esPlatoOctavoVenta(rubro) || platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || rubro === 'tira-panceta' || arrozPorcionCocida(rubro));
-        const mixPecho = !soloCocido && rubro === 'pollo-lena' && esMixPechoLena(v);
-        const pachaPollo = !soloCocido && rubro === 'pachamanca-pollo';
-        let cadena;
-        if (rubro === 'pollada') cadena = [{ rubro: 'pollada', tipo: 'cocido' }, { rubro: 'pollada', tipo: 'crudo' }];
-        else if (stockGeneral) cadena = [{ rubro: rubro, tipo: 'crudo' }];
-        else if (rubro === 'filete-junior') cadena = [{ rubro: 'filete', tipo: 'crudo' }];
-        else if (pancetaCruda) cadena = [{ rubro: rubro, tipo: 'crudo' }];
-        else if (soloCocido) cadena = [{ rubro: rubro, tipo: 'cocido' }];
-        else if (mixPecho) cadena = cadenaMixPechoLena();
-        else if (pachaPollo) cadena = cadenaPachamancaPollo();
-        else cadena = cadenaDe(rubro, op);
-        if (!pancetaCruda && !stockGeneral && rubro !== 'filete-junior' && !soloCocido && !mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
-        const partes = repartirVenta(cant, cadena, bases);
-        const algunaLocal = partes.some((p) => p.rubro === rubro);
-        let cubierta = 0;
-        partes.forEach((p) => {
-            if (p.rubro !== rubro) cubierta += p.cantidad;
-            const usoNombre = nombreUso(rubro, p);
-            out.push({
-                rubro: p.rubro,
-                origen: rubro,
-                nombre: v.nombre,
-                cantidad: p.cantidad,
-                fecha: v.fecha,
-                motivo: v.motivo,
-                detalle: detalleParaParte(v.detalle, p.cantidad, cant),
-                tipoProducto: p.tipo,
-                usoNombre: usoNombre,
-                sinSaldo: false
-            });
-        });
-        if (cubierta > 0) {
-            out.push({
-                rubro: rubro,
-                origen: rubro,
-                nombre: v.nombre,
-                cantidad: cubierta,
-                fecha: v.fecha,
-                motivo: v.motivo,
-                detalle: algunaLocal ? [] : detalleParaParte(v.detalle, cubierta, cant),
-                tipoProducto: pancetaCruda ? 'crudo' : (op.tieneCocido ? 'cocido' : 'crudo'),
-                usoNombre: algunaLocal ? '' : nombreUso(rubro, partes[partes.length - 1]),
-                sinSaldo: true
-            });
-        }
+        const partes = repartirVenta(cant, cadenaDeVenta(v, op), bases);
+        registrosDeVenta(v, op, partes).forEach((r) => out.push(r));
     });
     return out;
 }
@@ -299,6 +425,13 @@ function atribuirVentas(movimientos, ventas, opciones) {
 module.exports = {
     MATERIAS,
     esMateria,
+    esStockGeneral,
+    perfilRubro,
+    cubetaDe,
+    cadenaDeVenta,
+    registrosDeVenta,
+    repartirDetalle,
+    normalizarVenta,
     semillaCocido,
     cadenaDe,
     arrozPorcionCocida,

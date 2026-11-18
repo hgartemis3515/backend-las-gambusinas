@@ -11,10 +11,12 @@ Cada fila tiene su cuenta. La pantalla la enseña de dos maneras, y las dos son 
 
 | Número | Dónde se ve | Qué incluye |
 | --- | --- | --- |
-| Stock de hoja | Caja grande de Transformar y tope del **+** | Saldo de esa fila, en crudo o en cocido. Sin platos hijos y sin conteo de cámara. |
-| Queda | Columna Queda, Estado y pestaña Stock | Saldo real de la fila más el saldo de los platos que cuelgan directo. Si alguien contó esa fila, el conteo reemplaza su saldo antes de sumar los platos. |
+| Queda | Columna Queda, caja de Transformar, lápiz, pestaña Stock y tope del **+** | Lo que hay en esa fila. Es un solo número en toda la pantalla. |
+| Grupo | Línea pequeña bajo Saldo ant., Ingreso total, Venta y Queda | La fila más los platos que cuelgan de ella. El Estado se mide con este número. |
 
-Un pecho con 11 en la caja de Transformar y 13 en Queda tiene 11 de pieza suelta y 2 ya pasados a platos. El **+** solo puede mover los 11.
+Un pecho con Queda 11 y Grupo 13 tiene 11 de pieza suelta y 2 ya pasados a platos. El **+** solo puede mover los 11.
+
+La lógica completa, con sus reglas y los problemas que se corrigieron, está en [LOGICA_INVENTARIO.md](LOGICA_INVENTARIO.md).
 
 En la vista **Pachamanca**, Pecho pachamanca y Pollo pachamanca pierna se muestran solos: Queda no les suma el padre ni los hermanos.
 
@@ -23,15 +25,17 @@ En la vista **Pachamanca**, Pecho pachamanca y Pollo pachamanca pierna se muestr
 Productos con cocido llevan dos líneas (crudo y cocido). El resto solo crudo. La fórmula es de esa fila, sin los hijos.
 
 ```
-Ingreso total = Saldo anterior + Ingreso + Corrección
-Saldo         = Ingreso total − Venta − Transformación + Cubierta
-Saldo real    = Conteo de cámara, si existe; si no, el Saldo
-Diferencia    = Conteo − Saldo
+Saldo anterior = Lo que quedó el día anterior (+ ajuste de apertura, si alguien lo hizo)
+Ingreso total  = Saldo anterior + Ingreso
+Queda          = Ingreso total − Venta − Transformación + Cubierta + Corrección
+Diferencia     = Lo contado − lo que había en ese momento
 ```
 
 La cubierta es la parte de una venta que no alcanzó a salir del plato y salió de la pieza de reserva. Esa parte baja la pieza y no vuelve a bajar el plato.
 
-Estado, leído sobre Queda (fila + platos directos):
+Corrección reúne los ajustes: el lápiz de Editar stock, la columna Corrección y el conteo de cámara. Un conteo deja el stock en lo contado y lo que se venda después sigue restando. Si Queda da menos de 0, se muestra 0 con el faltante al lado, y al día siguiente abre en 0.
+
+Estado, leído sobre el grupo (fila + platos directos):
 
 | Queda | Estado |
 | --- | --- |
@@ -59,16 +63,16 @@ Hoja de producción del período. Es la fuente de verdad.
 | Columna | Qué hace |
 | --- | --- |
 | Producto | Nombre, unidad y lugar en el grupo. |
-| Saldo ant. | Lo que quedó del ciclo anterior, más el saldo anterior de los platos directos. Se puede corregir en la fila. |
+| Saldo ant. | Lo que quedó en esta fila el día anterior. Sale en ámbar si tiene un ajuste de apertura. |
 | Ingreso | Lo que entró a esta fila: compra, despiece o pase desde otro producto. |
-| Corrección | Ajuste opcional de esta fila. En 0 no se registra. |
-| Ingreso total | Apertura + ingreso + corrección de la fila y de sus platos directos. La lupa muestra en qué platos o cortes quedó ese ingreso. |
-| Venta comandas | Venta de la fila más la de sus platos, sin contar dos veces lo que ya salió de la pieza. No se escribe a mano. La lupa lista los platos. El botón rojo **−** abre la venta manual. |
+| Corrección | Ajustes de stock de esta fila: lápiz, corrección y conteo. Mueve Queda, no el Ingreso total. |
+| Ingreso total | Saldo anterior + Ingreso de esta fila. La lupa muestra la suma y en qué platos o cortes quedó. |
+| Venta comandas | Lo que las ventas restaron de esta fila. No se escribe a mano. La lupa lista cada plato una vez, con de dónde salió. El botón **DM** abre la descarga manual. |
 | Transformación | Lo que salió de esta fila hacia otro corte o plato. En rojo si resta. No incluye a los hijos. La lupa abre el gráfico vertical (origen arriba, destinos abajo). |
-| Saldo | Resultado de la fórmula, más el saldo de los platos directos. Se puede ocultar. |
+| Saldo | Resultado de la fórmula de esta fila. Se puede ocultar. |
 | Conteo | Conteo físico de cámara de esta fila. Vacío si nadie contó. |
-| Queda (Saldo real) | El número para saber si hay o no hay, con los platos directos incluidos. |
-| Diferencia | Conteo contra saldo de la fila. Se puede ocultar. |
+| Queda (Saldo real) | Lo que hay en esta fila. Mañana es su Saldo anterior. Debajo, el total con sus platos. |
+| Diferencia | Lo que encontró el último conteo frente a lo que había en ese momento. Se puede ocultar. |
 | Estado | Normal, bajo o crítico, según Queda. Se puede ocultar. |
 
 En Configuración → Tabla, **Ocultar** empieza marcado en Saldo y Conteo, Diferencia, Estado y Corrección. Queda sigue visible. Si en este equipo ya se dejó alguna columna visible, se respeta. Cada opción se guarda en el navegador.
@@ -146,9 +150,10 @@ En pecho y pierna, la cuenta del cuadro es la misma historia: stock antes = qued
 
 El mismo modal sirve en Transformar y en Inventario Tabla.
 
-- El número escrito es el saldo de esa fila (crudo, y cocido si la fila lo tiene).
-- La diferencia se guarda en el día, en Ingreso o en Corrección. No se anota como saldo anterior de un día pasado.
-- El lápiz de octavos deja el stock de Octavo de pollo en «octavos de pecho + octavos de pierna». Guarda un ingreso o una corrección de hoy, marcados «· pecho» o «· pierna». No resta piezas de Pecho ni de Pierna, así que guarda aunque esas piezas no tengan stock. Para pasar piezas a octavos (2 octavos = 1 pieza) se usan − / + del cuadro.
+- El número escrito es el stock que queda en esa fila (crudo, y cocido si la fila lo tiene).
+- La diferencia se guarda como **Ajuste de stock**. No es ingreso y no cambia el Ingreso total.
+- Si estás viendo un día pasado, el ajuste se guarda al cierre de ese día.
+- El lápiz de octavos deja el stock de Octavo de pollo en «octavos de pecho + octavos de pierna». Guarda ajustes de stock marcados «· pecho» o «· pierna». No resta piezas de Pecho ni de Pierna, así que guarda aunque esas piezas no tengan stock. Para pasar piezas a octavos (2 octavos = 1 pieza) se usan − / + del cuadro.
 - En la tabla, el lápiz de la fila Octavo de pollo abre ese mismo modal: pecho, pierna y debajo sus platos (Arroz con pollo, Pollo a la olla, Caldo de pollo).
 - Un producto bloqueado se puede corregir con el lápiz. No se puede transformar ni vender en manual mientras siga bloqueado.
 
@@ -257,12 +262,12 @@ Transformar (cada + / − guarda ya: origen −, destino +)
         ↓
 Relación de platos (qué plato come ese producto)
         ↓
-Stock y Queda (fila + platos directos)
+Stock y Queda (de la fila; el grupo va aparte)
 ```
 
 Ejemplo de un pecho que ya está en la hoja:
 
-1. Pecho de pollo tiene stock de hoja 13. Queda puede ser más alto si ya hay platos colgando.
+1. Pecho de pollo tiene Queda 13. La línea Grupo puede ser más alta si ya hay platos colgando.
 2. En Transformar se pasan 2 pechos a filete. El stock de hoja del pecho queda en 11. La columna Transformación del pecho muestra −2 y el filete suma el ingreso del factor. Queda del pecho no baja en esos 2, porque ahora viven en el filete y la columna los sigue sumando.
 3. Esos filetes se reparten a milanesa, chaufa u otro plato del grupo, hasta el stock de hoja del filete.
 4. La relación dice cuánto filete come cada plato de la carta.

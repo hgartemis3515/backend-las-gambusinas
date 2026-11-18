@@ -80,6 +80,16 @@ function indiceBebidas(catalogo) {
     return map;
 }
 
+/** Nombre de la fila de un producto sin definición fija: el de la carta o el de su clave. */
+function nombreDeRubro(rubro, catalogo) {
+    const def = claveDe(rubro);
+    if (def) return def.nombre;
+    const plato = (catalogo || []).find((p) => p && p.nombre && claveBebida(p.nombre) === rubro);
+    if (plato) return plato.nombre;
+    const legible = String(rubro || '').replace(/^(gaseosa|licor|agua)-/, '').replace(/-/g, ' ').trim();
+    return legible ? legible.replace(/(^| )([a-zñ])/g, (m, a, b) => a + b.toUpperCase()) : String(rubro || '');
+}
+
 /**
  * Guarnición elegida por el mozo → producto del inventario.
  * Ensalada, frijol y zarza no tienen fila.
@@ -729,10 +739,9 @@ async function egresosVentaHasta(hasta) {
             Object.keys(partido.porRubro).forEach((rubro) => {
                 const cantidad = partido.porRubro[rubro];
                 if (!cantidad) return;
-                const def = claveDe(rubro);
                 ventas.push({
                     rubro,
-                    nombre: def ? def.nombre : rubro,
+                    nombre: nombreDeRubro(rubro, catalogo),
                     cantidad,
                     fecha: comanda.createdAt,
                     motivo: 'Venta (reportes)',
@@ -757,6 +766,7 @@ module.exports = {
     partirSalida,
     filasDelContador,
     indiceBebidas,
+    nombreDeRubro,
     unidadesHumitaPachamanca,
     egresosVentaHasta
 };

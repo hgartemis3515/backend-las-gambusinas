@@ -321,35 +321,31 @@ test('un filete con papas y arroz descuenta filete, papas y arroz, y puede dejar
     expect(porRubro.filete).toBeUndefined();
     expect(porRubro.papas).toBe(3);
     expect(porRubro['arroz-blanco']).toBe(3);
-    const { aplicarVentasEnFilas } = require('../src/utils/inventarioKardex');
-    const ajustadas = aplicarVentasEnFilas([{
-        rubro: 'filete',
-        plato: 'filete',
-        tipoProducto: 'cocido',
-        cierre: 0,
-        baja: 0,
-        umbral: 0
-    }], [{ rubro: 'filete', cantidad: 1 }]);
-    expect(ajustadas[0].cierre).toBe(-1);
+    const { armarLibro } = require('../src/utils/inventarioLibro');
+    const fecha = new Date('2026-07-01T15:00:00.000Z');
+    const libro = armarLibro({
+        movimientos: [{ rubro: 'filete', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 1, motivo: 'Ingreso crudo', fecha: new Date('2026-07-01T14:00:00.000Z') }],
+        ventas: [{ rubro: 'filete', nombre: 'Filete', cantidad: 3, fecha, detalle: [] }],
+        desde: new Date('2026-07-01T09:00:00.000Z'),
+        hasta: new Date('2026-07-02T08:59:59.000Z')
+    });
+    const fila = libro.filas.find((f) => f.rubro === 'filete' && f.tipoProducto === 'crudo');
+    expect(fila.sinTope).toBe(-2);
+    expect(fila.queda).toBe(0);
 });
 
-test('la venta de reportes baja el saldo que mira la alerta, no el cierre guardado', () => {
-    const { aplicarVentasEnFilas, alertasDeFilas } = require('../src/utils/inventarioKardex');
-    const filas = [{
-        rubro: 'pollo-lena',
-        plato: 'pollo-lena',
-        nombre: 'Pollo leña',
-        tipoProducto: 'cocido',
-        cierre: 20,
-        baja: 20,
-        umbral: 12,
-        critico: false
-    }];
-    const ajustadas = aplicarVentasEnFilas(filas, [{ rubro: 'pollo-lena', cantidad: 10 }]);
-    expect(filas[0].cierre).toBe(20);
-    expect(ajustadas[0].cierre).toBe(10);
-    expect(ajustadas[0].critico).toBe(true);
-    expect(alertasDeFilas(ajustadas)).toHaveLength(1);
+test('la venta de reportes baja el saldo que mira la alerta', () => {
+    const { armarLibro } = require('../src/utils/inventarioLibro');
+    const { alertasDeFilas } = require('../src/utils/inventarioKardex');
+    const libro = armarLibro({
+        movimientos: [{ rubro: 'pollo-lena', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 20, motivo: 'Ingreso cocido', fecha: new Date('2026-07-01T14:00:00.000Z') }],
+        ventas: [{ rubro: 'pollo-lena', nombre: 'Pecho a la Leña', cantidad: 10, fecha: new Date('2026-07-01T15:00:00.000Z'), detalle: [] }],
+        umbrales: { 'pollo-lena': { crudo: 0, cocido: 10 } },
+        desde: new Date('2026-07-01T09:00:00.000Z'),
+        hasta: new Date('2026-07-02T08:59:59.000Z')
+    });
+    const alerta = alertasDeFilas(libro.filas).find((a) => a.plato === 'pollo-lena' && a.tipoProducto === 'cocido');
+    expect(alerta).toMatchObject({ saldo: 10, umbral: 10 });
 });
 
 test('un ingreso guardado no se convierte en egreso', () => {
@@ -438,13 +434,20 @@ test('la pota solo sale en ceviche de chicharrón de pota y en chicharrón de po
 });
 
 test('una gaseosa vendida tiene fila aunque nadie la haya ingresado', () => {
-    const { filasDeRubros, extrasDeVentas } = require('../src/utils/inventarioRubros');
-    const ventas = [{ rubro: 'gaseosa-inca-kola-1-2-litro', nombre: 'Inca Kola 1/2 litro', cantidad: 2, tipoProducto: 'crudo' }];
-    const filas = filasDeRubros([], dia('2026-10-31', '04:00:00'), dia('2026-11-01', '03:59:59'), {}, extrasDeVentas(ventas));
+    const { armarLibro } = require('../src/utils/inventarioLibro');
+    const ventas = [{ rubro: 'gaseosa-inca-kola-1-2-litro', nombre: 'Inca Kola 1/2 litro', cantidad: 2, fecha: dia('2026-10-31', '12:00:00'), detalle: [] }];
+    const { filas } = armarLibro({ movimientos: [], ventas, desde: dia('2026-10-31', '04:00:00'), hasta: dia('2026-11-01', '03:59:59') });
     const fila = filas.find((f) => f.rubro === 'gaseosa-inca-kola-1-2-litro' && f.tipoProducto === 'crudo');
     expect(fila).toBeTruthy();
     expect(fila.nombre).toBe('Inca Kola 1/2 litro');
-    expect(fila.egreso).toBe(0);
+    expect(fila).toMatchObject({ egreso: 0, venta: 2, queda: 0, sinTope: -2 });
+});
+
+test('una bebida que acompaña a un plato se llama como la bebida, no como el plato', () => {
+    const { nombreDeRubro } = require('../src/utils/inventarioSalidaVentas');
+    expect(nombreDeRubro('gaseosa-inca-kola-300ml', [{ nombre: 'Seco de Res + frijoles + arroz' }])).toBe('Inca Kola 300ml');
+    expect(nombreDeRubro('gaseosa-inca-kola-300ml', [{ nombre: 'Inca Kola 300 ml' }, { nombre: 'Inca Kola 300ml' }])).toBe('Inca Kola 300ml');
+    expect(nombreDeRubro('pollo-lena', [])).toBe('Pecho a la Leña');
 });
 
 test('el medio pollo a la leña baby solo descuenta 0.5 de pollo baby', () => {

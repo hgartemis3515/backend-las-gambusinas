@@ -1,14 +1,15 @@
 const mongoose = require('mongoose');
 const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
-const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta, gapAperturaHoja } = require('../utils/inventarioKardex');
-const { claveDe, clavesGuardables, filasDeRubros, extrasDeVentas, carta } = require('../utils/inventarioRubros');
+const { armarKardex, alertasDeFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
+const { armarLibro } = require('../utils/inventarioLibro');
+const { claveDe, clavesGuardables, carta } = require('../utils/inventarioRubros');
 const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventarioMapas');
 const { sanearGuardado } = require('../../public/assets/js/inventarioRelaciones');
 const MapaSemantico = require('../database/models/inventarioMapa.model');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD, ampliarTramoAlDia } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
-const { atribuirVentas, semillaCocido, validarCocidoConfig, esMateria } = require('../utils/inventarioCascadaVenta');
+const { semillaCocido, validarCocidoConfig, esMateria } = require('../utils/inventarioCascadaVenta');
 const Rubro = require('../database/models/inventarioRubro.model');
 const Reporte = require('../database/models/inventarioReporte.model');
 const logger = require('../utils/logger');
@@ -89,7 +90,7 @@ async function listarMovimientos({ plato, tipo, desde, hasta, ciclo }) {
     if (plato && mongoose.Types.ObjectId.isValid(plato)) filtro.plato = plato;
     const docs = await Movimiento.find(filtro)
         .sort({ fecha: -1 })
-        .limit(3000)
+        .limit(20000)
         .populate('usuario', 'name')
         .lean();
     return docs.map((d) => ({
@@ -208,33 +209,16 @@ async function umbralesRubro() {
     return map;
 }
 
-function lineasReporte(filas, ventas) {
-    const ventaPorRubro = {};
-    (ventas || []).forEach((v) => {
-        const rubro = v && (v.rubro || v.plato);
-        const cantidad = Number(v && v.cantidad) || 0;
-        if (!rubro || cantidad <= 0 || v.sinSaldo) return;
-        const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
-        ventaPorRubro[key] = (ventaPorRubro[key] || 0) + cantidad;
-    });
-    return (filas || []).map((f) => {
-        const rubro = f.rubro || f.plato || '';
-        const anterior = Number(f.saldoInicial) || 0;
-        const ingreso = Number(f.ingresos) || 0;
-        const reg = Number(f.regulacion) || 0;
-        const venta = ventaPorRubro[rubro + '|' + f.tipoProducto] || 0;
-        const salida = (Number(f.egreso) || 0) + venta;
-        const base = reg !== 0 ? anterior + reg : anterior + ingreso;
-        return {
-            rubro,
-            nombre: f.nombre || '',
-            tipoProducto: f.tipoProducto,
-            saldoAnterior: anterior,
-            ingreso,
-            salida,
-            saldoFinal: base - salida
-        };
-    }).filter((l) => l.saldoAnterior || l.ingreso || l.salida || l.saldoFinal);
+function lineasReporte(filas) {
+    return (filas || []).map((f) => ({
+        rubro: f.rubro || f.plato || '',
+        nombre: f.nombre || '',
+        tipoProducto: f.tipoProducto,
+        saldoAnterior: Number(f.saldoInicial) || 0,
+        ingreso: Number(f.ingresos) || 0,
+        salida: (Number(f.egreso) || 0) + (Number(f.venta) || 0) - (Number(f.cubierta) || 0),
+        saldoFinal: Number(f.queda) || 0
+    })).filter((l) => l.saldoAnterior || l.ingreso || l.salida || l.saldoFinal);
 }
 
 async function opcionesCocido() {
@@ -275,127 +259,27 @@ function porClave(lista) {
     return map;
 }
 
+// Una sola cuenta para toda la hoja: ver src/utils/inventarioLibro.js.
 async function filasCartaEn(desde, hasta) {
     const mapas = await leerGuardados().catch(() => []);
     const [guardados, ventasPack, umbrales, opciones] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
-            .select('rubro tipoProducto clase cantidad fecha motivo')
+            .select('rubro nombre tipoProducto clase cantidad fecha motivo')
             .lean(),
         egresosVentaHasta(hasta),
         umbralesRubro(),
         opcionesCocido()
     ]);
-    const atribuidas = atribuirVentas(guardados, ventasPack.ventas, porClave(opciones));
-    const extras = clavesExtra(mapas).concat(extrasDeVentas(atribuidas));
-    let filas = aplicarSaldoPrevioDeVentas(
-        filasDeRubros(guardados, desde, hasta, umbrales, extras),
-        atribuidas,
-        desde
-    );
-    filas = heredarQuedaDelDiaAnterior(filas, guardados, atribuidas, umbrales, extras, desde, hasta);
-    const desdeMs = desde.getTime();
-    const hastaMs = hasta.getTime();
-    const ventas = atribuidas.filter((v) => {
-        const t = new Date(v.fecha).getTime();
-        return t >= desdeMs && t <= hastaMs;
+    const libro = armarLibro({
+        movimientos: guardados,
+        ventas: ventasPack.ventas,
+        opciones: porClave(opciones),
+        umbrales,
+        extras: clavesExtra(mapas),
+        desde,
+        hasta
     });
-    return { filas, ventas, cocidoOpciones: opciones };
-}
-
-function mismoInstante(a, b) {
-    return Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 1500;
-}
-
-function esDiaOperativoEntero(desde, hasta) {
-    const ymd = ymdOperativo(desde);
-    const borde = boundsDiaOperativo(ymd);
-    return mismoInstante(desde, borde.inicio) && mismoInstante(hasta, borde.fin);
-}
-
-function ventasPorClaveEntre(ventas, desde, hasta) {
-    const a = new Date(desde).getTime();
-    const b = new Date(hasta).getTime();
-    const map = {};
-    (ventas || []).forEach((v) => {
-        const rubro = v && (v.rubro || v.plato);
-        const n = Number(v && v.cantidad) || 0;
-        const t = new Date(v && v.fecha).getTime();
-        if (!rubro || n <= 0 || v.sinSaldo || t < a || t > b) return;
-        const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
-        map[key] = (map[key] || 0) + n;
-    });
-    return map;
-}
-
-function sumarEnSaldoInicial(filas, extra) {
-    return (filas || []).map((f) => {
-        if (!f) return f;
-        const d = extra[(f.rubro || f.plato) + '|' + f.tipoProducto] || 0;
-        if (!(d > 0.0004)) return f;
-        const saldoInicial = (Number(f.saldoInicial) || 0) + d;
-        const ingresos = Number(f.ingresos) || 0;
-        const egreso = Number(f.egreso) || 0;
-        const regulacion = Number(f.regulacion) || 0;
-        const total = saldoInicial + ingresos;
-        const saldoFinal = total - egreso;
-        const baja = saldoFinal + regulacion;
-        return { ...f, saldoInicial, total, saldoFinal, baja, cierre: baja };
-    });
-}
-
-// Si ayer la hoja mostró más de lo que cierra la matemática (el saldo anterior
-// negativo se ve como 0), hoy abre con lo que la hoja mostró. Si no, al día
-// siguiente ese hueco aparece en el saldo anterior.
-function heredarQuedaDelDiaAnterior(filas, guardados, ventas, umbrales, extras, desde, hasta) {
-    if (!esDiaOperativoEntero(desde, hasta)) return filas;
-    const ayer = diaAnterior(ymdOperativo(desde));
-    const prev = boundsDiaOperativo(ayer);
-    const filasAyer = aplicarSaldoPrevioDeVentas(
-        filasDeRubros(guardados, prev.inicio, prev.fin, umbrales, extras),
-        ventas,
-        prev.inicio
-    );
-    const ventaAyer = ventasPorClaveEntre(ventas, prev.inicio, prev.fin);
-    const gap = {};
-    filasAyer.forEach((f) => {
-        if (!f) return;
-        const key = (f.rubro || f.plato) + '|' + f.tipoProducto;
-        const d = gapAperturaHoja({
-            saldoInicial: f.saldoInicial,
-            ingresos: f.ingresos,
-            regulacion: f.regulacion,
-            egreso: f.egreso,
-            venta: ventaAyer[key] || 0
-        });
-        if (d > 0.0004) gap[key] = d;
-    });
-    return sumarEnSaldoInicial(filas, gap);
-}
-
-function aplicarSaldoPrevioDeVentas(filas, ventas, desde) {
-    const desdeMs = new Date(desde).getTime();
-    const antes = {};
-    (ventas || []).forEach((v) => {
-        const rubro = v && (v.rubro || v.plato);
-        const n = Number(v && v.cantidad) || 0;
-        const t = new Date(v && v.fecha).getTime();
-        if (!rubro || n <= 0 || v.sinSaldo || !(t < desdeMs)) return;
-        const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
-        antes[key] = (antes[key] || 0) + n;
-    });
-    return (filas || []).map((f) => {
-        if (!f) return f;
-        const previo = antes[(f.rubro || f.plato) + '|' + f.tipoProducto] || 0;
-        if (!previo) return f;
-        const saldoInicial = (Number(f.saldoInicial) || 0) - previo;
-        const ingresos = Number(f.ingresos) || 0;
-        const egreso = Number(f.egreso) || 0;
-        const regulacion = Number(f.regulacion) || 0;
-        const total = saldoInicial + ingresos;
-        const saldoFinal = total - egreso;
-        const baja = saldoFinal + regulacion;
-        return { ...f, saldoInicial, total, saldoFinal, baja, cierre: baja };
-    });
+    return { filas: libro.filas, ventas: libro.ventas, cocidoOpciones: opciones };
 }
 
 function paseDeTipo(motivo) {
@@ -426,8 +310,8 @@ async function cerrarDiaSiToca(fecha) {
     const ya = await Reporte.findOne({ fecha }).lean();
     if (ya && ya.cerrado && Array.isArray(ya.transformaciones) && ya.transformaciones.length) return ya;
     const { desde, hasta } = rango(fecha, fecha, '04');
-    const { filas, ventas } = await filasCartaEn(desde, hasta);
-    const lineas = lineasReporte(filas, ventas);
+    const { filas } = await filasCartaEn(desde, hasta);
+    const lineas = lineasReporte(filas);
     const transformaciones = await transformacionesEn(desde, hasta);
     const doc = await Reporte.findOneAndUpdate(
         { fecha },
@@ -449,7 +333,7 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
     if (operativo && desdeStr && desdeStr === (hastaStr || desdeStr)) {
         const fecha = String(desdeStr);
         const hoyOp = ymdOperativo();
-        const lineas = lineasReporte(filas, ventas);
+        const lineas = lineasReporte(filas);
         const transformaciones = await transformacionesEn(desde, hasta);
         if (fecha < hoyOp) {
             const doc = await cerrarDiaSiToca(fecha);
@@ -688,18 +572,22 @@ async function alertasRubro() {
     const hasta = new Date();
     const [guardados, ventasPack, umbrales, opciones, mapas] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] } })
-            .select('rubro tipoProducto clase cantidad fecha motivo')
+            .select('rubro nombre tipoProducto clase cantidad fecha motivo')
             .lean(),
         egresosVentaHasta(hasta),
         umbralesRubro(),
         opcionesCocido(),
         leerGuardados().catch(() => [])
     ]);
-    const atribuidas = atribuirVentas(guardados, ventasPack.ventas, porClave(opciones));
-    const filas = aplicarVentasEnFilas(
-        filasDeRubros(guardados, new Date(0), hasta, umbrales, clavesExtra(mapas).concat(extrasDeVentas(atribuidas))),
-        atribuidas
-    );
+    const { filas } = armarLibro({
+        movimientos: guardados,
+        ventas: ventasPack.ventas,
+        opciones: porClave(opciones),
+        umbrales,
+        extras: clavesExtra(mapas),
+        desde: hasta,
+        hasta
+    });
     return alertasDeFilas(filas);
 }
 

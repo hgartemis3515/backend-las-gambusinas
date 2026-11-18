@@ -22,7 +22,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 7. Cómo queda el inventario después de los ajustes de noviembre de 2026:
    - Pollo fresco: 1 ave = 2 pechos + 2 piernas. En la tabla, fijarCampo solo convierte el delta del ingreso (setPollosFrescosConvertir). No se vuelve a cortar el stock ya convertido.
    - El + del cuadro de pollo fresco suma y convierte ese mismo delta. El + chico del factor solo convierte.
-   - El lápiz (fijarSaldoTipo) deja el saldo de fórmula en el número escrito, en Transformar y en la tabla, con un ingreso o una corrección de hoy. El lápiz de octavos (guardarEditarOctavo) hace lo mismo por pecho y pierna, con movimientos marcados «· pecho» / «· pierna»; los − / + del cuadro siguen pasando piezas (fijarOctavosStock). En la tabla, el lápiz de Octavo abre ese modal con sus platos.
+   - El lápiz (guardarModalStock) deja el stock en el número escrito con un ajuste de stock (clase regulacion). No es ingreso. Los octavos conservan su marca de pecho o pierna.
+   - El saldo de cada día lo calcula el servidor en src/utils/inventarioLibro.js. Ver docs/LOGICA_INVENTARIO.md.
    - Los avisos de la hoja (toastMessage) van fijos abajo a la izquierda y se cierran a los 7 s. No empujan la hoja.
    - Configuración → Tabla: Saldo y Conteo, Diferencia, Estado y Corrección arrancan ocultos. Queda siempre se ve.
    - Bloqueo: PUT /api/inventario/bloqueo. Un producto bloqueado no se transforma ni se vende en manual; la reserva resta el tope del pase. Un plato bloqueado no sale en la carta del mozo (filtrarCartaBloqueada).
@@ -2197,11 +2198,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               type="button"
               @click="descuadreAbierto = true"
               class="px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5 shadow-md border"
-              :class="filasDescuadre().length ? 'bg-red-950 text-red-100 border-red-500 hover:bg-red-900' : 'bg-[#1c1c2b] text-[#a0a0b8] border-[#26263a] hover:text-white'"
-              title="Saldos anteriores que abrieron en negativo. En la hoja se ven en 0 y en rojo."
+              :class="cuentaDescuadre() ? 'bg-red-950 text-red-100 border-red-500 hover:bg-red-900' : 'bg-[#1c1c2b] text-[#a0a0b8] border-[#26263a] hover:text-white'"
+              title="Productos donde se restó más de lo que había o que no abrieron con lo que quedó el día anterior."
             >
               Descuadre
-              <span x-show="filasDescuadre().length" class="min-w-[1.1rem] px-1 rounded bg-red-600 text-white text-[10px] leading-4 text-center" x-text="filasDescuadre().length"></span>
+              <span x-show="cuentaDescuadre()" class="min-w-[1.1rem] px-1 rounded bg-red-600 text-white text-[10px] leading-4 text-center" x-text="cuentaDescuadre()"></span>
             </button>
           </div>
         </div>
@@ -2560,20 +2561,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="par-tipo">
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-crudo" x-text="etiquetaTipo('crudo', row)"></span>
-                              <span class="par-tipo-num num-mono font-medium" :class="saldoAnteriorColumnaTipo(row, 'crudo') < 0 ? 'saldo-anterior-alarma' : 'text-purple-200'" :title="tituloSaldoAnterior(row, 'crudo')" x-text="textoSaldoAnterior(row, 'crudo')"></span>
+                              <span class="par-tipo-num num-mono font-medium" :class="ajusteAperturaFila(row, 'crudo') ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnterior(row, 'crudo')" x-text="textoSaldoAnterior(row, 'crudo')"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-cocido">Cocido</span>
-                              <span class="par-tipo-num num-mono font-medium" :class="saldoAnteriorColumnaTipo(row, 'cocido') < 0 ? 'saldo-anterior-alarma' : 'text-amber-200'" :title="tituloSaldoAnterior(row, 'cocido')" x-text="textoSaldoAnterior(row, 'cocido')"></span>
+                              <span class="par-tipo-num num-mono font-medium" :class="ajusteAperturaFila(row, 'cocido') ? 'text-amber-300' : 'text-amber-200'" :title="tituloSaldoAnterior(row, 'cocido')" x-text="textoSaldoAnterior(row, 'cocido')"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-total">Total</span>
-                              <span class="par-tipo-num num-mono font-medium" :class="saldoAnteriorColumna(row) < 0 ? 'saldo-anterior-alarma' : 'text-purple-200'" :title="tituloSaldoAnterior(row)" x-text="textoSaldoAnterior(row)"></span>
+                              <span class="par-tipo-num num-mono font-medium" :class="ajusteAperturaFila(row) ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnterior(row)" x-text="textoSaldoAnterior(row)"></span>
+                            </div>
+                            <div class="par-tipo-linea" x-show="tieneGrupo(row)">
+                              <span class="par-tipo-etiq es-total">Grupo</span>
+                              <span class="par-tipo-num num-mono font-medium text-[#a0a0b8]" title="Saldo anterior de esta fila y sus platos" x-text="formatNum(saldoAnteriorGrupo(row))"></span>
                             </div>
                           </div>
                         </template>
                         <template x-if="!row.tieneCocido">
-                          <span class="par-tipo-num num-mono font-medium" :class="saldoAnteriorColumna(row) < 0 ? 'saldo-anterior-alarma' : 'text-purple-200'" :title="tituloSaldoAnterior(row)" x-text="textoSaldoAnterior(row)"></span>
+                          <div class="text-center">
+                            <span class="par-tipo-num num-mono font-medium" :class="ajusteAperturaFila(row) ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnterior(row)" x-text="textoSaldoAnterior(row)"></span>
+                            <span x-show="tieneGrupo(row)" class="block text-[10px] leading-3 font-mono text-[#a0a0b8] mt-0.5 whitespace-nowrap" title="Saldo anterior de esta fila y sus platos" x-text="'Grupo ' + formatNum(saldoAnteriorGrupo(row))"></span>
+                          </div>
                         </template>
                       </div>
                     </td>
@@ -2635,20 +2643,27 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 </span>
                               </span>
                             </div>
+                            <div class="par-tipo-linea" x-show="tieneGrupo(row)">
+                              <span class="par-tipo-etiq es-total">Grupo</span>
+                              <span class="par-tipo-num num-mono font-medium text-[#a0a0b8]" title="Ingreso total de esta fila y sus platos" x-text="formatNum(ingresoTotalGrupo(row))"></span>
+                            </div>
                           </div>
-                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el detalle del ingreso total de ' + row.nombre" title="Saldo anterior + Ingreso, y los platos del grupo" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                         </div>
                       </template>
                       <template x-if="!row.tieneCocido">
                         <div class="par-tipo-con-accion">
-                          <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''">
+                          <div class="text-center">
+                          <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" title="Saldo anterior + Ingreso">
                             <span x-text="formatNum(ingresoTotalColumna(row))"></span>
                             <span x-show="mostrarMasMenosIngreso && (sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0)" class="ingreso-total-flechas">
                               <span x-show="sumaIngresoTotalFila(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
                               <span x-show="restaIngresoTotalFila(row) > 0" class="badge-flecha-down-roja" :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'">↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
                             </span>
                           </span>
-                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver en qué quedó ' + row.nombre" title="Ver platos dentro de este ingreso" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+                          <span x-show="tieneGrupo(row)" class="block text-[10px] leading-3 font-mono text-[#a0a0b8] mt-0.5 whitespace-nowrap" title="Ingreso total de esta fila y sus platos" x-text="'Grupo ' + formatNum(ingresoTotalGrupo(row))"></span>
+                          </div>
+                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el detalle del ingreso total de ' + row.nombre" title="Saldo anterior + Ingreso, y los platos del grupo" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                         </div>
                       </template>
                     </td>
@@ -2658,8 +2673,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div class="inline-flex items-center justify-end gap-1.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-rose-400/80" title="Viene de comandas"></span>
                         <div class="flex items-center gap-1">
-                          <span x-show="!stockGeneral(row)" class="etiq-ingreso text-[#d4af37]">Cocido</span>
-                          <span class="caja-venta-cocido num-mono font-semibold" :class="ventaEnRojo(row) ? 'saldo-anterior-alarma' : ''" :title="tituloVentaCocido(row)" x-text="formatNum(ventaComandasCocido(row))"></span>
+                          <span x-show="etiquetaVenta(row)" class="etiq-ingreso text-[#d4af37]" x-text="etiquetaVenta(row)"></span>
+                          <div class="text-right">
+                            <span class="caja-venta-cocido num-mono font-semibold" :class="ventaEnRojo(row) ? 'saldo-anterior-alarma' : ''" :title="tituloVentaCocido(row)" x-text="formatNum(ventaComandasCocido(row))"></span>
+                            <span x-show="tieneGrupo(row)" class="block text-[10px] leading-3 font-mono text-[#a0a0b8] mt-0.5 whitespace-nowrap" title="Venta de esta fila y sus platos" x-text="'Grupo ' + formatNum(ventaGrupo(row))"></span>
+                          </div>
                         </div>
                         <button type="button" class="btn-lupa-venta lupa-cuadro w-7 h-7 rounded-lg border inline-flex items-center justify-center cursor-pointer" :class="ventaColumna(row) > 0 ? 'con-venta' : ''" :aria-label="'Ver ventas de ' + row.nombre" title="Ver platos vendidos" @click="$el.classList.remove('pulso'); void $el.offsetWidth; $el.classList.add('pulso'); abrirVentaFila(row)">
                           <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -2757,6 +2775,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <span class="par-tipo-etiq es-total">Total</span>
                               <span class="par-tipo-num total-cell-base num-mono font-bold text-teal-200" :class="[updatedRows[row.id] ? 'total-gold-flash' : '', emergenciaFila(row) ? 'saldo-anterior-alarma' : '']" :title="tituloQueda(row)" x-text="textoQueda(row)"></span>
                             </div>
+                            <div class="par-tipo-linea" x-show="tieneGrupo(row)">
+                              <span class="par-tipo-etiq es-total">Grupo</span>
+                              <span class="par-tipo-num num-mono font-medium text-[#a0a0b8]" title="Lo que queda en esta fila y sus platos" x-text="formatNum(quedaGrupo(row))"></span>
+                            </div>
                           </div>
                         </template>
                         <template x-if="!row.tieneCocido">
@@ -2764,6 +2786,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq" aria-hidden="true"></span>
                               <span class="par-tipo-num total-cell-base num-mono font-bold text-teal-200" :class="[updatedRows[row.id] ? 'total-gold-flash' : '', emergenciaFila(row) ? 'saldo-anterior-alarma' : '']" :title="tituloQueda(row)" x-text="textoQueda(row)"></span>
+                            </div>
+                            <div class="par-tipo-linea" x-show="tieneGrupo(row)">
+                              <span class="par-tipo-etiq es-total">Grupo</span>
+                              <span class="par-tipo-num num-mono font-medium text-[#a0a0b8]" title="Lo que queda en esta fila y sus platos" x-text="formatNum(quedaGrupo(row))"></span>
                             </div>
                           </div>
                         </template>
@@ -3103,6 +3129,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <span class="arroz-unidad">p</span>
                       </span>
                       <span class="arroz-kg" x-text="textoKgArroz(d, saldoPorcionesArroz(d))"></span>
+                      <span class="arroz-kg" x-show="ajustePorcionesArroz(d)" x-text="'Ajuste ' + (ajustePorcionesArroz(d) > 0 ? '+' : '−') + formatNum(Math.abs(ajustePorcionesArroz(d)))"></span>
                     </div>
                   </div>
                   <div class="caja-stock" x-show="!esArrozPorcion(d)">
@@ -6891,7 +6918,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="stock-editor-heading">
           <span class="stock-editor-kicker">Editar stock</span>
           <h2 id="stock-editor-title" x-text="editarStock.nombre"></h2>
-          <p id="stock-editor-description" x-text="editarStock.sector ? 'Ajusta pecho y pierna descargados en este sector.' : (editarStock.cortes ? 'Ajusta las cantidades de pierna y pecho de este plato.' : (editarStock.grupo ? 'Revisa y ajusta el stock de cada producto del grupo.' : 'Ingresa la cantidad real que tienes en cocina.'))"></p>
+          <p id="stock-editor-description" x-text="editarStock.sector ? 'Ajusta pecho y pierna descargados en este sector.' : (editarStock.cortes ? 'Ajusta las cantidades de pierna y pecho de este plato.' : (editarStock.grupo ? 'Escribe el stock real de cada producto del grupo.' : 'Escribe cuánto hay ahora. No se registra como ingreso.'))"></p>
         </div>
         <button type="button" class="stock-editor-close" aria-label="Cerrar edición de stock" :disabled="editarStock.guardando" @click="cerrarEditarStock()">✕</button>
       </div>
@@ -6920,7 +6947,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
               </template>
             </div>
-            <p class="stock-editor-note" x-show="!editarStock.sector">Este ajuste registra tu conteo. Para convertir piezas a octavos, usa los controles de Transformar.</p>
+            <p class="stock-editor-note" x-show="!editarStock.sector">Este ajuste deja el stock en el número escrito. Para convertir piezas a octavos, usa los controles de Transformar.</p>
             <p class="stock-editor-note" x-show="editarStock.sector">Subir el número descarga más octavos de esa presa. Bajarlo devuelve lo que sobra.</p>
           </div>
           <div class="stock-editor-section" x-show="editarStock.grupo || editarStock.cortes || (editarStock.octavo && editarStock.lineas && editarStock.lineas.length)">
@@ -6970,11 +6997,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
           </div>
           <div class="stock-editor-section" x-show="!editarStock.octavo && !editarStock.grupo && !editarStock.cortes && !editarStock.sector">
-            <div class="stock-editor-section-title">Cantidad disponible <small>Según tu conteo</small></div>
+            <div class="stock-editor-section-title">Stock actual <small>El número que quedará en la hoja</small></div>
             <div class="stock-editor-grid" :class="!editarStock.tieneCocido ? 'stock-editor-grid-single' : ''">
               <template x-for="tipo in (editarStock.soloCocido ? ['cocido'] : (editarStock.tieneCocido ? ['crudo', 'cocido'] : ['crudo']))" :key="'stock-simple-' + tipo">
                 <div class="stock-editor-field stock-editor-card" style="margin-top:0">
-                  <label class="stock-editor-field-label" :for="'stock-editor-simple-' + tipo" x-text="editarStock.saldoAnterior ? 'Stock (saldo anterior)' : (tipo === 'cocido' ? 'Stock cocido' : (editarStock.tieneCocido ? 'Stock crudo' : 'Stock'))"></label>
+                  <label class="stock-editor-field-label" :for="'stock-editor-simple-' + tipo" x-text="tipo === 'cocido' ? 'Stock cocido' : (editarStock.tieneCocido ? 'Stock crudo' : 'Stock')"></label>
                   <span class="stock-editor-stepper">
                     
                     <input :id="'stock-editor-simple-' + tipo" type="number" min="0" step="any" inputmode="decimal" x-model.number="editarStock[tipo]" :aria-label="'Nuevo stock ' + tipo" @keydown.enter.prevent="guardarModalStock()">
@@ -6991,7 +7018,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <p class="stock-editor-error" role="alert" x-show="editarStock.error" x-text="editarStock.error"></p>
       </div>
       <div class="stock-editor-footer">
-        <span class="stock-editor-footer-note">El ajuste quedará registrado en el inventario.</span>
+        <span class="stock-editor-footer-note" x-text="notaEditarStock()"></span>
         <div class="stock-editor-actions">
           <button type="button" class="stock-editor-button" :disabled="editarStock.guardando" @click="cerrarEditarStock()">Cancelar</button>
           <button type="button" class="stock-editor-button stock-editor-save" :disabled="editarStock.guardando" @click="guardarModalStock()">
@@ -7656,44 +7683,40 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-[#26263a]">
           <div>
             <h3 class="text-lg font-semibold text-red-200">Descuadre</h3>
-            <p class="text-xs text-[#a0a0b8] mt-1">Si el cocido se vendió y hay crudo, «Pasar crudo a cocido» usa ese crudo. En Pollada, «Pasar al crudo» mueve la venta al crudo. Ingresar stock repone lo que falta. Papas no entra.</p>
+            <p class="text-xs text-[#a0a0b8] mt-1">Del período que estás viendo. Cada línea dice qué pasó y cómo arreglarlo.</p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1 cursor-pointer" @click="descuadreAbierto = false" aria-label="Cerrar">×</button>
         </div>
-        <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-          <p x-show="filasDescuadre().length === 0" class="text-sm text-emerald-200">No hay emergencias ni saldos anteriores en negativo.</p>
-          <div x-show="filasDescuadre().length" class="overflow-x-auto rounded-lg border border-[#26263a]">
-            <table class="w-full text-xs">
-              <thead>
-                <tr class="bg-[#0a0a0f] text-[#5a5a7a] uppercase text-[11px]">
-                  <th class="text-left px-3 py-2">Producto</th>
-                  <th class="text-left px-3 py-2">Tipo</th>
-                  <th class="text-right px-3 py-2">En la hoja</th>
-                  <th class="text-right px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="item in filasDescuadre()" :key="'descuadre-' + item.id + '-' + item.tipo">
-                  <tr class="border-t border-[#26263a]">
-                    <td class="px-3 py-2 font-semibold text-white"><span x-text="item.nombre"></span> <span x-show="item.emergencia" class="ml-1 saldo-anterior-alarma px-1 rounded text-[10px]">Emergencia</span></td>
-                    <td class="px-3 py-2 text-[#a0a0b8]" x-text="item.etiqueta"></td>
-                    <td class="px-3 py-2 text-right">
-                      <span class="inline-block rounded bg-red-600 text-white font-mono font-bold px-1.5 py-0.5" x-text="item.texto"></span>
-                    </td>
-                    <td class="px-3 py-2 text-right">
-                      <button type="button" x-show="item.pasarACrudo" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-[#1a1200] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="dejarDescuadreEnCero(item)">Pasar al crudo</button>
-                      <button type="button" x-show="item.cubrirCocidoConCrudo" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-[#1a1200] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="dejarDescuadreEnCero(item)">Pasar crudo a cocido</button>
-                      <button type="button" x-show="!item.pasarACrudo && !item.cubrirCocidoConCrudo" class="px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="dejarDescuadreEnCero(item)" x-text="item.emergencia ? 'Ingresar stock' : 'Dejar en 0'"></button>
-                    </td>
-                  </tr>
+        <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-2">
+          <p x-show="filasDescuadre().length === 0" class="text-sm text-emerald-200">Todo cuadra en este período.</p>
+          <template x-for="item in filasDescuadre()" :key="'descuadre-' + item.clase + '-' + item.id + '-' + item.tipo">
+            <div class="rounded-lg border border-[#26263a] bg-[#0e0e16] px-3 py-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="text-sm font-semibold text-white" x-text="item.nombre"></span>
+                  <span class="text-[11px] text-[#a0a0b8]" x-text="item.etiqueta"></span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold" :class="item.clase === 'emergencia' ? 'bg-red-600 text-white' : (item.clase === 'apertura' ? 'bg-amber-500 text-[#1a1200]' : 'bg-[#26263a] text-[#c8c8dc]')" x-text="item.clase === 'emergencia' ? 'Faltó stock' : (item.clase === 'apertura' ? 'Apertura ajustada' : 'Conteo')"></span>
+                </div>
+                <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="item.explica"></p>
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <span class="font-mono font-bold text-sm text-white" x-text="item.titulo"></span>
+                <template x-if="item.clase === 'emergencia' && item.crudoLibre > 0">
+                  <button type="button" class="px-2.5 py-1 rounded-lg bg-[#d4af37] text-[#1a1200] text-[11px] font-extrabold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="resolverDescuadre(item, 'crudo')">Pasar crudo a cocido</button>
                 </template>
-              </tbody>
-            </table>
-          </div>
+                <template x-if="item.clase === 'emergencia'">
+                  <button type="button" class="px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="resolverDescuadre(item, 'ingreso')">Ingresar lo que falta</button>
+                </template>
+                <template x-if="item.clase === 'apertura'">
+                  <button type="button" class="px-2.5 py-1 rounded-lg border border-amber-500 text-amber-300 text-[11px] font-bold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="resolverDescuadre(item, 'apertura')">Volver a lo que quedó ayer</button>
+                </template>
+              </div>
+            </div>
+          </template>
         </div>
         <div class="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t border-[#26263a]">
           <button type="button" class="px-3 py-1.5 rounded-lg bg-[#1c1c2b] text-[#a0a0b8] text-xs font-semibold cursor-pointer" @click="descuadreAbierto = false">Cerrar</button>
-          <button type="button" x-show="filasDescuadre().length" class="px-3.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-extrabold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="dejarTodosDescuadresEnCero()" x-text="descuadreGuardando === 'todos' ? 'Resolviendo…' : 'Resolver todos'"></button>
+          <button type="button" x-show="filasDescuadre().some((i) => i.clase === 'emergencia')" class="px-3.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-extrabold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="resolverTodosDescuadres()" x-text="descuadreGuardando === 'todos' ? 'Resolviendo…' : 'Resolver lo que falta'"></button>
         </div>
       </div>
     </div>
@@ -8366,6 +8389,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1" @click="ingresoLupa = null" aria-label="Cerrar">×</button>
         </div>
+        <div class="mb-3 rounded-lg border border-cyan-800/60 bg-[#0e0e16] px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-sm">
+          <span class="text-purple-200" x-text="'Saldo anterior ' + formatNum(ingresoLupa.saldoAnterior)"></span>
+          <span class="text-[#5a5a7a]">+</span>
+          <span class="text-emerald-300" x-text="'Ingreso ' + formatNum(ingresoLupa.ingresoDia)"></span>
+          <span class="text-[#5a5a7a]">=</span>
+          <span class="font-bold text-cyan-200" x-text="'Ingreso total ' + formatNum(ingresoLupa.ingresoTotal)"></span>
+          <span x-show="ingresoLupa.tieneGrupo" class="ml-auto text-[11px] text-[#a0a0b8]" x-text="'Con sus platos: ' + formatNum(ingresoLupa.ingresoTotalGrupo)"></span>
+        </div>
         <div x-show="ingresoLupa.esOctavo" class="overflow-x-auto rounded-lg border border-[#26263a]">
           <table class="w-full text-xs">
             <thead>
@@ -8505,6 +8536,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         <!-- Resumen -->
         <div class="px-5 pt-4 pb-3 space-y-3 border-b border-[#26263a]">
+          <p x-show="ventaInfo.nota" class="text-xs text-amber-200" x-text="ventaInfo.nota"></p>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div class="venta-kpi" style="animation-delay:0ms">
               <p class="text-[10px] uppercase font-bold text-[#5a5a7a]">Total restado</p>
@@ -8567,7 +8599,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span class="text-[13px] font-semibold text-white truncate" x-text="l.nombre"></span>
-                  <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" :class="claseUsoVenta(l.uso)" x-text="l.uso || 'Crudo'"></span>
+                  <template x-for="u in usosDeLinea(l)" :key="'uso-' + u.uso">
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" :class="claseUsoVenta(u.uso)" x-text="(u.uso || 'Crudo') + (usosDeLinea(l).length > 1 ? ' · ' + formatNum(u.cantidad) : '')"></span>
+                  </template>
                 </div>
                 <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[#a0a0b8]">
                   <span class="inline-flex items-center gap-1">
@@ -9404,7 +9438,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-emerald-400 font-bold">+</span>
               <span class="proc-chip text-emerald-300 border-emerald-500/40 bg-emerald-950/50" style="--i:1" x-text="'Ing ' + formatNum(saldoRealInfo.ingreso)"></span>
               <span class="text-amber-300 font-bold" x-text="saldoRealInfo.correccion >= 0 ? '+' : '−'"></span>
-              <span class="proc-chip text-amber-200 border-amber-500/40 bg-amber-950/50" style="--i:2" x-text="'Corr ' + formatNum(Math.abs(saldoRealInfo.correccion))"></span>
+              <span class="proc-chip text-amber-200 border-amber-500/40 bg-amber-950/50" style="--i:2" x-text="'Ajustes ' + formatNum(Math.abs(saldoRealInfo.correccion))"></span>
               <span class="text-rose-400 font-bold">−</span>
               <span class="proc-chip text-rose-300 border-rose-500/40 bg-rose-950/50" style="--i:3" x-text="'Vta ' + formatNum(saldoRealInfo.ventas)"></span>
               <span class="text-rose-400 font-bold">−</span>
@@ -9427,7 +9461,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="proc-cuadre-icono" aria-hidden="true" x-text="saldoRealInfo.cuadra ? '✓' : '!'"></span>
             <p class="text-xs">
               <strong class="text-white" x-text="saldoRealInfo.cuadra ? 'Cuadra con Inventario Tabla.' : 'Hay una diferencia con Inventario Tabla.'"></strong>
-              <span class="text-[#a0a0b8]" x-text="saldoRealInfo.hayPlatos ? ('Cada paso suma la pieza y sus platos agrupados (' + saldoRealInfo.miembros + ' filas), igual que las columnas de la hoja.') : 'Cada paso usa los mismos números que las columnas de la hoja.'"></span>
+              <span class="text-[#a0a0b8]" x-text="saldoRealInfo.hayPlatos ? 'Cada paso es de esta fila, igual que las columnas. Sus platos están abajo.' : 'Cada paso usa los mismos números que las columnas de la hoja.'"></span>
             </p>
           </div>
 
@@ -10192,8 +10226,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return data;
         },
 
+        // Día operativo (04:00 a 04:00). De 00:00 a 03:59 sigue siendo el día que empezó a las 04:00.
         fechaHoy() {
-          return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date());
+          return this.ymdOperativo();
         },
 
         norm(s) {
@@ -11322,7 +11357,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         ymdOperativo(fecha) {
-          const instante = fecha || new Date();
+          const instante = fecha ? new Date(fecha) : new Date();
           const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(instante);
           const hora = Number(new Intl.DateTimeFormat('en-GB', {
             timeZone: 'America/Lima', hour: '2-digit', hourCycle: 'h23'
@@ -11599,13 +11634,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         abrirVentaFila(row) {
           const clave = this.claveDeFila[row.id];
           const propia = this.filaPachamancaIndependiente(row);
-          const total = propia
-            ? this.ventaColumna(row)
-            : (this.valorTipo(row, 'venta', 'crudo') + this.valorTipo(row, 'venta', 'cocido'));
           this.abrirVenta({
             id: row.id,
             nombre: row.nombre,
-            venta: total,
+            venta: this.ventaColumna(row),
             clave: clave,
             claves: propia ? [clave] : this.clavesVentaDe(row),
             incluirCubierta: propia
@@ -11698,7 +11730,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (usos.indexOf(uso) < 0) usos.push(uso);
             });
             const escrito = g.movs.map((m) => this.motivoEscritoVenta(m.motivo)).find((t) => t) || '';
+            const propia = visibles.reduce((a, m) => a + (m.rubro === (f && f.clave) ? (Number(m.cantidad) || 0) : 0), 0);
             lineas.push({
+              propia,
+              usos: [{ uso: usos.join(' · '), cantidad }],
               nombre: primero.nombre || (f && f.nombre) || 'Descarga manual',
               cantidad,
               platos: cantidad,
@@ -11751,27 +11786,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const claves = new Set((f && f.claves) || [f && f.clave]);
           const ventas = pack && pack.ventas ? pack.ventas : [];
           const movimientos = pack && pack.movimientos ? pack.movimientos : [];
-          const map = {};
-          const sumar = (nombre, cantidad, comanda, extra, uso) => {
-            const n = Number(cantidad) || 0;
-            if (!nombre || !n) return;
-            const etiqueta = comanda || '—';
-            const variable = uso || 'Crudo';
-            const key = etiqueta + '\0' + nombre + '\0' + variable;
-            if (!map[key]) {
-              map[key] = {
-                nombre: nombre,
-                cantidad: 0,
-                platos: 0,
-                factor: Number(extra && extra.factor) > 0 ? Number(extra.factor) : 1,
-                comanda: etiqueta,
-                comandaId: extra && extra.comandaId ? String(extra.comandaId) : '',
-                hora: extra && extra.hora ? extra.hora : null,
-                uso: variable
-              };
+          const map = new Map();
+          // Un plato de una comanda es una sola línea, aunque haya salido de cocido y crudo
+          // o de dos productos. Debajo se ve de dónde salió cada parte.
+          const sumar = (datos) => {
+            const n = Number(datos.cantidad) || 0;
+            if (!datos.nombre || !n) return;
+            const etiqueta = datos.comanda || '—';
+            const comandaId = datos.comandaId ? String(datos.comandaId) : '';
+            const key = (comandaId || etiqueta) + '\u0000' + this.norm(datos.nombre);
+            let l = map.get(key);
+            if (!l) {
+              l = { nombre: datos.nombre, cantidad: 0, platos: 0, factor: 1, comanda: etiqueta, comandaId, hora: datos.hora || null, uso: '', usos: [], propia: 0, porOrigen: {} };
+              map.set(key, l);
             }
-            map[key].cantidad += n;
-            map[key].platos += Number(extra && extra.platos) > 0 ? Number(extra.platos) : n;
+            l.cantidad += n;
+            const origen = datos.origen || '';
+            l.porOrigen[origen] = (l.porOrigen[origen] || 0) + (Number(datos.platos) > 0 ? Number(datos.platos) : n);
+            let u = l.usos.find((x) => x.uso === datos.uso);
+            if (!u) {
+              u = { uso: datos.uso, cantidad: 0 };
+              l.usos.push(u);
+            }
+            u.cantidad += n;
+            if (datos.propia) l.propia += n;
           };
           const usoDe = (v) => {
             const rubro = v && (v.rubro || v.plato);
@@ -11804,7 +11842,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               : [{ nombre: v.nombre || rubro, cantidad: v.cantidad, comanda: '', hora: v.fecha }];
             partes.forEach((p) => {
               if (f.clave === 'pechuga-pollo' && !this.lineaEsDePecho(rubro, p.nombre || v.nombre)) return;
-              sumar(p.nombre, p.cantidad, p.comanda, p, uso);
+              sumar({
+                nombre: p.nombre,
+                cantidad: p.cantidad,
+                comanda: p.comanda,
+                comandaId: p.comandaId,
+                hora: p.hora || v.fecha,
+                platos: p.platos,
+                uso,
+                origen: v.origen || rubro,
+                propia: rubro === (f && f.clave)
+              });
             });
           });
           (movimientos || []).forEach((m) => {
@@ -11813,21 +11861,48 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (motivo.indexOf('Venta') !== 0 || motivo.indexOf('Venta manual') === 0) return;
             const tipo = m.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
             const esPrincipal = m.rubro === (f && f.clave);
-            const uso = esPrincipal
-              ? ('Principal — ' + (f.nombre || m.nombre || m.rubro))
-              : (tipo + ' — ' + (m.nombre || m.rubro));
-            sumar(m.nombre || f.nombre || motivo, m.cantidad, motivo, { hora: m.fecha, factor: 1, platos: m.cantidad }, uso);
+            sumar({
+              nombre: m.nombre || f.nombre || motivo,
+              cantidad: m.cantidad,
+              comanda: motivo,
+              hora: m.fecha,
+              platos: m.cantidad,
+              uso: esPrincipal ? ('Principal — ' + (f.nombre || m.nombre || m.rubro)) : (tipo + ' — ' + (m.nombre || m.rubro)),
+              origen: m.rubro,
+              propia: esPrincipal
+            });
           });
-          const lineas = Object.keys(map).map((key) => map[key]).concat(this.lineasDeVentaManual(movimientos, claves, f)).sort((a, b) => {
+          const deComandas = Array.from(map.values()).map((l) => {
+            // Cocido y crudo de un mismo producto suman platos. Dos productos del mismo plato no.
+            l.platos = this.redondear3(Object.keys(l.porOrigen).reduce((a, k) => Math.max(a, l.porOrigen[k]), 0));
+            delete l.porOrigen;
+            l.cantidad = this.redondear3(l.cantidad);
+            l.propia = this.redondear3(l.propia);
+            l.factor = l.platos > 0 ? this.redondear3(l.cantidad / l.platos) : 1;
+            l.usos.sort((a, b) => b.cantidad - a.cantidad);
+            l.usos.forEach((u) => { u.cantidad = this.redondear3(u.cantidad); });
+            l.uso = l.usos.length ? l.usos[0].uso : '';
+            return l;
+          });
+          const lineas = deComandas.concat(this.lineasDeVentaManual(movimientos, claves, f)).sort((a, b) => {
             const c = String(a.comanda).localeCompare(String(b.comanda), 'es');
             return c || String(a.nombre).localeCompare(String(b.nombre), 'es');
           });
-          const totalLineas = lineas.reduce((a, l) => a + (Number(l.cantidad) || 0), 0);
+          const totalLineas = this.redondear3(lineas.reduce((a, l) => a + (Number(l.cantidad) || 0), 0));
+          const propia = this.redondear3(lineas.reduce((a, l) => a + (Number(l.propia) || 0), 0));
+          let nota = '';
+          if (f && f.clave && Math.abs(totalLineas - propia) > 0.0005) {
+            nota = propia > 0
+              ? ('De esta fila se restaron ' + this.formatNum(propia) + '. Los otros ' + this.formatNum(this.redondear3(totalLineas - propia)) + ' salieron de sus platos o de la pieza principal.')
+              : 'Estas ventas no restan el stock de esta fila: salieron de sus platos o de la pieza principal.';
+          }
           const yaAbierta = this.ventaAbierta && !this.ventaCerrando;
           clearTimeout(this._ventaCierreTimer);
           this.ventaInfo = {
             nombre: f.nombre,
             total: totalLineas || f.venta,
+            propia,
+            nota,
             lineas: lineas,
             esOctavo: !!(f && (f.id === 'octavo_pollo' || f.clave === 'octavo-pollo' || this.esPlatoOctavo({ id: f.id, nombre: f.nombre, filaId: f.id })))
           };
@@ -11863,13 +11938,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.sonarVenta('filtro');
         },
 
-        categoriaUsoVenta(l) {
-          if (!l) return 'crudo';
-          if (l.manual) return 'manual';
-          const u = String(l.uso || '');
+        categoriaDeUso(uso) {
+          const u = String(uso || '');
           if (u.indexOf('Principal') === 0) return 'reserva';
           if (u.indexOf('Cocido') === 0) return 'cocido';
           return 'crudo';
+        },
+
+        categoriaUsoVenta(l) {
+          if (!l) return 'crudo';
+          return l.manual ? 'manual' : this.categoriaDeUso(l.uso);
+        },
+
+        usosDeLinea(l) {
+          return l && l.usos && l.usos.length ? l.usos : [{ uso: l && l.uso, cantidad: l && l.cantidad }];
         },
 
         colorUsoVenta(l) {
@@ -11891,9 +11973,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           let total = 0;
           lineas.forEach((l) => {
             const n = Number(l.cantidad) || 0;
-            const cat = this.categoriaUsoVenta(l);
-            porUso[cat] += n;
-            cuenta[cat] += 1;
+            this.usosDeLinea(l).forEach((u) => {
+              const cat = l.manual ? 'manual' : this.categoriaDeUso(u.uso);
+              porUso[cat] += Number(u.cantidad) || 0;
+              cuenta[cat] += 1;
+            });
             total += n;
             if (l.comandaId) comandas.add(String(l.comandaId));
             else if (!l.manual && l.comanda && l.comanda !== '—') comandas.add(String(l.comanda));
@@ -11919,7 +12003,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const c = this._vistaVenta;
           if (c && c.info === info && c.filtro === filtro && c.q === q) return c.list;
           const list = ((info && info.lineas) || [])
-            .filter((l) => filtro === 'todos' || this.categoriaUsoVenta(l) === filtro)
+            .filter((l) => filtro === 'todos' || this.usosDeLinea(l).some((u) => (l.manual ? 'manual' : this.categoriaDeUso(u.uso)) === filtro))
             .filter((l) => !q || this.norm((l.nombre || '') + ' ' + (l.comanda || '') + ' ' + (l.motivo || '')).includes(q))
             .slice()
             .sort((a, b) => {
@@ -12071,7 +12155,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.rows.push({
               id: rubro,
               grupo: grupo,
-              nombre: (detalle && detalle.nombre) || v.nombre || rubro,
+              // v.nombre es el producto. El detalle es el plato vendido, que puede ser otro.
+              nombre: (v.nombre && v.nombre !== rubro ? v.nombre : '') || (detalle && detalle.nombre) || rubro,
               detalle: grupo === 'gaseosas' ? 'Gaseosa' : (grupo === 'bebidas' ? 'Agua' : 'Licor'),
               unidad: 'unid',
               saldoAnterior: 0,
@@ -12126,16 +12211,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return { rubro, tipo, n, sinSaldo: !!v.sinSaldo };
         },
 
-        resumenKardex(filas, movimientos, ventas) {
-          const ventaComanda = {};
-          const cubiertaComanda = {};
-          (ventas || []).forEach((v) => {
-            const nv = this.ventaKardexNormalizada(v);
-            if (!nv) return;
-            const key = nv.rubro + '|' + nv.tipo;
-            ventaComanda[key] = (ventaComanda[key] || 0) + nv.n;
-            if (nv.sinSaldo) cubiertaComanda[key] = (cubiertaComanda[key] || 0) + nv.n;
-          });
+        resumenKardex(filas) {
           const porClave = {};
           (filas || []).forEach((f) => {
             const clave = f.rubro || f.plato;
@@ -12143,59 +12219,49 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!porClave[clave]) porClave[clave] = [];
             porClave[clave].push(f);
           });
-          const pases = new Map();
-          (movimientos || []).forEach((m) => {
-            if (!m || m.clase !== 'ingreso') return;
-            const motivo = String(m.motivo || '');
-            if (motivo.indexOf('Pasa a ') !== 0 || this.esPaseEntreTipos(motivo)) return;
-            const key = m.rubro + '|' + (m.tipoProducto || 'crudo');
-            pases.set(key, (pases.get(key) || 0) - (Number(m.cantidad) || 0));
-          });
-          return { ventaComanda, cubiertaComanda, porClave, pases };
+          return { porClave };
         },
 
         // Columnas de una fila para un resumen del kardex (mismos nombres de campo que la fila).
         // null = el kardex no trae nada de esa clave y la fila se deja como está.
         valoresKardexFila(rk, clave, row) {
           const partes = rk.porClave[clave] || [];
-          if (!partes.length && !rk.ventaComanda[clave + '|crudo'] && !rk.ventaComanda[clave + '|cocido']) return null;
-          const sale = (tipo) => Math.max(0, Math.round((rk.pases.get(clave + '|' + tipo) || 0) * 1000) / 1000);
+          if (!partes.length) return null;
           const crudo = partes.find((p) => p.tipoProducto === 'crudo') || {};
           const cocido = partes.find((p) => p.tipoProducto === 'cocido') || {};
           const v = {};
           const carga = (p, tipo) => {
-            const s = sale(tipo);
-            v[this.campoTipo('saldoAnterior', tipo)] = Number(p.saldoInicial) || 0;
-            v[this.campoTipo('ingreso', tipo)] = (Number(p.ingresos) || 0) + s;
-            v[this.campoTipo('correccion', tipo)] = Number(p.regulacion) || 0;
-            v[this.campoTipo('venta', tipo)] = (Number(p.egreso) || 0) + (rk.ventaComanda[clave + '|' + tipo] || 0);
-            v[this.campoTipo('cubierta', tipo)] = rk.cubiertaComanda[clave + '|' + tipo] || 0;
-            v[this.campoTipo('transformacion', tipo)] = s;
-            v[this.campoTipo('inventario', tipo)] = p.tieneConteo ? (Number(p.conteo) || 0) : null;
+            const poner = (base, valor) => { v[this.campoTipo(base, tipo)] = valor; };
+            poner('saldoAnterior', Number(p.saldoInicial) || 0);
+            poner('cierreAnterior', Number(p.cierreAnterior) || 0);
+            poner('ajusteApertura', Number(p.ajusteApertura) || 0);
+            poner('ingreso', Number(p.ingresoBruto) || 0);
+            poner('correccion', (Number(p.regulacion) || 0) + (Number(p.ajuste) || 0));
+            poner('venta', (Number(p.egreso) || 0) + (Number(p.venta) || 0));
+            poner('cubierta', Number(p.cubierta) || 0);
+            poner('transformacion', Number(p.transformacion) || 0);
+            poner('inventario', p.tieneConteo ? (Number(p.conteo) || 0) : null);
+            poner('difConteo', p.tieneConteo ? (Number(p.difConteo) || 0) : null);
           };
           carga(crudo, 'crudo');
           carga(cocido, 'cocido');
-          const bases = ['saldoAnterior', 'ingreso', 'correccion', 'venta', 'transformacion', 'cubierta'];
-          if (!row.tieneCocido) {
+          const bases = ['saldoAnterior', 'cierreAnterior', 'ajusteApertura', 'ingreso', 'correccion', 'venta', 'transformacion', 'cubierta'];
+          const mover = (de, a) => {
             bases.forEach((b) => {
-              v[b] += Number(v[b + 'Cocido']) || 0;
-              v[b + 'Cocido'] = 0;
+              v[b + a] = (Number(v[b + a]) || 0) + (Number(v[b + de]) || 0);
+              v[b + de] = 0;
             });
-            if (v.inventarioCocido !== null) v.inventario = (Number(v.inventario) || 0) + Number(v.inventarioCocido);
-            v.inventarioCocido = null;
-          }
-          v.crudo = Number(crudo.baja) || 0;
-          v.cocido = Number(cocido.baja) || 0;
+            ['inventario', 'difConteo'].forEach((b) => {
+              if (v[b + de] !== null && v[b + de] !== undefined) v[b + a] = (Number(v[b + a]) || 0) + Number(v[b + de]);
+              v[b + de] = null;
+            });
+          };
+          if (!row.tieneCocido) mover('Cocido', '');
+          v.crudo = Number(crudo.queda) || 0;
+          v.cocido = Number(cocido.queda) || 0;
           if (row.soloCocido) {
-            bases.forEach((b) => {
-              v[b + 'Cocido'] = (Number(v[b + 'Cocido']) || 0) + (Number(v[b]) || 0);
-              v[b] = 0;
-            });
-            if (v.inventario !== null && v.inventario !== undefined && v.inventario !== '') {
-              v.inventarioCocido = (Number(v.inventarioCocido) || 0) + (Number(v.inventario) || 0);
-              v.inventario = null;
-            }
-            v.cocido = (Number(v.crudo) || 0) + (Number(v.cocido) || 0);
+            mover('', 'Cocido');
+            v.cocido = v.crudo + v.cocido;
             v.crudo = 0;
           }
           return v;
@@ -12203,22 +12269,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         aplicarKardex(filas, movimientos, ventas) {
           this.asegurarFilasVendidas(ventas);
-          const rk = this.resumenKardex(filas, movimientos, ventas);
+          const rk = this.resumenKardex(filas);
           const porClave = rk.porClave;
+          const enCero = { porClave: { vacia: [{ tipoProducto: 'crudo' }, { tipoProducto: 'cocido' }] } };
           this.rows.forEach((row) => {
-            const vals = this.valoresKardexFila(rk, this.claveDeFila[row.id], row);
-            if (vals) Object.assign(row, vals);
+            // Sin datos en este período la fila va en 0. Antes se quedaba con los números del período anterior.
+            const vals = this.valoresKardexFila(rk, this.claveDeFila[row.id], row) || this.valoresKardexFila(enCero, 'vacia', row);
+            Object.assign(row, vals);
           });
           this.syncIngresoDirecto();
           this.tocarHoja();
           this.eventos.forEach((ev) => {
             const partes = porClave[ev.clave] || [];
             if (!partes.length) return;
-            ev.disponible = partes.reduce((a, p) => {
-              if (p.saldoFinal != null && p.saldoFinal !== '') return a + (Number(p.saldoFinal) || 0);
-              const total = (Number(p.saldoInicial) || 0) + (Number(p.ingresos) || 0) + (Number(p.regulacion) || 0);
-              return a + total - (Number(p.egreso) || 0);
-            }, 0);
+            ev.disponible = partes.reduce((a, p) => a + (Number(p.queda) || 0), 0);
           });
         },
 
@@ -12885,7 +12949,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               id: gid,
               nombre: padre.nombre,
               unidad: padre.unidad || 'unid',
-              stock: this.redondear3(this.saldoRealColumna(padre)),
+              stock: this.quedaGrupo(padre),
               cuantos: hijos.length
             });
             visibles.forEach((h) => {
@@ -13652,7 +13716,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const coincideGrupo = !q || this.norm(padre.nombre).includes(q);
             const visibles = coincideGrupo ? hijos : hijos.filter((h) => this.norm(h.nombre).includes(q));
             if (!visibles.length) return;
-            out.push({ kind: 'grupo', id: gid, nombre: padre.nombre, unidad: padre.unidad || 'unid', stock: this.redondear3(this.saldoRealColumna(padre)), cuantos: hijos.length });
+            out.push({ kind: 'grupo', id: gid, nombre: padre.nombre, unidad: padre.unidad || 'unid', stock: this.quedaGrupo(padre), cuantos: hijos.length });
             visibles.forEach((h) => out.push(this.itemBloqueo(h, { enGrupo: true, grupoNombre: padre.nombre })));
           });
           const sueltas = (this.rows || [])
@@ -14878,26 +14942,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return v === null || v === undefined || v === '' ? null : Number(v);
         },
 
+        // Ingreso total = Saldo anterior + Ingreso. Nada más.
         calcIngresoTotalTipo(row, tipo) {
-          const ant = this.valorTipo(row, 'saldoAnterior', tipo);
-          const base = (row && row.id === 'pollada' ? ant : Math.max(0, ant)) + this.valorTipo(row, 'ingreso', tipo) + this.valorTipo(row, 'correccion', tipo);
-          return row && row.id === 'pollada' ? base : Math.max(0, base);
+          return this.redondear3(Math.max(0, this.valorTipo(row, 'saldoAnterior', tipo)) + this.valorTipo(row, 'ingreso', tipo));
         },
 
+        // Queda = Ingreso total − Venta − Transformación + Cubierta + Corrección. Es el stock de la fila,
+        // el mismo número en la tabla, en Transformar y en el lápiz. Lo calcula igual el servidor.
         calcSaldoTipo(row, tipo) {
-          const n = this.calcIngresoTotalTipo(row, tipo) - this.valorTipo(row, 'venta', tipo) - this.valorTipo(row, 'transformacion', tipo) + this.valorTipo(row, 'cubierta', tipo);
-          return Math.max(0, n);
+          return Math.max(0, this.quedaSinTopeTipo(row, tipo));
         },
 
         calcSaldoRealTipo(row, tipo) {
-          const c = this.conteoTipo(row, tipo);
-          const n = c === null ? this.calcSaldoTipo(row, tipo) : c;
-          return Math.max(0, n);
+          return this.calcSaldoTipo(row, tipo);
         },
 
+        // Sobrante (+) o faltante (−) que encontró el último conteo frente al stock de ese momento.
         calcDiferenciaTipo(row, tipo) {
-          const c = this.conteoTipo(row, tipo);
-          return c === null ? null : c - this.calcSaldoTipo(row, tipo);
+          if (this.conteoTipo(row, tipo) === null) return null;
+          return this.redondear3(Number(row[this.campoTipo('difConteo', tipo)]) || 0);
         },
 
         // id → nodo del árbol. Los árboles (arbolPollo, arbolesGrupo) son fijos: se indexan una vez.
@@ -14957,15 +15020,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return out;
         },
 
-        creditoPlatos(row) {
-          if (!row) return 0;
-          return this.platosOcultosDe(row.id).reduce((a, n) => {
-            const hijo = this.filaReal(n.id);
-            if (!hijo) return a;
-            return a + this.tiposDe(hijo).reduce((s, t) => s + this.calcIngresoTotalTipo(hijo, t), 0);
-          }, 0);
-        },
-
         saldoPlatosOcultos(row) {
           if (!row) return 0;
           return this.platosOcultosDe(row.id).reduce((a, n) => {
@@ -15011,23 +15065,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return out;
         },
 
-        sumaDeTransformaciones(row, leer) {
-          return this.filasTransformacionDe(row).reduce((a, hijo) => a + leer(hijo), 0);
-        },
-
         saldoAnteriorColumnaTipo(row, tipo) {
-          const ant = this.valorTipo(row, 'saldoAnterior', tipo);
-          const propio = (row && row.id === 'pollada') ? ant : Math.max(0, ant);
-          return this.redondear3(propio);
-        },
-
-        huecoSaldoTipo(row, tipo) {
-          const ant = this.valorTipo(row, 'saldoAnterior', tipo);
-          const movimiento = this.valorTipo(row, 'ingreso', tipo) + this.valorTipo(row, 'correccion', tipo) - this.valorTipo(row, 'venta', tipo) - this.valorTipo(row, 'transformacion', tipo) + this.valorTipo(row, 'cubierta', tipo);
-          const real = ant + movimiento;
-          if (row && row.id === 'pollada' && real >= -0.0004) return 0;
-          if (real < -0.0004) return real;
-          return Math.min(0, ant);
+          return this.redondear3(Math.max(0, this.valorTipo(row, 'saldoAnterior', tipo)));
         },
 
         esFilaPapas(row) {
@@ -15038,8 +15077,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         quedaSinTopeTipo(row, tipo) {
-          const n = this.calcIngresoTotalTipo(row, tipo) - this.valorTipo(row, 'venta', tipo) - this.valorTipo(row, 'transformacion', tipo) + this.valorTipo(row, 'cubierta', tipo);
-          return this.redondear3(n);
+          return this.redondear3(this.calcIngresoTotalTipo(row, tipo)
+            + this.valorTipo(row, 'correccion', tipo)
+            - this.valorTipo(row, 'venta', tipo)
+            - this.valorTipo(row, 'transformacion', tipo)
+            + this.valorTipo(row, 'cubierta', tipo));
         },
 
         esVentaStockGeneral(rubro) {
@@ -15057,50 +15099,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return clave === 'helados' || clave === 'delicias' || clave === 'yuca' || clave === 'cuy' || clave === 'bisteck' || clave === 'lomo-fino' || clave === 'carne-guiso' || clave === 'seco-res' || clave === 'humita' || clave === 'trucha' || clave === 'filete-trucha' || clave === 'pieza-pescado' || clave === 'filete' || clave.indexOf('frugos') === 0 || clave.indexOf('pizza') === 0 || clave.indexOf('gaseosa-') === 0 || clave.indexOf('licor-') === 0 || clave.indexOf('agua-') === 0;
         },
 
-        esDescargaPropia(motivo) {
-          const m = String(motivo || '');
-          return m.indexOf('Venta manual') === 0 || m.indexOf('Venta especial') === 0;
-        },
-
-        descargaPropiaTipo(row, tipo) {
-          if (!row) return 0;
-          const clave = this.claveDeFila && this.claveDeFila[row.id];
-          if (!clave) return 0;
-          const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
-          const total = (this.movimientosPeriodo || []).reduce((a, m) => {
-            if (!m || m.rubro !== clave || m.clase !== 'egreso') return a;
-            if ((m.tipoProducto || 'crudo') !== tipoOk) return a;
-            if (!this.esDescargaPropia(m.motivo)) return a;
-            return a + Math.abs(Number(m.cantidad) || 0);
-          }, 0);
-          return this.redondear3(total);
-        },
-
-        ventaDeComandaTipo(row, tipo) {
-          const tipos = tipo ? [tipo] : this.tiposDe(row);
-          return this.redondear3(tipos.reduce((a, t) => {
-            return a + Math.max(0, this.ventaNetaTipo(row, t) - this.descargaPropiaTipo(row, t));
-          }, 0));
-        },
-
-        faltaStockGeneral(row) {
-          if (!row || !this.stockGeneral(row)) return 0;
-          const venta = this.ventaDeComandaTipo(row);
-          if (!(venta > 0.0004)) return 0;
-          const queda = this.tiposDe(row).reduce((a, t) => a + this.quedaSinTopeTipo(row, t), 0);
-          return queda < -0.0004 ? this.redondear3(queda) : 0;
-        },
-
+        // Emergencia: se restó más de lo que había. Se ve en este día; mañana abre en 0.
         emergenciaTipo(row, tipo) {
           if (!row || this.esFilaPapas(row)) return false;
-          if (this.stockGeneral(row)) return tipo === 'crudo' && this.faltaStockGeneral(row) < -0.0004;
-          if (!(this.ventaDeComandaTipo(row, tipo) > 0.0004)) return false;
           return this.quedaSinTopeTipo(row, tipo) < -0.0004;
         },
 
         emergenciaFila(row) {
           if (!row || this.esFilaPapas(row)) return false;
-          if (this.ventaSinCocido(row)) return true;
           return this.tiposDe(row).some((tipo) => this.emergenciaTipo(row, tipo));
         },
 
@@ -15117,13 +15123,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const emergencia = tipo ? this.emergenciaTipo(row, tipo) : this.emergenciaFila(row);
           if (!emergencia) return 'Queda';
           const n = tipo ? this.quedaSinTopeTipo(row, tipo) : this.tiposDe(row).reduce((a, t) => a + Math.min(0, this.quedaSinTopeTipo(row, t)), 0);
-          return 'Emergencia: faltan ' + this.formatNum(Math.abs(n)) + '. Hay ventas y Queda no puede bajar de 0. Ingresa stock en Descuadre.';
-        },
-
-        descuadrePropio(row, tipo) {
-          if (!row) return 0;
-          const tipos = tipo ? [tipo] : this.tiposDe(row);
-          return this.redondear3(tipos.reduce((a, t) => a + this.huecoSaldoTipo(row, t), 0));
+          return 'Emergencia: faltan ' + this.formatNum(Math.abs(n)) + '. Se restó más de lo que había. Resuélvelo en Descuadre.';
         },
 
         saldoAnteriorColumna(row) {
@@ -15135,169 +15135,138 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return String(this.formatNum(valor));
         },
 
-        tituloSaldoAnterior(row, tipo) {
-          return 'Saldo anterior';
+        ajusteAperturaFila(row, tipo) {
+          const tipos = tipo ? [tipo] : this.tiposDe(row);
+          return this.redondear3(tipos.reduce((a, t) => a + this.valorTipo(row, 'ajusteApertura', t), 0));
         },
 
+        tituloSaldoAnterior(row, tipo) {
+          const tipos = tipo ? [tipo] : this.tiposDe(row);
+          const ayer = this.redondear3(tipos.reduce((a, t) => a + this.valorTipo(row, 'cierreAnterior', t), 0));
+          const ajuste = this.ajusteAperturaFila(row, tipo);
+          if (Math.abs(ajuste) < 0.0005) return 'Lo que quedó el día anterior: ' + this.formatNum(ayer);
+          return 'El día anterior quedó ' + this.formatNum(ayer) + '. Ajuste de apertura: ' + (ajuste > 0 ? '+' : '−') + this.formatNum(Math.abs(ajuste)) + '.';
+        },
+
+        // Tres situaciones distintas, cada una con su salida:
+        // emergencia = se restó más de lo que había · apertura = hoy no abre con lo que quedó ayer
+        // · conteo = lo contado no coincidía con el stock (ya quedó corregido, es informativo).
         filasDescuadre() {
-          const vistos = new Set();
+          const n = (v) => this.formatNum(this.redondear3(v));
           const out = [];
           (this.rows || []).forEach((row) => {
-            if (!row || !row.id || this.esFilaPapas(row)) return;
+            if (!row || !row.id || this.esFilaPapas(row) || !this.claveDeFila[row.id]) return;
             this.tiposDe(row).forEach((tipo) => {
-              const marca = row.id + '|' + tipo;
-              if (vistos.has(marca)) return;
-              const emergencia = this.emergenciaTipo(row, tipo);
-              if (emergencia && tipo === 'crudo' && this.ventaSinCocido(row)) return;
-              const real = (emergencia && this.stockGeneral(row))
-                ? this.faltaStockGeneral(row)
-                : (emergencia ? this.quedaSinTopeTipo(row, tipo) : this.huecoSaldoTipo(row, tipo));
-              if (real >= -0.0004) return;
-              vistos.add(marca);
-              out.push({
-                id: row.id,
-                nombre: row.nombre,
-                tipo: tipo,
-                emergencia: emergencia,
-                pasarACrudo: row.id === 'pollada' && tipo === 'cocido' && this.quedaSinTopeTipo(row, 'crudo') > 0.0004,
-                cubrirCocidoConCrudo: this.cubreCocidoConCrudo(row, tipo),
-                etiqueta: this.etiquetaTipo(tipo, row),
-                real: real,
-                texto: '0 (' + this.formatNum(real) + ')'
-              });
+              const base = { id: row.id, nombre: row.nombre, tipo, etiqueta: this.etiquetaTipo(tipo, row) };
+              const sinTope = this.quedaSinTopeTipo(row, tipo);
+              if (sinTope < -0.0004) {
+                const falta = this.redondear3(-sinTope);
+                const crudoLibre = this.crudoLibreParaCocido(row, tipo);
+                out.push(Object.assign({}, base, {
+                  clase: 'emergencia', orden: 0, falta, crudoLibre,
+                  titulo: 'Faltan ' + n(falta),
+                  explica: 'Se vendió o se descargó más de lo que había.' + (crudoLibre > 0 ? ' Hay ' + n(crudoLibre) + ' en crudo.' : '')
+                }));
+              }
+              const ajuste = this.valorTipo(row, 'ajusteApertura', tipo);
+              if (Math.abs(ajuste) > 0.0004) {
+                out.push(Object.assign({}, base, {
+                  clase: 'apertura', orden: 1, ajuste: this.redondear3(ajuste),
+                  titulo: (ajuste > 0 ? '+' : '−') + n(Math.abs(ajuste)),
+                  explica: 'Quedó ' + n(this.valorTipo(row, 'cierreAnterior', tipo)) + ' el día anterior y abre con ' + n(this.saldoAnteriorColumnaTipo(row, tipo)) + '.'
+                }));
+              }
+              const dif = this.calcDiferenciaTipo(row, tipo);
+              if (dif !== null && Math.abs(dif) > 0.0004) {
+                const contado = this.conteoTipo(row, tipo);
+                out.push(Object.assign({}, base, {
+                  clase: 'conteo', orden: 2,
+                  titulo: (dif > 0 ? 'Sobraron ' : 'Faltaron ') + n(Math.abs(dif)),
+                  explica: 'Se contó ' + n(contado) + ' y el sistema esperaba ' + n(contado - dif) + '. El stock ya quedó en lo contado.'
+                }));
+              }
             });
           });
-          (this.rows || []).forEach((row) => {
-            if (!row || !row.id || this.esFilaPapas(row) || !this.ventaSinCocido(row)) return;
-            const marca = row.id + '|cocido';
-            if (vistos.has(marca)) return;
-            const real = this.faltanteCocidoVenta(row);
-            if (real >= -0.0004) return;
-            vistos.add(marca);
-            out.push({
-              id: row.id,
-              nombre: row.nombre,
-              tipo: 'cocido',
-              emergencia: true,
-              pasarACrudo: row.id === 'pollada' && this.quedaSinTopeTipo(row, 'crudo') > 0.0004,
-              cubrirCocidoConCrudo: this.cubreCocidoConCrudo(row, 'cocido'),
-              etiqueta: 'Cocido',
-              real: real,
-              texto: '0 (' + this.formatNum(real) + ')'
-            });
-          });
-          out.sort((a, b) => (Number(b.emergencia) - Number(a.emergencia)) || (a.real - b.real) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
+          out.sort((a, b) => (a.orden - b.orden) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
           return out;
         },
 
-        async dejarDescuadreEnCero(item) {
+        // Lo que pide atención. Las diferencias de conteo ya están resueltas: no prenden la alerta.
+        cuentaDescuadre() {
+          return this.filasDescuadre().filter((i) => i.clase !== 'conteo').length;
+        },
+
+        crudoLibreParaCocido(row, tipo) {
+          if (!row || tipo !== 'cocido' || !row.tieneCocido || row.soloCocido) return 0;
+          return this.redondear3(Math.max(0, this.calcSaldoTipo(row, 'crudo') - (this.reservaDe(row.id, 'crudo') || 0)));
+        },
+
+        // Fecha para escribir en el período que se está viendo. Hoy: la pone el servidor. Un día pasado: su cierre.
+        fechaCierreVista() {
+          const hasta = String((this.rangoVista() || {}).hasta || '');
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(hasta) || hasta >= this.ymdOperativo()) return undefined;
+          return this.diaOffset(hasta, 1) + 'T03:59:00-05:00';
+        },
+
+        async resolverDescuadre(item, accion) {
           if (!item || this.descuadreGuardando) return;
-          this.descuadreGuardando = item.id + '|' + item.tipo;
+          this.descuadreGuardando = item.id + '|' + item.tipo + '|' + item.clase;
           try {
-            if (item.pasarACrudo) await this.pasarVentasPolladaACrudo(item);
-            else if (item.cubrirCocidoConCrudo) await this.pasarCrudoDescuadreACocido(item);
-            else await this.aplicarCeroDescuadre([item]);
+            await this.aplicarDescuadre(item, accion);
+          } catch (e) {
+            this.toastMessage = (e && e.message) || 'No se pudo resolver el descuadre';
           } finally {
             this.descuadreGuardando = '';
+            await this.cargarKardex();
           }
         },
 
-        cubreCocidoConCrudo(row, tipo) {
-          if (!row || tipo !== 'cocido' || row.id === 'pollada' || row.soloCocido || !row.tieneCocido || this.stockGeneral(row)) return false;
-          if (!(this.quedaSinTopeTipo(row, 'cocido') < -0.0004)) return false;
-          const libre = this.calcSaldoTipo(row, 'crudo') - (this.reservaDe(row.id, 'crudo') || 0);
-          return libre > 0.0004;
-        },
-
-        async pasarCrudoDescuadreACocido(item) {
-          try {
-            const row = this.filaReal(item && item.id);
-            if (!row) return;
-            const falta = this.redondear3(Math.abs(Math.min(0, this.quedaSinTopeTipo(row, 'cocido'))));
-            const libre = this.redondear3(Math.max(0, this.calcSaldoTipo(row, 'crudo') - (this.reservaDe(row.id, 'crudo') || 0)));
-            const n = Math.round(Math.min(falta, libre));
+        async aplicarDescuadre(item, accion) {
+          const row = this.filaReal(item.id);
+          const clave = row && this.claveDeFila[row.id];
+          if (!row || !clave) return;
+          if (accion === 'apertura') {
+            const ajuste = this.redondear3(this.valorTipo(row, 'ajusteApertura', item.tipo));
+            if (!ajuste) return;
+            await this.paso(clave, item.tipo, -ajuste, 'Ajuste apertura · vuelve a lo que quedó ayer', 'ingreso', row.nombre, this.fechaSaldoAnterior());
+            this.toastMessage = row.nombre + ': abre otra vez con lo que quedó el día anterior.';
+            return;
+          }
+          let falta = this.redondear3(-Math.min(0, this.quedaSinTopeTipo(row, item.tipo)));
+          if (!(falta > 0)) return;
+          if (accion === 'crudo') {
+            const n = Math.round(Math.min(falta, this.crudoLibreParaCocido(row, item.tipo)));
             if (!(n > 0)) {
-              this.toastMessage = 'No hay crudo libre para cubrir el cocido vendido de ' + row.nombre + '.';
+              this.toastMessage = 'No hay crudo libre para cubrir el cocido de ' + row.nombre + '.';
               return;
             }
-            const ok = this.pasarCrudoACocido(row.id, n);
-            if (ok === false) return;
+            if (this.pasarCrudoACocido(row.id, n) === false) return;
             await (this._colaTransformar || Promise.resolve());
-            await this.cargarKardex();
             this.toastMessage = 'Se pasaron ' + this.formatNum(n) + ' de crudo a cocido en ' + row.nombre + '.';
-          } catch (e) {
-            this.toastMessage = (e && e.message) || 'No se pudo pasar el crudo a cocido';
+            return;
           }
+          await this.paso(clave, item.tipo, falta, 'Ingreso de emergencia ' + item.tipo, 'ingreso', row.nombre, this.fechaCierreVista());
+          this.toastMessage = 'Se ingresaron ' + this.formatNum(falta) + ' en ' + row.nombre + '.';
         },
 
-        async pasarVentasPolladaACrudo() {
-          try {
-            const row = this.filaReal('pollada');
-            if (!row) return;
-            await this.cargarKardex();
-            const fresco = this.filaReal('pollada');
-            if (!fresco) return;
-            const cocido = this.redondear3(this.quedaSinTopeTipo(fresco, 'cocido'));
-            const crudo = this.redondear3(this.quedaSinTopeTipo(fresco, 'crudo'));
-            if (cocido >= -0.0004) {
-              this.toastMessage = 'Las ventas de Pollada sin cocido ya salen del crudo. Queda ' + this.formatNum(crudo) + '.';
-              return;
-            }
-            const n = this.redondear3(Math.min(-cocido, Math.max(0, crudo)));
-            if (!(n > 0)) {
-              this.toastMessage = 'El crudo de Pollada no alcanza para cubrir el cocido en negativo.';
-              return;
-            }
-            const clave = this.claveDeFila[fresco.id] || 'pollada';
-            await this.paso(clave, 'crudo', -n, 'Cubre ventas de Pollada sin cocido', 'egreso', fresco.nombre, this.fechaSaldoAnterior());
-            await this.paso(clave, 'cocido', n, 'Sale del crudo de Pollada', 'ingreso', fresco.nombre, this.fechaSaldoAnterior());
-            await this.cargarKardex();
-            const queda = this.quedaSinTopeTipo(this.filaReal('pollada'), 'crudo');
-            this.toastMessage = 'Se pasaron ' + this.formatNum(n) + ' de Pollada al crudo. Queda ' + this.formatNum(queda) + '.';
-          } catch (e) {
-            this.toastMessage = (e && e.message) || 'No se pudo pasar Pollada al crudo';
-          }
-        },
-
-        async dejarTodosDescuadresEnCero() {
+        // Resuelve las emergencias: primero con el crudo disponible, y lo que falte con un ingreso.
+        async resolverTodosDescuadres() {
           if (this.descuadreGuardando) return;
-          const lista = this.filasDescuadre();
+          const lista = this.filasDescuadre().filter((i) => i.clase === 'emergencia');
           if (!lista.length) return;
           this.descuadreGuardando = 'todos';
           try {
-            await this.aplicarCeroDescuadre(lista);
+            for (const item of lista) {
+              if (item.crudoLibre > 0) {
+                await this.aplicarDescuadre(item, 'crudo');
+                await this.cargarKardex();
+              }
+              await this.aplicarDescuadre(item, 'ingreso');
+            }
+          } catch (e) {
+            this.toastMessage = (e && e.message) || 'No se pudo resolver el descuadre';
           } finally {
             this.descuadreGuardando = '';
-          }
-        },
-
-        async aplicarCeroDescuadre(lista) {
-          try {
-            for (const item of lista) {
-              if (item.pasarACrudo) {
-                await this.pasarVentasPolladaACrudo(item);
-                continue;
-              }
-              if (item.cubrirCocidoConCrudo) {
-                await this.pasarCrudoDescuadreACocido(item);
-                continue;
-              }
-              const row = this.filaReal(item.id);
-              const clave = row && this.claveDeFila[row.id];
-              const real = this.redondear3(item.real);
-              if (!row || !clave || real >= -0.0004 || this.esFilaPapas(row)) continue;
-              const cant = this.redondear3(-real);
-              if (item.emergencia) {
-                await this.paso(clave, item.tipo, cant, 'Ingreso de emergencia ' + item.tipo, 'ingreso', row.nombre);
-                row[this.campoTipo('ingreso', item.tipo)] = this.redondear3(this.valorTipo(row, 'ingreso', item.tipo) + cant);
-              } else {
-                await this.paso(clave, item.tipo, cant, 'Saldo anterior', 'ingreso', row.nombre, this.fechaSaldoAnterior());
-                row[this.campoTipo('saldoAnterior', item.tipo)] = this.redondear3(this.valorTipo(row, 'saldoAnterior', item.tipo) + cant);
-              }
-            }
-            await this.cargarKardex();
-          } catch (e) {
-            this.toastMessage = (e && e.message) || 'No se pudo dejar el saldo en 0';
             await this.cargarKardex();
           }
         },
@@ -15307,129 +15276,96 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         ingresoTotalColumnaTipo(row, tipo) {
-          const propio = this.calcIngresoTotalTipo(row, tipo);
-          if (this.filaSaldoSolo(row)) return propio;
-          return propio + this.sumaDeTransformaciones(row, (hijo) => this.calcIngresoTotalTipo(hijo, tipo));
+          return this.calcIngresoTotalTipo(row, tipo);
         },
 
         ingresoTotalColumna(row) {
-          const propio = this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0);
-          if (this.filaSaldoSolo(row)) return propio;
-          return propio + this.sumaDeTransformaciones(row, (hijo) => this.tiposDe(hijo).reduce((s, t) => s + this.calcIngresoTotalTipo(hijo, t), 0));
+          return this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0));
         },
 
-        saldoDePlatos(row, real) {
-          return this.platosDirectosDe(row && row.id).reduce((a, n) => {
-            const hijo = this.filaReal(n.id);
-            if (!hijo) return a;
-            return a + this.tiposDe(hijo).reduce((s, t) => s + (real ? this.calcSaldoRealTipo(hijo, t) : this.calcSaldoTipo(hijo, t)), 0);
-          }, 0);
+        // Platos que cuelgan de esta fila. Las columnas son de la fila; la línea «Grupo» suma estos.
+        miembrosGrupo(row) {
+          if (!row || this.filaSaldoSolo(row) || this.filaPachamancaIndependiente(row)) return [];
+          return this.filasTransformacionDe(row);
+        },
+
+        tieneGrupo(row) {
+          return this.miembrosGrupo(row).length > 0;
+        },
+
+        sumaGrupo(row, leer) {
+          return this.redondear3(this.miembrosGrupo(row).reduce((a, hijo) => a + leer(hijo), leer(row)));
+        },
+
+        saldoAnteriorGrupo(row) {
+          return this.sumaGrupo(row, (f) => this.saldoAnteriorColumna(f));
+        },
+
+        ingresoTotalGrupo(row) {
+          return this.sumaGrupo(row, (f) => this.ingresoTotalColumna(f));
+        },
+
+        ventaGrupo(row) {
+          return this.sumaGrupo(row, (f) => this.ventaColumna(f));
+        },
+
+        quedaGrupo(row) {
+          return this.sumaGrupo(row, (f) => this.saldoRealColumna(f));
         },
 
         saldoColumnaTipo(row, tipo) {
-          if (this.filaPachamancaIndependiente(row) || this.filaSaldoSolo(row)) return this.calcSaldoTipo(row, tipo);
-          const extra = this.platosDirectosDe(row && row.id).reduce((a, n) => {
-            const hijo = this.filaReal(n.id);
-            if (!hijo) return a;
-            return a + this.calcSaldoTipo(hijo, tipo);
-          }, 0);
-          return this.calcSaldoTipo(row, tipo) + extra;
+          return this.calcSaldoTipo(row, tipo);
         },
 
         saldoRealColumnaTipo(row, tipo) {
-          if (this.filaPachamancaIndependiente(row) || this.filaSaldoSolo(row)) return this.calcSaldoRealTipo(row, tipo);
-          const extra = this.platosDirectosDe(row && row.id).reduce((a, n) => {
-            const hijo = this.filaReal(n.id);
-            if (!hijo) return a;
-            return a + this.calcSaldoRealTipo(hijo, tipo);
-          }, 0);
-          return this.calcSaldoRealTipo(row, tipo) + extra;
+          return this.calcSaldoRealTipo(row, tipo);
         },
 
         saldoColumna(row) {
-          const propio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0);
-          if (this.filaPachamancaIndependiente(row) || this.filaSaldoSolo(row)) return propio;
-          return propio + this.saldoDePlatos(row, false);
+          return this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.calcSaldoTipo(row, t), 0));
         },
 
         saldoRealColumna(row) {
-          const propio = this.tiposDe(row).reduce((a, t) => a + this.calcSaldoRealTipo(row, t), 0);
-          if (this.filaPachamancaIndependiente(row) || this.filaSaldoSolo(row)) return propio;
-          return propio + this.saldoDePlatos(row, true);
+          return this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.calcSaldoRealTipo(row, t), 0));
         },
 
         ventaNetaTipo(row, tipo) {
           return (this.valorTipo(row, 'venta', tipo) || 0) - (this.valorTipo(row, 'cubierta', tipo) || 0);
         },
 
-        ventaDePlatos(row, tipo) {
-          return this.platosDirectosDe(row && row.id).reduce((a, n) => {
-            const hijo = this.filaReal(n.id);
-            if (!hijo) return a;
-            if (tipo) return a + this.ventaNetaTipo(hijo, tipo);
-            return a + this.tiposDe(hijo).reduce((s, t) => s + this.ventaNetaTipo(hijo, t), 0);
-          }, 0);
-        },
-
         ventaColumnaTipo(row, tipo) {
           if (this.filaPachamancaIndependiente(row)) return this.valorTipo(row, 'venta', tipo);
-          return this.ventaNetaTipo(row, tipo) + this.ventaDePlatos(row, tipo);
+          return this.ventaNetaTipo(row, tipo);
         },
 
         ventaColumna(row) {
-          if (this.filaPachamancaIndependiente(row)) {
-            return this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'venta', t), 0);
-          }
-          const propio = this.tiposDe(row).reduce((a, t) => a + this.ventaNetaTipo(row, t), 0);
-          return propio + this.ventaDePlatos(row);
+          return this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.ventaColumnaTipo(row, t), 0));
         },
 
         ventaComandasCocido(row) {
-          if (!row) return 0;
-          if (row.tieneCocido || row.soloCocido) return this.ventaColumnaTipo(row, 'cocido');
-          return this.ventaColumna(row);
+          return row ? this.ventaColumna(row) : 0;
         },
 
-        coberturaCocidoVenta(row) {
-          if (!row) return 0;
-          const base = this.calcIngresoTotalTipo(row, 'cocido') - this.valorTipo(row, 'transformacion', 'cocido') + this.valorTipo(row, 'cubierta', 'cocido');
-          return this.redondear3(base);
-        },
-
-        faltanteCocidoVenta(row) {
-          if (!row || this.esFilaPapas(row) || this.stockGeneral(row)) return 0;
-          // La venta de los platos (1/4 leña pecho, leña pierna) se cubre en el cocido de cada plato, no en la pieza.
-          const vendido = (row.tieneCocido || row.soloCocido)
-            ? this.ventaDeComandaTipo(row, 'cocido')
-            : this.ventaDeComandaTipo(row);
-          if (!(vendido > 0.0004)) return 0;
-          if (row.tieneCocido || row.soloCocido) {
-            const queda = this.quedaSinTopeTipo(row, 'cocido');
-            return queda < -0.0004 ? queda : 0;
-          }
-          const queda = this.redondear3(this.coberturaCocidoVenta(row) - vendido);
-          return queda < -0.0004 ? queda : 0;
-        },
-
-        ventaSinCocido(row) {
-          return this.faltanteCocidoVenta(row) < -0.0004;
+        etiquetaVenta(row) {
+          if (!row || this.stockGeneral(row)) return '';
+          if (row.soloCocido) return 'Cocido';
+          if (!row.tieneCocido) return '';
+          const crudo = this.ventaColumnaTipo(row, 'crudo');
+          const cocido = this.ventaColumnaTipo(row, 'cocido');
+          if (crudo > 0 && cocido > 0) return 'Total';
+          return crudo > 0 ? 'Crudo' : 'Cocido';
         },
 
         // La descarga manual y la especial dejan el cocido en rojo en todos los productos
         // cuando restan stock que no alcanza. En stock general el rojo es el faltante real.
         ventaEnRojo(row) {
-          if (!row || this.esFilaPapas(row)) return false;
-          if (this.stockGeneral(row)) return this.faltaStockGeneral(row) < -0.0004;
-          return this.ventaSinCocido(row) || this.emergenciaFila(row);
+          return this.emergenciaFila(row);
         },
 
         tituloVentaCocido(row) {
-          if (this.stockGeneral(row) && this.faltaStockGeneral(row) < -0.0004) {
-            return 'Emergencia: la descarga dejó el stock en negativo. Faltan ' + this.formatNum(Math.abs(this.faltaStockGeneral(row))) + '. Agrégalo en Descuadre.';
-          }
-          if (!this.ventaEnRojo(row)) return this.tituloVentaColumna(row);
-          const falta = this.ventaSinCocido(row) ? this.faltanteCocidoVenta(row) : this.tiposDe(row).reduce((a, t) => a + Math.min(0, this.quedaSinTopeTipo(row, t)), 0);
-          return 'Emergencia: se vendió cocido y no hay stock cocido. Faltan ' + this.formatNum(Math.abs(falta)) + '. Agrégalo en Descuadre.';
+          if (!this.emergenciaFila(row)) return this.tituloVentaColumna(row);
+          const falta = this.tiposDe(row).reduce((a, t) => a + Math.min(0, this.quedaSinTopeTipo(row, t)), 0);
+          return 'Emergencia: se restó más de lo que había. Faltan ' + this.formatNum(Math.abs(falta)) + '. Resuélvelo en Descuadre.';
         },
 
         // Se pide en el title de cada celda de Venta: se guarda por fila mientras no cambien las ventas ni la hoja.
@@ -15468,10 +15404,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         tituloVentaColumna(row) {
           if (this.filaPachamancaIndependiente(row)) return 'Ventas de Pollo pachamanca. No incluye el desglose de Pierna de Pollo.';
+          let texto = 'Lo que restó de esta fila.';
+          if (this.tieneGrupo(row)) texto += ' Con sus platos: ' + this.formatNum(this.ventaGrupo(row)) + '.';
           const partes = this.detalleVentasPlatos(row);
-          if (!partes.length) return 'Viene de comandas';
-          const texto = partes.map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
-          return 'Estas ventas no restan la pieza suelta. Primero el cocido del plato, después el crudo y al final este producto. ' + texto;
+          if (!partes.length) return texto;
+          return texto + ' Platos: ' + partes.map((p) => p.nombre + ' ' + (p.tipo === 'cocido' ? 'cocido' : 'crudo') + ' −' + this.formatNum(p.cantidad)).join(' · ');
         },
 
         calcDiferencia(row) {
@@ -15628,9 +15565,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.pulseRowTotal(row.id);
           const clave = this.claveDeFila[row.id];
           if (!clave) return;
-          const nombres = { ingreso: 'Ingreso', correccion: 'Corrección', saldoAnterior: 'Saldo anterior' };
+          const nombres = { ingreso: 'Ingreso', correccion: 'Corrección', saldoAnterior: 'Ajuste apertura' };
           const clase = base === 'correccion' ? 'regulacion' : 'ingreso';
-          const fecha = base === 'saldoAnterior' ? this.rangoVista().desde + 'T03:59:00-05:00' : undefined;
+          const fecha = base === 'saldoAnterior' ? this.fechaSaldoAnterior() : this.fechaCierreVista();
           const ahora = new Date().toISOString();
           const movs = [{ rubro: clave, clase: clase, tipoProducto: tipo, cantidad: cambio, motivo: nombres[base] + ' ' + tipo, fecha: fecha || ahora, fechaFija: fecha, nombre: row.nombre }];
           if (paseCrudo) movs.push({ rubro: clave, clase: 'ingreso', tipoProducto: 'crudo', cantidad: paseCrudo, motivo: 'Cocido desde crudo ' + row.nombre, fecha: fecha || ahora, fechaFija: fecha, nombre: row.nombre });
@@ -15679,7 +15616,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         nivelEstado(row) {
-          const n = Number(this.saldoRealColumna(row)) || 0;
+          const n = Number(this.quedaGrupo(row)) || 0;
           if (n > 10) return 'normal';
           if (n > 5) return 'bajo';
           return 'critico';
@@ -15697,7 +15634,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         tituloEstado(row) {
-          const n = this.formatNum(this.saldoRealColumna(row));
+          const n = this.formatNum(this.quedaGrupo(row));
           const nivel = this.nivelEstado(row);
           if (nivel === 'normal') return 'Normal: más de 10. Quedan ' + n;
           if (nivel === 'bajo') return 'Bajo: 10 o menos. Conviene preparar más. Quedan ' + n;
@@ -15786,7 +15723,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         textoOperacionAuditoria(mov) {
           const motivo = String(mov && mov.motivo || '');
-          if (motivo.indexOf('Saldo anterior') === 0) return 'Saldo anterior';
+          if (motivo.indexOf('Saldo anterior') === 0 || motivo.indexOf('Ajuste apertura') === 0) return 'Ajuste de apertura';
+          if (motivo.indexOf('Ajuste de stock') === 0) return 'Ajuste de stock';
           if (motivo.indexOf('Venta manual') === 0) return 'Descarga manual';
           if (motivo.indexOf('Separado · ') === 0) return 'Separación';
           if (!mov) return '';
@@ -15795,6 +15733,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (mov.clase === 'conteo') return 'Conteo Cámara';
           if (mov.clase === 'venta') return 'Venta Comandas';
           return 'Transformación';
+        },
+
+        esMotivoApertura(motivo) {
+          const m = String(motivo || '');
+          return m.indexOf('Saldo anterior') === 0 || m.indexOf('Ajuste apertura') === 0;
         },
 
         async abrirModalAuditoria(row) {
@@ -15870,8 +15813,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 const s = (Number(v[this.campoTipo('saldoAnterior', t)]) || 0) + (Number(v[this.campoTipo('ingreso', t)]) || 0)
                   + (Number(v[this.campoTipo('correccion', t)]) || 0) - (Number(v[this.campoTipo('venta', t)]) || 0)
                   - (Number(v[this.campoTipo('transformacion', t)]) || 0) + (Number(v[this.campoTipo('cubierta', t)]) || 0);
-                const c = v[this.campoTipo('inventario', t)];
-                return a + (c === null || c === undefined ? s : Number(c) || 0);
+                return a + Math.max(0, s);
               }, 0);
               return {
                 id: m.id,
@@ -15959,7 +15901,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 const m = porClave[it.clave];
                 const key = it.clave + '|' + it.tipoProducto;
                 if (!(key in saldo)) saldo[key] = Number(m.vals[this.campoTipo('saldoAnterior', it.tipoProducto)]) || 0;
-                saldo[key] = it.claseBase === 'inventario' ? it.cantidad : r3(saldo[key] + it.cantidad);
+                // Los ajustes de apertura ya están dentro del saldo con que abre el período.
+                if (!this.esMotivoApertura(it.motivo)) saldo[key] = it.claseBase === 'inventario' ? it.cantidad : r3(saldo[key] + it.cantidad);
                 it.saldoResultante = saldo[key];
               } else {
                 it.saldoResultante = null;
@@ -16053,31 +15996,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         // Arma el movimiento que lleva el saldo crudo/cocido de una fila al número escrito y lo pinta ya.
         // Igual que fijarStockDirecto: sube con ingreso; baja con ingreso mientras alcance, luego corrección.
+        // Editar stock: la diferencia se guarda como ajuste. No es ingreso, no toca Ingreso total
+        // y queda en Corrección y en la auditoría. Conserva la marca de pecho o pierna.
         movSaldoDirecto(row, tipo, delta, motivo) {
           const d = this.redondear3(delta);
           const clave = row && this.claveDeFila[row.id];
           if (!d || !clave) return null;
           const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
-          const ingreso = Number(this.valorTipo(row, 'ingreso', tipoOk)) || 0;
-          const base = (d > 0 || ingreso + d >= -0.0001) ? 'ingreso' : 'correccion';
-          const campo = this.campoTipo(base, tipoOk);
+          const campo = this.campoTipo('correccion', tipoOk);
           row[campo] = this.redondear3((Number(row[campo]) || 0) + d);
           row[tipoOk] = Math.max(0, this.calcSaldoTipo(row, tipoOk));
-          const prefijo = (base === 'ingreso' ? 'Ingreso' : 'Corrección') + ' ' + tipoOk;
+          const prefijo = 'Ajuste de stock';
           const texto = String(motivo || '').trim();
           const marca = texto.match(/(?:^|·)\s*(pecho|pierna|sin separar)\s*$/i);
           const sufijo = marca ? ' · ' + marca[1].toLowerCase() : '';
           const detalle = marca ? texto.slice(0, marca.index).trim() : texto;
-          // El modelo admite 200 caracteres. Recortar sólo el texto libre conserva la marca
-          // final que identifica el corte, incluso al generar una corrección de saldo.
+          // El modelo admite 200 caracteres. Se recorta solo el texto libre para no perder la marca del corte.
           const libre = detalle.slice(0, Math.max(0, 200 - prefijo.length - sufijo.length - 3)).trimEnd();
           return {
             rubro: clave,
-            clase: base === 'correccion' ? 'regulacion' : 'ingreso',
+            clase: 'regulacion',
             tipoProducto: tipoOk,
             cantidad: d,
             motivo: prefijo + (libre ? ' · ' + libre : '') + sufijo,
-            fecha: new Date().toISOString(),
+            fecha: this.fechaCierreVista(),
             nombre: row.nombre
           };
         },
@@ -16090,17 +16032,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.guardarModalStock();
         },
 
-        motivoSaldoAnterior(texto) {
-          const extra = String(texto || '').trim();
-          if (!extra || extra === 'Ajuste de stock') return 'Saldo anterior';
-          return 'Saldo anterior · ' + extra;
-        },
-
+        // Primer instante del día que se ve: el ajuste de apertura es de ese día, no del anterior.
         fechaSaldoAnterior() {
-          const p = this.periodoVista();
-          const hoy = this.ymdOperativo();
-          const ymd = p === 'ayer' ? this.diaOffset(hoy, -1) : hoy;
-          return ymd + 'T03:59:00-05:00';
+          const desde = String((this.rangoVista() || {}).desde || '');
+          const ymd = /^\d{4}-\d{2}-\d{2}$/.test(desde) ? desde : this.ymdOperativo();
+          return ymd + 'T04:00:00-05:00';
         },
 
         abrirEditarStock(id, desdeTabla) {
@@ -16108,33 +16044,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const row = this.filaReal(rowId);
           if (!row) {
             this.toastMessage = 'Ese producto no está en la hoja';
-            return;
-          }
-          if (this.esArrozPorcion(row.id)) {
-            const tipo = this.tipoArrozDestino({ id: row.id });
-            const n = this.stockAnteriorArroz(row.id);
-            this.editarStock = {
-              abierto: true,
-              id: row.id,
-              nombre: row.nombre,
-              tieneCocido: false,
-              soloCocido: tipo === 'cocido',
-              saldoAnterior: true,
-              octavo: false,
-              cortes: false,
-              grupo: false,
-              lineas: [],
-              crudo: tipo === 'cocido' ? 0 : n,
-              cocido: tipo === 'cocido' ? n : 0,
-              pecho: 0,
-              pierna: 0,
-              antes: n,
-              motivo: '',
-              error: '',
-              guardando: false,
-              desdeTabla: !!desdeTabla
-            };
-            this.enfocarEditarStock();
             return;
           }
           const solo = !!row.soloCocido;
@@ -16250,29 +16159,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // El número del lápiz es el saldo que se ve en Transformar y en la tabla.
-        async fijarSaldoTipo(id, tipo, valor) {
-          const rowId = this.filaIdDePlatoTransformar(id) || id;
-          const row = this.filaReal(rowId);
-          if (!row) return false;
-          const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
-          if (tipoOk === 'cocido' && !row.tieneCocido && !row.soloCocido) return false;
-          const next = Math.max(0, this.redondear3(Number(valor) || 0));
-          const actual = this.redondear3(this.calcSaldoTipo(row, tipoOk));
-          const delta = this.redondear3(next - actual);
-          if (!delta) return true;
-          const clave = this.claveDeFila[row.id];
-          if (!clave) {
-            this.toastMessage = row.nombre + ' no tiene fila en la hoja.';
-            return false;
-          }
-          const ingreso = Number(this.valorTipo(row, 'ingreso', tipoOk)) || 0;
-          const base = (delta > 0 || ingreso + delta >= -0.0001) ? 'ingreso' : 'correccion';
-          const clase = base === 'correccion' ? 'regulacion' : 'ingreso';
-          await this.paso(clave, tipoOk, delta, (base === 'ingreso' ? 'Ingreso' : 'Corrección') + ' ' + tipoOk, clase, row.nombre);
-          await this.cargarKardex();
-          return true;
-        },
-
         guardarEditarStockGrupo() {
           return this.guardarModalStock();
         },
@@ -16296,6 +16182,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (f.sector) return this.redondear3((Number(f.pecho) || 0) + (Number(f.pierna) || 0));
           if (f.octavo || f.grupo || f.cortes) return this.redondear3(this.totalEditar() + (f.octavo ? this.totalOctavosEditar() : 0));
           return this.totalLineaEditar(f);
+        },
+
+        notaEditarStock() {
+          const fecha = this.fechaCierreVista();
+          if (fecha) return 'Estás viendo un día pasado: el ajuste se guarda al cierre de ese día. No cuenta como ingreso.';
+          return 'Se guarda como ajuste de stock: no cuenta como ingreso y queda en la auditoría.';
         },
 
         elementosFocoEditarStock() {
@@ -16432,34 +16324,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           f.guardando = true;
           try {
             await (this._colaTransformar || Promise.resolve());
+            // Con los números de este momento: si entró una venta mientras el modal estaba abierto, ya cuenta.
+            await this.cargarKardex();
             const movs = [];
-            const frescos = [];
             for (const linea of lineas) {
               const row = this.filaReal(linea.id);
               const tipos = linea.soloCocido ? ['cocido'] : (linea.tieneCocido ? ['crudo', 'cocido'] : ['crudo']);
               for (const tipo of tipos) {
                 if (linea.porCorte) movs.push(...this.movimientosSaldoCortes(row, tipo, this.redondear3(leer(linea.pecho[tipo])), this.redondear3(leer(linea.pierna[tipo])), f.motivo, false));
-                else if (f.saldoAnterior) {
-                  const actual = this.stockAnteriorArroz(row.id);
-                  const delta = this.redondear3(leer(linea[tipo]) - actual);
-                  if (delta) {
-                    const campo = this.campoTipo('saldoAnterior', tipo);
-                    row[campo] = this.redondear3((Number(row[campo]) || 0) + delta);
-                    movs.push({
-                      rubro: this.claveDeFila[row.id],
-                      clase: 'ingreso',
-                      tipoProducto: tipo,
-                      cantidad: delta,
-                      motivo: this.motivoSaldoAnterior(f.motivo),
-                      fecha: this.fechaSaldoAnterior(),
-                      nombre: row.nombre
-                    });
-                  }
-                } else {
+                else {
                   const delta = this.redondear3(leer(linea[tipo])) - this.redondear3(this.calcSaldoTipo(row, tipo));
                   const mov = this.movSaldoDirecto(row, tipo, delta, f.motivo);
                   if (mov) movs.push(mov);
-                  if (mov && tipo !== 'cocido' && delta > 0 && (linea.id === 'pollo_fresco' || linea.id === 'pato_fresco')) frescos.push({ id: linea.id, delta: delta });
                 }
               }
             }
@@ -16473,11 +16349,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             }
             if (movs.length) {
               for (const m of movs) await this.paso(m.rubro, m.tipoProducto, m.cantidad, m.motivo, m.clase, m.nombre, m.fecha, m.lote);
-              frescos.forEach((c) => {
-                if (c.id === 'pollo_fresco') this.convertirFrescosEntrantes(c.delta);
-                else this.convertirPatosEntrantes(c.delta);
-              });
-              if (frescos.length) await (this._colaTransformar || Promise.resolve());
               await this.cargarKardex();
               const ids = new Set(lineas.map((linea) => linea.id).concat(f.octavo ? ['octavo_pollo'] : []));
               ids.forEach((id) => this.pulseRowTotal(id));
@@ -16827,7 +16698,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         // Necesidad predictiva: sugiere pedido mínimo para mañana según tasa de Venta actual y Saldo
         calcNecesidadPredictiva(row) {
-          const saldoReal = this.saldoRealColumna(row);
+          const saldoReal = this.quedaGrupo(row);
           const saldoDisponible = Math.max(0, saldoReal);
           const tasaVentaEfectiva = Math.max(
             0,
@@ -16944,18 +16815,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         formulaTooltip(row) {
-          const suma = (base) => this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, base, t), 0);
-          const sa = suma('saldoAnterior');
-          const ing = suma('ingreso');
-          const cor = suma('correccion');
-          const ven = suma('venta');
-          const cub = suma('cubierta');
-          const tr = suma('transformacion');
-          const propio = sa + ing + cor - ven + cub - tr;
-          const platos = this.saldoDePlatos(row, false);
-          const cubre = cub ? ` + ${cub} (lo cubrió el producto anterior)` : '';
-          const extra = platos ? ` + ${platos} (platos del grupo)` : '';
-          return `${row.nombre}: ${sa} (anterior) + ${ing} (ingreso) + ${cor} (corrección) − ${ven} (venta)${cubre} − ${tr} (transformación) = ${propio}${extra}` + (platos ? ` = ${propio + platos}` : '');
+          const suma = (base) => this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, base, t), 0));
+          const partes = [
+            this.formatNum(this.saldoAnteriorColumna(row)) + ' (saldo anterior)',
+            '+ ' + this.formatNum(suma('ingreso')) + ' (ingreso)',
+            '= ' + this.formatNum(this.ingresoTotalColumna(row)) + ' (ingreso total)',
+            '− ' + this.formatNum(this.ventaColumna(row)) + ' (venta)',
+            '− ' + this.formatNum(suma('transformacion')) + ' (transformación)'
+          ];
+          const correccion = suma('correccion');
+          if (correccion) partes.push((correccion > 0 ? '+ ' : '− ') + this.formatNum(Math.abs(correccion)) + ' (ajustes)');
+          return row.nombre + ': ' + partes.join(' ') + ' = ' + this.formatNum(this.saldoRealColumna(row));
         },
 
         activarSkeletonTabla(ms = 320) {
@@ -17096,6 +16966,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             pierna: esOctavo ? this.octavosStockCorte('piernas') : 0,
             pecho: esOctavo ? this.octavosStockCorte('pechugas') : 0,
             tieneCocido: !!row.tieneCocido,
+            saldoAnterior: this.saldoAnteriorColumna(row),
+            ingresoDia: this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'ingreso', t), 0)),
+            ingresoTotal: this.ingresoTotalColumna(row),
+            tieneGrupo: this.tieneGrupo(row),
+            ingresoTotalGrupo: this.ingresoTotalGrupo(row),
             frescos: this.frescosHoy(),
             factorPechuga: Number(this.config.factorPechugasPorFresco) || 2,
             factorPierna: Number(this.config.factorPiernasPorFresco) || 2,
@@ -17282,16 +17157,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // Filas que suma cada columna de la tabla para esta fila (mismas funciones que la tabla):
         // - apertura: Saldo ant. e Ingreso total → la fila + filasTransformacionDe
         // - saldo: Venta, Saldo y Queda → la fila + platosDirectosDe (o solo la fila en Pachamanca independiente)
+        // La fila y los platos que cuelgan de ella. Las columnas son de la fila; esto es para ver el grupo.
         miembrosFamilia(row) {
-          const apertura = [row].concat(this.filasTransformacionDe(row));
-          const saldo = [row];
-          if (!this.filaPachamancaIndependiente(row)) {
-            this.platosDirectosDe(row.id).forEach((nodo) => {
-              const hijo = this.filaReal(nodo.id);
-              if (hijo) saldo.push(hijo);
-            });
-          }
-          return { apertura, saldo };
+          const lista = [row].concat(this.miembrosGrupo(row));
+          return { apertura: lista, saldo: lista };
         },
 
         // Una línea de desglose: crudo, cocido y total de un miembro para un valor.
@@ -17329,108 +17198,73 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const etqPeriodo = this.etiquetaPeriodoSeleccionado();
           const rangoFechas = (r && r.desde && r.hasta) ? (r.desde === r.hasta ? r.desde : (r.desde + ' → ' + r.hasta + ' (' + dias + ' días)')) : 'Hoy';
           const unidad = row.unidad || 'unid';
-          const fam = this.miembrosFamilia(row);
           const independiente = this.filaPachamancaIndependiente(row);
           const iguales = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.0005;
           const n = (v) => this.formatNum(v);
           const signo = (v) => (v >= 0 ? '+' : '−') + n(Math.abs(v));
+          const partes = (leer) => this.partesFamilia([row], row, leer, true);
 
-          // 1. Apertura: solo esta fila. Los platos agrupados no se suman aquí.
-          const pAnt = this.partesFamilia([row], row, (m, t) => {
-            const ant = this.valorTipo(m, 'saldoAnterior', t);
-            return m.id === 'pollada' ? ant : Math.max(0, ant);
-          }, true);
+          const pAnt = partes((m, t) => this.saldoAnteriorColumnaTipo(m, t));
           const sAnt = this.sumaPartes(pAnt);
-          const colAnt = this.redondear3(this.saldoAnteriorColumna(row));
-
-          // 2-3. Ingreso y corrección de la pieza. Lo de los platos entra en Ingreso total.
-          const pIng = this.partesFamilia([row], row, (m, t) => this.valorTipo(m, 'ingreso', t));
+          const colAnt = this.saldoAnteriorColumna(row);
+          const ayer = this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'cierreAnterior', t), 0));
+          const ajusteApertura = this.ajusteAperturaFila(row);
+          const pIng = partes((m, t) => this.valorTipo(m, 'ingreso', t));
           const sIng = this.sumaPartes(pIng);
-          const pCor = this.partesFamilia([row], row, (m, t) => this.valorTipo(m, 'correccion', t));
-          const sCor = this.sumaPartes(pCor);
-          const colIngFila = this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'ingreso', t), 0));
-          const colIT = this.redondear3(this.ingresoTotalColumna(row));
-          const propioIT = this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0));
-          const sumaIT = this.redondear3(sAnt.total + sIng.total + sCor.total + (colIT - propioIT));
-
-          // 4. Ventas: la columna Venta comandas (venta neta de la pieza + venta de los platos directos).
-          const leerVenta = independiente
-            ? (m, t) => this.valorTipo(m, 'venta', t)
-            : (m, t) => this.ventaNetaTipo(m, t);
-          const pVta = this.partesFamilia(fam.saldo, row, leerVenta);
+          const colIT = this.ingresoTotalColumna(row);
+          const sumaIT = this.redondear3(sAnt.total + sIng.total);
+          const pVta = partes((m, t) => this.ventaColumnaTipo(m, t));
           const sVta = this.sumaPartes(pVta);
-          const colVta = this.redondear3(this.ventaColumna(row));
-
-          // 5. Transformación: lo que salió de la pieza (columna) y, si hubo, de sus platos.
-          const pTra = this.partesFamilia(fam.saldo, row, (m, t) => this.valorTipo(m, 'transformacion', t));
+          const colVta = this.ventaColumna(row);
+          const pTra = partes((m, t) => this.valorTipo(m, 'transformacion', t));
           const sTra = this.sumaPartes(pTra);
-          const colTraFila = this.redondear3(this.totalTransformacionFila(row));
-
-          // Saldo: la columna Saldo.
-          const pSal = this.partesFamilia(fam.saldo, row, (m, t) => this.calcSaldoTipo(m, t), true);
-          const sSal = this.sumaPartes(pSal);
-          const colSaldo = this.redondear3(this.saldoColumna(row));
-          const ajuste = this.redondear3(colSaldo - (colIT - colVta - sTra.total));
-
-          // Conteo y Queda: la columna Queda.
-          const pQueda = this.partesFamilia(fam.saldo, row, (m, t) => this.calcSaldoRealTipo(m, t), true);
-          const colQueda = this.redondear3(this.saldoRealColumna(row));
-          const contados = fam.saldo.filter((m) => this.tiposDe(m).some((t) => this.conteoTipo(m, t) !== null));
-          const difConteo = this.redondear3(colQueda - colSaldo);
-          const sueltas = this.redondear3(this.calcSaldoReal(row));
-          const enPlatos = this.redondear3(colQueda - sueltas);
-          const hayPlatos = fam.apertura.length > 1 || fam.saldo.length > 1;
+          const pCor = partes((m, t) => this.valorTipo(m, 'correccion', t));
+          const sCor = this.sumaPartes(pCor);
+          const cubierta = independiente ? this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'cubierta', t), 0)) : 0;
+          const colQueda = this.saldoRealColumna(row);
+          const calculado = this.redondear3(sumaIT - sVta.total - sTra.total + sCor.total + cubierta);
+          const faltante = colQueda > calculado + 0.0005 ? this.redondear3(colQueda - calculado) : 0;
+          const familia = this.quedaGrupo(row);
+          const hayPlatos = this.tieneGrupo(row);
+          const contados = this.tiposDe(row).filter((t) => this.conteoTipo(row, t) !== null);
 
           const pasos = [
             {
               clave: 'apertura', tipo: 'apertura', icono: '1',
-              titulo: 'Saldo anterior (apertura)',
-              etiquetaAccion: 'BASE INICIAL',
-              explicacion: 'Lo que quedó del ciclo anterior en ' + row.nombre + ', al abrir ' + etqPeriodo + '. Los platos agrupados tienen su propio saldo anterior.',
+              titulo: 'Saldo anterior',
+              etiquetaAccion: 'QUEDÓ EL DÍA ANTERIOR',
+              explicacion: iguales(ajusteApertura, 0)
+                ? ('Lo que quedó en ' + row.nombre + ' al cerrar el día anterior.')
+                : ('El día anterior quedó ' + n(ayer) + '. Ajuste de apertura: ' + signo(ajusteApertura) + '.'),
               valor: sAnt.total, valorFormateado: n(sAnt.total),
               crudo: sAnt.crudo, cocido: sAnt.cocido,
               partes: pAnt,
-              columna: { etiqueta: 'Columna Saldo ant.', valor: colAnt, ok: iguales(sAnt.total, colAnt) },
+              columna: { etiqueta: 'Columna Saldo anterior', valor: colAnt, ok: iguales(sAnt.total, colAnt) },
               abierto: true
             },
             {
               clave: 'ingreso', tipo: 'suma', icono: '+',
               titulo: 'Ingreso del período',
               etiquetaAccion: sIng.total ? 'SUMA' : 'SIN INGRESO',
-              explicacion: sIng.total
-                ? (hayPlatos
-                  ? ('Compras, despiece y pases que entraron. La columna Ingreso muestra solo la pieza (' + n(colIngFila) + '); lo de los platos entra en Ingreso total.')
-                  : 'Compras, despiece y pases que entraron.')
-                : 'No hubo entradas en este período.',
+              explicacion: sIng.total ? 'Compras, despiece y pases que entraron.' : 'No hubo entradas en este período.',
               valor: sIng.total, valorFormateado: '+' + n(sIng.total),
               crudo: sIng.crudo, cocido: sIng.cocido,
               partes: pIng, columna: null, abierto: false
             },
             {
-              clave: 'correccion', tipo: sCor.total < 0 ? 'resta' : 'suma', icono: sCor.total < 0 ? '−' : '+',
-              titulo: 'Corrección',
-              etiquetaAccion: iguales(sCor.total, 0) ? 'SIN AJUSTE' : (sCor.total > 0 ? 'SUMA' : 'RESTA'),
-              explicacion: iguales(sCor.total, 0) ? 'No hubo ajustes en la columna Corrección.' : ('Ajustes anotados en la hoja: ' + signo(sCor.total) + '.'),
-              valor: sCor.total, valorFormateado: signo(sCor.total),
-              crudo: sCor.crudo, cocido: sCor.cocido,
-              partes: pCor, columna: null, abierto: false
-            },
-            {
               clave: 'it', tipo: 'subtotal', icono: '=',
-              titulo: 'Ingreso total disponible',
-              etiquetaAccion: 'APERTURA + INGRESO + CORRECCIÓN',
+              titulo: 'Ingreso total',
+              etiquetaAccion: 'SALDO ANTERIOR + INGRESO',
               explicacion: 'Todo lo que hubo para vender o transformar en el período.',
               valor: sumaIT, valorFormateado: n(sumaIT),
-              crudo: this.redondear3(sAnt.crudo + sIng.crudo + sCor.crudo), cocido: this.redondear3(sAnt.cocido + sIng.cocido + sCor.cocido),
+              crudo: this.redondear3(sAnt.crudo + sIng.crudo), cocido: this.redondear3(sAnt.cocido + sIng.cocido),
               partes: [], columna: { etiqueta: 'Columna Ingreso total', valor: colIT, ok: iguales(sumaIT, colIT) }, abierto: false
             },
             {
               clave: 'venta', tipo: 'resta', icono: '−',
               titulo: 'Ventas (comandas y manual)',
               etiquetaAccion: colVta ? 'RESTA' : 'SIN VENTAS',
-              explicacion: colVta
-                ? 'Cada venta sale primero del cocido del plato, después del crudo y al final de la pieza. Lo que la pieza cubre por un plato no se cuenta dos veces.'
-                : 'No hubo ventas en este período.',
+              explicacion: colVta ? 'Lo que las ventas restaron de esta fila.' : 'No hubo ventas que restaran esta fila.',
               valor: colVta, valorFormateado: '−' + n(colVta),
               crudo: sVta.crudo, cocido: sVta.cocido,
               partes: pVta, columna: { etiqueta: 'Columna Venta', valor: colVta, ok: iguales(sVta.total, colVta) }, abierto: false
@@ -17439,57 +17273,43 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               clave: 'transformacion', tipo: 'resta', icono: '−',
               titulo: 'Transformación',
               etiquetaAccion: sTra.total ? 'RESTA' : 'SIN TRANSFORMACIÓN',
-              explicacion: sTra.total
-                ? (iguales(sTra.total, colTraFila)
-                  ? 'Lo que salió hacia otros cortes o platos.'
-                  : ('Lo que salió hacia otros cortes o platos. La columna Transformación muestra solo la pieza (' + n(colTraFila) + ').'))
-                : 'No salió nada por transformación.',
+              explicacion: sTra.total ? 'Lo que salió hacia otros cortes o platos.' : 'No salió nada por transformación.',
               valor: sTra.total, valorFormateado: '−' + n(sTra.total),
               crudo: sTra.crudo, cocido: sTra.cocido,
               partes: pTra, columna: null, abierto: false
+            },
+            {
+              clave: 'correccion', tipo: sCor.total < 0 ? 'resta' : 'suma', icono: '±',
+              titulo: 'Ajustes de stock',
+              etiquetaAccion: iguales(sCor.total, 0) ? 'SIN AJUSTES' : (sCor.total > 0 ? 'SUMA' : 'RESTA'),
+              explicacion: iguales(sCor.total, 0)
+                ? 'Nadie editó el stock en este período.'
+                : ('Lápiz, corrección y conteo de cámara' + (contados.length ? ' (se contó en este período)' : '') + ': ' + signo(sCor.total) + '.'),
+              valor: sCor.total, valorFormateado: signo(sCor.total),
+              crudo: sCor.crudo, cocido: sCor.cocido,
+              partes: pCor, columna: null, abierto: false
             }
           ];
-          if (!iguales(ajuste, 0)) {
+          if (faltante) {
             pasos.push({
-              clave: 'ajuste', tipo: ajuste < 0 ? 'resta' : 'suma', icono: '±',
-              titulo: independiente ? 'Venta cubierta por la reserva' : 'Platos fuera de Ingreso total',
-              etiquetaAccion: 'CUADRE CON LA TABLA',
-              explicacion: independiente
-                ? 'Parte de la venta salió de la pieza de reserva: baja la reserva y no vuelve a bajar esta fila.'
-                : 'Algún plato suma en Saldo y Queda, pero no en Saldo ant. ni en Ingreso total.',
-              valor: ajuste, valorFormateado: signo(ajuste),
+              clave: 'ajuste', tipo: 'suma', icono: '!',
+              titulo: 'Faltó stock',
+              etiquetaAccion: 'NO BAJA DE 0',
+              explicacion: 'Se restó más de lo que había. Queda no baja de 0 y mañana abre en 0.',
+              valor: faltante, valorFormateado: '+' + n(faltante),
               crudo: 0, cocido: 0, partes: [], columna: null, abierto: false
             });
           }
           pasos.push({
-            clave: 'saldo', tipo: 'subtotal', icono: '=',
-            titulo: 'Saldo calculado',
-            etiquetaAccion: 'INGRESO TOTAL − VENTAS − TRANSFORMACIÓN',
-            explicacion: hayPlatos ? 'La pieza suelta más lo que queda en cada plato, según la fórmula.' : 'Lo que debería haber según la fórmula.',
-            valor: colSaldo, valorFormateado: n(colSaldo),
-            crudo: sSal.crudo, cocido: sSal.cocido,
-            partes: pSal, columna: { etiqueta: 'Columna Saldo', valor: colSaldo, ok: iguales(sSal.total, colSaldo) }, abierto: false
-          });
-          pasos.push({
-            clave: 'conteo', tipo: difConteo < 0 ? 'resta' : 'suma', icono: contados.length ? '#' : '✓',
-            titulo: 'Conteo físico en cámara',
-            etiquetaAccion: contados.length ? (iguales(difConteo, 0) ? 'CUADRA EXACTO' : (difConteo > 0 ? 'SOBRA ' + signo(difConteo) : 'FALTA ' + signo(difConteo))) : 'SIN CONTEO',
-            explicacion: contados.length
-              ? ('Se contó en cámara: ' + contados.map((m) => m.nombre).join(', ') + '. El conteo reemplaza el saldo de esa fila.')
-              : 'Nadie contó en cámara. Queda toma el saldo calculado.',
-            valor: difConteo, valorFormateado: contados.length ? signo(difConteo) : '0',
-            crudo: 0, cocido: 0, partes: [], columna: null, abierto: false
-          });
-          pasos.push({
             clave: 'queda', tipo: 'cierre', icono: '★',
-            titulo: 'Queda (saldo real)',
+            titulo: 'Queda',
             etiquetaAccion: 'RESULTADO EN ' + etqPeriodo.toUpperCase(),
-            explicacion: hayPlatos
-              ? ('Quedan ' + n(sueltas) + ' sueltas en ' + row.nombre + ' y ' + n(enPlatos) + ' en sus platos.')
-              : ('Quedan ' + n(colQueda) + ' ' + unidad + ' en ' + row.nombre + '.'),
+            explicacion: 'Mañana este número es el Saldo anterior.',
             valor: colQueda, valorFormateado: n(colQueda),
             crudo: this.redondear3(this.saldoRealColumnaTipo(row, 'crudo')), cocido: this.redondear3(this.saldoRealColumnaTipo(row, 'cocido')),
-            partes: pQueda, columna: { etiqueta: 'Columna Queda', valor: colQueda, ok: iguales(this.sumaPartes(pQueda).total, colQueda) }, abierto: false
+            partes: partes((m, t) => this.calcSaldoRealTipo(m, t)),
+            columna: { etiqueta: 'Columna Queda', valor: colQueda, ok: iguales(this.redondear3(calculado + faltante), colQueda) },
+            abierto: false
           });
           pasos.forEach((p, i) => { p.indice = i; });
 
@@ -17502,32 +17322,31 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             etiquetaPeriodo: etqPeriodo,
             rangoFechas,
             hayPlatos,
-            miembros: Math.max(fam.apertura.length, fam.saldo.length),
+            miembros: 1 + this.miembrosGrupo(row).length,
             saldoAnterior: sAnt.total,
             ingreso: sIng.total,
             correccion: sCor.total,
             ingresoTotal: sumaIT,
             ventas: colVta,
             transformacion: sTra.total,
-            ajuste,
-            saldoTeorico: colSaldo,
+            ajuste: this.redondear3(cubierta + faltante),
+            saldoTeorico: calculado,
             quedaSaldoReal: colQueda,
             cuadra: pasos.every((p) => !p.columna || p.columna.ok),
-            sueltas,
-            enPlatos,
-            familia: colQueda,
-            platosConSaldo: this.platosDirectosDe(row.id).map((nodo) => {
-              const hijo = this.filaReal(nodo.id);
-              const crudo = hijo ? this.calcSaldoRealTipo(hijo, 'crudo') : 0;
-              const cocido = hijo && hijo.tieneCocido ? this.calcSaldoRealTipo(hijo, 'cocido') : 0;
+            sueltas: colQueda,
+            enPlatos: this.redondear3(familia - colQueda),
+            familia,
+            platosConSaldo: this.miembrosGrupo(row).map((hijo) => {
+              const crudo = this.calcSaldoRealTipo(hijo, 'crudo');
+              const cocido = hijo.tieneCocido ? this.calcSaldoRealTipo(hijo, 'cocido') : 0;
               return {
-                id: nodo.id,
-                nombre: (hijo && hijo.nombre) || nodo.nombre,
-                tieneCocido: !!(hijo && hijo.tieneCocido),
+                id: hijo.id,
+                nombre: hijo.nombre,
+                tieneCocido: !!hijo.tieneCocido,
                 crudo: crudo,
                 cocido: cocido,
-                ventaCrudo: hijo ? this.ventaNetaTipo(hijo, 'crudo') : 0,
-                ventaCocido: hijo && hijo.tieneCocido ? this.ventaNetaTipo(hijo, 'cocido') : 0
+                ventaCrudo: this.ventaNetaTipo(hijo, 'crudo'),
+                ventaCocido: hijo.tieneCocido ? this.ventaNetaTipo(hijo, 'cocido') : 0
               };
             }).filter((p) => p.crudo || p.cocido || p.ventaCrudo || p.ventaCocido),
             estadoTexto: this.estadoFila(row),
@@ -18006,7 +17825,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           let neto = 0;
           const lista = clave ? (this.indiceTurnoCuadro().get(clave + '|' + tipoOk) || []) : [];
           for (let i = 0; i < lista.length; i++) {
-            if (String(lista[i].motivo || '').indexOf('Saldo anterior') === 0) continue;
+            if (this.esMotivoApertura(lista[i].motivo) || String(lista[i].motivo || '').indexOf('Ajuste de stock') === 0) continue;
             if (busca && lista[i].motivo.indexOf(busca) === -1) continue;
             neto += lista[i].cantidad;
           }
@@ -19645,7 +19464,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         totalPorcionesArroz(d) {
-          return this.redondear3(this.stockAnteriorArroz(d) + this.ingresoTransformaArroz(d));
+          const row = d && this.filaReal(d.id);
+          return row ? this.calcIngresoTotalTipo(row, this.tipoArrozDestino(d)) : 0;
         },
 
         ventaPorcionesArroz(d) {
@@ -19656,7 +19476,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         saldoPorcionesArroz(d) {
-          return Math.max(0, this.redondear3(this.totalPorcionesArroz(d) - this.ventaPorcionesArroz(d)));
+          return this.stockCuadro(d.id, this.tipoArrozDestino(d));
+        },
+
+        ajustePorcionesArroz(d) {
+          const row = d && this.filaReal(d.id);
+          return row ? this.redondear3(this.valorTipo(row, 'correccion', this.tipoArrozDestino(d))) : 0;
         },
 
         textoKgArroz(d, porciones) {
@@ -19679,7 +19504,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             clase: 'ingreso',
             tipoProducto: tipo,
             cantidad: delta,
-            motivo: 'Saldo anterior',
+            motivo: 'Ajuste apertura',
             fecha: this.fechaSaldoAnterior(),
             fechaFija: this.fechaSaldoAnterior(),
             nombre: row.nombre
@@ -19754,7 +19579,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const tipo = this.tipoConteoDe(row);
           const campo = this.campoTipo('inventario', tipo);
           const antes = row[campo] === undefined ? null : row[campo];
-          const valor = Math.max(0, parseInt(this.countForm.valor, 10) || 0);
+          const valor = Math.max(0, this.redondear3(Number(this.countForm.valor) || 0));
           row[campo] = valor;
           this.showCountModal = false;
           this.pulseRowTotal(row.id);

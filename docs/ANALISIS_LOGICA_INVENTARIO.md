@@ -1,5 +1,7 @@
 # Análisis de la lógica de Inventario
 
+> **Desactualizado.** Describe la lógica anterior al 18 de noviembre de 2026. La vigente está en [LOGICA_INVENTARIO.md](LOGICA_INVENTARIO.md).
+
 Fuentes: `docs/GUIA_INVENTARIO.md`, `public/inventario.html`, `src/utils/inventarioKardex.js`, `src/utils/inventarioCascadaVenta.js`.  
 Fecha: 11 de noviembre de 2026.
 

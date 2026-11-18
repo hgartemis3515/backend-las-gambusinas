@@ -189,7 +189,7 @@ test('un motivo de 200 caracteres conserva las marcas dentro del límite del mod
     expect(app.editarStock.motivo).toHaveLength(200);
     expect(await app.guardarModalStock()).toBe(true);
     expect(guardados.every((m) => m.motivo.length <= 200)).toBe(true);
-    expect(guardados.some((m) => m.motivo.startsWith('Corrección'))).toBe(true);
+    expect(guardados.every((m) => m.clase === 'regulacion' && m.motivo.startsWith('Ajuste de stock'))).toBe(true);
     for (const tipo of ['crudo', 'cocido']) {
         expect(guardados.filter((m) => m.tipoProducto === tipo).map((m) => m.motivo.split(' · ').pop())).toEqual(['pecho', 'pierna', 'sin separar']);
     }
@@ -368,7 +368,7 @@ test('el saldo de pieza de panceta es el que se editó y no suma el chancho', ()
     app.ymdOperativo = () => '2026-11-17';
     window.TurnosDiaNoche = { esSegmento: (id) => id === 'noche' || id === 'dia', rangoDe: () => ({ desde: '2026-11-17T22:44:57.000Z', hasta: '2026-11-18T08:59:59.000Z' }) };
     expect(app.rangoDe('noche')).toEqual({ desde: '2026-11-17', hasta: '2026-11-17' });
-    expect(app.fechaSaldoAnterior()).toBe('2026-11-17T03:59:00-05:00');
+    expect(app.fechaSaldoAnterior()).toBe('2026-11-17T04:00:00-05:00');
 });
 
 test('el saldo anterior de pieza de panceta no suma el stock de sus platos', () => {

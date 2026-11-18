@@ -1,4 +1,4 @@
-const { armarKardex, alertasDeFilas, filaDesdeSumas, gapAperturaHoja } = require('../src/utils/inventarioKardex');
+const { armarKardex, alertasDeFilas, filaDesdeSumas } = require('../src/utils/inventarioKardex');
 const { filasDeRubros, sumarFilas } = require('../src/utils/inventarioRubros');
 
 function dia(ymd, hora) {
@@ -134,10 +134,4 @@ test('el saldo real del día abre el saldo anterior del día siguiente', () => {
     expect(nueve.saldoInicial).toBe(ocho.cierre);
     expect(nueve.egreso).toBe(1);
     expect(nueve.cierre).toBe(15);
-});
-
-test('un saldo anterior negativo oculto en la hoja se hereda al día siguiente', () => {
-    expect(gapAperturaHoja({ saldoInicial: -13, ingresos: 87, regulacion: 0, egreso: 0, venta: 5 })).toBe(13);
-    expect(gapAperturaHoja({ saldoInicial: 82, ingresos: 0, regulacion: 0, egreso: 0, venta: 6 })).toBe(0);
-    expect(gapAperturaHoja({ saldoInicial: 11, ingresos: 22, regulacion: 0, egreso: 0, venta: 22 })).toBe(0);
 });
