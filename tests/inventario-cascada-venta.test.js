@@ -184,11 +184,34 @@ test('si el cocido activo no tiene saldo, el faltante queda en el cocido', () =>
     expect(bases['pechuga-pollo|crudo']).toBeUndefined();
 });
 
-test('panceta y tira quedan en crudo y la pieza solo en cocido', () => {
+test('arroz con pollo, olla y caldo solo restan su cocido', () => {
+    const bases = { 'arroz-pollo|cocido': 10, 'arroz-pollo|crudo': 10, 'pollo-olla|cocido': 2, 'caldo-pollo|crudo': 3, 'pierna-pollo|crudo': 20 };
+    expect(repartirVenta(4, cadenaDe('arroz-pollo', { tieneCocido: true }), bases)).toEqual([
+        { rubro: 'arroz-pollo', tipo: 'cocido', cantidad: 4 }
+    ]);
+    expect(bases['arroz-pollo|cocido']).toBe(6);
+    expect(bases['arroz-pollo|crudo']).toBe(10);
+    expect(bases['pierna-pollo|crudo']).toBe(20);
+    expect(repartirVenta(2, cadenaDe('pollo-olla', { tieneCocido: true }), bases)).toEqual([
+        { rubro: 'pollo-olla', tipo: 'cocido', cantidad: 2 }
+    ]);
+    expect(repartirVenta(1, cadenaDe('caldo-pollo', { tieneCocido: false }), bases)).toEqual([
+        { rubro: 'caldo-pollo', tipo: 'cocido', cantidad: 1 }
+    ]);
+    expect(bases['caldo-pollo|crudo']).toBe(3);
+    const movimientos = [
+        { rubro: 'arroz-pollo', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 10, fecha: '2026-11-17T08:00:00-05:00' }
+    ];
+    const venta = { rubro: 'arroz-pollo', nombre: 'Arroz con pollo', cantidad: 4, fecha: '2026-11-17T13:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], { 'arroz-pollo': { tieneCocido: true, reservaClave: '' } }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['arroz-pollo|cocido:4']);
+});
+
+test('panceta queda en crudo y la tira y la pieza solo en cocido', () => {
     expect(validarCocidoConfig('panceta', { tieneCocido: true })).toEqual({ valido: true, tieneCocido: false, reservaClave: '' });
     expect(validarCocidoConfig('tira-panceta', { tieneCocido: true, reservaClave: 'filete' })).toEqual({ valido: true, tieneCocido: false, reservaClave: '' });
     expect(cadenaDe('panceta', { tieneCocido: true })).toEqual([{ rubro: 'panceta', tipo: 'crudo' }]);
-    expect(cadenaDe('tira-panceta', { tieneCocido: true })).toEqual([{ rubro: 'tira-panceta', tipo: 'crudo' }]);
+    expect(cadenaDe('tira-panceta', { tieneCocido: true })).toEqual([{ rubro: 'tira-panceta', tipo: 'cocido' }]);
     expect(cadenaDe('trozo-panceta', { tieneCocido: true })).toEqual([{ rubro: 'trozo-panceta', tipo: 'cocido' }]);
     const movimientos = [
         { rubro: 'panceta', tipoProducto: 'cocido', clase: 'ingreso', cantidad: 4, fecha: '2026-11-10T09:00:00-05:00' },
@@ -205,16 +228,29 @@ test('la materia no tiene cocido ni reserva', () => {
     expect(validarCocidoConfig('pollada', { tieneCocido: true, reservaClave: 'pollada' }).valido).toBe(false);
 });
 
-test('la pollada solo gasta su cocido y no la pierna', () => {
+test('la pollada gasta su cocido y el faltante solo su crudo, no la pierna', () => {
     const bases = { 'pollada|cocido': 1, 'pollada|crudo': 4, 'pierna-pollo|crudo': 5 };
     expect(repartirVenta(3, cadenaDe('pollada', semillaCocido('pollada')), bases)).toEqual([
-        { rubro: 'pollada', tipo: 'cocido', cantidad: 3 }
+        { rubro: 'pollada', tipo: 'cocido', cantidad: 1 },
+        { rubro: 'pollada', tipo: 'crudo', cantidad: 2 }
     ]);
-    expect(bases['pollada|cocido']).toBe(-2);
+    expect(bases['pollada|cocido']).toBe(0);
+    expect(bases['pollada|crudo']).toBe(2);
     expect(bases['pierna-pollo|crudo']).toBe(5);
 });
 
-test('sin cocido la pollada sigue restando su cocido y no la pierna', () => {
+test('con cocido activo la pollada igual baja a su crudo si el cocido no alcanza', () => {
+    const movimientos = [
+        { rubro: 'pollada', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 50, fecha: '2026-11-17T08:00:00-05:00' },
+        { rubro: 'pierna-pollo', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 10, fecha: '2026-11-17T08:00:00-05:00' }
+    ];
+    const venta = { rubro: 'pollada', nombre: 'Pollada', cantidad: 32, fecha: '2026-11-17T13:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], { pollada: { tieneCocido: true, reservaClave: '' } }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['pollada|crudo:32']);
+    expect(out.some((v) => v.rubro === 'pierna-pollo')).toBe(false);
+});
+
+test('sin cocido la pollada resta solo su crudo y no la pierna', () => {
     const detalle = [{ nombre: 'Pollada + papa fritas', cantidad: 2, comanda: 'Comanda 4' }];
     const out = atribuirVentas([], [{
         rubro: 'pollada',
@@ -225,7 +261,7 @@ test('sin cocido la pollada sigue restando su cocido y no la pierna', () => {
     }]);
     const stock = out.filter((v) => !v.sinSaldo);
     expect(stock.map((v) => [v.rubro, v.tipoProducto, v.cantidad])).toEqual([
-        ['pollada', 'cocido', 2]
+        ['pollada', 'crudo', 2]
     ]);
     expect(out.some((v) => v.rubro === 'pierna-pollo')).toBe(false);
     expect(stock[0].detalle).toEqual(detalle);
@@ -323,6 +359,24 @@ test('el cocido agregado antes de la venta se gasta primero (pecho de pato)', ()
     const venta = { rubro: 'pechuga-pato', nombre: 'Arroz con pato', cantidad: 1, fecha: '2026-11-10T10:00:00-05:00', detalle: [] };
     const out = atribuirVentas(movimientos, [venta], { 'pechuga-pato': semillaCocido('pechuga-pato') }).filter((v) => !v.sinSaldo);
     expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['pechuga-pato|cocido:1']);
+});
+
+test('el filete de trucha solo resta su crudo: 44 menos 1 queda 43', () => {
+    const movimientos = [
+        { rubro: 'filete-trucha', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 44, fecha: '2026-11-17T08:00:00-05:00' }
+    ];
+    const venta = { rubro: 'filete-trucha', nombre: 'Filete de trucha', cantidad: 1, fecha: '2026-11-17T13:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], { 'filete-trucha': { tieneCocido: true, reservaClave: '' } }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['filete-trucha|crudo:1']);
+});
+
+test('el cuy solo resta su crudo: 4 menos 0.5 queda 3.5', () => {
+    const movimientos = [
+        { rubro: 'cuy', tipoProducto: 'crudo', clase: 'ingreso', cantidad: 4, fecha: '2026-11-17T08:00:00-05:00' }
+    ];
+    const venta = { rubro: 'cuy', nombre: '1/2 cuy', cantidad: 0.5, fecha: '2026-11-17T13:00:00-05:00', detalle: [] };
+    const out = atribuirVentas(movimientos, [venta], { cuy: { tieneCocido: true, reservaClave: '' } }).filter((v) => !v.sinSaldo);
+    expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['cuy|crudo:0.5']);
 });
 
 test('arroz blanco y arroz verde son cocido y la venta resta ese stock', () => {

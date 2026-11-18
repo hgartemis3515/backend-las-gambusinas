@@ -11,7 +11,7 @@ const NOMBRE_MATERIA = {
 };
 
 const SEMILLA = {
-    pollada: { tieneCocido: false, reservaClave: 'pierna-pollo' },
+    pollada: { tieneCocido: false, reservaClave: '' },
     menu: { tieneCocido: false, reservaClave: '' },
     'menu-pecho': { tieneCocido: false, reservaClave: '' },
     'menu-pierna': { tieneCocido: false, reservaClave: '' },
@@ -83,9 +83,9 @@ function cadenaMixPechoLena() {
     ];
 }
 
-/** Platos de Pecho y Pierna: la venta solo baja el cocido del plato, nunca la pieza. */
+/** Platos de Pecho y Pierna: la venta solo baja el cocido del plato, nunca la pieza. Pollada no entra: si no hay cocido, baja su propio crudo. */
 const PLATOS_POLLO_SOLO_COCIDO = [
-    'pollada', 'pierna-lena', 'pachamanca-pollo',
+    'pierna-lena', 'pachamanca-pollo',
     'pollo-lena', 'sandwiches', 'pachamanca-pollo-pecho'
 ];
 
@@ -103,10 +103,15 @@ function tipoProductoDe(rubro, tipo) {
     return tipo === 'cocido' ? 'cocido' : 'crudo';
 }
 
+function esPlatoOctavoVenta(rubro) {
+    return rubro === 'arroz-pollo' || rubro === 'pollo-olla' || rubro === 'caldo-pollo';
+}
+
 function cadenaDe(rubro, opciones) {
     const op = opciones || {};
-    if (esMateria(rubro) || rubro === 'panceta' || rubro === 'tira-panceta') return [{ rubro: rubro, tipo: 'crudo' }];
-    if (platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || rubro === 'tamal-chancho' || rubro === 'tamal-pollo' || arrozPorcionCocida(rubro)) return [{ rubro: rubro, tipo: 'cocido' }];
+    if (esMateria(rubro) || rubro === 'panceta') return [{ rubro: rubro, tipo: 'crudo' }];
+    if (rubro === 'pollada') return [{ rubro: 'pollada', tipo: 'cocido' }, { rubro: 'pollada', tipo: 'crudo' }];
+    if (esPlatoOctavoVenta(rubro) || platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || rubro === 'tira-panceta' || rubro === 'tamal-chancho' || rubro === 'tamal-pollo' || arrozPorcionCocida(rubro)) return [{ rubro: rubro, tipo: 'cocido' }];
     // Con el cuadro de cocido activo, la venta solo baja ese cocido. No toca el crudo ni el producto principal.
     if (op.tieneCocido) return [{ rubro: rubro, tipo: 'cocido' }];
     const cadena = [{ rubro: rubro, tipo: 'crudo' }];
@@ -239,18 +244,21 @@ function atribuirVentas(movimientos, ventas, opciones) {
         const cant = Number(v.cantidad) || 0;
         if (!rubro || cant <= 0) return;
         const op = (opciones && opciones[rubro]) || semillaCocido(rubro);
-        const pancetaCruda = rubro === 'panceta' || rubro === 'tira-panceta';
-        const soloCocido = !pancetaCruda && (op.tieneCocido === true || platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || arrozPorcionCocida(rubro));
+        const pancetaCruda = rubro === 'panceta';
+        const stockGeneral = rubro === 'humita' || rubro === 'trucha' || rubro === 'filete-trucha' || rubro === 'pieza-pescado' || rubro === 'filete' || rubro === 'helados' || rubro === 'delicias' || rubro === 'yuca' || rubro === 'cuy' || rubro === 'bisteck' || rubro === 'lomo-fino' || rubro === 'carne-guiso' || rubro === 'seco-res' || rubro.indexOf('gaseosa-') === 0 || rubro.indexOf('licor-') === 0 || rubro.indexOf('agua-') === 0 || rubro.indexOf('frugos') === 0 || rubro.indexOf('pizza') === 0;
+        const soloCocido = !stockGeneral && rubro !== 'pollada' && !pancetaCruda && (op.tieneCocido === true || esPlatoOctavoVenta(rubro) || platoPolloSoloCocido(rubro) || rubro === 'trozo-panceta' || rubro === 'tira-panceta' || arrozPorcionCocida(rubro));
         const mixPecho = !soloCocido && rubro === 'pollo-lena' && esMixPechoLena(v);
         const pachaPollo = !soloCocido && rubro === 'pachamanca-pollo';
         let cadena;
-        if (rubro === 'filete-junior') cadena = [{ rubro: 'filete', tipo: 'crudo' }];
+        if (rubro === 'pollada') cadena = [{ rubro: 'pollada', tipo: 'cocido' }, { rubro: 'pollada', tipo: 'crudo' }];
+        else if (stockGeneral) cadena = [{ rubro: rubro, tipo: 'crudo' }];
+        else if (rubro === 'filete-junior') cadena = [{ rubro: 'filete', tipo: 'crudo' }];
         else if (pancetaCruda) cadena = [{ rubro: rubro, tipo: 'crudo' }];
         else if (soloCocido) cadena = [{ rubro: rubro, tipo: 'cocido' }];
         else if (mixPecho) cadena = cadenaMixPechoLena();
         else if (pachaPollo) cadena = cadenaPachamancaPollo();
         else cadena = cadenaDe(rubro, op);
-        if (!pancetaCruda && rubro !== 'filete-junior' && !soloCocido && !mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
+        if (!pancetaCruda && !stockGeneral && rubro !== 'filete-junior' && !soloCocido && !mixPecho && !pachaPollo && cadena[0].tipo !== 'cocido') cadena.unshift({ rubro: rubro, tipo: 'cocido' });
         const partes = repartirVenta(cant, cadena, bases);
         const algunaLocal = partes.some((p) => p.rubro === rubro);
         let cubierta = 0;

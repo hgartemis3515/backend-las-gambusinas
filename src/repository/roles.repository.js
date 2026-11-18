@@ -58,11 +58,37 @@ const inicializarRolesSistema = async () => {
             }
         }
 
+        await asegurarReglaCuadroVentasFlor();
+
         logger.info('Roles del sistema inicializados correctamente');
     } catch (error) {
         logger.error('Error al inicializar roles del sistema', { error: error.message });
         throw error;
     }
+};
+
+const REGLA_OCULTAR_CUADRO_VENTAS = 'ocultar-cuadro-ventas-comandas';
+
+/**
+ * Flor usa Comandas en pantalla táctil. La primera vez que no tiene reglas
+ * propias, el cuadro de ventas queda oculto. Si alguien lo apaga después,
+ * el arreglo ya existe y no se vuelve a encender solo.
+ */
+const asegurarReglaCuadroVentasFlor = async () => {
+    const candidatas = await mozosModel.find({ name: /^flor$/i }).lean();
+    for (const flor of candidatas) {
+        if (Object.prototype.hasOwnProperty.call(flor, 'reglas')) continue;
+        await mozosModel.updateOne(
+            { _id: flor._id },
+            { $set: { reglas: [REGLA_OCULTAR_CUADRO_VENTAS] } }
+        );
+        logger.info('Cuadro de ventas de Comandas oculto para Flor', { id: String(flor._id) });
+    }
+};
+
+const reglasPropiasValidas = (mozo) => {
+    const raw = Array.isArray(mozo?.reglas) ? mozo.reglas : [];
+    return raw.filter((regla) => REGLAS_FUNDAMENTALES[regla]);
 };
 
 /**
@@ -343,7 +369,7 @@ const obtenerMozoConRol = async (mozoId) => {
         return {
             ...mozo,
             permisosEfectivos: permisosRol,
-            reglasEfectivas: reglasRol
+            reglasEfectivas: [...new Set([...(reglasRol || []), ...reglasPropiasValidas(mozo)])]
         };
     } catch (error) {
         logger.error('Error al obtener mozo con rol', { error: error.message, mozoId });
@@ -432,23 +458,33 @@ const tienePermiso = async (usuarioId, permiso) => {
 };
 
 /**
- * Verificar si un usuario tiene una regla específica asignada a su rol
- * Las reglas son restricciones de comportamiento activas solo si están presentes
+ * Verificar si un usuario tiene una regla (la de su rol o una propia).
+ * Las reglas propias aplican también a admin: así Flor puede ocultar el
+ * cuadro de ventas sin cambiar el rol que comparte con otras personas.
  */
 const tieneRegla = async (usuarioId, regla) => {
     try {
-        const usuario = await mozosModel.findById(usuarioId).lean();
+        const usuario = await obtenerMozoConRol(usuarioId);
         if (!usuario) return false;
-
-        // Admin no está sujeto a reglas restrictivas
-        if (usuario.rol === 'admin') return false;
-
-        const reglasRol = REGLAS_POR_ROL_SISTEMA[usuario.rol] || [];
-        return reglasRol.includes(regla);
+        return (usuario.reglasEfectivas || []).includes(regla);
     } catch (error) {
         logger.error('Error al verificar regla', { error: error.message, usuarioId, regla });
         return false;
     }
+};
+
+const actualizarReglasUsuario = async (usuarioId, reglas) => {
+    let usuario = await mozosModel.findById(usuarioId);
+    if (!usuario) {
+        usuario = await mozosModel.findOne({ mozoId: parseInt(usuarioId, 10) });
+    }
+    if (!usuario) {
+        throw new Error('Usuario no encontrado');
+    }
+    const validas = [...new Set((Array.isArray(reglas) ? reglas : []).filter((r) => REGLAS_FUNDAMENTALES[r]))];
+    usuario.reglas = validas;
+    await usuario.save();
+    return usuario.toObject();
 };
 
 /**
@@ -521,6 +557,7 @@ module.exports = {
     notificarPermisosCocinaPorRol,
     tienePermiso,
     tieneRegla,
+    actualizarReglasUsuario,
     tieneRol,
     ROLES_SISTEMA,
     PERMISOS_FUNDAMENTALES,

@@ -102,6 +102,7 @@ router.post('/admin/auth', async (req, res) => {
         // Determinar el rol (usar el de BD o default)
         const rol = mozoConRol?.rol || mozo.rol || 'mozos';
         const permisos = mozoConRol?.permisosEfectivos || rolesRepository.PERMISOS_POR_ROL_SISTEMA[rol] || [];
+        const reglas = mozoConRol?.reglasEfectivas || [];
 
         // Verificar si tiene acceso al dashboard (admin, supervisor o rol con gestión)
         const tieneAccesoDashboard = rol === 'admin'
@@ -131,7 +132,8 @@ router.post('/admin/auth', async (req, res) => {
                 name: mozo.name,
                 DNI: mozo.DNI,
                 rol: rol,
-                permisos: permisos
+                permisos: permisos,
+                reglas: reglas
             },
             JWT_SECRET,
             {
@@ -152,7 +154,8 @@ router.post('/admin/auth', async (req, res) => {
                 name: mozo.name,
                 DNI: mozo.DNI,
                 rol: rol,
-                permisos: permisos
+                permisos: permisos,
+                reglas: reglas
             }
         });
         
@@ -205,6 +208,7 @@ router.post('/admin/auth/refresh', async (req, res) => {
 
         const rol = mozoConRol.rol || decoded.rol || 'mozos';
         const permisos = mozoConRol.permisosEfectivos || decoded.permisos || [];
+        const reglas = mozoConRol.reglasEfectivas || [];
 
         const nuevoToken = jwt.sign(
             {
@@ -212,7 +216,8 @@ router.post('/admin/auth/refresh', async (req, res) => {
                 name: mozoConRol.name || decoded.name,
                 DNI: mozoConRol.DNI || decoded.DNI,
                 rol,
-                permisos
+                permisos,
+                reglas
             },
             JWT_SECRET,
             { expiresIn: process.env.ADMIN_JWT_EXPIRY || '7d' }
@@ -227,7 +232,8 @@ router.post('/admin/auth/refresh', async (req, res) => {
                 name: mozoConRol.name || decoded.name,
                 DNI: mozoConRol.DNI || decoded.DNI,
                 rol,
-                permisos
+                permisos,
+                reglas
             }
         });
     } catch (error) {

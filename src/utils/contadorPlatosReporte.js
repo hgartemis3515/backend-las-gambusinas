@@ -384,7 +384,7 @@ function sumarGuarniciones(linea, ficha, map) {
     if (!key) continue;
     const q = Math.max(1, Number(c.cantidad) || 1) * cant;
     if (!map.has(key)) {
-      map.set(key, { nombre: op, cantidad: 0, grupos: new Set(), platos: new Set() });
+      map.set(key, { nombre: op, cantidad: 0, grupos: new Set(), platos: new Set(), porPlato: {} });
     }
     const row = map.get(key);
     row.nombre = etiquetaGuarnicion(row.nombre, op);
@@ -392,6 +392,7 @@ function sumarGuarniciones(linea, ficha, map) {
     const g = nombreVisible(c.grupo);
     if (g) row.grupos.add(g);
     row.platos.add(platoNom);
+    row.porPlato[platoNom] = (row.porPlato[platoNom] || 0) + q;
   }
 }
 
@@ -446,6 +447,7 @@ function armarContadorPlatos(lineas, catalogo) {
     porcentaje: totalG > 0 ? Math.round((g.cantidad / totalG) * 1000) / 10 : 0,
     grupos: [...g.grupos],
     platos: [...g.platos],
+    porPlato: Object.assign({}, g.porPlato || {}),
   }));
 
   const graficoPlatos = [...pollos, ...carnes, ...platos]

@@ -212,6 +212,12 @@ tailwind.config = {
     line-height: 1.15;
     box-shadow: 0 1px 2px rgba(0,0,0,.3);
   }
+  .kpi-valor-oculto {
+    filter: blur(6px);
+    color: #64748b !important;
+    letter-spacing: 0.2em;
+    user-select: none;
+  }
 </style>
 <script>
 if (new URLSearchParams(location.search).get('embed') === '1') {
@@ -230,37 +236,53 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div class="flex items-center justify-between mb-5">
  <div class="flex items-center gap-3 flex-wrap">
  <h1 class="text-xl font-bold">Comandas</h1>
- <div class="flex items-center gap-4 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5">
+ <div
+  class="flex items-center gap-4 bg-bg-card border rounded-lg px-3 py-2.5 min-h-[52px] select-none"
+  style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;"
+  :class="kpiCuadroOcultable ? 'border-[rgba(212,175,55,0.55)] cursor-pointer active:brightness-125' : 'border-[rgba(212,175,55,0.25)]'"
+  :role="kpiCuadroOcultable ? 'button' : undefined"
+  :tabindex="kpiCuadroOcultable ? 0 : undefined"
+  :aria-pressed="kpiCuadroOcultable ? kpiCuadroVisible : undefined"
+  :title="kpiCuadroOcultable ? (kpiCuadroVisible ? 'Toca para ocultar' : 'Toca para ver') : ''"
+  @click="alternarCuadroVentas()"
+  @keydown.enter.prevent="alternarCuadroVentas()"
+  @keydown.space.prevent="alternarCuadroVentas()"
+ >
   <div>
    <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Ventas totales</p>
-   <p class="text-sm font-extrabold text-gold tabular-nums leading-tight" x-text="fmtSolesKpi(kpiVentasTotales)"></p>
+   <p class="text-sm font-extrabold tabular-nums leading-tight" :class="kpiCuadroVisible ? 'text-gold' : 'kpi-valor-oculto'" x-text="kpiCuadroVisible ? fmtSolesKpi(kpiVentasTotales) : '####'"></p>
   </div>
   <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
   <div>
    <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Total visto</p>
-   <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="fmtSolesKpi(totalVistoTabla)"></p>
+   <p class="text-sm font-extrabold tabular-nums leading-tight" :class="kpiCuadroVisible ? 'text-white' : 'kpi-valor-oculto'" x-text="kpiCuadroVisible ? fmtSolesKpi(totalVistoTabla) : '####'"></p>
   </div>
   <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
   <div>
    <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Ticket promedio</p>
-   <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="fmtSolesKpi(kpiTicketPromedio)"></p>
+   <p class="text-sm font-extrabold tabular-nums leading-tight" :class="kpiCuadroVisible ? 'text-white' : 'kpi-valor-oculto'" x-text="kpiCuadroVisible ? fmtSolesKpi(kpiTicketPromedio) : '####'"></p>
   </div>
   <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
   <div class="text-center">
    <p class="text-[12px] uppercase tracking-wide text-txt-muted font-semibold">Tickets</p>
-   <p class="text-[16.8px] font-extrabold text-white tabular-nums leading-tight">
-    <span x-text="kpiTicketsCreadas"></span><span x-show="kpiTicketsEliminadas > 0" class="text-[#ff4757]" x-text="' -' + kpiTicketsEliminadas"></span>
+   <p class="text-[16.8px] font-extrabold tabular-nums leading-tight" :class="kpiCuadroVisible ? 'text-white' : 'kpi-valor-oculto'">
+    <span x-text="kpiCuadroVisible ? kpiTicketsCreadas : '####'"></span><span x-show="kpiCuadroVisible && kpiTicketsEliminadas > 0" class="text-[#ff4757]" x-text="' -' + kpiTicketsEliminadas"></span>
    </p>
   </div>
   <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
   <div class="text-center">
    <p class="text-[12px] uppercase tracking-wide text-txt-muted font-semibold">Tickets mesa</p>
-   <p class="text-[16.8px] font-extrabold text-white tabular-nums leading-tight" x-text="kpiTicketsMesa"></p>
+   <p class="text-[16.8px] font-extrabold tabular-nums leading-tight" :class="kpiCuadroVisible ? 'text-white' : 'kpi-valor-oculto'" x-text="kpiCuadroVisible ? kpiTicketsMesa : '####'"></p>
   </div>
   <div class="text-center">
    <p class="text-[12px] uppercase tracking-wide text-txt-muted font-semibold">Tickets llevar</p>
-   <p class="text-[16.8px] font-extrabold text-[#3b82f6] tabular-nums leading-tight" x-text="kpiTicketsLlevar"></p>
+   <p class="text-[16.8px] font-extrabold tabular-nums leading-tight" :class="kpiCuadroVisible ? 'text-[#3b82f6]' : 'kpi-valor-oculto'" x-text="kpiCuadroVisible ? kpiTicketsLlevar : '####'"></p>
   </div>
+  <template x-if="kpiCuadroOcultable">
+   <div class="text-center pl-1 shrink-0">
+    <p class="text-[11px] uppercase tracking-wide text-gold font-bold" x-text="kpiCuadroVisible ? 'Ocultar' : 'Ver'"></p>
+   </div>
+  </template>
  </div>
  </div>
  <div class="flex items-center gap-3">
@@ -3649,7 +3671,28 @@ function limaHM(d) {
   }).format(new Date(d));
 }
 
+const REGLA_OCULTAR_CUADRO_VENTAS = 'ocultar-cuadro-ventas-comandas';
+
+function estadoInicialCuadroVentas() {
+  let ocultable = false;
+  try {
+    const token = (typeof getToken === 'function')
+      ? getToken()
+      : (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (Array.isArray(payload.reglas)) {
+        ocultable = payload.reglas.includes(REGLA_OCULTAR_CUADRO_VENTAS);
+      } else {
+        ocultable = String(payload.name || '').trim().toLowerCase() === 'flor';
+      }
+    }
+  } catch (e) { /* sesión anterior o token ilegible */ }
+  return { kpiCuadroOcultable: ocultable, kpiCuadroVisible: !ocultable };
+}
+
 function comandasApp() {
+ const cuadroVentas = estadoInicialCuadroVentas();
  return {
  sidebarOpen: false,
  modal: null,
@@ -3757,6 +3800,8 @@ function comandasApp() {
  turnosLimaYMD: '',
  _turnosAutoNocheHecho: false,
  _turnosPoll: null,
+ kpiCuadroOcultable: cuadroVentas.kpiCuadroOcultable,
+ kpiCuadroVisible: cuadroVentas.kpiCuadroVisible,
  kpiVentasTotales: 0,
  kpiTicketPromedio: 0,
  kpiTicketsCreadas: 0,
@@ -7078,6 +7123,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  fmtSolesKpi(n) {
   return 'S/. ' + (Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+ },
+
+ alternarCuadroVentas() {
+  if (!this.kpiCuadroOcultable) return;
+  this.kpiCuadroVisible = !this.kpiCuadroVisible;
  },
 
  limpiarFiltroAvanzado() {

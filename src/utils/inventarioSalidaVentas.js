@@ -91,6 +91,25 @@ function rubroTamal(n) {
     return '';
 }
 
+function esNombreSoloArroz(nombre) {
+    const n = norm(nombre);
+    return n === 'arroz' || n === 'arroz blanco';
+}
+
+function llevaArrozBlanco(n) {
+    if (!n || n.includes('chaufa') || n.includes('marisco') || n.includes('arroz con pollo') || n.includes('beata')) return false;
+    if (n.includes('arroz verde') || n.includes('arroz con pato') || n.includes('arroz de pato')) return false;
+    if (n.includes('arroz blanco')) return true;
+    return /\barroz\b/.test(n);
+}
+
+function nombreConArroz(nombre) {
+    const s = String(nombre || '').trim();
+    if (!s || esNombreSoloArroz(s)) return s;
+    if (/\bcon arroz\s*$/i.test(s)) return s;
+    return s + ' Con arroz';
+}
+
 function rubroDeGuarnicion(nombre) {
     const n = norm(nombre);
     if (!n || n.includes('ensalada') || n.includes('zarza') || n.includes('frijol') || n.includes('frejol')) return null;
@@ -120,7 +139,13 @@ const ALIAS_RUBRO_RELACION = {
     'arroz pato': 'arroz-verde',
     'arroz con pato': 'arroz-verde',
     'arroz beata': 'arroz-beata',
-    'frugos 1.5lt': 'frugos-1-5l'
+    'frugos 1.5lt': 'frugos-1-5l',
+    'seco de res': 'carne-guiso',
+    'carne guiso': 'carne-guiso',
+    'lomo fino': 'lomo-fino',
+    'carne bistec': 'bisteck',
+    'bistec': 'bisteck',
+    'bisteck': 'bisteck'
 };
 
 function claveDeRubroRelacion(rubro) {
@@ -181,9 +206,30 @@ function filasDelContador(contador) {
     const bebidas = (contador.guarniciones || [])
         .filter((g) => g && claveBebida(g.nombre))
         .map((g) => ({ nombre: g.nombre, cantidad: g.cantidad }));
-    const guarniciones = (contador.guarniciones || [])
-        .filter((g) => g && !claveBebida(g.nombre) && rubroDeGuarnicion(g.nombre))
-        .map((g) => ({ nombre: g.nombre, cantidad: g.cantidad, esGuarnicion: true }));
+    const guarniciones = [];
+    (contador.guarniciones || []).forEach((g) => {
+        if (!g || claveBebida(g.nombre) || !rubroDeGuarnicion(g.nombre)) return;
+        const dest = rubroDeGuarnicion(g.nombre);
+        if (dest.rubro === 'arroz-blanco' && esNombreSoloArroz(g.nombre)) {
+            const por = g.porPlato || {};
+            const platos = Object.keys(por);
+            if (!platos.length) {
+                guarniciones.push({ nombre: 'Con arroz', cantidad: g.cantidad, esGuarnicion: true, soloArroz: true, platoOrigen: '' });
+                return;
+            }
+            platos.forEach((plato) => {
+                guarniciones.push({
+                    nombre: nombreConArroz(plato),
+                    cantidad: por[plato],
+                    esGuarnicion: true,
+                    soloArroz: true,
+                    platoOrigen: plato
+                });
+            });
+            return;
+        }
+        guarniciones.push({ nombre: g.nombre, cantidad: g.cantidad, esGuarnicion: true });
+    });
     return []
         .concat(contador.pollos || [])
         .concat(contador.carnes || [])
@@ -215,15 +261,27 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
         detalle[rubro][key].platos += Number(platos) || 0;
     };
     for (const fila of filas || []) {
+        const conGuarnicionArroz = new Set((filas || []).filter((f) => f && f.soloArroz && f.platoOrigen).map((f) => norm(f.platoOrigen)));
+        if (fila && fila.soloArroz && !fila.platoOrigen) {
+            const ya = (filas || []).some((f) => f && !f.soloArroz && !f.esGuarnicion && !f.guarnicionOpcional && llevaArrozBlanco(norm(f.nombre)));
+            if (ya) continue;
+        }
         let mapas = aplicarFactoresRelacion(
             fila && fila.nombre,
             rubrosDeFila(fila, mapasVenta, meta && meta.bebidas),
             meta && meta.relaciones
         );
+        if (fila && !fila.soloArroz && conGuarnicionArroz.has(norm(fila.nombre))) {
+            mapas = mapas.filter((m) => m && m.rubro !== 'arroz-blanco');
+        }
+        if (mapas.some((m) => m && (m.rubro === 'arroz-pollo' || m.rubro === 'pollo-olla' || m.rubro === 'caldo-pollo'))) {
+            mapas = mapas.filter((m) => m && m.rubro !== 'octavo-pollo');
+        }
         const nombreFila = norm(fila && fila.nombre);
         if (nombreFila.includes('filete') && nombreFila.includes('junior') && mapas.some((m) => m && (m.rubro === 'filete-junior' || m.rubro === 'filete_junior'))) {
             mapas = mapas.filter((m) => m && m.rubro !== 'filete' && m.rubro !== 'filete-pollo');
         }
+        mapas = soloPiezaDeChanchoLena(mapas, fila && fila.nombre);
         const cantidad = Number(fila && fila.cantidad) || 0;
         if (!mapas.length || cantidad <= 0) continue;
         const fuentes = fila && fila.fuentes && typeof fila.fuentes === 'object' ? fila.fuentes : null;
@@ -235,12 +293,14 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
             if (idx === 0 && nombres.length) {
                 nombres.forEach((nombre) => {
                     const platos = Number(fuentes[nombre]) || 0;
-                    sumar(mapa.rubro, nombre, platos * factorFuente, platos, factorFuente);
+                    const visible = mapa.rubro === 'arroz-blanco' ? nombreConArroz(nombre) : nombre;
+                    sumar(mapa.rubro, visible, platos * factorFuente, platos, factorFuente);
                 });
             } else {
                 const factor = Number(mapa.factor) > 0 ? Number(mapa.factor) : 1;
                 const platos = Number(mapa.factor) > 0 ? cantidad : n;
-                sumar(mapa.rubro, fila.nombre, n, platos, factor);
+                const visible = mapa.rubro === 'arroz-blanco' ? nombreConArroz(fila.nombre) : fila.nombre;
+                sumar(mapa.rubro, visible, n, platos, factor);
             }
         });
     }
@@ -314,6 +374,7 @@ function rubroOctavoDe(n) {
 }
 
 function rubrosDeFila(fila, mapas, bebidas) {
+    if (fila && fila.soloArroz) return [{ rubro: 'arroz-blanco', factor: 1 }];
     if (fila && fila.esGuarnicion) {
         const g = rubroDeGuarnicion(fila.nombre);
         return g ? [{ rubro: g.rubro, factor: g.factor || 1 }] : [];
@@ -386,6 +447,8 @@ function rubrosDeFila(fila, mapas, bebidas) {
     const pizza = rubroPizza(n);
     if (pizza && !lista.some((x) => x.rubro === pizza)) add(pizza);
     if (esPlatoBistec(n) && !lista.some((x) => x.rubro === 'bisteck')) add('bisteck');
+    if ((n === 'lomo fino' || n.startsWith('lomo fino ')) && !lista.some((x) => x.rubro === 'lomo-fino')) add('lomo-fino');
+    if ((n === 'seco de res' || n.startsWith('seco de res ')) && !lista.some((x) => x.rubro === 'carne-guiso')) add('carne-guiso');
     if ((n === 'delicia' || n.includes('delicias')) && !lista.some((x) => x.rubro === 'delicias')) add('delicias');
     if (/\bhelados?\b/.test(n) && !lista.some((x) => x.rubro === 'helados')) add('helados');
     if (!opcional && (n.includes('papa frita') || n.includes('papas fritas')) && !lista.some((x) => x.rubro === 'papas')) add('papas');
@@ -393,8 +456,7 @@ function rubrosDeFila(fila, mapas, bebidas) {
         if (!lista.some((x) => x.rubro === 'arroz-verde')) add('arroz-verde');
     } else if (n.includes('arroz beata') || (n.includes('beata') && n.includes('arroz'))) {
         if (!lista.some((x) => x.rubro === 'arroz-beata')) add('arroz-beata');
-    } else if (n.includes('arroz blanco')) add('arroz-blanco');
-    else if (!opcional && /\barroz\b/.test(n) && !n.includes('chaufa') && !n.includes('marisco') && !n.includes('arroz con pollo') && !n.includes('beata') && !lista.some((x) => x.rubro === 'arroz-blanco')) {
+    } else if ((n.includes('arroz blanco') || (!opcional && llevaArrozBlanco(n))) && !lista.some((x) => x.rubro === 'arroz-blanco')) {
         add('arroz-blanco');
     }
     const octavo = rubroOctavoDe(n);
@@ -514,6 +576,26 @@ function rubroPropioDeNombre(n) {
     if (n.includes('acevichad') && n.includes('pollo')) return 'chi-pollo-acevichada';
     if (n.includes('chicharron') && n.includes('pollo')) return 'chicharron-pollo';
     return '';
+}
+
+/**
+ * Chancho a la leña y el BBQ salen de Pieza de panceta (4 y 6).
+ * No tienen fila propia: un vínculo que suma chancho-lena o chancho-lena-bbq
+ * dejaba un crudo −1 y la emergencia, aunque la pieza sí tenía stock.
+ */
+function soloPiezaDeChanchoLena(mapas, nombre) {
+    const n = norm(nombre);
+    if (!n.includes('chancho') || !n.includes('lena') || n.includes('panceta')) return mapas;
+    const limpio = (mapas || []).filter((m) => m && m.rubro !== 'chancho-lena' && m.rubro !== 'chancho-lena-bbq');
+    // La fila «Con arroz» solo lleva el arroz. Si aquí se suma la pieza, el mismo plato se cuenta dos veces.
+    if (/\bcon arroz$/.test(n)) return limpio;
+    const bbq = n.includes('bbq');
+    const lena = !bbq && !n.includes('mix');
+    if (!bbq && !lena) return mapas;
+    if (!limpio.some((m) => m && m.rubro === 'trozo-panceta')) {
+        limpio.push({ rubro: 'trozo-panceta', factor: bbq ? 6 : 4 });
+    }
+    return limpio;
 }
 
 function rubrosDeNombre(nombre, mapas) {

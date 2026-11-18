@@ -19,6 +19,22 @@ test('arroz con pollo, caldo y olla salen del menu pecho o pierna', () => {
     expect(olla['menu-pecho']).toBeUndefined();
 });
 
+test('arroz con pollo no descuenta también el octavo suelto', () => {
+    const partido = partirSalida(
+        [{ nombre: 'Arroz con pollo', cantidad: 4 }],
+        'Comanda 1',
+        null,
+        {
+            relaciones: [
+                { plato: 'Arroz con pollo', rubro: 'Arroz con pollo', cantidad: 1 },
+                { plato: 'Arroz con pollo', rubro: 'Octavo de pollo', cantidad: 1 }
+            ]
+        }
+    );
+    expect(partido.porRubro['arroz-pollo']).toBe(4);
+    expect(partido.porRubro['octavo-pollo']).toBeUndefined();
+});
+
 test('cada tipo de arroz descuenta su fila y el chaufa de pollo no', () => {
     const porRubro = aplicarMapa([
         { nombre: 'Arroz verde', cantidad: 2 },
@@ -42,6 +58,20 @@ test('la pollada de la carta descuenta pollada, papas y arroz', () => {
     expect(porRubro.pollada).toBe(2);
     expect(porRubro.papas).toBe(2);
     expect(porRubro['arroz-blanco']).toBe(2);
+});
+
+test('el arroz de la pollada no se duplica con la guarnición llamada Arroz', () => {
+    const nombre = 'Pollada + papa fritas + Arroz + ensalada';
+    const partido = partirSalida([
+        { nombre, cantidad: 30, guarnicionOpcional: true },
+        { nombre: nombre + ' Con arroz', cantidad: 30, esGuarnicion: true, soloArroz: true, platoOrigen: nombre }
+    ], 'Comanda 4', null, {
+        relaciones: [{ plato: nombre, rubro: 'Arroz blanco', cantidad: 1 }]
+    });
+    expect(partido.porRubro['arroz-blanco']).toBe(30);
+    expect(partido.porRubro.pollada).toBe(30);
+    expect(partido.detalle['arroz-blanco'].map((d) => d.nombre)).toEqual([nombre + ' Con arroz']);
+    expect(partido.detalle['arroz-blanco'].some((d) => d.nombre === 'Arroz' || d.nombre === 'Arroz blanco')).toBe(false);
 });
 
 test('una gaseosa pedida como guarnición descuenta su fila', () => {
@@ -112,6 +142,18 @@ test('el plato bistec descuenta carne bistec', () => {
         { nombre: 'Chaufa de bistec', cantidad: 2 }
     ]);
     expect(porRubro.bisteck).toBe(4);
+});
+
+test('lomo fino y seco de res descuentan su crudo', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Lomo fino', cantidad: 3 },
+        { nombre: 'Seco de res', cantidad: 2 },
+        { nombre: 'Seco de carnero', cantidad: 1 }
+    ]);
+    expect(porRubro['lomo-fino']).toBe(3);
+    expect(porRubro['carne-guiso']).toBe(2);
+    expect(porRubro['seco-res']).toBeUndefined();
+    expect(porRubro['seco-cordero']).toBe(1);
 });
 
 test('humita sale del plato Humita y de la pachamanca según sus sabores', () => {
@@ -512,4 +554,34 @@ test('tamal de chancho y tamal de pollo descuentan su propia fila', () => {
     const filas = filasDeRubros([], dia('2026-11-16', '04:00:00'), dia('2026-11-17', '03:59:59'), {});
     expect(filas.some((f) => f.rubro === 'tamal-chancho' && f.nombre === 'Tamal de chancho')).toBe(true);
     expect(filas.some((f) => f.rubro === 'tamal-pollo' && f.nombre === 'Tamal de pollo')).toBe(true);
+});
+
+test('chancho a la leña BBQ solo gasta 6 piezas y no su fila cruda', () => {
+    const partido = partirSalida(
+        [{ nombre: 'Chancho a la leña BBQ', cantidad: 1 }],
+        'Comanda 9',
+        null,
+        { relaciones: [{ plato: 'Chancho a la leña BBQ', rubro: 'Chancho a la leña BBQ', cantidad: 1 }] }
+    );
+    expect(partido.porRubro['trozo-panceta']).toBe(6);
+    expect(partido.porRubro['chancho-lena-bbq']).toBeUndefined();
+    expect(partido.porRubro['chancho-lena']).toBeUndefined();
+    const lena = partirSalida(
+        [{ nombre: 'Chancho a la leña', cantidad: 1 }],
+        'Comanda 9',
+        null,
+        { relaciones: [{ plato: 'Chancho a la leña', rubro: 'Chancho a la leña', cantidad: 1 }] }
+    );
+    expect(lena.porRubro['trozo-panceta']).toBe(4);
+    expect(lena.porRubro['chancho-lena']).toBeUndefined();
+    const panceta = aplicarMapa([{ nombre: 'Panceta de chancho leña', cantidad: 1 }]);
+    expect(panceta['trozo-panceta']).toBe(3);
+    const conArroz = partirSalida([
+        { nombre: 'Chancho a la leña BBQ', cantidad: 1 },
+        { nombre: 'Chancho a la Leña BBQ Con arroz', cantidad: 1, soloArroz: true, esGuarnicion: true, platoOrigen: 'Chancho a la Leña BBQ' },
+        { nombre: 'Chancho a la leña', cantidad: 1 },
+        { nombre: 'Chancho a la Leña + PF + Arroz + Ensalada Con arroz', cantidad: 1, soloArroz: true, esGuarnicion: true, platoOrigen: 'Chancho a la Leña + PF + Arroz + Ensalada' }
+    ], 'Comanda 9');
+    expect(conArroz.porRubro['trozo-panceta']).toBe(10);
+    expect(conArroz.porRubro['arroz-blanco']).toBe(2);
 });

@@ -332,6 +332,35 @@ router.put('/roles/:id/usuarios/:usuarioId', adminAuth, async (req, res) => {
 });
 
 /**
+ * PUT /roles/usuarios/:usuarioId/reglas
+ * Reglas propias de una persona (se suman a las de su rol).
+ */
+router.put('/roles/usuarios/:usuarioId/reglas', adminAuth, async (req, res) => {
+    try {
+        const userRol = req.admin?.rol || req.admin?.role;
+        if (userRol && userRol !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: 'Solo administradores pueden cambiar reglas de un usuario'
+            });
+        }
+
+        const usuario = await rolesRepository.actualizarReglasUsuario(req.params.usuarioId, req.body?.reglas);
+        res.json({
+            success: true,
+            message: 'Reglas del usuario actualizadas. Debe volver a entrar para aplicarlas.',
+            data: { _id: usuario._id, reglas: usuario.reglas || [] }
+        });
+    } catch (error) {
+        logger.error('Error al actualizar reglas del usuario', { error: error.message });
+        res.status(400).json({
+            success: false,
+            error: error.message || 'Error al actualizar reglas del usuario'
+        });
+    }
+});
+
+/**
  * DELETE /roles/:id/usuarios/:usuarioId
  * Quitar un usuario del rol (cambiar a rol por defecto 'mozos')
  */

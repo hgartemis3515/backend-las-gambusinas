@@ -198,3 +198,34 @@ test('un motivo de 200 caracteres conserva las marcas dentro del límite del mod
     expect(app.stockOctavoPlato('arroz_con_pollo', 'pechugas', 'cocido')).toBe(2);
     expect(app.stockOctavoPlato('arroz_con_pollo', 'piernas', 'cocido')).toBe(5);
 });
+
+test('30 pechos y 100 piernas se quedan enteros aunque el stock total sea otro', () => {
+    const { app } = escenario({
+        saldos: { octavo_pollo: { saldoAnterior: 180 } },
+        movimientos: [
+            ingreso('octavo_pollo', 'crudo', 30, 'pecho'),
+            ingreso('octavo_pollo', 'crudo', 100, 'pierna')
+        ]
+    });
+    expect(app.octavosStockCorte('pechugas')).toBe(30);
+    expect(app.octavosStockCorte('piernas')).toBe(100);
+});
+
+test('pasar 10 piernas a arroz con pollo las saca del octavo y no duplica el corte', () => {
+    const { app } = escenario({
+        saldos: { octavo_pollo: { saldoAnterior: 130 } },
+        movimientos: [
+            ingreso('octavo_pollo', 'crudo', 30, 'pecho'),
+            ingreso('octavo_pollo', 'crudo', 100, 'pierna'),
+            ingreso('octavo_pollo', 'crudo', -130, 'sin separar')
+        ]
+    });
+    expect(app.fijarOctavoPlato('arroz_con_pollo', 'piernas', 'crudo', 10)).toBe(true);
+    expect(app.octavosStockCorte('pechugas')).toBe(30);
+    expect(app.octavosStockCorte('piernas')).toBe(90);
+    expect(app.stockOctavoPlato('arroz_con_pollo', 'piernas', 'crudo')).toBe(10);
+    expect(app.stockOctavoPlato('arroz_con_pollo', 'pechugas', 'crudo')).toBe(0);
+    expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(120);
+    expect(app.fijarOctavoPlato('arroz_con_pollo', 'piernas', 'crudo', 10)).toBe(false);
+    expect(app.octavosStockCorte('piernas')).toBe(90);
+});

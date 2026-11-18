@@ -248,14 +248,15 @@ async function opcionesCocido() {
         let tieneCocido = guardado ? doc.tieneCocido : sem.tieneCocido;
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
-        const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'pollada', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada', 'caldo-pollo'];
-        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'seco-cordero', 'pachamanca-pollo-pecho', 'tamal-chancho', 'tamal-pollo'];
+        const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada', 'caldo-pollo'];
+        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'seco-cordero', 'pachamanca-pollo-pecho', 'tamal-chancho', 'tamal-pollo', 'pollada'];
         if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
             if (!esMateria(d.clave) && !reservaClave) reservaClave = 'pechuga-pollo';
         }
         if (d.clave === 'pierna-lena') reservaClave = '';
-        if (d.clave === 'pollada' || d.clave === 'pachamanca-pollo') reservaClave = 'pierna-pollo';
+        if (d.clave === 'pachamanca-pollo') reservaClave = 'pierna-pollo';
+        if (d.clave === 'pollada') reservaClave = '';
         if (d.clave === 'pachamanca-pollo-pecho') reservaClave = 'pechuga-pollo';
         if (d.clave === 'seco-cordero') reservaClave = '';
         if (d.clave === 'pollo-lena' || d.clave === 'caldo-pollo') reservaClave = '';

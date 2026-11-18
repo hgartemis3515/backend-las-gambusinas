@@ -148,6 +148,8 @@ const mozosSchema = new mongoose.Schema({
         required: true
     },
     permisos: [permisoSchema],
+    /** Reglas de comportamiento propias de esta persona. Se suman a las de su rol. */
+    reglas: [{ type: String, trim: true }],
     // Zonas asignadas (para cocineros)
     zonaIds: [{
         type: mongoose.Schema.Types.ObjectId,

@@ -86,7 +86,9 @@ const PERMISOS_FUNDAMENTALES = {
 // Las reglas actúan como restricciones de comportamiento acompañando a los permisos
 const REGLAS_FUNDAMENTALES = {
     // App Cocina
-    'solo-ultima-comanda-buscador': { nombre: 'Solo verá la última comanda del buscador de platos', grupo: 'App Cocina', descripcion: 'En el app de cocina, al buscar un plato, en lugar de mostrar todas las comandas que lo contienen, solo se mostrará la comanda más antigua con ese plato' }
+    'solo-ultima-comanda-buscador': { nombre: 'Solo verá la última comanda del buscador de platos', grupo: 'App Cocina', descripcion: 'En el app de cocina, al buscar un plato, en lugar de mostrar todas las comandas que lo contienen, solo se mostrará la comanda más antigua con ese plato' },
+    // Comandas (dashboard). Se asigna por usuario: el rol Admin lo comparten varias personas.
+    'ocultar-cuadro-ventas-comandas': { nombre: 'Ocultar cuadro de ventas en Comandas', grupo: 'Comandas', descripcion: 'En Comandas, el cuadro de ventas totales, total visto, ticket promedio, tickets, tickets mesa y tickets llevar empieza oculto. Un toque en el cuadro lo revela y otro lo vuelve a ocultar.' }
 };
 
 // Cajero = mismos permisos que supervisor, más ver/ejecutar cierre de caja.
