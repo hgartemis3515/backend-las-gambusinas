@@ -911,6 +911,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       transition: transform 0.2s ease, background 0.2s ease;
     }
     .ingreso-chip:hover { transform: translateY(-1px); background: #26263a; }
+    .ingreso-chip svg { width: 14px; height: 14px; margin-right: 5px; flex-shrink: 0; }
+    .arroz-ingreso-accion { display: inline-flex; align-items: center; gap: 3px; color: #d4af37; cursor: pointer; }
+    .arroz-ingreso-accion svg { width: 12px; height: 12px; }
+    .control-ingreso-stock { display: flex; flex-direction: column; align-items: center; width: 100%; min-width: 0; }
+    .control-ingreso-stock > .ingreso-panel { width: 100%; box-sizing: border-box; }
+    .ingreso-panel-cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    .ingreso-panel-cabecera span { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #d4af37; }
+    .ingreso-panel-cabecera button { color: #a0a0b8; font-size: 10px; cursor: pointer; }
+    .ingreso-panel .caja-stock-step { margin-top: 8px; }
     .btn-lapiz-stock {
       width: 1.55rem;
       height: 1.55rem;
@@ -2923,7 +2932,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <!-- PESTAÑA 3: TRANSFORMAR (MAPA SEMÁNTICO HORIZONTAL Y GRUPAL)         -->
     <!-- =================================================================== -->
     <template x-if="tabMontada.transformar">
-    <section id="panel-transformar" x-show="activeTab === 'transformar'" x-cloak class="space-y-6">
+    <section id="panel-transformar" x-show="activeTab === 'transformar'" x-cloak class="space-y-6"
+      @focusin="prepararNumeroTransformar($event)" @click="prepararNumeroTransformar($event)"
+      @focusout="restaurarCeroTransformar($event)" @change.capture="ignorarIngresoVacio($event)">
       <div class="flex flex-wrap items-center gap-1.5 bg-[#0a0a0f] border border-[#26263a] rounded-xl p-1 w-fit">
         <span class="px-2 text-[10px] uppercase tracking-wider text-[#a0a0b8] font-bold">Período:</span>
         <template x-for="p in periodosVisibles()" :key="'tr-per-' + p.id">
@@ -3044,21 +3055,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
               <div class="caja-stock-step">
 
-                <input type="number" min="0" step="any" aria-label="Stock actual de arroz crudo" :value="stockCuadro('arroz', 'crudo')" @change="fijarStockDirecto('arroz', 'crudo', $event.target.value)">
+                <input type="number" min="0" step="any" aria-label="Stock actual de arroz crudo" :value="stockCuadro('arroz', 'crudo')" @change="fijarStockConIngreso('arroz', 'crudo', $event.target)">
 
               </div>
               <p class="caja-stock-mas" x-show="textoIngreso('arroz', 'crudo')" x-text="textoIngreso('arroz', 'crudo')"></p>
               <p class="caja-stock-menos" x-show="textoResto('arroz', 'crudo')" x-text="textoResto('arroz', 'crudo')"></p>
             </div>
-            <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz')">Ingreso</button>
+            <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.arroz" x-transition @click="abrirIngreso('arroz'); $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
             <div class="ingreso-panel" x-show="ingresoAbierto.arroz" x-cloak>
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
                 <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('arroz')">Cerrar</button>
               </div>
-              <div class="mt-2 inline-flex items-center gap-0.5">
+              <div class="caja-stock-step">
 
-                <input type="number" min="0" aria-label="Ingreso de arroz crudo" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('arroz').ingreso" :style="'--digitos:' + digitosDe(getRow('arroz').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('arroz', $event.target.value)">
+                <input type="number" min="0" aria-label="Ingreso de arroz crudo" class="ingreso-num" :value="ingresoDirectoPeriodo('arroz', 'crudo')" @input="ajustarCajaDigitos($el)" @change="registrarIngresoDirecto('arroz', 'crudo', $event.target)">
 
               </div>
             </div>
@@ -3083,8 +3094,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <span class="flex items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
                     <span>1 crudo → <span x-text="config[d.factorKey] || 1"></span> <span x-text="esArrozPorcion(d) ? 'p' : 'kg'"></span></span>
                     <span x-show="!esArrozPorcion(d)">Se usaron <strong class="text-white font-mono" x-text="formatNum(arrozHacia(d))"></strong> de arroz crudo</span>
-                    <span x-show="esArrozPorcion(d)">El ingreso transforma crudo en porciones</span>
+                    <span x-show="esArrozPorcion(d)">Transformar usa arroz crudo; Ingreso agrega porciones independientes</span>
                   </span>
+                  <div class="control-ingreso-stock" x-show="esArrozPorcion(d)" x-data="{ ingresoVisible: false }">
+                    <button type="button" class="ingreso-chip" x-show="!ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                    <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                      <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                      <div class="caja-stock-step"><input type="number" min="0" step="any" class="ingreso-num" :aria-label="'Ingreso independiente de ' + d.nombre" :value="ingresoDirectoPeriodo(d.id, tipoArrozDestino(d))" @input="ajustarCajaDigitos($el)" @change="registrarIngresoDirecto(d.id, tipoArrozDestino(d), $event.target)"></div>
+                    </div>
+                  </div>
                   <div class="arroz-formula" x-show="esArrozPorcion(d)">
                     <label class="arroz-campo">
                       <span class="arroz-etiq">Stock</span>
@@ -3096,9 +3114,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </label>
                     <span class="arroz-op" aria-hidden="true">+</span>
                     <label class="arroz-campo">
-                      <span class="arroz-etiq">Ingreso</span>
+                      <span class="arroz-etiq">Transformar</span>
                       <span class="arroz-caja arroz-caja-ing">
-                        <input type="number" min="0" step="any" :aria-label="'Ingreso por transformación de ' + d.nombre" :value="ingresoTransformaArroz(d)" @focus="vaciarSiCero($event)" @change="fijarIngresoArrozPorciones(d.campo, $event.target.value)">
+                        <input type="number" min="0" step="any" :aria-label="'Transformar arroz crudo en porciones de ' + d.nombre" :value="ingresoTransformaArroz(d)" @focus="vaciarSiCero($event)" @change="fijarIngresoArrozPorciones(d.campo, $event.target.value)">
                         <span class="arroz-unidad">p</span>
                       </span>
                       <span class="arroz-kg arroz-kg-ing" x-text="textoKgArroz(d, ingresoTransformaArroz(d))"></span>
@@ -3134,9 +3152,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   </div>
                   <div class="caja-stock" x-show="!esArrozPorcion(d)">
                     <p class="caja-stock-etiq" x-text="esArrozDescarga(d) ? 'Descarga' : 'Stock actual'"></p>
-                    <div class="caja-stock-step">
-                      <input type="number" min="0" step="any" :aria-label="(esArrozDescarga(d) ? 'Descarga de ' : 'Stock de ') + d.nombre" :value="esArrozDescarga(d) ? kgDescargaArroz(d) : porcionesArroz(d)" @focus="vaciarSiCero($event)" @change="esArrozDescarga(d) ? fijarDescargaArroz(d.campo, $event.target.value) : fijarStockArrozTipo(d.campo, $event.target.value)">
-                      <span class="arroz-unidad">kg</span>
+                    <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                      <div class="caja-stock-step">
+                        <input type="number" min="0" step="any" :aria-label="(esArrozDescarga(d) ? 'Descarga de ' : 'Stock de ') + d.nombre" :value="esArrozDescarga(d) ? kgDescargaArroz(d) : porcionesArroz(d)" @focus="vaciarSiCero($event)" @change="esArrozDescarga(d) ? fijarDescargaArroz(d.campo, $event.target.value) : fijarStockArrozTipo(d.campo, $event.target.value)">
+                      </div>
+                      <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ((esArrozDescarga(d) ? 'Descarga de ' : 'Stock de ') + d.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                      <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                        <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                        <div class="caja-stock-step">
+                          <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(d.id, tipoArrozDestino(d))" @change="registrarIngresoDirecto(d.id, tipoArrozDestino(d), $event.target)" :aria-label="'Ingreso: ' + ((esArrozDescarga(d) ? 'Descarga de ' : 'Stock de ') + d.nombre)" @input="ajustarCajaDigitos($el)">
+                        </div>
+                      </div>
                     </div>
                     <p class="caja-stock-mas" x-show="textoIngreso(d.id, tipoArrozDestino(d))" x-text="textoIngreso(d.id, tipoArrozDestino(d))"></p>
                     <p class="caja-stock-menos" x-show="textoResto(d.id, tipoArrozDestino(d))" x-text="textoResto(d.id, tipoArrozDestino(d))"></p>
@@ -3189,10 +3215,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <h3 class="text-base font-extrabold text-white">Pollo fresco</h3>
                 <div class="caja-stock">
                   <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                  <div class="caja-stock-step">
-                    
-                    <input type="number" min="0" step="any" aria-label="Stock actual de pollo fresco" :value="stockCuadro('pollo_fresco', 'crudo')" @change="fijarStockPolloFresco($event.target.value)">
-                    
+                  <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                    <div class="caja-stock-step">
+                      <input type="number" min="0" step="any" aria-label="Stock actual de pollo fresco" :value="stockCuadro('pollo_fresco', 'crudo')" @change="fijarStockConIngreso('pollo_fresco', 'crudo', $event.target)">
+                    </div>
+                    <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de pollo fresco'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                    <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                      <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                      <div class="caja-stock-step">
+                        <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo('pollo_fresco', 'crudo')" @change="registrarIngresoDirecto('pollo_fresco', 'crudo', $event.target)" aria-label="Ingreso: Stock actual de pollo fresco" @input="ajustarCajaDigitos($el)">
+                      </div>
+                    </div>
                   </div>
                   <p class="caja-stock-mas" x-show="textoIngreso('pollo_fresco', 'crudo')" x-text="textoIngreso('pollo_fresco', 'crudo')"></p>
                   <p class="caja-stock-menos" x-show="textoResto('pollo_fresco', 'crudo')" x-text="textoResto('pollo_fresco', 'crudo')"></p>
@@ -3226,10 +3259,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <h3 class="text-sm font-extrabold text-white">Pecho de pollo</h3>
                       <div class="caja-stock">
                         <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                        <div class="caja-stock-step">
-                          
-                          <input type="number" min="0" step="any" aria-label="Stock actual de pecho de pollo" :value="stockCuadro('pechuga', 'crudo')" @change="fijarStockDirecto('pechuga', 'crudo', $event.target.value)">
-                          
+                        <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                          <div class="caja-stock-step">
+                            <input type="number" min="0" step="any" aria-label="Stock actual de pecho de pollo" :value="stockCuadro('pechuga', 'crudo')" @change="fijarStockConIngreso('pechuga', 'crudo', $event.target)">
+                          </div>
+                          <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de pecho de pollo'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                          <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                            <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                            <div class="caja-stock-step">
+                              <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo('pechuga', 'crudo')" @change="registrarIngresoDirecto('pechuga', 'crudo', $event.target)" aria-label="Ingreso: Stock actual de pecho de pollo" @input="ajustarCajaDigitos($el)">
+                            </div>
+                          </div>
                         </div>
                         <p class="caja-stock-mas" x-show="textoIngreso('pechuga', 'crudo')" x-text="textoIngreso('pechuga', 'crudo')"></p>
                         <p class="caja-stock-menos" x-show="textoResto('pechuga', 'crudo')" x-text="textoResto('pechuga', 'crudo')"></p>
@@ -3251,10 +3291,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <h4 class="text-sm font-bold text-white">Filete de pollo</h4>
                             <div class="caja-stock">
                               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                              <div class="caja-stock-step">
-                                
-                                <input type="number" min="0" step="any" aria-label="Stock actual de filete de pollo" :value="stockCuadro('filete', 'crudo')" @change="fijarStockFilete($event.target.value)">
-                                
+                              <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                <div class="caja-stock-step">
+                                  <input type="number" min="0" step="any" aria-label="Stock actual de filete de pollo" :value="stockCuadro('filete', 'crudo')" @change="fijarStockConIngreso('filete', 'crudo', $event.target)">
+                                </div>
+                                <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de filete de pollo'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                  <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                  <div class="caja-stock-step">
+                                    <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo('filete', 'crudo')" @change="registrarIngresoDirecto('filete', 'crudo', $event.target)" aria-label="Ingreso: Stock actual de filete de pollo" @input="ajustarCajaDigitos($el)">
+                                  </div>
+                                </div>
                               </div>
                               <p class="caja-stock-mas" x-show="textoIngreso('filete', 'crudo')" x-text="textoIngreso('filete', 'crudo')"></p>
                               <p class="caja-stock-menos" x-show="textoResto('filete', 'crudo')" x-text="textoResto('filete', 'crudo')"></p>
@@ -3294,7 +3341,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                       </div>
                                       <div class="inline-flex items-center gap-0.5 shrink-0">
                                         
-                                        <input type="number" min="0" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id)" @input="ajustarCajaDigitos($el)" @change="fijarCrudoPlato('filete', plato.id, $event.target.value)">
+                                        <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                          <div class="caja-stock-step">
+                                            <input type="number" min="0" class="text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id)" @input="ajustarCajaDigitos($el)" @change="fijarStockConIngreso(plato.id, 'crudo', $event.target)">
+                                          </div>
+                                          <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Porciones de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                          <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                            <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                            <div class="caja-stock-step">
+                                              <input type="number" class="ingreso-num" min="0" :value="ingresoDirectoPeriodo(plato.id, 'crudo')" @change="registrarIngresoDirecto(plato.id, 'crudo', $event.target)" :aria-label="'Ingreso: ' + ('Porciones de ' + plato.nombre)" @input="ajustarCajaDigitos($el)">
+                                            </div>
+                                          </div>
+                                        </div>
                                         
                                       </div>
                                     </div>
@@ -3310,7 +3368,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                         </div>
                                         <div class="inline-flex items-center gap-0.5 shrink-0">
                                           
-                                          <input type="number" min="0" class="paso-num text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(plato.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
+                                          <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                            <div class="caja-stock-step">
+                                              <input type="number" min="0" class="text-center num-mono text-amber-200 bg-[#14141f] border border-[#d4af37]/50 rounded" :aria-label="'Pase Crudo a Cocido de ' + plato.nombre" :value="cocidoActualTransformar(plato.id)" :style="'--digitos:' + digitosDe(cocidoActualTransformar(plato.id))" @input="ajustarCajaDigitos($el)" @change="fijarPaseCrudoACocido(plato.id, $event.target.value)">
+                                            </div>
+                                            <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Pase Crudo a Cocido de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                            <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                              <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                              <div class="caja-stock-step">
+                                                <input type="number" class="ingreso-num" min="0" :value="ingresoDirectoPeriodo(plato.id, 'cocido')" @change="registrarIngresoDirecto(plato.id, 'cocido', $event.target)" :aria-label="'Ingreso cocido de ' + plato.nombre" @input="ajustarCajaDigitos($el)">
+                                              </div>
+                                            </div>
+                                          </div>
                                           
                                         </div>
                                       </div>
@@ -3347,10 +3416,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <p class="caja-stock-venta text-center" x-show="ventaPlato(ad.id) > 0" x-text="'Venta ' + formatNum(ventaPlato(ad.id))"></p>
                               <div class="caja-stock">
                                 <p class="caja-stock-etiq" x-text="'Stock actual (' + etiquetaTipo('crudo', ad.id) + '):'"></p>
-                                <div class="caja-stock-step">
-                                  
-                                  <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="fijarStockHijo('pechuga', ad.id, 'crudo', $event.target.value)">
-                                  
+                                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                  <div class="caja-stock-step">
+                                    <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="fijarStockConIngreso(ad.id, 'crudo', $event.target)">
+                                  </div>
+                                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                    <div class="caja-stock-step">
+                                      <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(ad.id, 'crudo')" @change="registrarIngresoDirecto(ad.id, 'crudo', $event.target)" :aria-label="'Ingreso: ' + ('Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre)" @input="ajustarCajaDigitos($el)">
+                                    </div>
+                                  </div>
                                 </div>
                                 <p class="caja-stock-mas" x-show="textoIngreso(ad.id, 'crudo')" x-text="textoIngreso(ad.id, 'crudo')"></p>
                                 <p class="caja-stock-menos" x-show="textoResto(ad.id, 'crudo')" x-text="textoResto(ad.id, 'crudo')"></p>
@@ -3358,10 +3434,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <template x-if="tienePaseCocido(ad.id) || platoPolloSoloCocido(claveDeFila[ad.id])">
                                 <div class="caja-stock caja-stock-cocido">
                                   <p class="caja-stock-etiq">Stock actual (Cocido):</p>
-                                  <div class="caja-stock-step" :class="stockCuadro(ad.id, 'cocido') <= 0 ? 'stock-cero-alarma' : ''">
-                                    
-                                    <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="fijarStockHijo('pechuga', ad.id, 'cocido', $event.target.value)">
-                                    
+                                  <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                    <div class="caja-stock-step" :class="stockCuadro(ad.id, 'cocido') <= 0 ? 'stock-cero-alarma' : ''">
+                                      <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="fijarStockConIngreso(ad.id, 'cocido', $event.target)">
+                                    </div>
+                                    <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                    <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                      <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                      <div class="caja-stock-step">
+                                        <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(ad.id, 'cocido')" @change="registrarIngresoDirecto(ad.id, 'cocido', $event.target)" :aria-label="'Ingreso: ' + ('Stock cocido de ' + ad.nombre)" @input="ajustarCajaDigitos($el)">
+                                      </div>
+                                    </div>
                                   </div>
                                   <p class="caja-stock-mas" x-show="textoIngreso(ad.id, 'cocido')" x-text="textoIngreso(ad.id, 'cocido')"></p>
                                   <p class="caja-stock-menos" x-show="textoResto(ad.id, 'cocido')" x-text="textoResto(ad.id, 'cocido')"></p>
@@ -3389,10 +3472,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <h3 class="text-sm font-extrabold text-white">Pierna de pollo</h3>
                       <div class="caja-stock">
                         <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                        <div class="caja-stock-step">
-                          
-                          <input type="number" min="0" step="any" aria-label="Stock actual de pierna de pollo" :value="stockCuadro('pierna', 'crudo')" @change="fijarStockDirecto('pierna', 'crudo', $event.target.value)">
-                          
+                        <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                          <div class="caja-stock-step">
+                            <input type="number" min="0" step="any" aria-label="Stock actual de pierna de pollo" :value="stockCuadro('pierna', 'crudo')" @change="fijarStockConIngreso('pierna', 'crudo', $event.target)">
+                          </div>
+                          <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de pierna de pollo'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                          <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                            <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                            <div class="caja-stock-step">
+                              <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo('pierna', 'crudo')" @change="registrarIngresoDirecto('pierna', 'crudo', $event.target)" aria-label="Ingreso: Stock actual de pierna de pollo" @input="ajustarCajaDigitos($el)">
+                            </div>
+                          </div>
                         </div>
                         <p class="caja-stock-mas" x-show="textoIngreso('pierna', 'crudo')" x-text="textoIngreso('pierna', 'crudo')"></p>
                         <p class="caja-stock-menos" x-show="textoResto('pierna', 'crudo')" x-text="textoResto('pierna', 'crudo')"></p>
@@ -3423,10 +3513,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <p class="caja-stock-venta text-center" x-show="ventaPlato(ad.id) > 0" x-text="'Venta ' + formatNum(ventaPlato(ad.id))"></p>
                               <div class="caja-stock">
                                 <p class="caja-stock-etiq" x-text="'Stock actual (' + etiquetaTipo('crudo', ad.id) + '):'"></p>
-                                <div class="caja-stock-step">
-                                  
-                                  <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="fijarStockHijo('pierna', ad.id, 'crudo', $event.target.value)">
-                                  
+                                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                  <div class="caja-stock-step">
+                                    <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="fijarStockConIngreso(ad.id, 'crudo', $event.target)">
+                                  </div>
+                                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                    <div class="caja-stock-step">
+                                      <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(ad.id, 'crudo')" @change="registrarIngresoDirecto(ad.id, 'crudo', $event.target)" :aria-label="'Ingreso: ' + ('Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre)" @input="ajustarCajaDigitos($el)">
+                                    </div>
+                                  </div>
                                 </div>
                                 <p class="caja-stock-mas" x-show="textoIngreso(ad.id, 'crudo')" x-text="textoIngreso(ad.id, 'crudo')"></p>
                                 <p class="caja-stock-menos" x-show="textoResto(ad.id, 'crudo')" x-text="textoResto(ad.id, 'crudo')"></p>
@@ -3434,10 +3531,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <template x-if="tienePaseCocido(ad.id) || platoPolloSoloCocido(claveDeFila[ad.id])">
                                 <div class="caja-stock caja-stock-cocido">
                                   <p class="caja-stock-etiq">Stock actual (Cocido):</p>
-                                  <div class="caja-stock-step" :class="stockCuadro(ad.id, 'cocido') <= 0 ? 'stock-cero-alarma' : ''">
-                                    
-                                    <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="fijarStockHijo('pierna', ad.id, 'cocido', $event.target.value)">
-                                    
+                                  <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                    <div class="caja-stock-step" :class="stockCuadro(ad.id, 'cocido') <= 0 ? 'stock-cero-alarma' : ''">
+                                      <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="fijarStockConIngreso(ad.id, 'cocido', $event.target)">
+                                    </div>
+                                    <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                    <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                      <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                      <div class="caja-stock-step">
+                                        <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(ad.id, 'cocido')" @change="registrarIngresoDirecto(ad.id, 'cocido', $event.target)" :aria-label="'Ingreso: ' + ('Stock cocido de ' + ad.nombre)" @input="ajustarCajaDigitos($el)">
+                                      </div>
+                                    </div>
                                   </div>
                                   <p class="caja-stock-mas" x-show="textoIngreso(ad.id, 'cocido')" x-text="textoIngreso(ad.id, 'cocido')"></p>
                                   <p class="caja-stock-menos" x-show="textoResto(ad.id, 'cocido')" x-text="textoResto(ad.id, 'cocido')"></p>
@@ -3471,14 +3575,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-[#24263b]">
                         <div class="flex flex-col items-stretch">
                           <p class="caja-stock-corte text-sky-300">Pecho</p>
-                          <div class="caja-stock-step">
-                            <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosStockCorte('pechugas')" @change="fijarOctavosStock('pechugas', $event.target.value)">
+                          <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                            <div class="caja-stock-step">
+                              <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosStockCorte('pechugas')" @change="fijarStockConIngreso('octavo_pollo', 'crudo', $event.target, 'pechugas')">
+                            </div>
+                            <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock de octavos desde pecho'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                            <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                              <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                              <div class="caja-stock-step">
+                                <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas')" @change="registrarIngresoDirecto('octavo_pollo', 'crudo', $event.target, 'pechugas')" aria-label="Ingreso: Stock de octavos desde pecho" @input="ajustarCajaDigitos($el)">
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <div class="flex flex-col items-stretch">
                           <p class="caja-stock-corte text-emerald-300">Pierna</p>
-                          <div class="caja-stock-step">
-                            <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosStockCorte('piernas')" @change="fijarOctavosStock('piernas', $event.target.value)">
+                          <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                            <div class="caja-stock-step">
+                              <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosStockCorte('piernas')" @change="fijarStockConIngreso('octavo_pollo', 'crudo', $event.target, 'piernas')">
+                            </div>
+                            <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock de octavos desde pierna'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                            <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                              <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                              <div class="caja-stock-step">
+                                <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'piernas')" @change="registrarIngresoDirecto('octavo_pollo', 'crudo', $event.target, 'piernas')" aria-label="Ingreso: Stock de octavos desde pierna" @input="ajustarCajaDigitos($el)">
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -3511,8 +3633,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                     <p class="caja-stock-corte" :class="corte === 'piernas' ? 'text-emerald-300' : 'text-sky-300'" x-text="corte === 'piernas' ? 'Pierna' : 'Pecho'"></p>
                                     <div class="caja-stock">
                                       <p class="caja-stock-etiq">Crudo</p>
-                                      <div class="caja-stock-step">
-                                        <input type="number" min="0" step="1" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="fijarOctavoPlato(plato.id, corte, 'crudo', $event.target.value)">
+                                      <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                        <div class="caja-stock-step">
+                                          <input type="number" min="0" step="1" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="fijarStockConIngreso(plato.id, 'crudo', $event.target, corte)">
+                                        </div>
+                                        <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock crudo ' + corte + ' de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                        <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                          <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                          <div class="caja-stock-step">
+                                            <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo(plato.id, 'crudo', corte)" @change="registrarIngresoDirecto(plato.id, 'crudo', $event.target, corte)" :aria-label="'Ingreso: ' + ('Stock crudo ' + corte + ' de ' + plato.nombre)" @input="ajustarCajaDigitos($el)">
+                                          </div>
+                                        </div>
                                       </div>
                                       <p class="caja-stock-mas" x-show="textoIngreso(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoIngreso(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
                                       <p class="caja-stock-menos" x-show="textoResto(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoResto(plato.id, 'crudo', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
@@ -3520,8 +3651,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                     <template x-if="plato.cocido">
                                       <div class="caja-stock caja-stock-cocido">
                                         <p class="caja-stock-etiq">Cocido</p>
-                                        <div class="caja-stock-step">
-                                          <input type="number" min="0" step="1" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="fijarOctavoPlato(plato.id, corte, 'cocido', $event.target.value)">
+                                        <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                          <div class="caja-stock-step">
+                                            <input type="number" min="0" step="1" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="fijarStockConIngreso(plato.id, 'cocido', $event.target, corte)">
+                                          </div>
+                                          <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido ' + corte + ' de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                          <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                            <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                            <div class="caja-stock-step">
+                                              <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo(plato.id, 'cocido', corte)" @change="registrarIngresoDirecto(plato.id, 'cocido', $event.target, corte)" :aria-label="'Ingreso: ' + ('Stock cocido ' + corte + ' de ' + plato.nombre)" @input="ajustarCajaDigitos($el)">
+                                            </div>
+                                          </div>
                                         </div>
                                         <p class="caja-stock-mas" x-show="textoIngreso(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoIngreso(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
                                         <p class="caja-stock-menos" x-show="textoResto(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')" x-text="textoResto(plato.id, 'cocido', corte === 'piernas' ? '· pierna' : '· pecho')"></p>
@@ -3551,8 +3691,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                     <p class="caja-stock-corte" :class="corte === 'piernas' ? 'text-emerald-300' : 'text-sky-300'" x-text="corte === 'piernas' ? 'Pierna' : 'Pecho'"></p>
                                     <div class="caja-stock">
                                       <p class="caja-stock-etiq">Separado</p>
-                                      <div class="caja-stock-step">
-                                        <input type="number" min="0" step="1" :aria-label="'Octavos de ' + corte + ' en ' + dest.nombre" :value="octavosEnDestino(dest.id, corte)" @change="fijarOctavoDestino(dest.id, corte, $event.target.value)">
+                                      <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                        <div class="caja-stock-step">
+                                          <input type="number" min="0" step="1" :aria-label="'Octavos de ' + corte + ' en ' + dest.nombre" :value="octavosEnDestino(dest.id, corte)" @change="fijarStockConIngreso('octavo_pollo', 'crudo', $event.target, corte, dest.id)">
+                                        </div>
+                                        <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Octavos de ' + corte + ' en ' + dest.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                        <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                          <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                          <div class="caja-stock-step">
+                                            <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo('octavo_pollo', 'crudo', corte, dest.id)" @change="registrarIngresoDirecto('octavo_pollo', 'crudo', $event.target, corte, dest.id)" :aria-label="'Ingreso: ' + ('Octavos de ' + corte + ' en ' + dest.nombre)" @input="ajustarCajaDigitos($el)">
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -3611,10 +3760,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <p class="caja-stock-venta text-center" x-show="ventaPlato(idDeClave(mapa.origen.clave)) > 0" x-text="'Venta ' + formatNum(ventaPlato(idDeClave(mapa.origen.clave)))"></p>
                   <div class="caja-stock">
                     <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                    <div class="caja-stock-step">
-                      
-                      <input type="number" min="0" step="any" :aria-label="'Stock actual de ' + mapa.origen.nombre" :value="stockCuadro(idDeClave(mapa.origen.clave), 'crudo')" @change="fijarStockOrigenMapa(mapa, $event.target.value)">
-                      
+                    <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                      <div class="caja-stock-step">
+                        <input type="number" min="0" step="any" :aria-label="'Stock actual de ' + mapa.origen.nombre" :value="stockCuadro(idDeClave(mapa.origen.clave), 'crudo')" @change="fijarStockConIngreso(idDeClave(mapa.origen.clave), 'crudo', $event.target)">
+                      </div>
+                      <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock actual de ' + mapa.origen.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                      <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                        <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                        <div class="caja-stock-step">
+                          <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(idDeClave(mapa.origen.clave), 'crudo')" @change="registrarIngresoDirecto(idDeClave(mapa.origen.clave), 'crudo', $event.target)" :aria-label="'Ingreso: ' + ('Stock actual de ' + mapa.origen.nombre)" @input="ajustarCajaDigitos($el)">
+                        </div>
+                      </div>
                     </div>
                     <p class="caja-stock-mas" x-show="textoIngreso(idDeClave(mapa.origen.clave), 'crudo')" x-text="textoIngreso(idDeClave(mapa.origen.clave), 'crudo')"></p>
                     <p class="caja-stock-menos" x-show="textoResto(idDeClave(mapa.origen.clave), 'crudo')" x-text="textoResto(idDeClave(mapa.origen.clave), 'crudo')"></p>
@@ -3655,10 +3811,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <p class="caja-stock-venta text-center" x-show="ventaPlato(idDeClave(rama.corte.clave)) > 0" x-text="'Venta ' + formatNum(ventaPlato(idDeClave(rama.corte.clave)))"></p>
                             <div class="caja-stock">
                               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                              <div class="caja-stock-step">
-                                
-                                <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'crudo')" @change="fijarStockDirecto(idDeClave(rama.corte.clave), 'crudo', $event.target.value)">
-                                
+                              <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                <div class="caja-stock-step">
+                                  <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'crudo')" @change="fijarStockConIngreso(idDeClave(rama.corte.clave), 'crudo', $event.target)">
+                                </div>
+                                <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock crudo de ' + rama.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                  <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                  <div class="caja-stock-step">
+                                    <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(idDeClave(rama.corte.clave), 'crudo')" @change="registrarIngresoDirecto(idDeClave(rama.corte.clave), 'crudo', $event.target)" :aria-label="'Ingreso: ' + ('Stock crudo de ' + rama.nombre)" @input="ajustarCajaDigitos($el)">
+                                  </div>
+                                </div>
                               </div>
                               <p class="caja-stock-mas" x-show="textoIngreso(idDeClave(rama.corte.clave), 'crudo')" x-text="textoIngreso(idDeClave(rama.corte.clave), 'crudo')"></p>
                               <p class="caja-stock-menos" x-show="textoResto(idDeClave(rama.corte.clave), 'crudo')" x-text="textoResto(idDeClave(rama.corte.clave), 'crudo')"></p>
@@ -3666,10 +3829,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <template x-if="tienePaseCocido(idDeClave(rama.corte.clave))">
                               <div class="caja-stock caja-stock-cocido">
                                 <p class="caja-stock-etiq">Stock actual (Cocido):</p>
-                                <div class="caja-stock-step">
-                                  
-                                  <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'cocido')" @change="fijarStockDirecto(idDeClave(rama.corte.clave), 'cocido', $event.target.value)">
-                                  
+                                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                                  <div class="caja-stock-step">
+                                    <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'cocido')" @change="fijarStockConIngreso(idDeClave(rama.corte.clave), 'cocido', $event.target)">
+                                  </div>
+                                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + rama.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                                    <div class="caja-stock-step">
+                                      <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(idDeClave(rama.corte.clave), 'cocido')" @change="registrarIngresoDirecto(idDeClave(rama.corte.clave), 'cocido', $event.target)" :aria-label="'Ingreso: ' + ('Stock cocido de ' + rama.nombre)" @input="ajustarCajaDigitos($el)">
+                                    </div>
+                                  </div>
                                 </div>
                                 <p class="caja-stock-mas" x-show="textoIngreso(idDeClave(rama.corte.clave), 'cocido')" x-text="textoIngreso(idDeClave(rama.corte.clave), 'cocido')"></p>
                                 <p class="caja-stock-menos" x-show="textoResto(idDeClave(rama.corte.clave), 'cocido')" x-text="textoResto(idDeClave(rama.corte.clave), 'cocido')"></p>
@@ -3768,8 +3938,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <h3 class="text-sm font-extrabold text-white">Pollo Baby</h3>
             <div class="caja-stock">
               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-              <div class="caja-stock-step">
-                <input type="number" min="0" step="1" aria-label="Stock crudo de Pollo Baby" :value="stockCuadro('pollo_baby', 'crudo')" @change="fijarStockDirecto('pollo_baby', 'crudo', $event.target.value)">
+              <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                <div class="caja-stock-step">
+                  <input type="number" min="0" step="1" aria-label="Stock crudo de Pollo Baby" :value="stockCuadro('pollo_baby', 'crudo')" @change="fijarStockConIngreso('pollo_baby', 'crudo', $event.target)">
+                </div>
+                <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock crudo de Pollo Baby'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                  <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                  <div class="caja-stock-step">
+                    <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo('pollo_baby', 'crudo')" @change="registrarIngresoDirecto('pollo_baby', 'crudo', $event.target)" aria-label="Ingreso: Stock crudo de Pollo Baby" @input="ajustarCajaDigitos($el)">
+                  </div>
+                </div>
               </div>
               <p class="caja-stock-mas" x-show="textoIngreso('pollo_baby', 'crudo')" x-text="textoIngreso('pollo_baby', 'crudo')"></p>
               <p class="caja-stock-menos" x-show="textoResto('pollo_baby', 'crudo')" x-text="textoResto('pollo_baby', 'crudo')"></p>
@@ -3786,8 +3965,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <h3 class="text-sm font-extrabold text-white">Pollo Baby cocido</h3>
             <div class="caja-stock caja-stock-cocido">
               <p class="caja-stock-etiq">Stock actual (Cocido):</p>
-              <div class="caja-stock-step">
-                <input type="number" min="0" step="1" aria-label="Pasar Pollo Baby de crudo a cocido" :value="stockCuadro('pollo_baby', 'cocido')" @change="fijarPaseCrudoACocido('pollo_baby', $event.target.value)">
+              <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                <div class="caja-stock-step">
+                  <input type="number" min="0" step="1" aria-label="Pasar Pollo Baby de crudo a cocido" :value="stockCuadro('pollo_baby', 'cocido')" @change="fijarStockConIngreso('pollo_baby', 'cocido', $event.target)">
+                </div>
+                <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Pasar Pollo Baby de crudo a cocido'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                  <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                  <div class="caja-stock-step">
+                    <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo('pollo_baby', 'cocido')" @change="registrarIngresoDirecto('pollo_baby', 'cocido', $event.target)" aria-label="Ingreso cocido de Pollo Baby" @input="ajustarCajaDigitos($el)">
+                  </div>
+                </div>
               </div>
               <p class="caja-stock-mas" x-show="textoIngreso('pollo_baby', 'cocido')" x-text="textoIngreso('pollo_baby', 'cocido')"></p>
               <p class="caja-stock-menos" x-show="textoResto('pollo_baby', 'cocido')" x-text="textoResto('pollo_baby', 'cocido')"></p>
@@ -3851,10 +4039,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
             <div class="caja-stock">
               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-              <div class="caja-stock-step">
-                
-                <input type="number" min="0" step="1" aria-label="Stock actual de panceta entera" :value="quedanDe('panceta')" @change="fijarStockPanceta($event.target.value)">
-                
+              <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                <div class="caja-stock-step">
+                  <input type="number" min="0" step="1" aria-label="Stock actual de panceta entera" :value="quedanDe('panceta')" @change="fijarStockConIngreso('panceta', 'crudo', $event.target)">
+                </div>
+                <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de panceta entera'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                  <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                  <div class="caja-stock-step">
+                    <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo('panceta', 'crudo')" @change="registrarIngresoDirecto('panceta', 'crudo', $event.target)" aria-label="Ingreso: Stock actual de panceta entera" @input="ajustarCajaDigitos($el)">
+                  </div>
+                </div>
               </div>
               <p class="caja-stock-mas" x-show="textoIngreso('panceta', 'crudo')" x-text="textoIngreso('panceta', 'crudo')"></p>
               <p class="caja-stock-menos" x-show="textoResto('panceta', 'crudo')" x-text="textoResto('panceta', 'crudo')"></p>
@@ -3884,7 +4079,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-[10px] font-bold text-sky-200 block">Pancetas a tiras</span>
               <div class="flex items-center justify-between">
                 
-                <input type="number" min="0" aria-label="Pancetas que pasaron a tiras" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="pancetasHoy()" :style="'--digitos:' + digitosDe(pancetasHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPancetasSalen($event.target.value)">
+                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                  <div class="caja-stock-step">
+                    <input type="number" min="0" aria-label="Pancetas que pasaron a tiras" class="text-center num-mono text-white font-bold bg-transparent" :value="pancetasHoy()" :style="'--digitos:' + digitosDe(pancetasHoy())" @input="ajustarCajaDigitos($el)" @change="fijarPancetasSalen($event.target.value)">
+                  </div>
+                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Pancetas que pasaron a tiras'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                    <p class="caja-stock-etiq">Tiras que se agregan al inventario</p>
+                    <div class="caja-stock-step">
+                      <input type="number" class="ingreso-num" min="0" :value="ingresoDirectoPeriodo('tira_panceta', 'cocido')" @change="registrarIngresoDirecto('tira_panceta', 'cocido', $event.target)" aria-label="Ingreso independiente de tiras de panceta" @input="ajustarCajaDigitos($el)">
+                    </div>
+                  </div>
+                </div>
                 
               </div>
             </div>
@@ -3919,7 +4126,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[10px] font-bold text-emerald-200 block">Stock</span>
                 <div class="flex items-center justify-between">
                   
-                  <input type="number" min="0" aria-label="Stock cocido de pieza de panceta" class="paso-num text-center num-mono text-white font-bold bg-transparent" :value="stockCuadro('trozo_panceta', 'cocido')" :style="'--digitos:' + digitosDe(stockCuadro('trozo_panceta', 'cocido'))" @input="ajustarCajaDigitos($el)" @change="fijarStockTrozos($event.target.value)">
+                  <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                    <div class="caja-stock-step">
+                      <input type="number" min="0" aria-label="Stock cocido de pieza de panceta" class="text-center num-mono text-white font-bold bg-transparent" :value="stockCuadro('trozo_panceta', 'cocido')" :style="'--digitos:' + digitosDe(stockCuadro('trozo_panceta', 'cocido'))" @input="ajustarCajaDigitos($el)" @change="fijarStockConIngreso('trozo_panceta', 'cocido', $event.target)">
+                    </div>
+                    <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock cocido de pieza de panceta'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                    <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                      <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                      <div class="caja-stock-step">
+                        <input type="number" class="ingreso-num" min="0" :value="ingresoDirectoPeriodo('trozo_panceta', 'cocido')" @change="registrarIngresoDirecto('trozo_panceta', 'cocido', $event.target)" aria-label="Ingreso: Stock cocido de pieza de panceta" @input="ajustarCajaDigitos($el)">
+                      </div>
+                    </div>
+                  </div>
                   
                 </div>
               </div>
@@ -3934,10 +4152,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <template x-if="tienePaseCocido('trozo_panceta')">
               <div class="caja-stock caja-stock-cocido">
                 <p class="caja-stock-etiq">Stock actual (Cocido):</p>
-                <div class="caja-stock-step">
-                  
-                  <input type="number" min="0" step="1" aria-label="Stock cocido de trozo de panceta" :value="stockCuadro('trozo_panceta', 'cocido')" @change="fijarStockDirecto('trozo_panceta', 'cocido', $event.target.value)">
-                  
+                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                  <div class="caja-stock-step">
+                    <input type="number" min="0" step="1" aria-label="Stock cocido de trozo de panceta" :value="stockCuadro('trozo_panceta', 'cocido')" @change="fijarStockConIngreso('trozo_panceta', 'cocido', $event.target)">
+                  </div>
+                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock cocido de trozo de panceta'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                    <div class="caja-stock-step">
+                      <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo('trozo_panceta', 'cocido')" @change="registrarIngresoDirecto('trozo_panceta', 'cocido', $event.target)" aria-label="Ingreso: Stock cocido de trozo de panceta" @input="ajustarCajaDigitos($el)">
+                    </div>
+                  </div>
                 </div>
                 <p class="caja-stock-mas" x-show="textoIngreso('trozo_panceta', 'cocido')" x-text="textoIngreso('trozo_panceta', 'cocido')"></p>
                 <p class="caja-stock-menos" x-show="textoResto('trozo_panceta', 'cocido')" x-text="textoResto('trozo_panceta', 'cocido')"></p>
@@ -3998,22 +4223,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                 <div class="caja-stock-step">
                   
-                  <input type="number" min="0" step="any" aria-label="Stock actual de pieza de pescado" :value="stockCuadro('pieza_pescado', 'crudo')" @change="fijarStockDirecto('pieza_pescado', 'crudo', $event.target.value)">
+                  <input type="number" min="0" step="any" aria-label="Stock actual de pieza de pescado" :value="stockCuadro('pieza_pescado', 'crudo')" @change="fijarStockConIngreso('pieza_pescado', 'crudo', $event.target)">
                   
                 </div>
                 <p class="caja-stock-mas" x-show="textoIngreso('pieza_pescado', 'crudo')" x-text="textoIngreso('pieza_pescado', 'crudo')"></p>
                 <p class="caja-stock-menos" x-show="textoResto('pieza_pescado', 'crudo')" x-text="textoResto('pieza_pescado', 'crudo')"></p>
                 <p class="caja-stock-venta text-center" x-show="ventaPlato('pieza_pescado') > 0" x-text="'Venta ' + formatNum(ventaPlato('pieza_pescado'))"></p>
               </div>
-              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pieza_pescado" x-transition @click="abrirIngreso('pieza_pescado')">Ingreso</button>
+              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pieza_pescado" x-transition @click="abrirIngreso('pieza_pescado'); $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.pieza_pescado" x-cloak>
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
                   <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pieza_pescado')">Cerrar</button>
                 </div>
-                <div class="mt-2 inline-flex items-center gap-0.5">
+                <div class="caja-stock-step">
                   
-                  <input type="number" min="0" aria-label="Ingreso de pieza de pescado" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('pieza_pescado').ingreso" :style="'--digitos:' + digitosDe(getRow('pieza_pescado').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('pieza_pescado', $event.target.value)">
+                  <input type="number" min="0" aria-label="Ingreso de pieza de pescado" class="ingreso-num" :value="ingresoDirectoPeriodo('pieza_pescado', 'crudo')" @input="ajustarCajaDigitos($el)" @change="registrarIngresoDirecto('pieza_pescado', 'crudo', $event.target)">
                   
                 </div>
               </div>
@@ -4034,22 +4259,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                 <div class="caja-stock-step">
                   
-                  <input type="number" min="0" step="any" aria-label="Stock actual de pieza de pota" :value="stockCuadro('pieza_pota', 'crudo')" @change="fijarStockDirecto('pieza_pota', 'crudo', $event.target.value)">
+                  <input type="number" min="0" step="any" aria-label="Stock actual de pieza de pota" :value="stockCuadro('pieza_pota', 'crudo')" @change="fijarStockConIngreso('pieza_pota', 'crudo', $event.target)">
                   
                 </div>
                 <p class="caja-stock-mas" x-show="textoIngreso('pieza_pota', 'crudo')" x-text="textoIngreso('pieza_pota', 'crudo')"></p>
                 <p class="caja-stock-menos" x-show="textoResto('pieza_pota', 'crudo')" x-text="textoResto('pieza_pota', 'crudo')"></p>
                 <p class="caja-stock-venta text-center" x-show="ventaPlato('pieza_pota') > 0" x-text="'Venta ' + formatNum(ventaPlato('pieza_pota'))"></p>
               </div>
-              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pieza_pota" x-transition @click="abrirIngreso('pieza_pota')">Ingreso</button>
+              <button type="button" class="ingreso-chip" x-show="!ingresoAbierto.pieza_pota" x-transition @click="abrirIngreso('pieza_pota'); $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
               <div class="ingreso-panel" x-show="ingresoAbierto.pieza_pota" x-cloak>
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-[10px] uppercase font-bold text-[#d4af37]">Ingreso</span>
                   <button type="button" class="text-[10px] text-[#a0a0b8] cursor-pointer" @click="cerrarIngreso('pieza_pota')">Cerrar</button>
                 </div>
-                <div class="mt-2 inline-flex items-center gap-0.5">
+                <div class="caja-stock-step">
                   
-                  <input type="number" min="0" aria-label="Ingreso de pieza de pota" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="getRow('pieza_pota').ingreso" :style="'--digitos:' + digitosDe(getRow('pieza_pota').ingreso)" @input="ajustarCajaDigitos($el)" @change="updateIngresoDirecto('pieza_pota', $event.target.value)">
+                  <input type="number" min="0" aria-label="Ingreso de pieza de pota" class="ingreso-num" :value="ingresoDirectoPeriodo('pieza_pota', 'crudo')" @input="ajustarCajaDigitos($el)" @change="registrarIngresoDirecto('pieza_pota', 'crudo', $event.target)">
                   
                 </div>
               </div>
@@ -4068,8 +4293,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-sm font-bold text-white block">Chicharrón de chancho crudo</span>
               <div class="caja-stock">
                 <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                <div class="caja-stock-step">
-                  <input type="number" min="0" step="1" aria-label="Stock actual de chicharrón de chancho" :value="stockCuadro('chicharron_chancho', 'crudo')" @change="fijarStockDirecto('chicharron_chancho', 'crudo', $event.target.value)">
+                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                  <div class="caja-stock-step">
+                    <input type="number" min="0" step="1" aria-label="Stock actual de chicharrón de chancho" :value="stockCuadro('chicharron_chancho', 'crudo')" @change="fijarStockConIngreso('chicharron_chancho', 'crudo', $event.target)">
+                  </div>
+                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de chicharrón de chancho'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                    <div class="caja-stock-step">
+                      <input type="number" class="ingreso-num" min="0" step="1" :value="ingresoDirectoPeriodo('chicharron_chancho', 'crudo')" @change="registrarIngresoDirecto('chicharron_chancho', 'crudo', $event.target)" aria-label="Ingreso: Stock actual de chicharrón de chancho" @input="ajustarCajaDigitos($el)">
+                    </div>
+                  </div>
                 </div>
                 <p class="caja-stock-mas" x-show="textoIngreso('chicharron_chancho', 'crudo')" x-text="textoIngreso('chicharron_chancho', 'crudo')"></p>
                 <p class="caja-stock-menos" x-show="textoResto('chicharron_chancho', 'crudo')" x-text="textoResto('chicharron_chancho', 'crudo')"></p>
@@ -4090,8 +4324,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-sm font-bold text-white block">Cuy</span>
               <div class="caja-stock">
                 <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                <div class="caja-stock-step">
-                  <input type="number" min="0" step="any" aria-label="Stock actual de cuy" :value="stockCuadro('cuy', 'crudo')" @change="fijarStockDirecto('cuy', 'crudo', $event.target.value)">
+                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                  <div class="caja-stock-step">
+                    <input type="number" min="0" step="any" aria-label="Stock actual de cuy" :value="stockCuadro('cuy', 'crudo')" @change="fijarStockConIngreso('cuy', 'crudo', $event.target)">
+                  </div>
+                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de cuy'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                    <div class="caja-stock-step">
+                      <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo('cuy', 'crudo')" @change="registrarIngresoDirecto('cuy', 'crudo', $event.target)" aria-label="Ingreso: Stock actual de cuy" @input="ajustarCajaDigitos($el)">
+                    </div>
+                  </div>
                 </div>
                 <p class="caja-stock-mas" x-show="textoIngreso('cuy', 'crudo')" x-text="textoIngreso('cuy', 'crudo')"></p>
                 <p class="caja-stock-menos" x-show="textoResto('cuy', 'crudo')" x-text="textoResto('cuy', 'crudo')"></p>
@@ -4127,8 +4370,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-sm font-bold text-white block">Seco de carnero</span>
               <div class="caja-stock">
                 <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                <div class="caja-stock-step">
-                  <input type="number" min="0" step="any" aria-label="Stock crudo de Seco de carnero" :value="stockCuadro('seco_carnero', 'crudo')" @change="fijarStockDirecto('seco_carnero', 'crudo', $event.target.value)">
+                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                  <div class="caja-stock-step">
+                    <input type="number" min="0" step="any" aria-label="Stock crudo de Seco de carnero" :value="stockCuadro('seco_carnero', 'crudo')" @change="fijarStockConIngreso('seco_carnero', 'crudo', $event.target)">
+                  </div>
+                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock crudo de Seco de carnero'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                    <div class="caja-stock-step">
+                      <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo('seco_carnero', 'crudo')" @change="registrarIngresoDirecto('seco_carnero', 'crudo', $event.target)" aria-label="Ingreso: Stock crudo de Seco de carnero" @input="ajustarCajaDigitos($el)">
+                    </div>
+                  </div>
                 </div>
                 <p class="caja-stock-mas" x-show="textoIngreso('seco_carnero', 'crudo')" x-text="textoIngreso('seco_carnero', 'crudo')"></p>
                 <p class="caja-stock-menos" x-show="textoResto('seco_carnero', 'crudo')" x-text="textoResto('seco_carnero', 'crudo')"></p>
@@ -4143,8 +4395,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-sm font-bold text-white block">Seco de carnero cocido</span>
               <div class="caja-stock caja-stock-cocido">
                 <p class="caja-stock-etiq">Stock actual (Cocido):</p>
-                <div class="caja-stock-step">
-                  <input type="number" min="0" step="any" aria-label="Pasar Seco de carnero de crudo a cocido" :value="stockCuadro('seco_carnero', 'cocido')" @change="fijarPaseCrudoACocido('seco_carnero', $event.target.value)">
+                <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                  <div class="caja-stock-step">
+                    <input type="number" min="0" step="any" aria-label="Pasar Seco de carnero de crudo a cocido" :value="stockCuadro('seco_carnero', 'cocido')" @change="fijarStockConIngreso('seco_carnero', 'cocido', $event.target)">
+                  </div>
+                  <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Pasar Seco de carnero de crudo a cocido'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                  <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                    <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                    <div class="caja-stock-step">
+                      <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo('seco_carnero', 'cocido')" @change="registrarIngresoDirecto('seco_carnero', 'cocido', $event.target)" aria-label="Ingreso cocido de Seco de carnero" @input="ajustarCajaDigitos($el)">
+                    </div>
+                  </div>
                 </div>
                 <p class="caja-stock-mas" x-show="textoIngreso('seco_carnero', 'cocido')" x-text="textoIngreso('seco_carnero', 'cocido')"></p>
                 <p class="caja-stock-menos" x-show="textoResto('seco_carnero', 'cocido')" x-text="textoResto('seco_carnero', 'cocido')"></p>
@@ -4195,10 +4456,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <p class="caja-stock-venta text-center" x-show="ventaPlato(corteId) > 0" x-text="'Venta ' + formatNum(ventaPlato(corteId))"></p>
                     <div class="caja-stock">
                       <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                      <div class="caja-stock-step">
-                        
-                        <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="fijarStockDirecto(corteId, 'crudo', $event.target.value)">
-                        
+                      <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                        <div class="caja-stock-step">
+                          <input type="number" min="0" step="any" :aria-label="'Stock crudo de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="fijarStockConIngreso(corteId, 'crudo', $event.target)">
+                        </div>
+                        <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock crudo de ' + getRow(corteId).nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                        <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                          <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                          <div class="caja-stock-step">
+                            <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(corteId, 'crudo')" @change="registrarIngresoDirecto(corteId, 'crudo', $event.target)" :aria-label="'Ingreso: ' + ('Stock crudo de ' + getRow(corteId).nombre)" @input="ajustarCajaDigitos($el)">
+                          </div>
+                        </div>
                       </div>
                       <p class="caja-stock-mas" x-show="textoIngreso(corteId, 'crudo')" x-text="textoIngreso(corteId, 'crudo')"></p>
                       <p class="caja-stock-menos" x-show="textoResto(corteId, 'crudo')" x-text="textoResto(corteId, 'crudo')"></p>
@@ -4206,10 +4474,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <template x-if="tienePaseCocido(corteId)">
                       <div class="caja-stock caja-stock-cocido">
                         <p class="caja-stock-etiq">Stock actual (Cocido):</p>
-                        <div class="caja-stock-step">
-                          
-                          <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="fijarStockDirecto(corteId, 'cocido', $event.target.value)">
-                          
+                        <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                          <div class="caja-stock-step">
+                            <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="fijarStockConIngreso(corteId, 'cocido', $event.target)">
+                          </div>
+                          <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + getRow(corteId).nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                          <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                            <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                            <div class="caja-stock-step">
+                              <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(corteId, 'cocido')" @change="registrarIngresoDirecto(corteId, 'cocido', $event.target)" :aria-label="'Ingreso: ' + ('Stock cocido de ' + getRow(corteId).nombre)" @input="ajustarCajaDigitos($el)">
+                            </div>
+                          </div>
                         </div>
                         <p class="caja-stock-mas" x-show="textoIngreso(corteId, 'cocido')" x-text="textoIngreso(corteId, 'cocido')"></p>
                         <p class="caja-stock-menos" x-show="textoResto(corteId, 'cocido')" x-text="textoResto(corteId, 'cocido')"></p>
@@ -4254,8 +4529,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <p class="caja-stock-venta text-center" x-show="ventaPlato(corteId) > 0" x-text="'Venta ' + formatNum(ventaPlato(corteId))"></p>
                   <div class="caja-stock">
                     <p class="caja-stock-etiq" x-text="'Stock actual (' + etiquetaTipo('crudo', corteId) + '):'"></p>
-                    <div class="caja-stock-step">
-                      <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="fijarStockGrupoPachamanca(corteId, 'crudo', $event.target.value)">
+                    <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                      <div class="caja-stock-step">
+                        <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="fijarStockConIngreso(corteId, 'crudo', $event.target)">
+                      </div>
+                      <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                      <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                        <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                        <div class="caja-stock-step">
+                          <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(corteId, 'crudo')" @change="registrarIngresoDirecto(corteId, 'crudo', $event.target)" :aria-label="'Ingreso: ' + ('Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre)" @input="ajustarCajaDigitos($el)">
+                        </div>
+                      </div>
                     </div>
                     <p class="caja-stock-mas" x-show="textoIngreso(corteId, 'crudo')" x-text="textoIngreso(corteId, 'crudo')"></p>
                     <p class="caja-stock-menos" x-show="textoResto(corteId, 'crudo')" x-text="textoResto(corteId, 'crudo')"></p>
@@ -4263,8 +4547,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <template x-if="tienePaseCocido(corteId)">
                     <div class="caja-stock caja-stock-cocido">
                       <p class="caja-stock-etiq">Stock actual (Cocido):</p>
-                      <div class="caja-stock-step">
-                        <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="fijarStockGrupoPachamanca(corteId, 'cocido', $event.target.value)">
+                      <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
+                        <div class="caja-stock-step">
+                          <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="fijarStockConIngreso(corteId, 'cocido', $event.target)">
+                        </div>
+                        <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + getRow(corteId).nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
+                        <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
+                          <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
+                          <div class="caja-stock-step">
+                            <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(corteId, 'cocido')" @change="registrarIngresoDirecto(corteId, 'cocido', $event.target)" :aria-label="'Ingreso: ' + ('Stock cocido de ' + getRow(corteId).nombre)" @input="ajustarCajaDigitos($el)">
+                          </div>
+                        </div>
                       </div>
                       <p class="caja-stock-mas" x-show="textoIngreso(corteId, 'cocido')" x-text="textoIngreso(corteId, 'cocido')"></p>
                       <p class="caja-stock-menos" x-show="textoResto(corteId, 'cocido')" x-text="textoResto(corteId, 'cocido')"></p>
@@ -18449,6 +18742,130 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.ingresoAbierto = Object.assign({}, this.ingresoAbierto, { [id]: true });
         },
 
+        contextoIngresoDirecto(id, tipo, corte, sectorId) {
+          const raw = String(id || '');
+          const aliasFilete = ['filete-pollo', 'filete_pollo', 'filete-junior', 'filete_junior'].includes(raw);
+          const rowId = aliasFilete ? 'filete' : (this.filaIdDePlatoTransformar(raw) || this.idDeClaveExacto(raw) || raw);
+          const row = this.filaReal(rowId);
+          const clave = row && this.claveDeFila[row.id];
+          if (!row || !clave) return null;
+          const destino = sectorId ? this.destinosOctavoExtra().find((d) => d.id === sectorId) : null;
+          if (sectorId && (!destino || row.id !== 'octavo_pollo' || !corte)) return null;
+          const tipoFinal = row.soloCocido ? 'cocido' : (row.tieneCocido && tipo === 'cocido' ? 'cocido' : 'crudo');
+          const motivo = 'Ingreso independiente ' + tipoFinal + (destino ? ' · Sector ' + destino.nombre : '')
+            + (corte ? ' · ' + this.marcaCorte(corte) : '');
+          return { row, clave, tipo: tipoFinal, corte, destino, motivo };
+        },
+
+        rangoIngresoDirecto() {
+          const r = typeof this.rangoVista === 'function' ? this.rangoVista() : this.rangoPeriodo();
+          const TD = window.TurnosDiaNoche;
+          const periodo = typeof this.periodoVista === 'function' ? this.periodoVista() : this.periodo;
+          return TD && TD.esSegmento(periodo) ? (TD.rangoDe(periodo, this) || r) : r;
+        },
+
+        ingresoDirectoPeriodo(id, tipo, corte, sectorId) {
+          const ctx = this.contextoIngresoDirecto(id, tipo, corte, sectorId);
+          if (!ctx) return 0;
+          const rango = this.rangoIngresoDirecto();
+          const instante = (fecha, fin) => String(fecha).includes('T') ? new Date(fecha).getTime()
+            : new Date((fin ? this.diaOffset(fecha, 1) : fecha) + (fin ? 'T03:59:59.999-05:00' : 'T04:00:00-05:00')).getTime();
+          const desde = instante(rango.desde, false);
+          const hasta = instante(rango.hasta, true);
+          const total = (this.movimientosPeriodo || []).reduce((suma, m) => {
+            if (!m || m.rubro !== ctx.clave || m.clase !== 'ingreso' || m.motivo !== ctx.motivo) return suma;
+            if ((m.tipoProducto || 'crudo') !== ctx.tipo) return suma;
+            const t = new Date(m.fecha).getTime();
+            if (Number.isFinite(t) && (t < desde || t > hasta)) return suma;
+            if ((rango.excluir || []).some((r) => t >= new Date(r.desde).getTime()
+              && (r.abierto || t < new Date(r.hasta).getTime()))) return suma;
+            return suma + (Number(m.cantidad) || 0);
+          }, 0);
+          return Math.max(0, this.redondear3(total));
+        },
+
+        aplicarVariacionIngreso(ctx, cantidad, correccion) {
+          if (!cantidad && !correccion) return false;
+          const { row, clave, tipo: tipoFinal, corte, destino, motivo } = ctx;
+          if (this.productoBloqueado(row.id)) return this.avisoTransformar(row.nombre + ' está bloqueado.');
+          const rango = this.rangoIngresoDirecto();
+          const hasta = String((rango || {}).hasta || '');
+          let fechaFija = typeof this.fechaCierreVista === 'function' ? this.fechaCierreVista()
+            : (/^\d{4}-\d{2}-\d{2}$/.test(hasta) && hasta < this.ymdOperativo() ? this.diaOffset(hasta, 1) + 'T03:59:00-05:00' : undefined);
+          if (String(rango.desde).includes('T') && hasta.includes('T')) {
+            // Un turno cerrado se edita dentro de sus horas, nunca en el turno actual.
+            let t = Math.min(Date.now(), new Date(hasta).getTime() - 1);
+            const exclusiones = (rango.excluir || []).slice().sort((a, b) => new Date(b.desde) - new Date(a.desde));
+            exclusiones.forEach((r) => {
+              const inicio = new Date(r.desde).getTime();
+              if (t >= inicio && (r.abierto || t < new Date(r.hasta).getTime())) t = inicio - 1;
+            });
+            if (t < new Date(rango.desde).getTime()) return this.avisoTransformar('El período seleccionado todavía no tiene un tramo disponible para registrar ingresos.');
+            fechaFija = new Date(t).toISOString();
+          }
+          const fecha = fechaFija || new Date().toISOString();
+          const movimientos = [];
+          const agregar = (clase, n, texto) => movimientos.push({ rubro: clave, clase, tipoProducto: tipoFinal,
+            cantidad: n, motivo: texto, fecha, fechaFija, nombre: row.nombre });
+          if (cantidad) {
+            const campo = this.campoTipo('ingreso', tipoFinal);
+            row[campo] = this.redondear3(this.valorTipo(row, 'ingreso', tipoFinal) + cantidad);
+            agregar('ingreso', cantidad, motivo);
+          }
+          const ajuste = destino ? this.redondear3(-cantidad - (correccion || 0)) : (correccion || 0);
+          if (ajuste) {
+            const campo = this.campoTipo('correccion', tipoFinal);
+            row[campo] = this.redondear3(this.valorTipo(row, 'correccion', tipoFinal) + ajuste);
+            agregar('regulacion', ajuste, destino ? 'Separado · ' + destino.nombre + ' · ' + this.marcaCorte(corte)
+              : 'Ajuste de stock ' + tipoFinal + (corte ? ' · ' + this.marcaCorte(corte) : ''));
+          }
+          row[tipoFinal] = this.calcSaldoTipo(row, tipoFinal);
+          this.anotarMovs(movimientos);
+          this.tocarHoja();
+          this.pulseRowTotal(row.id);
+          // Una caché anterior no debe resucitar el ingreso al volver a la tabla o a Transformar.
+          if (this._cacheKardex) this._cacheKardex = { tabla: null, transformar: null };
+          this.encolarMovimientos(movimientos);
+          return true;
+        },
+
+        registrarIngresoDirecto(id, tipo, el, corte, sectorId) {
+          if (!el) return false;
+          const escrito = Number(el && el.value);
+          if (!Number.isFinite(escrito) || escrito < 0) return false;
+          const ctx = this.contextoIngresoDirecto(id, tipo, corte, sectorId);
+          if (!ctx) return this.avisoTransformar('Este producto no tiene una fila de inventario para recibir el ingreso.');
+          const nuevo = this.redondear3(escrito);
+          const anterior = this.ingresoDirectoPeriodo(id, tipo, corte, sectorId);
+          const cambio = this.redondear3(nuevo - anterior);
+          const guardado = this.aplicarVariacionIngreso(ctx, cambio, 0);
+          el.value = String(guardado || !cambio ? nuevo : anterior);
+          el.dataset.valorAlEnfocar = el.value;
+          delete el.dataset.ceroAntesDeEditar;
+          this.ajustarCajaDigitos(el);
+          return guardado;
+        },
+
+        fijarStockConIngreso(id, tipo, el, corte, sectorId) {
+          if (!el) return false;
+          const escrito = Number(el && el.value);
+          if (!Number.isFinite(escrito) || escrito < 0) return false;
+          const ctx = this.contextoIngresoDirecto(id, tipo, corte, sectorId);
+          if (!ctx) return false;
+          const actual = sectorId ? this.octavosEnDestino(sectorId, corte)
+            : corte ? (ctx.row.id === 'octavo_pollo' ? this.octavosStockCorte(corte) : this.stockOctavoPlato(id, corte, ctx.tipo))
+            : this.stockCuadro(ctx.row.id, ctx.tipo);
+          const diferencia = this.redondear3(this.redondear3(escrito) - actual);
+          const ingreso = this.ingresoDirectoPeriodo(id, tipo, corte, sectorId);
+          const cambio = diferencia >= 0 ? diferencia : -Math.min(ingreso, -diferencia);
+          const correccion = this.redondear3(diferencia - cambio);
+          const guardado = this.aplicarVariacionIngreso(ctx, cambio, correccion);
+          el.dataset.valorAlEnfocar = guardado || !diferencia ? String(this.redondear3(escrito)) : String(actual);
+          delete el.dataset.ceroAntesDeEditar;
+          this.ajustarCajaDigitos(el);
+          return guardado;
+        },
+
         cerrarIngreso(id) {
           const next = Object.assign({}, this.ingresoAbierto);
           next[id] = false;
@@ -19620,7 +20037,42 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         vaciarSiCero(ev) {
           const el = ev && ev.target;
-          if (el && !(Number(el.value) > 0)) el.value = '';
+          if (el && el.value !== '' && Number(el.value) === 0) {
+            el.dataset.ceroAntesDeEditar = el.value;
+            el.value = '';
+          }
+        },
+
+        esNumeroTransformar(el) {
+          return !!(el && el.matches && el.matches('.caja-stock-step input[type="number"], .ingreso-panel input[type="number"], .arroz-caja input[type="number"], input.paso-num'));
+        },
+
+        prepararNumeroTransformar(ev) {
+          if (!this.esNumeroTransformar(ev && ev.target)) return;
+          if (ev.type === 'focusin') ev.target.dataset.valorAlEnfocar = ev.target.value;
+          this.vaciarSiCero(ev);
+          this.ajustarCajaDigitos(ev.target);
+        },
+
+        restaurarCeroTransformar(ev) {
+          const el = ev && ev.target;
+          if (!this.esNumeroTransformar(el)) return;
+          if (el.value === '' && el.dataset.ceroAntesDeEditar !== undefined) {
+            el.value = el.dataset.ceroAntesDeEditar;
+          }
+          delete el.dataset.ceroAntesDeEditar;
+          delete el.dataset.valorAlEnfocar;
+          this.ajustarCajaDigitos(el);
+        },
+
+        ignorarIngresoVacio(ev) {
+          const el = ev && ev.target;
+          if (!this.esNumeroTransformar(el) || el.value !== '' || el.dataset.ceroAntesDeEditar === undefined) return;
+          // Un cero escrito para borrar un ingreso existente sí debe llegar al setter.
+          if (el.dataset.valorAlEnfocar !== undefined && Number(el.dataset.valorAlEnfocar) !== 0) return;
+          // Abrir un cero y salir sin escribir no guarda un movimiento de inventario.
+          ev.stopPropagation();
+          this.restaurarCeroTransformar(ev);
         },
 
         stockAnteriorArroz(d) {

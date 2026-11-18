@@ -1,0 +1,206 @@
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const { armarLibro } = require('../src/utils/inventarioLibro');
+const { boundsDiaOperativo } = require('../src/utils/diaOperativoRestaurante');
+const html = fs.readFileSync(path.join(__dirname, '../public/inventario.html'), 'utf8');
+const code = html.slice(html.indexOf('function inventarioApp()'), html.lastIndexOf('</script>'));
+const plain = (v) => JSON.parse(JSON.stringify(v));
+const fechaIngreso = '2026-11-18T12:00:00-05:00';
+const input = (v) => ({ value: String(v), dataset: {}, style: { setProperty: jest.fn() } });
+function escenario(iniciales = []) {
+    const storage = { getItem: () => null };
+    const crear = vm.runInNewContext('(' + code.trim() + ')', { window: {}, localStorage: storage, sessionStorage: storage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0 });
+    const app = crear();
+    app.$nextTick = (fn) => fn && fn();
+    app.restaurarEjemploDespiece(true); app.vaciarNumeros(); app.aplicarOpcionesCocido([]);
+    app.pulseRowTotal = jest.fn(); app.productoBloqueado = () => false; app.activeTab = 'transformar';
+    let dia = '2026-11-18';
+    const ymdReal = app.ymdOperativo.bind(app);
+    app.ymdOperativo = (f) => f ? ymdReal(f) : '2026-11-18'; app.fechaHoy = () => '2026-11-18';
+    app.rangoVista = () => ({ desde: dia, hasta: dia }); app.rangoPeriodo = app.rangoVista; app.rangoPeriodoTransformar = app.rangoVista;
+    app.fechaCierreVista = () => dia === '2026-11-18' ? fechaIngreso : app.diaOffset(dia, 1) + 'T03:59:00-05:00';
+    const guardados = iniciales.map((m) => ({ clase: 'ingreso', fecha: '2026-11-18T10:00:00-05:00', tipoProducto: 'crudo', motivo: 'Ingreso inicial', ...m }));
+    const recargar = (otroDia = dia) => {
+        dia = otroDia;
+        const b = boundsDiaOperativo(dia);
+        const libro = armarLibro({ movimientos: guardados, ventas: [], desde: b.inicio, hasta: b.fin });
+        app.movimientosPeriodo = plain(guardados.filter((m) => new Date(m.fecha) >= b.inicio && new Date(m.fecha) <= b.fin));
+        app.movimientosTurno = app.movimientosPeriodo.slice(); app.ventasPeriodo = libro.ventas;
+        app.aplicarKardex(libro.filas, app.movimientosPeriodo, libro.ventas);
+        return libro;
+    };
+    app.encolarMovimientos = jest.fn((movs) => guardados.push(...plain(movs).map((m) => ({ ...m, fecha: m.fechaFija || m.fecha || fechaIngreso }))));
+    recargar(); return { app, guardados, recargar };
+}
+
+test('base 127 no se precarga como ingreso; entrada 1 permanece visible y en la tabla tras recargar', () => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }, { rubro: 'pechuga-pollo', cantidad: 40 }]);
+    const otros = plain(app.rows.filter((r) => r.id !== 'filete'));
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0);
+    const el = input('1');
+    expect(app.registrarIngresoDirecto('filete', 'crudo', el)).toBe(true);
+    expect(el.value).toBe('1'); expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(1);
+    expect(app.stockCuadro('filete', 'crudo')).toBe(128);
+    expect(plain(app.rows.filter((r) => r.id !== 'filete'))).toEqual(otros);
+    expect(guardados[2]).toMatchObject({ clase: 'ingreso', cantidad: 1, rubro: 'filete' });
+    const libro = recargar();
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(1); expect(app.stockCuadro('filete', 'crudo')).toBe(128);
+    expect(app.getRow('filete').ingreso).toBe(128);
+    expect(libro.filas.find((f) => f.rubro === 'filete' && f.tipoProducto === 'crudo').ingresoBruto).toBe(128);
+    expect(app.getRow('filete').transformacion).toBe(0);
+});
+
+test('1 a 2 edita el total, reenviar 2 no duplica y 2 a 0 restaura la base', () => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }]); const el = input('1');
+    app.registrarIngresoDirecto('filete', 'crudo', el); expect(app.registrarIngresoDirecto('filete', 'crudo', el)).toBe(false);
+    el.value = '2'; app.registrarIngresoDirecto('filete', 'crudo', el);
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(2); expect(app.stockCuadro('filete', 'crudo')).toBe(129);
+    expect(guardados.slice(1).map((m) => m.cantidad)).toEqual([1, 1]);
+    el.value = '0'; expect(app.registrarIngresoDirecto('filete', 'crudo', el)).toBe(true);
+    expect(guardados[3]).toMatchObject({ clase: 'ingreso', cantidad: -2 }); recargar();
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0); expect(app.stockCuadro('filete', 'crudo')).toBe(127);
+    expect(app.getRow('filete').ingreso).toBe(127);
+});
+
+test('stock 128 a 127 elimina ingreso 1 sin devolver filetes a pechuga', () => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }, { rubro: 'pechuga-pollo', cantidad: 40 }]);
+    app.registrarIngresoDirecto('filete', 'crudo', input('1')); const otros = plain(app.rows.filter((r) => r.id !== 'filete'));
+    expect(app.fijarStockConIngreso('filete', 'crudo', input('127'))).toBe(true);
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0); expect(app.stockCuadro('filete', 'crudo')).toBe(127);
+    expect(plain(app.rows.filter((r) => r.id !== 'filete'))).toEqual(otros);
+    expect(guardados.slice(2).map((m) => [m.clase, m.cantidad])).toEqual([['ingreso', 1], ['ingreso', -1]]);
+    recargar(); expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0); expect(app.stockCuadro('filete', 'crudo')).toBe(127); expect(app.stockCuadro('pechuga', 'crudo')).toBe(40);
+});
+
+test('subir stock 127 a 129 crea ingreso 2 que se refleja en columna Ingreso', () => {
+    const { app, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }]);
+    expect(app.fijarStockConIngreso('filete', 'crudo', input('129'))).toBe(true);
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(2); expect(app.getRow('filete').ingreso).toBe(129);
+    recargar(); expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(2); expect(app.stockCuadro('filete', 'crudo')).toBe(129);
+});
+
+test('bajar stock bajo base elimina ingreso y aplica solo el residual como correccion local', () => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }]); app.registrarIngresoDirecto('filete', 'crudo', input('2'));
+    expect(app.fijarStockConIngreso('filete', 'crudo', input('125'))).toBe(true);
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0); expect(app.stockCuadro('filete', 'crudo')).toBe(125);
+    expect(app.getRow('filete').ingreso).toBe(127); expect(app.getRow('filete').correccion).toBe(-2);
+    expect(guardados.slice(2).filter((m) => m.clase === 'ingreso').reduce((s, m) => s + m.cantidad, 0)).toBe(-2);
+    expect(guardados.slice(2).filter((m) => m.clase === 'regulacion').reduce((s, m) => s + m.cantidad, 0)).toBe(-2);
+    recargar(); expect(app.stockCuadro('filete', 'crudo')).toBe(125); expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0);
+});
+
+test('al cambiar periodo el ingreso corresponde a ese periodo y al regresar se reconstruye', () => {
+    const { app, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }]); app.registrarIngresoDirecto('filete', 'crudo', input('1'));
+    recargar('2026-11-19'); expect(app.stockCuadro('filete', 'crudo')).toBe(128); expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0);
+    recargar('2026-11-18'); expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(1); expect(app.stockCuadro('filete', 'crudo')).toBe(128);
+});
+
+test('guardar ingreso invalida caches de tabla y Transformar', () => {
+    const { app } = escenario([{ rubro: 'filete', cantidad: 127 }]); app._cacheKardex = { tabla: { q: 'viejo' }, transformar: { q: 'viejo' } };
+    app.registrarIngresoDirecto('filete', 'crudo', input('1')); expect(app._cacheKardex.tabla).toBeFalsy(); expect(app._cacheKardex.transformar).toBeFalsy();
+});
+
+test.each([['2026-11-17', '2026-11-18T03:59:00-05:00'], ['2026-11-18', undefined]])('sin helper de fecha se conserva el periodo %s', (hasta, fechaEsperada) => {
+    const { app, guardados } = escenario([{ rubro: 'filete', cantidad: 127 }]); app.fechaCierreVista = undefined; app.rangoVista = undefined; app.rangoPeriodo = () => ({ desde: hasta, hasta });
+    expect(app.registrarIngresoDirecto('filete', 'crudo', input('10'))).toBe(true); expect(guardados[1].fechaFija).toBe(fechaEsperada); expect(app.stockCuadro('filete', 'crudo')).toBe(137);
+});
+
+test('pollo fresco recibe ingreso sin despiece automatico', () => {
+    const { app, recargar } = escenario([{ rubro: 'pollo-origen', cantidad: 2 }]); const antes = plain(app.rows.filter((r) => r.id !== 'pollo_fresco'));
+    app.registrarIngresoDirecto('pollo_fresco', 'crudo', input('3')); expect(app.stockCuadro('pollo_fresco', 'crudo')).toBe(5); expect(app.ingresoDirectoPeriodo('pollo_fresco', 'crudo')).toBe(3);
+    expect(plain(app.rows.filter((r) => r.id !== 'pollo_fresco'))).toEqual(antes); recargar(); expect(app.stockCuadro('pollo_fresco', 'crudo')).toBe(5); expect(app.stockCuadro('pechuga', 'crudo')).toBe(0);
+});
+
+test('editar y deshacer cocido no consume ni devuelve crudo', () => {
+    const { app, recargar } = escenario([{ rubro: 'pollo-baby', cantidad: 7 }, { rubro: 'pollo-baby', tipoProducto: 'cocido', cantidad: 2 }]);
+    app.registrarIngresoDirecto('pollo_baby', 'cocido', input('4')); expect(app.stockCuadro('pollo_baby', 'cocido')).toBe(6); expect(app.stockCuadro('pollo_baby', 'crudo')).toBe(7);
+    app.registrarIngresoDirecto('pollo_baby', 'cocido', input('0')); recargar(); expect(app.stockCuadro('pollo_baby', 'cocido')).toBe(2); expect(app.stockCuadro('pollo_baby', 'crudo')).toBe(7); expect(app.ingresoDirectoPeriodo('pollo_baby', 'cocido')).toBe(0);
+});
+
+test.each([['arroz_blanco', 'arroz-blanco'], ['arroz_verde', 'arroz-verde'], ['tira_panceta', 'tira-panceta'], ['trozo_panceta', 'trozo-panceta']])('%s permite revertir ingreso sin gastar materia prima', (id, rubro) => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'arroz', cantidad: 50 }, { rubro: 'panceta', cantidad: 20 }]); const otros = plain(app.rows.filter((r) => r.id !== id));
+    app.registrarIngresoDirecto(id, 'crudo', input('8')); expect(app.stockCuadro(id, 'cocido')).toBe(8); expect(app.ingresoDirectoPeriodo(id, 'cocido')).toBe(8);
+    expect(guardados[2]).toMatchObject({ rubro, clase: 'ingreso', tipoProducto: 'cocido', cantidad: 8 }); expect(plain(app.rows.filter((r) => r.id !== id))).toEqual(otros);
+    app.registrarIngresoDirecto(id, 'cocido', input('0')); recargar(); expect(app.stockCuadro(id, 'cocido')).toBe(0); expect(app.ingresoDirectoPeriodo(id, 'cocido')).toBe(0); expect(app.stockCuadro('arroz', 'crudo')).toBe(50); expect(app.stockCuadro('panceta', 'crudo')).toBe(20);
+});
+
+test.each([['arroz_beata', 'arroz-beata'], ['arroz_rio_lindo', 'arroz-rio-lindo']])('%s edita ingreso sin descarga ni ventas', (id, rubro) => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'arroz', cantidad: 50 }]); const tipo = app.tipoArrozDestino({ id });
+    app.registrarIngresoDirecto(id, tipo, input('2.5')); recargar(); expect(app.ingresoDirectoPeriodo(id, tipo)).toBe(2.5); expect(guardados[1]).toMatchObject({ rubro, clase: 'ingreso', cantidad: 2.5 });
+    app.registrarIngresoDirecto(id, tipo, input('0')); recargar(); expect(app.stockCuadro(id, tipo)).toBe(0); expect(app.stockCuadro('arroz', 'crudo')).toBe(50); expect(app.kgDescargaArroz({ id })).toBe(0);
+});
+
+test('octavos conservan ingresos independientes por corte al editar y recargar', () => {
+    const { app, recargar } = escenario(); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('3'), 'pechugas'); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('4'), 'piernas');
+    expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas')).toBe(3); expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'piernas')).toBe(4);
+    app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('0'), 'pechugas'); recargar(); expect(app.octavosStockCorte('pechugas')).toBe(0); expect(app.octavosStockCorte('piernas')).toBe(4); expect(app.stockCuadro('pechuga', 'crudo')).toBe(0);
+});
+
+test('editar stock por corte elimina su ingreso sin alterar corte contrario', () => {
+    const { app, recargar } = escenario([{ rubro: 'octavo-pollo', cantidad: 5, motivo: 'Ingreso inicial · pecho' }, { rubro: 'octavo-pollo', cantidad: 7, motivo: 'Ingreso inicial · pierna' }]);
+    app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('1'), 'pechugas'); app.fijarStockConIngreso('octavo_pollo', 'crudo', input('5'), 'pechugas'); recargar();
+    expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas')).toBe(0); expect(app.octavosStockCorte('pechugas')).toBe(5); expect(app.octavosStockCorte('piernas')).toBe(7);
+});
+
+test('plato por corte puede revertir cocido sin consumir octavo ni crudo', () => {
+    const { app, recargar } = escenario([{ rubro: 'octavo-pollo', cantidad: 5, motivo: 'Ingreso inicial · pecho' }]); app.registrarIngresoDirecto('arroz_con_pollo', 'cocido', input('4'), 'pechugas');
+    expect(app.stockOctavoPlato('arroz_con_pollo', 'pechugas', 'cocido')).toBe(4); app.registrarIngresoDirecto('arroz_con_pollo', 'cocido', input('0'), 'pechugas'); recargar();
+    expect(app.stockOctavoPlato('arroz_con_pollo', 'pechugas', 'cocido')).toBe(0); expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(5); expect(app.stockCuadro('arroz_con_pollo', 'crudo')).toBe(0);
+});
+
+test('sectores editan total propio sin consumir libre ni afectar otro sector o ventas', () => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'octavo-pollo', cantidad: 5, motivo: 'Ingreso inicial · pecho' }]);
+    app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('1'), 'pechugas', 'beata'); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('3'), 'pechugas', 'beata'); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('2'), 'pechugas', 'personal');
+    expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas', 'beata')).toBe(3); expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas', 'personal')).toBe(2); expect(app.octavosEnDestino('beata', 'pechugas')).toBe(3);
+    expect(guardados.slice(1).filter((m) => m.clase === 'ingreso').map((m) => m.cantidad)).toEqual([1, 2, 2]); expect(guardados[1].motivo).toMatch(/ · Sector Beata · pecho$/);
+    app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('0'), 'pechugas', 'beata'); recargar(); expect(app.octavosEnDestino('beata', 'pechugas')).toBe(0); expect(app.octavosEnDestino('personal', 'pechugas')).toBe(2); expect(app.octavosStockCorte('pechugas')).toBe(5); expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(5); expect(guardados.some((m) => m.clase === 'egreso')).toBe(false);
+});
+
+test('editar stock de sector elimina su ingreso del periodo sin consumir libres', () => {
+    const { app, recargar } = escenario([{ rubro: 'octavo-pollo', cantidad: 5, motivo: 'Ingreso inicial · pecho' }]); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('1'), 'pechugas', 'beata');
+    expect(app.fijarStockConIngreso('octavo_pollo', 'crudo', input('0'), 'pechugas', 'beata')).toBe(true); recargar(); expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas', 'beata')).toBe(0); expect(app.octavosEnDestino('beata', 'pechugas')).toBe(0); expect(app.octavosStockCorte('pechugas')).toBe(5);
+});
+
+test('legacy de sector ambiguo no se atribuye ni se elimina por inferencia', () => {
+    // La version anterior omitio sector en el motivo del ingreso. No puede adjudicarse con certeza.
+    const { app, guardados, recargar } = escenario([{ rubro: 'octavo-pollo', cantidad: 5, motivo: 'Ingreso inicial · pecho' }, { rubro: 'octavo-pollo', cantidad: 3, motivo: 'Ingreso independiente crudo · pecho' }, { rubro: 'octavo-pollo', clase: 'regulacion', cantidad: -3, motivo: 'Separado · Beata · pecho' }]);
+    const legacy = plain(guardados); expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas', 'beata')).toBe(0); expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('0'), 'pechugas', 'beata')).toBe(false); expect(plain(guardados)).toEqual(legacy);
+    app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('1'), 'pechugas', 'beata'); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('0'), 'pechugas', 'beata'); recargar(); expect(app.octavosEnDestino('beata', 'pechugas')).toBe(3); expect(plain(guardados.slice(0, 3))).toEqual(legacy);
+});
+
+test.each(['', '-1', 'NaN', 'Infinity'])('valor invalido %j no altera filas ni escribe', (v) => {
+    const { app, guardados } = escenario([{ rubro: 'filete', cantidad: 127 }]); const antes = plain(app.rows); expect(app.registrarIngresoDirecto('filete', 'crudo', input(v))).toBe(false); expect(plain(app.rows)).toEqual(antes); expect(guardados).toHaveLength(1); expect(app.encolarMovimientos).not.toHaveBeenCalled();
+});
+
+test('0 sin ingreso previo no resta stock de base', () => {
+    const { app, guardados } = escenario([{ rubro: 'filete', cantidad: 127 }]); expect(app.registrarIngresoDirecto('filete', 'crudo', input('0'))).toBe(false); expect(app.stockCuadro('filete', 'crudo')).toBe(127); expect(guardados).toHaveLength(1);
+});
+
+test('producto desconocido, bloqueado o campo ausente no escribe', () => {
+    const { app } = escenario(); expect(app.registrarIngresoDirecto('producto-inexistente', 'crudo', input('5'))).toBe(false); expect(app.registrarIngresoDirecto('filete', 'crudo', null)).toBe(false); app.productoBloqueado = () => true; expect(app.registrarIngresoDirecto('filete', 'crudo', input('5'))).toBe(false); expect(app.encolarMovimientos).not.toHaveBeenCalled();
+});
+
+test('fecha historica se conserva en persistencia y sin fecha fija se usa la del servidor', () => {
+    const { app } = escenario(); app.registrarIngresoDirecto('filete', 'crudo', input('2')); expect(app.encolarMovimientos.mock.calls[0][0][0].fechaFija).toBe(fechaIngreso); app.fechaCierreVista = () => undefined; app.registrarIngresoDirecto('filete', 'crudo', input('3')); expect(app.encolarMovimientos.mock.calls[1][0][0].fechaFija).toBeUndefined();
+});
+
+test('vaciar un ingreso existente equivale a ponerlo en cero', () => {
+    const { app, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }]);
+    app.registrarIngresoDirecto('filete', 'crudo', input('1'));
+    expect(app.registrarIngresoDirecto('filete', 'crudo', input(''))).toBe(true);
+    recargar();
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0);
+    expect(app.stockCuadro('filete', 'crudo')).toBe(127);
+});
+
+test('un ingreso en turno cerrado permanece dentro de ese turno', () => {
+    const { app, guardados } = escenario();
+    app.rangoIngresoDirecto = () => ({ desde: '2020-01-01T09:00:00.000Z', hasta: '2020-01-01T18:00:00.000Z' });
+    app.fechaCierreVista = () => undefined;
+    expect(app.registrarIngresoDirecto('filete', 'crudo', input('1'))).toBe(true);
+    expect(guardados[0].fechaFija).toBe('2020-01-01T17:59:59.999Z');
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(1);
+    expect(app.registrarIngresoDirecto('filete', 'crudo', input('0'))).toBe(true);
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0);
+});
