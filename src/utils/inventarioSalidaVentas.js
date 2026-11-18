@@ -207,8 +207,10 @@ function aplicarFactoresRelacion(nombre, lista, relaciones, fila) {
     });
     const claves = Object.keys(factorPorRubro);
     if (!claves.length) return base;
+    const platoMilanesaJunior = norm(nombre).includes('milanesa') && norm(nombre).includes('junior');
     const out = base.map((item) => {
         if (!item || item.unidades != null) return item;
+        if (platoMilanesaJunior && item.rubro === 'milanesa' && Number(item.factor) === 0.5) return item;
         const cant = factorPorRubro[item.rubro];
         if (!(cant > 0) || Number(item.factor) === cant) return item;
         return Object.assign({}, item, { factor: cant });
@@ -217,8 +219,12 @@ function aplicarFactoresRelacion(nombre, lista, relaciones, fila) {
     out.forEach((item) => {
         if (item && item.rubro) ya[item.rubro] = true;
     });
+    const mismoFilete = (clave) => clave === 'filete' || clave === 'filete-pollo' || clave === 'filete-junior';
+    const yaGastaFilete = Object.keys(ya).some(mismoFilete);
     claves.forEach((clave) => {
         if (ya[clave]) return;
+        if (mismoFilete(clave) && yaGastaFilete) return;
+        if (platoMilanesaJunior && mismoFilete(clave)) return;
         out.push({ rubro: clave, factor: factorPorRubro[clave] });
     });
     return out;
@@ -485,6 +491,16 @@ function rubrosDeFila(fila, mapas, bebidas) {
     }
     const octavo = rubroOctavoDe(n);
     if (octavo && !lista.some((x) => x.rubro === octavo)) add(octavo);
+    if (n.includes('milanesa') && n.includes('junior')) {
+        let hay = false;
+        lista.forEach((item) => {
+            if (!item || item.rubro !== 'milanesa') return;
+            hay = true;
+            if (item.unidades != null) item.unidades = 0.5 * (Number(fila && fila.cantidad) || 1);
+            else item.factor = 0.5;
+        });
+        if (!hay) lista.unshift({ rubro: 'milanesa', factor: 0.5 });
+    }
     return lista;
 }
 

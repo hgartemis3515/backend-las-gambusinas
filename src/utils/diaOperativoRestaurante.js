@@ -72,6 +72,23 @@ function rangoLima(fechaInicio, fechaFin) {
     };
 }
 
+/**
+ * Un tramo Día o Noche empieza a mitad del día operativo.
+ * El stock se cuenta desde las 04:00: si no, el ingreso de la mañana
+ * se mezcla con un saldo anterior negativo y Noche muestra menos de lo que queda.
+ */
+function ampliarTramoAlDia(desde, hasta) {
+    const ini = new Date(desde);
+    const fin = new Date(hasta);
+    if (Number.isNaN(ini.getTime()) || Number.isNaN(fin.getTime()) || fin < ini) return { desde: ini, hasta: fin };
+    const ymd = ymdOperativo(ini);
+    if (ymdOperativo(fin) !== ymd) return { desde: ini, hasta: fin };
+    const borde = boundsDiaOperativo(ymd);
+    if (ini.getTime() <= borde.inicio.getTime() + 1500) return { desde: ini, hasta: fin };
+    if (fin.getTime() > borde.fin.getTime() + 1500) return { desde: ini, hasta: fin };
+    return { desde: borde.inicio, hasta: fin };
+}
+
 module.exports = {
     TZ,
     HORA_INICIO_CICLO,
@@ -81,5 +98,6 @@ module.exports = {
     boundsDiaOperativo,
     boundsDiaCalendario,
     parseLimaBound,
-    rangoLima
+    rangoLima,
+    ampliarTramoAlDia
 };

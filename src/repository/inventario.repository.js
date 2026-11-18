@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
-const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
+const { armarKardex, alertasDeFilas, aplicarVentasEnFilas, cambioDeAlerta, gapAperturaHoja } = require('../utils/inventarioKardex');
 const { claveDe, clavesGuardables, filasDeRubros, extrasDeVentas, carta } = require('../utils/inventarioRubros');
 const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventarioMapas');
 const { sanearGuardado } = require('../../public/assets/js/inventarioRelaciones');
 const MapaSemantico = require('../database/models/inventarioMapa.model');
-const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD } = require('../utils/diaOperativoRestaurante');
+const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD, ampliarTramoAlDia } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
 const { atribuirVentas, semillaCocido, validarCocidoConfig, esMateria } = require('../utils/inventarioCascadaVenta');
 const Rubro = require('../database/models/inventarioRubro.model');
@@ -69,7 +69,8 @@ async function movimientosHasta(platoIds, hasta, extra) {
 }
 
 async function kardex(desdeStr, hastaStr, ciclo) {
-    const { desde, hasta } = (desdeStr || hastaStr) ? rango(desdeStr, hastaStr || desdeStr, ciclo) : hoy();
+    const pedido = (desdeStr || hastaStr) ? rango(desdeStr, hastaStr || desdeStr, ciclo) : hoy();
+    const { desde, hasta } = ampliarTramoAlDia(pedido.desde, pedido.hasta);
     const platos = await platosActivos();
     const ids = platos.map((p) => p._id);
     const movs = ids.length ? await movimientosHasta(ids, hasta) : [];
@@ -80,7 +81,8 @@ async function kardex(desdeStr, hastaStr, ciclo) {
 async function listarMovimientos({ plato, tipo, desde, hasta, ciclo }) {
     const filtro = {};
     if (desde || hasta) {
-        const r = rango(desde || hasta, hasta || desde, ciclo);
+        const r0 = rango(desde || hasta, hasta || desde, ciclo);
+        const r = ampliarTramoAlDia(r0.desde, r0.hasta);
         filtro.fecha = { $gte: r.desde, $lte: r.hasta };
     }
     if (tipo === 'crudo' || tipo === 'cocido') filtro.tipoProducto = tipo;
@@ -284,11 +286,13 @@ async function filasCartaEn(desde, hasta) {
         opcionesCocido()
     ]);
     const atribuidas = atribuirVentas(guardados, ventasPack.ventas, porClave(opciones));
-    const filas = aplicarSaldoPrevioDeVentas(
-        filasDeRubros(guardados, desde, hasta, umbrales, clavesExtra(mapas).concat(extrasDeVentas(atribuidas))),
+    const extras = clavesExtra(mapas).concat(extrasDeVentas(atribuidas));
+    let filas = aplicarSaldoPrevioDeVentas(
+        filasDeRubros(guardados, desde, hasta, umbrales, extras),
         atribuidas,
         desde
     );
+    filas = heredarQuedaDelDiaAnterior(filas, guardados, atribuidas, umbrales, extras, desde, hasta);
     const desdeMs = desde.getTime();
     const hastaMs = hasta.getTime();
     const ventas = atribuidas.filter((v) => {
@@ -296,6 +300,76 @@ async function filasCartaEn(desde, hasta) {
         return t >= desdeMs && t <= hastaMs;
     });
     return { filas, ventas, cocidoOpciones: opciones };
+}
+
+function mismoInstante(a, b) {
+    return Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 1500;
+}
+
+function esDiaOperativoEntero(desde, hasta) {
+    const ymd = ymdOperativo(desde);
+    const borde = boundsDiaOperativo(ymd);
+    return mismoInstante(desde, borde.inicio) && mismoInstante(hasta, borde.fin);
+}
+
+function ventasPorClaveEntre(ventas, desde, hasta) {
+    const a = new Date(desde).getTime();
+    const b = new Date(hasta).getTime();
+    const map = {};
+    (ventas || []).forEach((v) => {
+        const rubro = v && (v.rubro || v.plato);
+        const n = Number(v && v.cantidad) || 0;
+        const t = new Date(v && v.fecha).getTime();
+        if (!rubro || n <= 0 || v.sinSaldo || t < a || t > b) return;
+        const key = rubro + '|' + (v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
+        map[key] = (map[key] || 0) + n;
+    });
+    return map;
+}
+
+function sumarEnSaldoInicial(filas, extra) {
+    return (filas || []).map((f) => {
+        if (!f) return f;
+        const d = extra[(f.rubro || f.plato) + '|' + f.tipoProducto] || 0;
+        if (!(d > 0.0004)) return f;
+        const saldoInicial = (Number(f.saldoInicial) || 0) + d;
+        const ingresos = Number(f.ingresos) || 0;
+        const egreso = Number(f.egreso) || 0;
+        const regulacion = Number(f.regulacion) || 0;
+        const total = saldoInicial + ingresos;
+        const saldoFinal = total - egreso;
+        const baja = saldoFinal + regulacion;
+        return { ...f, saldoInicial, total, saldoFinal, baja, cierre: baja };
+    });
+}
+
+// Si ayer la hoja mostró más de lo que cierra la matemática (el saldo anterior
+// negativo se ve como 0), hoy abre con lo que la hoja mostró. Si no, al día
+// siguiente ese hueco aparece en el saldo anterior.
+function heredarQuedaDelDiaAnterior(filas, guardados, ventas, umbrales, extras, desde, hasta) {
+    if (!esDiaOperativoEntero(desde, hasta)) return filas;
+    const ayer = diaAnterior(ymdOperativo(desde));
+    const prev = boundsDiaOperativo(ayer);
+    const filasAyer = aplicarSaldoPrevioDeVentas(
+        filasDeRubros(guardados, prev.inicio, prev.fin, umbrales, extras),
+        ventas,
+        prev.inicio
+    );
+    const ventaAyer = ventasPorClaveEntre(ventas, prev.inicio, prev.fin);
+    const gap = {};
+    filasAyer.forEach((f) => {
+        if (!f) return;
+        const key = (f.rubro || f.plato) + '|' + f.tipoProducto;
+        const d = gapAperturaHoja({
+            saldoInicial: f.saldoInicial,
+            ingresos: f.ingresos,
+            regulacion: f.regulacion,
+            egreso: f.egreso,
+            venta: ventaAyer[key] || 0
+        });
+        if (d > 0.0004) gap[key] = d;
+    });
+    return sumarEnSaldoInicial(filas, gap);
 }
 
 function aplicarSaldoPrevioDeVentas(filas, ventas, desde) {
@@ -366,9 +440,10 @@ async function cerrarDiaSiToca(fecha) {
 async function kardexCarta(desdeStr, hastaStr, ciclo) {
     const operativo = String(ciclo) === '04';
     if (operativo) await cerrarDiaSiToca(diaAnterior(ymdOperativo()));
-    const { desde, hasta } = (desdeStr || hastaStr)
+    const pedido = (desdeStr || hastaStr)
         ? rango(desdeStr, hastaStr || desdeStr, ciclo)
         : hoy();
+    const { desde, hasta } = ampliarTramoAlDia(pedido.desde, pedido.hasta);
     const { filas, ventas, cocidoOpciones } = await filasCartaEn(desde, hasta);
     const data = { desde, hasta, filas, carta: await cartaConMapas(), ventas, cocidoOpciones };
     if (operativo && desdeStr && desdeStr === (hastaStr || desdeStr)) {

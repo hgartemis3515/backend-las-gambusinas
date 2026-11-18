@@ -306,6 +306,71 @@ test('la noche anota el reparto de ayer a las 04:00 del día operativo', async (
     ]);
 });
 
+test('separar en Personal no entra a ventas hasta pulsar Descarga, y solo baja octavo', async () => {
+    const { app } = escenario({
+        movimientos: [ingreso('octavo_pollo', 'crudo', 20, 'pierna'), ingreso('octavo_pollo', 'crudo', 10, 'pecho')]
+    });
+    const octavo = app.filaReal('octavo_pollo');
+    expect(app.fijarOctavoDestino('personal', 'piernas', 5)).toBe(true);
+    expect(app.octavosEnDestino('personal', 'piernas')).toBe(5);
+    expect(app.octavosSeparadosSector('personal')).toBe(5);
+    expect(Number(octavo.venta) || 0).toBe(0);
+    expect(app.ventaComandasCocido(octavo)).toBe(0);
+    expect(app.ventaEnRojo(octavo)).toBe(false);
+    expect(app.movimientosPeriodo.some((m) => String(m.motivo || '').indexOf('Venta manual') === 0)).toBe(false);
+
+    expect(app.descargarSectorOctavo(app.destinosOctavoExtra().find((d) => d.id === 'personal'))).toBe(true);
+    expect(app.octavosSeparadosSector('personal')).toBe(0);
+    expect(app.octavosEnDestino('personal', 'piernas')).toBe(5);
+    expect(Number(octavo.venta) || 0).toBe(5);
+    expect(app.ventaComandasCocido(octavo)).toBe(5);
+    expect(app.ventaEnRojo(octavo)).toBe(false);
+    const ventas = app.movimientosPeriodo.filter((m) => m.clase === 'egreso');
+    expect(ventas.length).toBe(1);
+    expect(ventas[0].rubro).toBe('octavo_pollo');
+    expect(ventas[0].motivo).toBe('Venta manual · Personal · pierna');
+    await app._colaTransformar;
+});
+
+test('una descarga manual ya hecha sigue en rojo y una separación nueva no la aumenta', () => {
+    const { app } = escenario({
+        movimientos: [
+            ingreso('octavo_pollo', 'crudo', 100, 'pierna'),
+            { rubro: 'octavo_pollo', tipoProducto: 'crudo', cantidad: 80, clase: 'egreso', motivo: 'Venta manual · Personal · pierna' }
+        ]
+    });
+    const octavo = app.filaReal('octavo_pollo');
+    expect(app.octavosEnDestino('personal', 'piernas')).toBe(80);
+    expect(app.ventaComandasCocido(octavo)).toBe(80);
+    expect(app.ventaEnRojo(octavo)).toBe(false);
+    expect(app.fijarOctavoDestino('personal', 'piernas', 81)).toBe(true);
+    expect(Number(octavo.venta) || 0).toBe(80);
+    expect(app.octavosSeparadosSector('personal')).toBe(1);
+    expect(app.ventaEnRojo({ id: 'pierna', nombre: 'Pierna de pollo', venta: 1 })).toBe(true);
+    expect(app.ventaEnRojo({ id: 'helados', nombre: 'Helados', venta: 80 })).toBe(true);
+    expect(app.ventaEnRojo({ id: 'helados', nombre: 'Helados', ingreso: 100, venta: 1 })).toBe(false);
+    expect(app.ventaEnRojo({ id: 'arroz', nombre: 'Arroz', tieneCocido: true, ingresoCocido: 10, ventaCocido: 1 })).toBe(false);
+});
+
+test('el saldo de pieza de panceta es el que se editó y no suma el chancho', () => {
+    const window = {};
+    const crearApp = vm.runInNewContext('(' + factoryCode.trim() + ')', { window: window, setTimeout, clearTimeout });
+    const app = crearApp();
+    const pieza = { id: 'trozo_panceta', nombre: 'Pieza de panceta', soloCocido: true, tieneCocido: false, saldoAnterior: 0, saldoAnteriorCocido: 11, ingresoCocido: 22, ventaCocido: 22 };
+    const bbq = { id: 'chancho_lena_bbq', nombre: 'Chancho a la leña BBQ', tieneCocido: false, saldoAnterior: 9 };
+    app.filaReal = (id) => (id === 'trozo_panceta' ? pieza : (id === 'chancho_lena_bbq' ? bbq : null));
+    app.platosDirectosDe = (id) => (id === 'trozo_panceta' ? [{ id: 'chancho_lena_bbq', plato: true }] : []);
+    expect(app.saldoColumna(pieza)).toBe(11);
+    expect(app.saldoRealColumna(pieza)).toBe(11);
+    expect(app.ingresoTotalColumna(pieza)).toBe(33);
+    app.periodo = 'noche';
+    app.fechaHoy = () => '2026-11-17';
+    app.ymdOperativo = () => '2026-11-17';
+    window.TurnosDiaNoche = { esSegmento: (id) => id === 'noche' || id === 'dia', rangoDe: () => ({ desde: '2026-11-17T22:44:57.000Z', hasta: '2026-11-18T08:59:59.000Z' }) };
+    expect(app.rangoDe('noche')).toEqual({ desde: '2026-11-17', hasta: '2026-11-17' });
+    expect(app.fechaSaldoAnterior()).toBe('2026-11-17T03:59:00-05:00');
+});
+
 test('el saldo anterior de pieza de panceta no suma el stock de sus platos', () => {
     const crearApp = vm.runInNewContext('(' + factoryCode.trim() + ')', { window: {}, setTimeout, clearTimeout });
     const app = crearApp();

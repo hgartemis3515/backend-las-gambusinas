@@ -15,6 +15,7 @@ const SEMILLA = [
         platos: [
             { id: 'filete_pollo', nombre: 'Filete de Pollo', complemento: '', cuelgaDe: 'filete-pollo', cantidad: 1, venta: true, aliases: ['filete de pollo'] },
             { id: 'milanesa', nombre: 'Milanesa de pollo', complemento: '', cuelgaDe: 'milanesa', cantidad: 1, venta: true, aliases: ['milanesa'] },
+            { id: 'milanesa_junior', nombre: 'Milanesa junior', complemento: '', cuelgaDe: 'milanesa', cantidad: 0.5, venta: true, aliases: ['milanesa junior'] },
             { id: 'filete_junior', nombre: 'Filete junior', complemento: '', cuelgaDe: 'filete-junior', cantidad: 0.5, venta: true, aliases: ['filete junior'] },
             { id: 'fuente_chi', nombre: 'Fuente de Chicharrón de pollo', complemento: '', cuelgaDe: 'chicharron-pollo', cantidad: 2, venta: true, aliases: ['fuente chicharron pollo', 'fuente de chicharron pollo'] },
             { id: 'chaufa_pollo', nombre: 'Arroz chaufa de pollo', complemento: '', cuelgaDe: 'chaufa-pollo', cantidad: 1, venta: true, aliases: ['chaufa de pollo', 'chaufa pollo'] },
@@ -214,6 +215,17 @@ function aplicarGruposPollo(mapas) {
             vistos.add(key);
             return true;
         });
+        if (!m.platos.some((p) => p && (p.id === 'milanesa_junior' || p.id === 'milanesa-junior'))) {
+            m.platos.push({
+                id: 'milanesa_junior',
+                nombre: 'Milanesa junior',
+                complemento: '',
+                cuelgaDe: 'milanesa',
+                cantidad: 0.5,
+                venta: true,
+                aliases: ['milanesa junior']
+            });
+        }
     });
     return mapas;
 }

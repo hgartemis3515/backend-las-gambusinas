@@ -270,6 +270,36 @@ test('el cuarto pierna y el mix pierna van a pierna a la leña, no a pierna de p
     expect(porRubro['trozo-panceta']).toBe(6);
 });
 
+test('un filete de pollo vinculado otra vez a filete no se resta dos veces', () => {
+    const porRubro = partirSalida([
+        { nombre: 'Filete de pollo+ papa frita +arroz +ensalada.', cantidad: 1 }
+    ], 'Comanda 5', null, {
+        relaciones: [{ plato: 'Filete de pollo+ papa frita +arroz +ensalada.', rubro: 'Filete de pollo', cantidad: 1 }]
+    }).porRubro;
+    expect((porRubro['filete-pollo'] || 0) + (porRubro.filete || 0)).toBe(1);
+});
+
+test('la milanesa junior de la carta gasta medio filete y no uno', () => {
+    const porRubro = partirSalida([
+        { nombre: 'Milanesa Junior + Arroz + papa frita + ensalada', cantidad: 1 }
+    ], 'Comanda 14', null, {
+        relaciones: [
+            { plato: 'Milanesa Junior + Arroz + papa frita + ensalada', rubro: 'Milanesa', cantidad: 1 },
+            { plato: 'Milanesa Junior + Arroz + papa frita + ensalada', rubro: 'Filete de pollo', cantidad: 0.5 }
+        ]
+    }).porRubro;
+    expect(porRubro.milanesa).toBe(0.5);
+    expect(porRubro.filete).toBeUndefined();
+});
+
+test('la milanesa junior gasta medio filete', () => {
+    const porRubro = aplicarMapa([
+        { nombre: 'Milanesa Junior + Arroz + papa frita + ensalada', cantidad: 2 },
+        { nombre: 'Milanesa + Papas Fritas + Arroz + Ensalada', cantidad: 1 }
+    ]);
+    expect(porRubro.milanesa).toBe(2);
+});
+
 test('un filete con papas y arroz descuenta filete, papas y arroz, y puede dejar el saldo en negativo', () => {
     const porRubro = aplicarMapa([
         { nombre: 'Filete de pollo + papas fritas + arroz + ensalada', cantidad: 3 }

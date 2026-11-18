@@ -131,6 +131,31 @@ function cambioDeAlerta(antes, despues, plato, tipo) {
     };
 }
 
+/**
+ * Queda que muestra la hoja: un saldo anterior negativo se ve como 0,
+ * y el stock tampoco baja de 0. Mañana tiene que abrir con este número,
+ * no con el cierre matemático, o el hueco reaparece al día siguiente.
+ */
+function quedaComoHoja(fila) {
+    const ant = Number(fila && fila.saldoInicial) || 0;
+    const ing = Number(fila && fila.ingresos) || 0;
+    const reg = Number(fila && fila.regulacion) || 0;
+    const egr = Number(fila && fila.egreso) || 0;
+    const venta = Number(fila && fila.venta) || 0;
+    const base = Math.max(0, Math.max(0, ant) + ing + reg);
+    return Math.max(0, base - egr - venta);
+}
+
+function gapAperturaHoja(fila) {
+    const ant = Number(fila && fila.saldoInicial) || 0;
+    const ing = Number(fila && fila.ingresos) || 0;
+    const reg = Number(fila && fila.regulacion) || 0;
+    const egr = Number(fila && fila.egreso) || 0;
+    const venta = Number(fila && fila.venta) || 0;
+    const matematica = ant + ing + reg - egr - venta;
+    return Math.max(0, quedaComoHoja(fila) - matematica);
+}
+
 module.exports = {
     TIPOS,
     aporte,
@@ -138,5 +163,7 @@ module.exports = {
     armarKardex,
     alertasDeFilas,
     aplicarVentasEnFilas,
-    cambioDeAlerta
+    cambioDeAlerta,
+    quedaComoHoja,
+    gapAperturaHoja
 };
