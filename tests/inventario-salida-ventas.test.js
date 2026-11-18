@@ -340,6 +340,31 @@ test('cada plato de filete baja su propia fila y la fuente sigue bajando filete'
     expect(porRubro['menu-pierna']).toBeUndefined();
 });
 
+test('la pierna de pato no descarga también el pecho', () => {
+    const relaciones = [
+        { plato: 'Arroz con pato (1/4)', rubro: 'Arroz verde + Pato', cantidad: 1, complemento: 'Carta' },
+        { plato: 'Arroz con pato (1/4)', rubro: 'Pecho de Pato', cantidad: 1, complemento: 'Parte pecho' },
+        { plato: 'Arroz con pato (1/4)', rubro: 'Pierna de pato', cantidad: 1, complemento: 'Parte pierna' }
+    ];
+    const pierna = partirSalida(
+        [{ nombre: 'Arroz con pato (1/4)', cantidad: 1, cortes: { Pierna: 1 }, detalle: 'Pierna 1' }],
+        'Comanda 51',
+        null,
+        { relaciones }
+    );
+    expect(pierna.porRubro['pierna-pato']).toBe(1);
+    expect(pierna.porRubro['pechuga-pato']).toBeUndefined();
+    expect(pierna.porRubro['arroz-verde']).toBe(1);
+    const pecho = partirSalida(
+        [{ nombre: 'Arroz con pato (1/4)', cantidad: 1, cortes: { Pecho: 1 }, detalle: 'Pecho 1' }],
+        'Comanda 60',
+        null,
+        { relaciones }
+    );
+    expect(pecho.porRubro['pechuga-pato']).toBe(1);
+    expect(pecho.porRubro['pierna-pato']).toBeUndefined();
+});
+
 test('el arroz con pato de pecho come pechuga y el de pierna come pierna', () => {
     const pecho = aplicarMapa([{ nombre: 'Arroz con pato pecho', cantidad: 2 }]);
     expect(pecho['pechuga-pato']).toBe(2);

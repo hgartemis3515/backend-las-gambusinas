@@ -163,12 +163,33 @@ function claveDeRubroRelacion(rubro) {
     return claveDeRubroRelacion.indice[n] || '';
 }
 
+/** Un vínculo que nombra una sola presa. Si nombra pecho y pierna a la vez, no es un corte. */
+function ladoRelacion(rel) {
+    const c = norm(rel && rel.complemento);
+    if (!c) return '';
+    const pierna = c.includes('pierna');
+    const pecho = c.includes('pecho') || c.includes('pechuga');
+    if (pierna && pecho) return '';
+    if (pierna) return 'pierna';
+    if (pecho) return 'pecho';
+    return '';
+}
+
+function filaEligeCorte(fila, lado) {
+    const cortes = (fila && fila.cortes) || {};
+    const keys = Object.keys(cortes).filter((k) => Number(cortes[k]) > 0);
+    const texto = norm([fila && fila.nombre, fila && fila.detalle].concat(keys).filter(Boolean).join(' '));
+    if (lado === 'pierna') return texto.includes('pierna');
+    return texto.includes('pecho') || texto.includes('pechuga');
+}
+
 /**
  * Cada producto vinculado al plato se resta.
  * Si la venta ya lo traía, la cantidad del vínculo reemplaza el factor fijo.
  * Si no estaba, se suma. La humita sigue por su cuenta, para no contarla dos veces.
+ * Un vínculo de pecho no se suma cuando la venta fue de pierna, ni al revés.
  */
-function aplicarFactoresRelacion(nombre, lista, relaciones) {
+function aplicarFactoresRelacion(nombre, lista, relaciones, fila) {
     const base = Array.isArray(lista) ? lista : [];
     if (!nombre || !relaciones || !relaciones.length) return base;
     const n = norm(nombre);
@@ -178,6 +199,8 @@ function aplicarFactoresRelacion(nombre, lista, relaciones) {
         if (rel.cantidad === '—' || rel.cantidad === '-') return;
         const cant = Number(rel.cantidad);
         if (!(cant > 0)) return;
+        const lado = ladoRelacion(rel);
+        if (lado && !filaEligeCorte(fila, lado)) return;
         const clave = claveDeRubroRelacion(rel.rubro);
         if (!clave || clave === 'humita') return;
         factorPorRubro[clave] = cant;
@@ -269,7 +292,8 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
         let mapas = aplicarFactoresRelacion(
             fila && fila.nombre,
             rubrosDeFila(fila, mapasVenta, meta && meta.bebidas),
-            meta && meta.relaciones
+            meta && meta.relaciones,
+            fila
         );
         if (fila && !fila.soloArroz && conGuarnicionArroz.has(norm(fila.nombre))) {
             mapas = mapas.filter((m) => m && m.rubro !== 'arroz-blanco');

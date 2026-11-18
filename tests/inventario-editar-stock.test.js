@@ -229,3 +229,89 @@ test('pasar 10 piernas a arroz con pollo las saca del octavo y no duplica el cor
     expect(app.fijarOctavoPlato('arroz_con_pollo', 'piernas', 'crudo', 10)).toBe(false);
     expect(app.octavosStockCorte('piernas')).toBe(90);
 });
+
+test('en la noche se ven los 30 pechos y 100 piernas anotados al empezar el día', () => {
+    const { app } = escenario({ saldos: { octavo_pollo: { saldoAnterior: 130 } } });
+    app.periodo = 'noche';
+    app.movimientosPeriodo = [];
+    app.movimientosOctavoDia = [
+        ingreso('octavo_pollo', 'crudo', 30, 'pecho'),
+        ingreso('octavo_pollo', 'crudo', 100, 'pierna'),
+        ingreso('octavo_pollo', 'crudo', -130, 'sin separar')
+    ];
+    expect(app.octavosStockCorte('pechugas')).toBe(30);
+    expect(app.octavosStockCorte('piernas')).toBe(100);
+    expect(app.totalOctavosLibres()).toBe(130);
+    expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(130);
+});
+
+test('en la noche una pierna que sale se resta del reparto de la mañana', () => {
+    const { app } = escenario({ saldos: { octavo_pollo: { saldoAnterior: 130 } } });
+    app.periodo = 'noche';
+    app.movimientosPeriodo = [];
+    app.movimientosOctavoDia = [
+        ingreso('octavo_pollo', 'crudo', 30, 'pecho'),
+        ingreso('octavo_pollo', 'crudo', 100, 'pierna'),
+        ingreso('octavo_pollo', 'crudo', -130, 'sin separar')
+    ];
+    expect(app.fijarOctavoPlato('arroz_con_pollo', 'piernas', 'crudo', 10)).toBe(true);
+    expect(app.octavosStockCorte('pechugas')).toBe(30);
+    expect(app.octavosStockCorte('piernas')).toBe(90);
+    expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(120);
+});
+
+test('la noche no duplica el reparto si la mañana ya tiene pecho y pierna', async () => {
+    const { app } = escenario({ saldos: { octavo_pollo: { saldoAnterior: 130 } } });
+    app.periodo = 'noche';
+    app.movimientosOctavoDia = [
+        ingreso('octavo_pollo', 'crudo', 30, 'pecho'),
+        ingreso('octavo_pollo', 'crudo', 100, 'pierna'),
+        ingreso('octavo_pollo', 'crudo', -130, 'sin separar')
+    ];
+    app.api = jest.fn();
+    await app.asegurarRepartoOctavo();
+    expect(app.paso).not.toHaveBeenCalled();
+    expect(app.api).not.toHaveBeenCalled();
+    expect(app.octavosStockCorte('pechugas')).toBe(30);
+    expect(app.octavosStockCorte('piernas')).toBe(100);
+});
+
+test('la noche anota el reparto de ayer a las 04:00 del día operativo', async () => {
+    const { app, guardados } = escenario({ saldos: { octavo_pollo: { saldoAnterior: 130 } } });
+    app.periodo = 'noche';
+    app.movimientosPeriodo = [];
+    app.movimientosOctavoDia = [];
+    app.fechaHoy = () => '2026-11-17';
+    app.api = jest.fn(async () => ({
+        movimientos: [
+            ingreso('octavo_pollo', 'crudo', 30, 'pecho'),
+            ingreso('octavo_pollo', 'crudo', 100, 'pierna')
+        ]
+    }));
+    const fechas = [];
+    app.paso = jest.fn(async (rubro, tipoProducto, cantidad, motivo, clase, nombre, fecha) => {
+        fechas.push(fecha);
+        guardados.push({ rubro, tipoProducto, cantidad, motivo, clase });
+    });
+    await app.asegurarRepartoOctavo();
+    expect(fechas).toEqual([
+        '2026-11-17T04:00:01-05:00',
+        '2026-11-17T04:00:01-05:00',
+        '2026-11-17T04:00:01-05:00'
+    ]);
+    expect(guardados.map((m) => [m.cantidad, m.motivo.split(' · ').pop()])).toEqual([
+        [30, 'pecho'],
+        [100, 'pierna'],
+        [-130, 'sin separar']
+    ]);
+});
+
+test('el saldo anterior de pieza de panceta no suma el stock de sus platos', () => {
+    const crearApp = vm.runInNewContext('(' + factoryCode.trim() + ')', { window: {}, setTimeout, clearTimeout });
+    const app = crearApp();
+    const pieza = { id: 'trozo_panceta', nombre: 'Pieza de panceta', soloCocido: true, tieneCocido: false, saldoAnterior: 0, saldoAnteriorCocido: 11 };
+    const bbq = { id: 'chancho_lena_bbq', nombre: 'Chancho a la leña BBQ', tieneCocido: false, saldoAnterior: 9, ingreso: 4 };
+    app.filasTransformacionDe = (row) => row.id === 'trozo_panceta' ? [bbq] : [];
+    expect(app.saldoAnteriorColumna(pieza)).toBe(11);
+    expect(app.saldoAnteriorColumnaTipo(pieza, 'cocido')).toBe(11);
+});

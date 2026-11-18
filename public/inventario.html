@@ -1235,6 +1235,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       right: 0;
       top: 0;
     }
+    #panel-transformar .octavo-modelo .octavo-sector-acciones {
+      position: absolute;
+      right: 0;
+      top: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    #panel-transformar .octavo-modelo .octavo-sector-acciones .btn-lapiz-stock {
+      position: static;
+    }
+    #panel-transformar .octavo-modelo .octavo-sector .tr-dish-title {
+      padding-right: 108px;
+    }
     #panel-transformar .octavo-modelo .platos-grupo-octavo {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1248,6 +1262,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     #panel-transformar .octavo-modelo .octavo-sector:hover {
       border-color: #ff6b6b;
     }
+    #panel-transformar .btn-descarga-sector {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 8px;
+      border: 2px solid #15803d;
+      background: #4ade80;
+      color: #111111;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+    }
+    #panel-transformar .btn-descarga-sector:hover { background: #22c55e; }
     #panel-transformar .octavo-modelo .octavo-cortes {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -2094,7 +2124,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <!-- =================================================================== -->
     <!-- PESTAÑA 1: INVENTARIO TABLA (REDISEÑO MODERNO DEL 27 DE OCTUBRE)    -->
     <!-- =================================================================== -->
-    <section x-show="activeTab === 'tabla'" class="hoja-seccion space-y-4">
+    <div
+      x-show="activeTab === 'tabla' && vistaDesfasada()"
+      x-cloak
+      class="rounded-xl border border-[#26263a] bg-[#14141f] px-4 py-10 text-center"
+    >
+      <p class="text-white font-semibold text-sm">Cargando el período de la tabla…</p>
+      <button type="button" class="mt-3 text-xs font-bold text-[#d4af37] cursor-pointer" @click="cargarKardex()">Reintentar</button>
+    </div>
+    <section x-show="activeTab === 'tabla' && !vistaDesfasada()" class="hoja-seccion space-y-4">
       <!-- ENCABEZADO DE HOJA DE PRODUCCIÓN DEL PERÍODO Y BUSCADOR AVANZADO -->
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 sm:p-5 space-y-4 shadow-xl">
         <!-- Fila 1: Título de hoja, ciclo operativo y botones principales de acción -->
@@ -2860,6 +2898,44 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <!-- =================================================================== -->
     <template x-if="tabMontada.transformar">
     <section id="panel-transformar" x-show="activeTab === 'transformar'" x-cloak class="space-y-6">
+      <div class="flex flex-wrap items-center gap-1.5 bg-[#0a0a0f] border border-[#26263a] rounded-xl p-1 w-fit">
+        <span class="px-2 text-[10px] uppercase tracking-wider text-[#a0a0b8] font-bold">Período:</span>
+        <template x-for="p in periodosVisibles()" :key="'tr-per-' + p.id">
+          <button
+            type="button"
+            @click="setPeriodoTransformar(p.id)"
+            class="px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer"
+            :class="periodoTransformar === p.id ? 'bg-[#d4af37] text-[#1a1200] font-bold shadow-sm' : 'text-[#a0a0b8] hover:text-white hover:bg-[#1c1c2b]'"
+            x-text="p.label"
+          ></button>
+        </template>
+        <div class="flex items-center gap-1 pl-1 border-l border-[#26263a]">
+          <input
+            type="date"
+            x-model="customDesdeTransformar"
+            @change="usarRangoManualTransformar()"
+            aria-label="Fecha inicial del período de transformar"
+            class="bg-[#14141f] border border-[#26263a] rounded px-1.5 py-1 text-[11px] text-white"
+          />
+          <span class="text-[#5a5a7a] text-xs">→</span>
+          <input
+            type="date"
+            x-model="customHastaTransformar"
+            @change="usarRangoManualTransformar()"
+            aria-label="Fecha final del período de transformar"
+            class="bg-[#14141f] border border-[#26263a] rounded px-1.5 py-1 text-[11px] text-white"
+          />
+        </div>
+      </div>
+      <div
+        x-show="_kardexVista !== 'transformar'"
+        x-cloak
+        class="rounded-xl border border-[#26263a] bg-[#14141f] px-4 py-10 text-center"
+      >
+        <p class="text-white font-semibold text-sm">Cargando el período de Transformar…</p>
+        <button type="button" class="mt-3 text-xs font-bold text-[#d4af37] cursor-pointer" @click="cargarKardex()">Reintentar</button>
+      </div>
+      <div x-show="_kardexVista === 'transformar'" class="space-y-6">
       <!-- Encabezado y resumen de reglas semánticas -->
       <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3" x-show="mostrarEncabezadoMapa" x-cloak>
         <div class="space-y-1">
@@ -3030,9 +3106,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </div>
                   </div>
                   <div class="caja-stock" x-show="!esArrozPorcion(d)">
-                    <p class="caja-stock-etiq">Stock actual</p>
+                    <p class="caja-stock-etiq" x-text="esArrozDescarga(d) ? 'Descarga' : 'Stock actual'"></p>
                     <div class="caja-stock-step">
-                      <input type="number" min="0" step="any" :aria-label="'Stock de ' + d.nombre" :value="porcionesArroz(d)" @focus="vaciarSiCero($event)" @change="fijarStockArrozTipo(d.campo, $event.target.value)">
+                      <input type="number" min="0" step="any" :aria-label="(esArrozDescarga(d) ? 'Descarga de ' : 'Stock de ') + d.nombre" :value="esArrozDescarga(d) ? kgDescargaArroz(d) : porcionesArroz(d)" @focus="vaciarSiCero($event)" @change="esArrozDescarga(d) ? fijarDescargaArroz(d.campo, $event.target.value) : fijarStockArrozTipo(d.campo, $event.target.value)">
                       <span class="arroz-unidad">kg</span>
                     </div>
                     <p class="caja-stock-mas" x-show="textoIngreso(d.id, tipoArrozDestino(d))" x-text="textoIngreso(d.id, tipoArrozDestino(d))"></p>
@@ -3433,6 +3509,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="tr-dish-card octavo-sector">
                               <div class="tr-dish-head">
                                 <span class="tr-dish-title" x-text="dest.nombre"></span>
+                                <span class="octavo-sector-acciones">
+                                  <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + dest.nombre" title="Editar stock" @click="abrirEditarSector(dest)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                  <button type="button" class="btn-descarga-sector" :aria-label="'Descarga manual de ' + dest.nombre" title="Abrir descarga manual" @click="abrirDescargaSector(dest)">
+                                    <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M5 19h14"/></svg>
+                                    <span>Descarga</span>
+                                  </button>
+                                </span>
                               </div>
                               <div class="octavo-cortes">
                                 <template x-for="corte in ['pechugas', 'piernas']" :key="dest.id + '-' + corte">
@@ -4274,6 +4357,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </div>
           </template>
         </div>
+      </div>
       </div>
     </section>
     </template>
@@ -6806,7 +6890,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="stock-editor-heading">
           <span class="stock-editor-kicker">Editar stock</span>
           <h2 id="stock-editor-title" x-text="editarStock.nombre"></h2>
-          <p id="stock-editor-description" x-text="editarStock.cortes ? 'Ajusta las cantidades de pierna y pecho de este plato.' : (editarStock.grupo ? 'Revisa y ajusta el stock de cada producto del grupo.' : 'Ingresa la cantidad real que tienes en cocina.')"></p>
+          <p id="stock-editor-description" x-text="editarStock.sector ? 'Ajusta pecho y pierna descargados en este sector.' : (editarStock.cortes ? 'Ajusta las cantidades de pierna y pecho de este plato.' : (editarStock.grupo ? 'Revisa y ajusta el stock de cada producto del grupo.' : 'Ingresa la cantidad real que tienes en cocina.'))"></p>
         </div>
         <button type="button" class="stock-editor-close" aria-label="Cerrar edición de stock" :disabled="editarStock.guardando" @click="cerrarEditarStock()">✕</button>
       </div>
@@ -6817,9 +6901,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="stock-editor-stat" :class="stockEditarNuevo() > stockEditarAntes() ? 'stock-editor-positive' : (stockEditarNuevo() < stockEditarAntes() ? 'stock-editor-negative' : 'stock-editor-neutral')"><span>Ajuste total</span><strong x-text="(stockEditarNuevo() > stockEditarAntes() ? '+' : '') + formatNum(redondear3(stockEditarNuevo() - stockEditarAntes()))"></strong></div>
         </div>
         <fieldset :disabled="editarStock.guardando" style="min-width:0">
-          <div class="stock-editor-section" x-show="editarStock.octavo">
-            <div class="stock-editor-section-title">Octavos disponibles <small>Por tipo de presa</small></div>
-            <div class="stock-editor-notice" x-show="!editarStock.separados && (editarStock.realAntes || 0) > 0">El stock sin identificar aparece en pierna. Ajusta la distribución según tu conteo.</div>
+          <div class="stock-editor-section" x-show="editarStock.octavo || editarStock.sector">
+            <div class="stock-editor-section-title"><span x-text="editarStock.sector ? 'Descarga de pecho y pierna' : 'Octavos disponibles'"></span> <small>Por tipo de presa</small></div>
+            <div class="stock-editor-notice" x-show="editarStock.octavo && !editarStock.separados && (editarStock.realAntes || 0) > 0">El stock sin identificar aparece en pierna. Ajusta la distribución según tu conteo.</div>
             <div class="stock-editor-grid">
               <template x-for="corte in ['pierna', 'pecho']" :key="'octavo-editor-' + corte">
                 <div class="stock-editor-card" :data-cut="corte">
@@ -6835,7 +6919,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </div>
               </template>
             </div>
-            <p class="stock-editor-note">Este ajuste registra tu conteo. Para convertir piezas a octavos, usa los controles de Transformar.</p>
+            <p class="stock-editor-note" x-show="!editarStock.sector">Este ajuste registra tu conteo. Para convertir piezas a octavos, usa los controles de Transformar.</p>
+            <p class="stock-editor-note" x-show="editarStock.sector">Subir el número descarga más octavos de esa presa. Bajarlo devuelve lo que sobra.</p>
           </div>
           <div class="stock-editor-section" x-show="editarStock.grupo || editarStock.cortes || (editarStock.octavo && editarStock.lineas && editarStock.lineas.length)">
             <div class="stock-editor-section-title"><span x-text="editarStock.octavo ? 'Platos del octavo' : (editarStock.cortes ? 'Stock por presa' : 'Productos del grupo')"></span><small>Unidades disponibles</small></div>
@@ -6883,7 +6968,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </template>
             </div>
           </div>
-          <div class="stock-editor-section" x-show="!editarStock.octavo && !editarStock.grupo && !editarStock.cortes">
+          <div class="stock-editor-section" x-show="!editarStock.octavo && !editarStock.grupo && !editarStock.cortes && !editarStock.sector">
             <div class="stock-editor-section-title">Cantidad disponible <small>Según tu conteo</small></div>
             <div class="stock-editor-grid" :class="!editarStock.tieneCocido ? 'stock-editor-grid-single' : ''">
               <template x-for="tipo in (editarStock.soloCocido ? ['cocido'] : (editarStock.tieneCocido ? ['crudo', 'cocido'] : ['crudo']))" :key="'stock-simple-' + tipo">
@@ -10572,6 +10657,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         periodo: 'hoy',
+        // La tabla y Transformar no comparten período. Cada uno carga su propio rango.
+        periodoTransformar: 'hoy',
+        customDesdeTransformar: '',
+        customHastaTransformar: '',
+        _kardexVista: '',
+        _cacheKardex: { tabla: null, transformar: null },
         showTurnoDiaNoche: false,
         turnosCajas: [],
         turnosSegmentos: [],
@@ -10646,6 +10737,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         draftCocido: [],
         movimientosPeriodo: [],
         movimientosTurno: [],
+        // En Noche el tramo empieza al cierre. Aquí va el día operativo completo,
+        // para que pecho y pierna del octavo no se pierdan con el saldo anterior.
+        movimientosOctavoDia: null,
         ventaInfo: null,
 
         diaOffset(base, dias) {
@@ -10660,24 +10754,55 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return [{ id: 'dia', label: 'Día' }].concat(cajas).concat([{ id: 'noche', label: 'Noche' }]).concat(this.periodos);
         },
 
+        rangoDe(periodo, desdeCustom, hastaCustom) {
+          const hoy = this.fechaHoy();
+          const id = periodo || 'hoy';
+          if (window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(id)) {
+            const r = window.TurnosDiaNoche.rangoDe(id, this);
+            if (r) return { desde: r.desde, hasta: r.hasta };
+          }
+          if (id === 'ayer') {
+            const ayer = this.diaOffset(hoy, -1);
+            return { desde: ayer, hasta: ayer };
+          }
+          if (id === '7dias') return { desde: this.diaOffset(hoy, -6), hasta: hoy };
+          if (id === '30dias') return { desde: this.diaOffset(hoy, -29), hasta: hoy };
+          if (id === 'mes') return { desde: hoy.slice(0, 7) + '-01', hasta: hoy };
+          if (id === 'anio') return { desde: this.diaOffset(hoy, -364), hasta: hoy };
+          if (id === 'custom') return { desde: desdeCustom || hoy, hasta: hastaCustom || hoy };
+          return { desde: hoy, hasta: hoy };
+        },
+
         rangoPeriodo() {
           const hoy = this.fechaHoy();
           if (!this.customDesde) this.customDesde = hoy;
           if (!this.customHasta) this.customHasta = hoy;
-          if (window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(this.periodo)) {
-            const r = window.TurnosDiaNoche.rangoDe(this.periodo, this);
-            if (r) return { desde: r.desde, hasta: r.hasta };
-          }
-          if (this.periodo === 'ayer') {
-            const ayer = this.diaOffset(hoy, -1);
-            return { desde: ayer, hasta: ayer };
-          }
-          if (this.periodo === '7dias') return { desde: this.diaOffset(hoy, -6), hasta: hoy };
-          if (this.periodo === '30dias') return { desde: this.diaOffset(hoy, -29), hasta: hoy };
-          if (this.periodo === 'mes') return { desde: hoy.slice(0, 7) + '-01', hasta: hoy };
-          if (this.periodo === 'anio') return { desde: this.diaOffset(hoy, -364), hasta: hoy };
-          if (this.periodo === 'custom') return { desde: this.customDesde || hoy, hasta: this.customHasta || hoy };
-          return { desde: hoy, hasta: hoy };
+          return this.rangoDe(this.periodo, this.customDesde, this.customHasta);
+        },
+
+        rangoPeriodoTransformar() {
+          const hoy = this.fechaHoy();
+          if (!this.customDesdeTransformar) this.customDesdeTransformar = hoy;
+          if (!this.customHastaTransformar) this.customHastaTransformar = hoy;
+          return this.rangoDe(this.periodoTransformar || 'hoy', this.customDesdeTransformar, this.customHastaTransformar);
+        },
+
+        vistaKardex() {
+          return this.activeTab === 'transformar' ? 'transformar' : 'tabla';
+        },
+
+        periodoVista() {
+          return this.vistaKardex() === 'transformar' ? (this.periodoTransformar || 'hoy') : this.periodo;
+        },
+
+        rangoVista() {
+          return this.vistaKardex() === 'transformar' ? this.rangoPeriodoTransformar() : this.rangoPeriodo();
+        },
+
+        vistaDesfasada() {
+          if (this.activeTab === 'transformar') return this._kardexVista !== 'transformar';
+          if (this.activeTab === 'tabla') return this._kardexVista === 'transformar';
+          return false;
         },
 
         setPeriodo(id) {
@@ -10696,25 +10821,67 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.cargarKardex();
         },
 
+        setPeriodoTransformar(id) {
+          this.periodoTransformar = id;
+          const r = this.rangoPeriodoTransformar();
+          if (r.desde && String(r.desde).indexOf('T') === -1) {
+            this.customDesdeTransformar = r.desde;
+            this.customHastaTransformar = r.hasta;
+          }
+          if (this.activeTab === 'transformar') this.cargarKardex();
+        },
+
+        usarRangoManualTransformar() {
+          this.periodoTransformar = 'custom';
+          if (this.activeTab === 'transformar') this.cargarKardex();
+        },
+
         async refrescarTurnos(recargar) {
           if (!window.TurnosDiaNoche) return;
           let data = null;
           try { data = await this.api('/cierre-caja/turnos-dia'); } catch (e) { data = null; }
           const prev = this.periodo;
-          window.TurnosDiaNoche.applyPayload(this, data, {
-            getPeriod: () => this.periodo,
-            setPeriod: (v) => { this.periodo = v; },
+          const prevT = this.periodoTransformar;
+          const lima = this.turnosLimaYMD;
+          const visto = this._periodoActivoVisto;
+          const auto = this._turnosAutoNocheHecho;
+          const opts = (get, set) => ({
+            getPeriod: get,
+            setPeriod: set,
             hoyValues: ['hoy'],
             diaValue: 'dia',
             nocheValue: 'noche',
             autoNoche: true
           });
-          if (recargar && this.periodo !== prev) await this.cargarKardex();
+          window.TurnosDiaNoche.applyPayload(this, data, opts(() => this.periodo, (v) => { this.periodo = v; }));
+          const limaFin = this.turnosLimaYMD;
+          const vistoFin = this._periodoActivoVisto;
+          const autoFin = this._turnosAutoNocheHecho;
+          this.turnosLimaYMD = lima;
+          this._periodoActivoVisto = visto;
+          this._turnosAutoNocheHecho = auto;
+          window.TurnosDiaNoche.applyPayload(this, data, opts(() => this.periodoTransformar, (v) => { this.periodoTransformar = v; }));
+          this.turnosLimaYMD = limaFin;
+          this._periodoActivoVisto = vistoFin;
+          this._turnosAutoNocheHecho = autoFin;
+          if (recargar && (this.periodo !== prev || this.periodoTransformar !== prevT)) await this.cargarKardex();
         },
 
         irA(tab) {
           if (tab && tab !== 'tabla') this.tabMontada[tab] = true;
+          const entra = tab === 'transformar' && this.activeTab !== 'transformar';
+          const sale = this.activeTab === 'transformar' && tab !== 'transformar';
+          if (entra || sale) {
+            const destino = entra ? 'transformar' : 'tabla';
+            const cache = this._cacheKardex && this._cacheKardex[destino];
+            const q = this.queryRango(destino === 'transformar' ? this.rangoPeriodoTransformar() : this.rangoPeriodo());
+            if (cache && cache.q === q) {
+              this.pintarCacheKardex(cache);
+              this._kardexVista = destino;
+            }
+          }
           this.activeTab = tab;
+          if (entra || sale) this.cargarKardex();
           if (tab === 'grafico') this.asegurarChart();
           if (tab === 'platos' && !this.relCuerpoListo) {
             this.$nextTick(() => { this.relCuerpoListo = true; });
@@ -10799,7 +10966,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         periodoIncluyeDia(ymd) {
-          const r = this.rangoPeriodo();
+          const r = this.rangoVista();
           if (String(r.desde).indexOf('T') !== -1 || String(r.hasta).indexOf('T') !== -1) {
             const ahora = Date.now();
             const desde = new Date(r.desde).getTime();
@@ -11167,8 +11334,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         fechaReporteDia() {
-          if (this.periodo === 'ayer') return this.sumarDias(this.ymdOperativo(), -1);
-          if (this.periodo === 'custom' && this.customDesde && this.customDesde === this.customHasta) return this.customDesde;
+          const p = this.periodoVista();
+          const desde = this.vistaKardex() === 'transformar' ? this.customDesdeTransformar : this.customDesde;
+          const hasta = this.vistaKardex() === 'transformar' ? this.customHastaTransformar : this.customHasta;
+          if (p === 'ayer') return this.sumarDias(this.ymdOperativo(), -1);
+          if (p === 'custom' && desde && desde === hasta) return desde;
           return this.ymdOperativo();
         },
 
@@ -11833,25 +12003,55 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this._kardexEnCurso;
         },
 
+        pintarCacheKardex(slot) {
+          if (!slot) return;
+          this.ventasPeriodo = slot.ventas || [];
+          this.cocidoOpciones = slot.cocido || [];
+          this.movimientosPeriodo = slot.movimientos || [];
+          this.movimientosTurno = slot.turno || [];
+          this.movimientosOctavoDia = slot.octavo;
+          this._octavoDiaIncompleto = !!slot.octavoIncompleto;
+          this.aplicarOpcionesCocido(this.cocidoOpciones);
+          this.aplicarKardex(slot.filas || [], this.movimientosPeriodo, this.ventasPeriodo);
+        },
+
         async cargarKardexUnaVez() {
           try {
-            const r = this.rangoPeriodo();
+            const vista = this.vistaKardex();
+            const r = vista === 'transformar' ? this.rangoPeriodoTransformar() : this.rangoPeriodo();
             const q = this.queryRango(r);
             const [k, movs] = await Promise.all([
               this.api('/inventario/kardex?carta=1&' + q),
               this.api('/inventario/movimientos?' + q)
             ]);
-            // Respuesta vieja: cambió el período o hay clics sin guardar. Pintarla haría saltar los números.
-            if (q !== this.queryRango(this.rangoPeriodo())) { this._kardexOtraVez = true; return; }
+            const sigue = () => this.vistaKardex() === vista && q === this.queryRango(vista === 'transformar' ? this.rangoPeriodoTransformar() : this.rangoPeriodo());
+            // Respuesta vieja: cambió el período o la sección. Pintarla haría saltar los números.
+            if (!sigue()) { this._kardexOtraVez = true; return; }
             if ((this._escriturasPendientes || 0) > 0) { this.programarRecargaKardex(); return; }
             this.ventasPeriodo = k.ventas || [];
             this.cocidoOpciones = k.cocidoOpciones || [];
             this.movimientosPeriodo = movs.movimientos || [];
+            this.movimientosOctavoDia = null;
+            this._octavoDiaIncompleto = false;
             await this.cargarMovimientosTurno(r);
+            await this.cargarMovimientosOctavoDia(r);
+            if (!sigue()) { this._kardexOtraVez = true; return; }
             this.aplicarOpcionesCocido(this.cocidoOpciones);
             this.aplicarKardex(k.filas || [], this.movimientosPeriodo, this.ventasPeriodo);
             if (this.activeTab === 'grafico') this.cargarSerieGrafico();
             await this.asegurarRepartoOctavo();
+            if (!sigue()) { this._kardexOtraVez = true; return; }
+            this._cacheKardex[vista] = {
+              q: q,
+              filas: k.filas || [],
+              movimientos: this.movimientosPeriodo,
+              ventas: this.ventasPeriodo,
+              cocido: this.cocidoOpciones,
+              turno: this.movimientosTurno,
+              octavo: this.movimientosOctavoDia,
+              octavoIncompleto: !!this._octavoDiaIncompleto
+            };
+            this._kardexVista = vista;
           } catch (e) {
             this.toastMessage = e.message;
           }
@@ -12157,6 +12357,43 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const total = this.redondear3(filas.reduce((a, f) => a + f.cantidad, 0));
             return { dia: dia, etiqueta: etiqueta, filas: filas, total: total };
           });
+        },
+
+        abrirEditarSector(dest) {
+          if (!dest) return;
+          const pecho = this.octavosEnDestino(dest.id, 'pechugas');
+          const pierna = this.octavosEnDestino(dest.id, 'piernas');
+          this.editarStock = {
+            abierto: true,
+            id: dest.id,
+            nombre: dest.nombre,
+            sector: dest.id,
+            tieneCocido: false,
+            soloCocido: false,
+            octavo: false,
+            cortes: false,
+            grupo: false,
+            lineas: [],
+            crudo: 0,
+            cocido: 0,
+            pecho: pecho,
+            pierna: pierna,
+            pechoAntes: pecho,
+            piernaAntes: pierna,
+            motivo: '',
+            error: '',
+            guardando: false
+          };
+          this.enfocarEditarStock();
+        },
+
+        abrirDescargaSector(dest) {
+          const row = this.filaReal('octavo_pollo');
+          if (!row || !dest) return;
+          this.abrirVentaManual(row);
+          this.ventaManualMotivo = dest.nombre;
+          this.ventaManualModo = 'unidad';
+          this.ventaManualCantidad = 1;
         },
 
         abrirVentaManual(row) {
@@ -14744,11 +14981,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         saldoAnteriorColumnaTipo(row, tipo) {
           const ant = this.valorTipo(row, 'saldoAnterior', tipo);
           const propio = (row && row.id === 'pollada') ? ant : Math.max(0, ant);
-          const hijos = this.sumaDeTransformaciones(row, (hijo) => {
-            if (this.tiposDe(hijo).indexOf(tipo) === -1) return 0;
-            return this.calcIngresoTotalTipo(hijo, tipo);
-          });
-          return this.redondear3(propio + hijos);
+          return this.redondear3(propio);
         },
 
         huecoSaldoTipo(row, tipo) {
@@ -14831,12 +15064,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         saldoAnteriorColumna(row) {
-          const propio = this.tiposDe(row).reduce((a, t) => a + this.saldoAnteriorColumnaTipo(row, t), 0);
-          const otrosTipos = this.sumaDeTransformaciones(row, (hijo) => this.tiposDe(hijo).reduce((s, t) => {
-            if (this.tiposDe(row).indexOf(t) !== -1) return s;
-            return s + this.calcIngresoTotalTipo(hijo, t);
-          }, 0));
-          return this.redondear3(propio + otrosTipos);
+          return this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.saldoAnteriorColumnaTipo(row, t), 0));
         },
 
         textoSaldoAnterior(row, tipo) {
@@ -15320,7 +15548,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!clave) return;
           const nombres = { ingreso: 'Ingreso', correccion: 'Corrección', saldoAnterior: 'Saldo anterior' };
           const clase = base === 'correccion' ? 'regulacion' : 'ingreso';
-          const fecha = base === 'saldoAnterior' ? this.rangoPeriodo().desde + 'T03:59:00-05:00' : undefined;
+          const fecha = base === 'saldoAnterior' ? this.rangoVista().desde + 'T03:59:00-05:00' : undefined;
           const ahora = new Date().toISOString();
           const movs = [{ rubro: clave, clase: clase, tipoProducto: tipo, cantidad: cambio, motivo: nombres[base] + ' ' + tipo, fecha: fecha || ahora, fechaFija: fecha, nombre: row.nombre }];
           if (paseCrudo) movs.push({ rubro: clave, clase: 'ingreso', tipoProducto: 'crudo', cantidad: paseCrudo, motivo: 'Cocido desde crudo ' + row.nombre, fecha: fecha || ahora, fechaFija: fecha, nombre: row.nombre });
@@ -15590,7 +15818,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               queda: suma('queda', deSaldo)
             };
             const propio = miembros.find((m) => m.propio) || { apertura: 0 };
-            // Con el mismo período que la hoja, la apertura tiene que ser la columna Saldo ant.
+            // La columna es solo la apertura de esta fila. Los platos agrupados tienen la suya.
             const mismoPeriodo = this.queryRango(this.rangoPeriodo()) === this.queryRango(r);
             const colAnt = this.redondear3(this.saldoAnteriorColumna(row));
 
@@ -15663,7 +15891,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               aperturaPlatos: r3(totales.apertura - propio.apertura),
               mismoPeriodo,
               colAnt,
-              cuadraAnt: !mismoPeriodo || Math.abs(colAnt - totales.apertura) < 0.0005,
+              cuadraAnt: !mismoPeriodo || Math.abs(colAnt - (Number(propio.apertura) || 0)) < 0.0005,
               hayPlatos: miembros.length > 1
             };
             this.auditoriaMovs = items.reverse();
@@ -15786,7 +16014,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         fechaSaldoAnterior() {
-          const desde = String((this.rangoPeriodo() && this.rangoPeriodo().desde) || this.fechaHoy() || '');
+          const desde = String((this.rangoVista() && this.rangoVista().desde) || this.fechaHoy() || '');
           if (desde.indexOf('T') !== -1) {
             const t = new Date(desde).getTime();
             if (Number.isFinite(t)) return new Date(t - 1000).toISOString();
@@ -15974,6 +16202,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         stockEditarAntes() {
           const f = this.editarStock;
+          if (f.sector) return this.redondear3((Number(f.pechoAntes) || 0) + (Number(f.piernaAntes) || 0));
           if (f.octavo || f.grupo || f.cortes) {
             const lineas = (f.lineas || []).reduce((suma, linea) => suma + (Number(linea.antes && linea.antes.crudo) || 0) + (Number(linea.antes && linea.antes.cocido) || 0), 0);
             return this.redondear3(lineas + (f.octavo ? (Number(f.realAntes) || 0) : 0));
@@ -15983,6 +16212,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         stockEditarNuevo() {
           const f = this.editarStock;
+          if (f.sector) return this.redondear3((Number(f.pecho) || 0) + (Number(f.pierna) || 0));
           if (f.octavo || f.grupo || f.cortes) return this.redondear3(this.totalEditar() + (f.octavo ? this.totalOctavosEditar() : 0));
           return this.totalLineaEditar(f);
         },
@@ -16049,9 +16279,52 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           ].filter(Boolean);
         },
 
+        async guardarEditarSector() {
+          const f = this.editarStock;
+          const leer = (valor) => valor === '' || valor === null || valor === undefined ? 0 : Number(valor);
+          const pecho = Math.max(0, Math.round(leer(f.pecho)));
+          const pierna = Math.max(0, Math.round(leer(f.pierna)));
+          if (!Number.isFinite(pecho) || !Number.isFinite(pierna)) {
+            f.error = 'Escribe cantidades válidas de 0 o más antes de guardar.';
+            return false;
+          }
+          f.guardando = true;
+          this.transformWarning = '';
+          try {
+            await (this._colaTransformar || Promise.resolve());
+            const cambios = [
+              ['pechugas', pecho, f.pechoAntes],
+              ['piernas', pierna, f.piernaAntes]
+            ];
+            let alguno = false;
+            for (let i = 0; i < cambios.length; i++) {
+              const corte = cambios[i][0];
+              const valor = cambios[i][1];
+              const antes = Math.round(Number(cambios[i][2]) || 0);
+              if (valor === antes) continue;
+              if (!this.fijarOctavoDestino(f.sector, corte, valor)) {
+                f.error = this.transformWarning || 'No se pudo guardar la descarga.';
+                return false;
+              }
+              alguno = true;
+            }
+            this.toastMessage = alguno ? ('Descarga de ' + f.nombre + ' actualizada.') : 'Sin cambios de stock';
+            f.guardando = false;
+            this.cerrarEditarStock();
+            return true;
+          } catch (e) {
+            f.error = (e && e.message) || 'No se guardó el stock. Inténtalo de nuevo.';
+            this.toastMessage = f.error;
+            return false;
+          } finally {
+            f.guardando = false;
+          }
+        },
+
         async guardarModalStock() {
           const f = this.editarStock;
           if (f.guardando || !f.abierto) return false;
+          if (f.sector) return this.guardarEditarSector();
           f.error = '';
           const lineas = (f.octavo || f.grupo || f.cortes) ? (f.lineas || []) : [f];
           const leer = (valor) => valor === '' || valor === null || valor === undefined ? 0 : Number(valor);
@@ -16981,22 +17254,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const n = (v) => this.formatNum(v);
           const signo = (v) => (v >= 0 ? '+' : '−') + n(Math.abs(v));
 
-          // 1. Apertura: exactamente lo que suma la columna Saldo ant.
-          const pAnt = this.partesFamilia(fam.apertura, row, (m, t) => {
-            if (m.id === row.id) return Math.max(0, this.valorTipo(m, 'saldoAnterior', t));
-            return this.calcIngresoTotalTipo(m, t);
+          // 1. Apertura: solo esta fila. Los platos agrupados no se suman aquí.
+          const pAnt = this.partesFamilia([row], row, (m, t) => {
+            const ant = this.valorTipo(m, 'saldoAnterior', t);
+            return m.id === 'pollada' ? ant : Math.max(0, ant);
           }, true);
           const sAnt = this.sumaPartes(pAnt);
           const colAnt = this.redondear3(this.saldoAnteriorColumna(row));
 
-          // 2-3. Ingreso y corrección de la pieza. Lo de los platos ya entra en Saldo anterior.
+          // 2-3. Ingreso y corrección de la pieza. Lo de los platos entra en Ingreso total.
           const pIng = this.partesFamilia([row], row, (m, t) => this.valorTipo(m, 'ingreso', t));
           const sIng = this.sumaPartes(pIng);
           const pCor = this.partesFamilia([row], row, (m, t) => this.valorTipo(m, 'correccion', t));
           const sCor = this.sumaPartes(pCor);
           const colIngFila = this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'ingreso', t), 0));
           const colIT = this.redondear3(this.ingresoTotalColumna(row));
-          const sumaIT = this.redondear3(sAnt.total + sIng.total + sCor.total);
+          const propioIT = this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0));
+          const sumaIT = this.redondear3(sAnt.total + sIng.total + sCor.total + (colIT - propioIT));
 
           // 4. Ventas: la columna Venta comandas (venta neta de la pieza + venta de los platos directos).
           const leerVenta = independiente
@@ -17031,9 +17305,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               clave: 'apertura', tipo: 'apertura', icono: '1',
               titulo: 'Saldo anterior (apertura)',
               etiquetaAccion: 'BASE INICIAL',
-              explicacion: hayPlatos
-                ? ('Lo que quedó del ciclo anterior en ' + row.nombre + ' y en sus platos agrupados, al abrir ' + etqPeriodo + '.')
-                : ('Lo que quedó del ciclo anterior en ' + row.nombre + ', al abrir ' + etqPeriodo + '.'),
+              explicacion: 'Lo que quedó del ciclo anterior en ' + row.nombre + ', al abrir ' + etqPeriodo + '. Los platos agrupados tienen su propio saldo anterior.',
               valor: sAnt.total, valorFormateado: n(sAnt.total),
               crudo: sAnt.crudo, cocido: sAnt.cocido,
               partes: pAnt,
@@ -17590,11 +17862,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const lista = movs || [];
           this.movimientosPeriodo = (this.movimientosPeriodo || []).concat(lista);
           this.movimientosTurno = (this.movimientosTurno || []).concat(lista);
+          if (Array.isArray(this.movimientosOctavoDia)) this.movimientosOctavoDia = this.movimientosOctavoDia.concat(lista);
         },
 
         etiquetaTurnoCuadro() {
-          if (window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(this.periodo)) {
-            const et = window.TurnosDiaNoche.etiqueta(this.periodo, this.primerCierreHoyAt, this);
+          const p = this.periodoVista();
+          if (window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(p)) {
+            const et = window.TurnosDiaNoche.etiqueta(p, this.primerCierreHoyAt, this);
             if (et) return et;
           }
           return 'hoy';
@@ -17603,8 +17877,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         rangoTurnoCuadro() {
           const TD = window.TurnosDiaNoche;
           const ymd = TD ? TD.limaYMD() : this.fechaHoy();
-          if (TD && TD.esSegmento(this.periodo)) {
-            const r = TD.rangoDe(this.periodo, this);
+          const p = this.periodoVista();
+          if (TD && TD.esSegmento(p)) {
+            const r = TD.rangoDe(p, this);
             if (r) return r;
           }
           if (TD) return { desde: TD.limaDayStart(ymd).toISOString(), hasta: TD.limaDayEnd(ymd).toISOString() };
@@ -17794,11 +18069,45 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(corte === 'pechugas' ? pecho : pierna);
         },
 
+        // Día, Noche y cajas son el mismo día operativo. Hoy también.
+        periodoEsHoy() {
+          const p = String(this.periodoVista() || '');
+          if (p === 'hoy' || p === 'dia' || p === 'noche' || p.indexOf('caja-') === 0) return true;
+          return !!(window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(p));
+        },
+
+        // La Noche empieza en el cierre. El 30 y el 100 quedan a las 04:00, dentro del saldo,
+        // y no aparecen en los movimientos del tramo. Se leen desde el inicio del día.
+        listaOctavoCortes() {
+          return Array.isArray(this.movimientosOctavoDia) ? this.movimientosOctavoDia : (this.movimientosPeriodo || []);
+        },
+
+        async cargarMovimientosOctavoDia(rango) {
+          const TD = window.TurnosDiaNoche;
+          if (!TD || !TD.esSegmento(this.periodoVista()) || !rango) return;
+          const inicio = TD.limaDayStart(TD.limaYMD()).getTime();
+          if (!(this.instanteRango(rango.desde, false) > inicio + 1500)) return;
+          const q = this.queryRango(rango);
+          try {
+            const data = await this.api('/inventario/movimientos?' + this.queryRango({ desde: new Date(inicio).toISOString(), hasta: rango.hasta }));
+            if (q !== this.queryRango(this.rangoVista())) return;
+            this.movimientosOctavoDia = (data && data.movimientos) || [];
+          } catch (e) {
+            this._octavoDiaIncompleto = true;
+          }
+        },
+
+        fechaRepartoOctavo() {
+          const TD = window.TurnosDiaNoche;
+          const ymd = TD && TD.limaYMD ? TD.limaYMD() : this.fechaHoy();
+          return ymd + 'T04:00:01-05:00';
+        },
+
         // Octavos marcados de pecho o de pierna, con su signo.
         // Solo cuenta lo que dice la marca de ese corte. No se estira hasta el saldo total
         // ni se cambia por lo producido desde la pieza: eso hacía saltar 30 y 100 al recargar.
         octavosTagNeto(corte) {
-          return this.netoOctavoEn(this.movimientosPeriodo, corte);
+          return this.netoOctavoEn(this.listaOctavoCortes(), corte);
         },
 
         netoOctavoEn(lista, corte) {
@@ -18521,12 +18830,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const dest = this.destinosOctavoExtra().find((d) => d.id === id);
           const clave = this.claveDeFila.octavo_pollo;
           if (!dest || !clave) return 0;
-          const prefijos = this.nombresSectorOctavo(dest).map((nombre) => 'Venta manual · ' + nombre);
-          const total = (this.movimientosPeriodo || []).reduce((a, m) => {
+          const nombres = this.nombresSectorOctavo(dest);
+          const total = (this.listaOctavoCortes() || []).reduce((a, m) => {
             if (!m || m.rubro !== clave || m.clase !== 'egreso') return a;
-            const motivo = String(m.motivo || '');
-            if (!prefijos.some((prefijo) => motivo.indexOf(prefijo) === 0) || !this.motivoEsCorte(motivo, corte)) return a;
-            return a + (Number(m.cantidad) || 0);
+            const sector = this.sectorDeMotivo(m.motivo);
+            if (nombres.indexOf(sector) === -1 || !this.motivoEsCorte(m.motivo, corte)) return a;
+            return a + Math.abs(Number(m.cantidad) || 0);
           }, 0);
           return Math.max(0, this.redondear3(total));
         },
@@ -18601,13 +18910,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // Al empezar el día el saldo llega junto, sin pecho ni pierna.
         // Se trae el reparto del día anterior y se anota como saldo anterior, sin cambiar el total.
         async asegurarRepartoOctavo() {
-          if (this.periodo !== 'hoy' || this._repartoOctavo) return;
+          if (!this.periodoEsHoy() || this._repartoOctavo) return;
+          if (this.periodoVista() !== 'hoy' && this._octavoDiaIncompleto) return;
           const clave = this.claveDeFila.octavo_pollo;
           const row = this.filaReal('octavo_pollo');
           if (!clave || !row) return;
-          if (Math.abs(this.octavosTagNeto('pechugas')) + Math.abs(this.octavosTagNeto('piernas')) > 0.5) return;
+          const lista = this.listaOctavoCortes();
+          if (Math.abs(this.netoOctavoEn(lista, 'pechugas')) + Math.abs(this.netoOctavoEn(lista, 'piernas')) > 0.5) return;
           if (!(this.stockCuadro('octavo_pollo', 'crudo') > 0)) return;
-          const ya = (this.movimientosPeriodo || []).some((m) => m && m.rubro === clave && String(m.lote || '').indexOf('octavo-reparto-') === 0);
+          const ya = (lista || []).some((m) => m && m.rubro === clave && String(m.lote || '').indexOf('octavo-reparto-') === 0);
           if (ya) return;
           this._repartoOctavo = true;
           const ayer = this.diaOffset(this.fechaHoy(), -1);
@@ -18627,7 +18938,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const pechoFinal = Math.round(pecho * factor);
           const piernaFinal = Math.round(pierna * factor);
           if (!(pechoFinal + piernaFinal > 0.5)) return;
-          const fecha = String(this.rangoPeriodo().desde || this.fechaHoy()).slice(0, 10) + 'T04:00:01-05:00';
+          const fecha = this.fechaRepartoOctavo();
           const lote = 'octavo-reparto-' + ayer;
           const notas = [
             { n: pechoFinal, marca: 'pecho' },
@@ -19042,6 +19353,93 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         esArrozPorcion(d) {
           const id = d && d.id ? d.id : d;
           return id === 'arroz_blanco' || id === 'arroz_verde';
+        },
+
+        esArrozDescarga(d) {
+          const id = d && d.id ? d.id : d;
+          return id === 'arroz_beata' || id === 'arroz_rio_lindo';
+        },
+
+        sectorArrozDescarga(d) {
+          const id = d && d.id ? d.id : d;
+          if (id === 'arroz_beata') return 'Beata';
+          if (id === 'arroz_rio_lindo') return 'Rio Lindo';
+          return '';
+        },
+
+        kgDescargaArroz(d) {
+          const id = d && d.id ? d.id : d;
+          const clave = this.claveDeFila[id];
+          const sector = this.sectorArrozDescarga(id);
+          if (!clave || !sector) return 0;
+          const tipo = this.tipoArrozDestino({ id: id });
+          const total = (this.movimientosPeriodo || []).reduce((a, m) => {
+            if (!m || m.rubro !== clave || m.clase !== 'egreso') return a;
+            if ((m.tipoProducto || 'crudo') !== tipo) return a;
+            if (String(m.motivo || '').indexOf('Venta manual') !== 0) return a;
+            if (this.sectorDeMotivo(m.motivo) !== sector) return a;
+            return a + (Number(m.cantidad) || 0);
+          }, 0);
+          return Math.max(0, this.redondear3(total));
+        },
+
+        ajustarVentaManualArroz(d, deltaKg, motivo) {
+          const row = this.filaReal(d.id);
+          const clave = row && this.claveDeFila[row.id];
+          if (!row || !clave) return false;
+          const tipo = this.tipoArrozDestino(d);
+          const delta = this.redondear3(deltaKg);
+          if (!delta) return false;
+          if (delta > 0) {
+            const stock = this.redondear3(this.calcSaldoTipo(row, tipo));
+            if (stock + 0.0001 < delta) {
+              return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' no tiene ' + this.formatNum(delta) + ' kg para descargar.');
+            }
+          }
+          const campo = this.campoTipo('venta', tipo);
+          row[campo] = this.redondear3((Number(row[campo]) || 0) + delta);
+          row[tipo] = Math.max(0, this.calcSaldoTipo(row, tipo));
+          const mov = {
+            rubro: clave,
+            clase: 'egreso',
+            tipoProducto: tipo,
+            cantidad: delta,
+            motivo: motivo,
+            lote: this.loteVentaManual(),
+            fecha: new Date().toISOString(),
+            nombre: row.nombre
+          };
+          this.anotarMovs([mov]);
+          this.pulseRowTotal(row.id);
+          this.encolarMovimientos([mov]);
+          return true;
+        },
+
+        fijarDescargaArroz(campo, valor) {
+          const d = this.destinosArroz().find((x) => x.campo === campo);
+          if (!d || !this.esArrozDescarga(d)) return false;
+          const factor = Number(this.config[d.factorKey]) || 1;
+          const actual = this.kgDescargaArroz(d);
+          const next = Math.max(0, this.redondear3(Number(valor) || 0));
+          const deltaKg = this.redondear3(next - actual);
+          if (!deltaKg) return false;
+          const deltaCrudo = this.redondear3(deltaKg / factor);
+          const motivo = 'Venta manual · ' + this.sectorArrozDescarga(d);
+          const crudoObjetivo = this.redondear3(this.arrozHacia(d) + deltaCrudo);
+          if (deltaKg < 0) {
+            if (!this.ajustarVentaManualArroz(d, deltaKg, motivo)) return false;
+            if (!this.fijarArrozDestino(campo, crudoObjetivo)) {
+              this.ajustarVentaManualArroz(d, -deltaKg, motivo);
+              return false;
+            }
+            return true;
+          }
+          if (!this.fijarArrozDestino(campo, crudoObjetivo)) return false;
+          if (!this.ajustarVentaManualArroz(d, deltaKg, motivo)) {
+            this.fijarArrozDestino(campo, this.redondear3(crudoObjetivo - deltaCrudo));
+            return false;
+          }
+          return true;
         },
 
         vaciarSiCero(ev) {
