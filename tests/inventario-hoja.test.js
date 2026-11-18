@@ -577,3 +577,39 @@ describe('productos con grupo en la tabla', () => {
         expect(app.ingresoGrupo.transformadoSale).toBe(3);
     });
 });
+
+
+describe('modales del grupo de Octavo de pollo', () => {
+    const textos = (l) => (l || []).map((c) => c.texto);
+    const preparar = () => {
+        const app = crearApp();
+        pintar(app, []);
+        const octavo = app.filaReal('octavo_pollo');
+        octavo.cortesOctavo = { inicial: { pierna: 6, pecho: 4 }, queda: { pierna: 6, pecho: 4 } };
+        octavo.saldoAnterior = 10;
+        octavo.crudo = 10;
+        app.pulseRowTotal = () => {};
+        return { app, octavo };
+    };
+
+    test('el reparto dice cuánto es de pierna y de pecho en cada fila', () => {
+        const { app, octavo } = preparar();
+        app.abrirDesgloseGrupo(octavo, 'saldoAnterior');
+        const fila = app.desgloseGrupo.filas.find((f) => f.id === 'octavo_pollo');
+        expect(textos(fila.cortes)).toEqual(['Pierna 6', 'Pecho 4']);
+        app.abrirDesgloseGrupo(octavo, 'queda');
+        expect(textos(app.desgloseGrupo.filas.find((f) => f.id === 'octavo_pollo').cortes)).toEqual(['Pierna 6', 'Pecho 4']);
+        expect(app.desgloseGrupo.filas.every((f) => Array.isArray(f.cortes))).toBe(true);
+    });
+
+    test('el modal de ingreso dice cuánto hay de pierna y de pecho, también en cada plato', () => {
+        const { app, octavo } = preparar();
+        app.abrirIngresoGrupo(octavo);
+        const principal = app.ingresoGrupo.lineas[0];
+        expect(textos(principal.hayCortes)).toEqual(['Pierna 6', 'Pecho 4']);
+        expect(principal.cuadros.map((c) => [c.etiqueta, c.hay])).toEqual([['Pierna', 6], ['Pecho', 4]]);
+        const plato = app.ingresoGrupo.lineas.find((l) => l.id === 'arroz_con_pollo');
+        expect(plato.cuadros.map((c) => c.etiqueta)).toEqual(expect.arrayContaining(['Pierna crudo', 'Pecho crudo']));
+        expect(plato.hayCortes).toHaveLength(2);
+    });
+});

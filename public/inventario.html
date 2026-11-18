@@ -3313,7 +3313,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                               <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                 <div class="caja-stock-step">
-                                  <input type="number" min="0" step="any" aria-label="Stock actual de filete de pollo" :value="stockCuadro('filete', 'crudo')" @change="fijarStockConIngreso('filete', 'crudo', $event.target)">
+                                  <input type="number" min="0" step="any" aria-label="Stock actual de filete de pollo" :value="stockCuadro('filete', 'crudo')" @change="cuadroFilete($event.target)">
                                 </div>
                                 <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de filete de pollo'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                 <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3363,7 +3363,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                         
                                         <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                           <div class="caja-stock-step">
-                                            <input type="number" min="0" class="text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id)" @input="ajustarCajaDigitos($el)" @change="fijarStockConIngreso(plato.id, 'crudo', $event.target)">
+                                            <input type="number" min="0" class="text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :style="'--digitos:' + digitosDe(crudoVisibleTotal(plato.id))" :aria-label="'Porciones de ' + plato.nombre" :value="crudoVisibleTotal(plato.id)" @input="ajustarCajaDigitos($el)" @change="cuadroPlatoFilete(plato.id, $event.target)">
                                           </div>
                                           <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Porciones de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                           <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3438,7 +3438,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <p class="caja-stock-etiq" x-text="'Stock actual (' + etiquetaTipo('crudo', ad.id) + '):'"></p>
                                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                   <div class="caja-stock-step">
-                                    <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="fijarStockConIngreso(ad.id, 'crudo', $event.target)">
+                                    <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="cuadroHijo('pechuga', ad.id, 'crudo', $event.target)">
                                   </div>
                                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3456,7 +3456,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                                   <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                     <div class="caja-stock-step" :class="stockCuadro(ad.id, 'cocido') <= 0 ? 'stock-cero-alarma' : ''">
-                                      <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="fijarStockConIngreso(ad.id, 'cocido', $event.target)">
+                                      <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="cuadroHijo('pechuga', ad.id, 'cocido', $event.target)">
                                     </div>
                                     <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                     <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3535,7 +3535,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <p class="caja-stock-etiq" x-text="'Stock actual (' + etiquetaTipo('crudo', ad.id) + '):'"></p>
                                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                   <div class="caja-stock-step">
-                                    <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="fijarStockConIngreso(ad.id, 'crudo', $event.target)">
+                                    <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre" :value="stockCuadro(ad.id, 'crudo')" @change="cuadroHijo('pierna', ad.id, 'crudo', $event.target)">
                                   </div>
                                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3553,7 +3553,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                                   <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                     <div class="caja-stock-step" :class="stockCuadro(ad.id, 'cocido') <= 0 ? 'stock-cero-alarma' : ''">
-                                      <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="fijarStockConIngreso(ad.id, 'cocido', $event.target)">
+                                      <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + ad.nombre" :value="stockCuadro(ad.id, 'cocido')" @change="cuadroHijo('pierna', ad.id, 'cocido', $event.target)">
                                     </div>
                                     <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                     <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3597,7 +3597,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <p class="caja-stock-corte text-sky-300">Pecho</p>
                           <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                             <div class="caja-stock-step">
-                              <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosStockCorte('pechugas')" @change="fijarStockConIngreso('octavo_pollo', 'crudo', $event.target, 'pechugas')">
+                              <input type="number" min="0" step="1" aria-label="Stock de octavos desde pecho" :value="octavosStockCorte('pechugas')" @change="cuadroOctavos('pechugas', $event.target)">
                             </div>
                             <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock de octavos desde pecho'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                             <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3612,7 +3612,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <p class="caja-stock-corte text-emerald-300">Pierna</p>
                           <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                             <div class="caja-stock-step">
-                              <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosStockCorte('piernas')" @change="fijarStockConIngreso('octavo_pollo', 'crudo', $event.target, 'piernas')">
+                              <input type="number" min="0" step="1" aria-label="Stock de octavos desde pierna" :value="octavosStockCorte('piernas')" @change="cuadroOctavos('piernas', $event.target)">
                             </div>
                             <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock de octavos desde pierna'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                             <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3655,7 +3655,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                       <p class="caja-stock-etiq">Crudo</p>
                                       <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                         <div class="caja-stock-step">
-                                          <input type="number" min="0" step="1" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="fijarStockConIngreso(plato.id, 'crudo', $event.target, corte)">
+                                          <input type="number" min="0" step="1" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="cuadroOctavoPlato(plato.id, corte, 'crudo', $event.target)">
                                         </div>
                                         <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock crudo ' + corte + ' de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                         <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3673,7 +3673,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                         <p class="caja-stock-etiq">Cocido</p>
                                         <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                           <div class="caja-stock-step">
-                                            <input type="number" min="0" step="1" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="fijarStockConIngreso(plato.id, 'cocido', $event.target, corte)">
+                                            <input type="number" min="0" step="1" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="cuadroOctavoPlato(plato.id, corte, 'cocido', $event.target)">
                                           </div>
                                           <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido ' + corte + ' de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                           <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3713,7 +3713,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                       <p class="caja-stock-etiq">Separado</p>
                                       <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                         <div class="caja-stock-step">
-                                          <input type="number" min="0" step="1" :aria-label="'Octavos de ' + corte + ' en ' + dest.nombre" :value="octavosEnDestino(dest.id, corte)" @change="fijarStockConIngreso('octavo_pollo', 'crudo', $event.target, corte, dest.id)">
+                                          <input type="number" min="0" step="1" :aria-label="'Octavos de ' + corte + ' en ' + dest.nombre" :value="octavosEnDestino(dest.id, corte)" @change="cuadroOctavoDestino(dest.id, corte, $event.target)">
                                         </div>
                                         <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Octavos de ' + corte + ' en ' + dest.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                         <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4551,7 +4551,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <p class="caja-stock-etiq" x-text="'Stock actual (' + etiquetaTipo('crudo', corteId) + '):'"></p>
                     <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                       <div class="caja-stock-step">
-                        <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="fijarStockConIngreso(corteId, 'crudo', $event.target)">
+                        <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="cuadroPachamanca(corteId, 'crudo', $event.target)">
                       </div>
                       <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                       <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4569,7 +4569,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                       <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                         <div class="caja-stock-step">
-                          <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="fijarStockConIngreso(corteId, 'cocido', $event.target)">
+                          <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="cuadroPachamanca(corteId, 'cocido', $event.target)">
                         </div>
                         <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + getRow(corteId).nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                         <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -8700,6 +8700,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <p class="text-sm font-bold text-white truncate" x-text="f.nombre"></p>
                   <p x-show="f.tieneCocido && f.tieneCrudo" class="text-[11px] font-mono text-[#a0a0b8]" x-text="'Crudo ' + formatNum(f.crudo) + ' · Cocido ' + formatNum(f.cocido)"></p>
                   <p x-show="f.tieneCocido && !f.tieneCrudo" class="text-[11px] font-mono text-[#a0a0b8]">Cocido</p>
+                  <p x-show="f.cortes" class="mt-1 flex flex-wrap gap-1 text-[10px] font-mono">
+                    <template x-for="c in (f.cortes || [])" :key="f.id + '-c-' + c.id">
+                      <span class="px-1.5 py-0.5 rounded font-bold" :class="c.clase" x-text="c.texto"></span>
+                    </template>
+                  </p>
                 </div>
                 <span class="text-lg font-mono font-extrabold shrink-0" :class="f.total ? 'text-white' : 'text-[#5a5a7a]'" x-text="formatNum(f.total)"></span>
               </div>
@@ -8737,13 +8742,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <p class="text-[10px] uppercase font-extrabold tracking-wide text-[#d4af37]">Producto principal</p>
                   <p class="text-lg font-extrabold text-white truncate" x-text="l.nombre"></p>
                 </div>
-                <p class="text-xs text-[#a0a0b8] shrink-0">Hay <strong class="font-mono text-white" x-text="formatNum(l.hay)"></strong></p>
+                <div class="text-right shrink-0">
+                  <p class="text-xs text-[#a0a0b8]">Hay <strong class="font-mono text-white" x-text="formatNum(l.hay)"></strong></p>
+                  <p x-show="l.hayCortes" class="mt-1 flex flex-wrap justify-end gap-1 text-[10px] font-mono">
+                    <template x-for="c in (l.hayCortes || [])" :key="l.id + '-hc-' + c.id">
+                      <span class="px-1.5 py-0.5 rounded font-bold" :class="c.clase" x-text="c.texto"></span>
+                    </template>
+                  </p>
+                </div>
               </div>
               <div class="mt-3 grid gap-3" :class="l.cuadros.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
                 <template x-for="c in l.cuadros" :key="c.key">
                   <label class="block text-xs font-bold text-emerald-200"><span x-text="c.etiqueta"></span>
                     <input type="number" min="0" step="any" inputmode="decimal" placeholder="0" class="ingreso-grupo-input ingreso-grupo-input-grande" :aria-label="'Ingresar ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
-                    <span x-show="c.ya" class="block mt-1 font-normal text-[11px] text-[#a0a0b8]" x-text="'Ya ingresaste ' + formatNum(c.ya)"></span>
+                    <span class="block mt-1 font-normal text-[11px] text-[#a0a0b8]" x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '')"></span>
                   </label>
                 </template>
               </div>
@@ -8759,11 +8771,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <p class="text-sm font-bold text-white truncate" :title="l.nombre" x-text="l.nombre"></p>
                     <p class="text-[11px] text-[#a0a0b8] shrink-0">Hay <strong class="font-mono text-white" x-text="formatNum(l.hay)"></strong></p>
                   </div>
+                  <p x-show="l.hayCortes" class="mt-1 flex flex-wrap gap-1 text-[10px] font-mono">
+                    <template x-for="c in (l.hayCortes || [])" :key="l.id + '-hc-' + c.id">
+                      <span class="px-1.5 py-0.5 rounded font-bold" :class="c.clase" x-text="c.texto"></span>
+                    </template>
+                  </p>
                   <div class="mt-2 grid gap-2" :class="l.cuadros.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
                     <template x-for="c in l.cuadros" :key="c.key">
                       <label class="block text-[11px] font-semibold text-emerald-200"><span x-text="c.etiqueta"></span>
                         <input type="number" min="0" step="any" inputmode="decimal" placeholder="0" class="ingreso-grupo-input" :aria-label="'Ingresar ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
-                        <span x-show="c.ya" class="block mt-1 font-normal text-[10px] text-[#a0a0b8]" x-text="'Ya ingresaste ' + formatNum(c.ya)"></span>
+                        <span class="block mt-1 font-normal text-[10px] text-[#a0a0b8]" x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '')"></span>
                       </label>
                     </template>
                   </div>
@@ -16008,6 +16025,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!textos) return;
           const partes = this.partesFamilia(this.filasDelGrupo(row), row, (f, t) => this.leerColumnaGrupo(columna, f, t), true);
           const filas = partes.filter((p) => p.propio).concat(partes.filter((p) => !p.propio).sort((a, b) => b.total - a.total || String(a.nombre).localeCompare(String(b.nombre), 'es')));
+          if (this.esFilaOctavo(row)) filas.forEach((p) => { p.cortes = this.cortesDeFilaOctavo(p.id, row, columna, p.total); });
           const mayor = filas.reduce((a, p) => Math.max(a, Math.abs(p.total)), 0);
           filas.forEach((p) => { p.porcentaje = mayor ? Math.round(Math.abs(p.total) * 100 / mayor) : 0; });
           this.modalGrupoCerrando = false;
@@ -16055,6 +16073,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             tipo,
             corte,
             etiqueta,
+            hay: this.hayCuadroIngreso(fila, tipo, corte),
             ya: this.ingresoDirectoPeriodo(fila.id, tipo, corte),
             valor: ''
           });
@@ -16067,7 +16086,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           } else {
             tipos.forEach((tipo) => cuadros.push(cuadro(tipo, undefined, this.etiquetaTipo(tipo, fila))));
           }
-          return { id: fila.id, nombre: fila.nombre, principal: fila.id === row.id, hay: this.saldoRealColumna(fila), cuadros };
+          const hayCortes = this.esFilaOctavo(row) ? ['piernas', 'pechugas'].map((corte) => ({
+            id: corte,
+            texto: (corte === 'piernas' ? 'Pierna ' : 'Pecho ') + this.formatNum(this.redondear3(cuadros.filter((c) => c.corte === corte).reduce((a, c) => a + c.hay, 0))),
+            clase: corte === 'piernas' ? 'bg-emerald-950/70 text-emerald-300' : 'bg-sky-950/60 text-sky-300'
+          })) : null;
+          return { id: fila.id, nombre: fila.nombre, principal: fila.id === row.id, hay: this.saldoRealColumna(fila), hayCortes, cuadros };
+        },
+
+        // Lo que hay ahora en ese cuadro: por tipo y, en octavos, por pierna o pecho.
+        hayCuadroIngreso(fila, tipo, corte) {
+          if (corte && fila.id === 'octavo_pollo') return this.octavosStockCorte(corte);
+          if (corte) return this.stockOctavoPlato(fila.id, corte, tipo);
+          return this.redondear3(Math.max(0, this.calcSaldoTipo(fila, tipo)));
         },
 
         abrirIngresoGrupo(row) {
@@ -18145,6 +18176,44 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return lista;
         },
 
+        // Octavos ingresados con la marca de un corte en el período (sin aperturas ni pases).
+        ingresoMarcadoOctavo(fila, corte) {
+          const clave = this.claveDeFila[fila.id];
+          return this.redondear3((this.movimientosPeriodo || []).reduce((a, m) => {
+            if (!m || m.rubro !== clave || m.clase !== 'ingreso' || this.esMotivoApertura(m.motivo)) return a;
+            if (String(m.motivo || '').indexOf('Pasa a ') === 0) return a;
+            if (!this.motivoEsCorte(m.motivo, corte)) return a;
+            return a + (Number(m.cantidad) || 0);
+          }, 0));
+        },
+
+        // Pierna y pecho de una fila del grupo del octavo para cada cuadro de la tabla.
+        cortesDeFilaOctavo(id, row, columna, total) {
+          const fila = this.filaReal(id);
+          if (!fila) return null;
+          const esOctavo = id === row.id;
+          const marcas = esOctavo ? row.cortesOctavo : null;
+          let inicial;
+          if (esOctavo) inicial = marcas && marcas.inicial;
+          else {
+            inicial = { pierna: 0, pecho: 0 };
+            this.tiposDe(fila).forEach((tp) => {
+              const c = this.saldoAnteriorCortesEditar(fila, tp);
+              inicial.pierna += c.pierna;
+              inicial.pecho += c.pecho;
+            });
+          }
+          if (columna === 'saldoAnterior') return this.cortesDeSaldoOctavo(inicial, total);
+          if (columna === 'queda') {
+            return esOctavo ? this.cortesDeSaldoOctavo(marcas && marcas.queda, total) : this.cortesDePlatoOctavo(fila, total);
+          }
+          if (!inicial) return null;
+          return this.cortesDeSaldoOctavo({
+            pierna: inicial.pierna + this.ingresoMarcadoOctavo(fila, 'piernas'),
+            pecho: inicial.pecho + this.ingresoMarcadoOctavo(fila, 'pechugas')
+          }, total);
+        },
+
         // Platos de octavo: solo se reparte lo que tiene marca; el resto queda «sin separar».
         cortesDePlatoOctavo(hijo, total) {
           let pierna = 0;
@@ -18901,6 +18970,54 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.moverIngresoPlato(padreId, id, 'crudo', delta);
         },
 
+        // Cuadros de stock del mapa de pollo: subir pasa desde la pieza de origen y bajar se la devuelve.
+        // El ingreso de stock nuevo va aparte, en el icono de Ingreso de cada cuadro.
+        // Si el pase no se puede hacer, la caja vuelve a mostrar el stock real.
+        async aplicarCuadroTransformar(el, leerActual, accion) {
+          const texto = String((el && el.value) || '').trim();
+          const escrito = Number(texto);
+          let hecho = false;
+          if (texto !== '' && Number.isFinite(escrito) && escrito >= 0) hecho = await accion(this.redondear3(escrito));
+          if (el) {
+            el.value = String(leerActual());
+            if (el.dataset) {
+              el.dataset.valorAlEnfocar = el.value;
+              delete el.dataset.ceroAntesDeEditar;
+            }
+            this.ajustarCajaDigitos(el);
+          }
+          return hecho === true;
+        },
+
+        cuadroHijo(padreId, id, tipo, el) {
+          return this.aplicarCuadroTransformar(el, () => this.stockCuadro(id, tipo), (v) => this.fijarStockHijo(padreId, id, tipo, v));
+        },
+
+        cuadroFilete(el) {
+          return this.aplicarCuadroTransformar(el, () => this.stockCuadro('filete', 'crudo'), (v) => this.fijarStockFilete(v));
+        },
+
+        cuadroPlatoFilete(id, el) {
+          return this.aplicarCuadroTransformar(el, () => this.crudoVisibleTotal(id), (v) => this.fijarCrudoPlato('filete', id, v));
+        },
+
+        cuadroOctavos(corte, el) {
+          return this.aplicarCuadroTransformar(el, () => this.octavosStockCorte(corte), (v) => this.fijarOctavosStock(corte, v));
+        },
+
+        cuadroOctavoPlato(id, corte, tipo, el) {
+          return this.aplicarCuadroTransformar(el, () => this.stockOctavoPlato(id, corte, tipo), (v) => this.fijarOctavoPlato(id, corte, tipo, v));
+        },
+
+        cuadroOctavoDestino(id, corte, el) {
+          return this.aplicarCuadroTransformar(el, () => this.octavosEnDestino(id, corte), (v) => this.fijarOctavoDestino(id, corte, v));
+        },
+
+        cuadroPachamanca(id, tipo, el) {
+          if (id === 'pollo_pachamanca') return this.cuadroHijo('pierna', id, tipo, el);
+          return this.fijarStockConIngreso(id, tipo, el);
+        },
+
         marcaCorte(corte) {
           return corte === 'piernas' || corte === 'pierna' ? 'pierna' : 'pecho';
         },
@@ -19099,7 +19216,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             salen: delta,
             destinos: [{ id: platoId, entran: delta, tipo: 'crudo' }],
             motivo: pasa,
-            motivoDestino: pasa,
+            motivoDestino: this.motivoDesde('octavo_pollo') + ' · ' + marca,
             historial: 'Octavo ' + marca + ' → ' + this.nombreFila(platoId)
           });
         },
@@ -19157,7 +19274,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (salen < 0) {
             const hoy = this.transformadoHoy(op.origenId, op.motivo);
             if (hoy + 0.0001 < -salen) {
-              return this.avisoTransformar('Aviso ámbar: no se puede devolver más de lo que pasó en el período (' + this.formatNum(hoy) + ').');
+              return this.avisoTransformar('Aviso ámbar: no se puede devolver más de lo que pasó en el período (' + this.formatNum(hoy) + '). Para corregir el stock usa el lápiz.');
             }
           }
           for (const d of destinos) {
