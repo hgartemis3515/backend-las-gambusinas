@@ -135,41 +135,73 @@ test('un plato que gasta dos productos cuenta una vez como plato', () => {
     ]);
     app.abrirVentaFila(app.filaReal('trozo_panceta'));
     expect(app.ventaInfo.lineas).toHaveLength(1);
-    expect(app.ventaInfo.lineas[0]).toMatchObject({ platos: 1, cantidad: 2, propia: 1 });
+    expect(app.ventaInfo.lineas[0]).toMatchObject({ platos: 1, cantidad: 1, propia: 1 });
     expect(app.ventaInfo.propia).toBe(app.ventaColumna(app.filaReal('trozo_panceta')));
-    expect(app.ventaInfo.nota).toContain('De esta fila se restaron 1');
+    expect(app.ventaInfo.total).toBe(1);
+    expect(app.ventaInfo.nota).toBe('');
 });
 
-test('editar stock guarda un ajuste, no un ingreso, y deja el número escrito', async () => {
+test('chaufa conserva cantidades reales y comandas distintas sin contar otra vez sus ingredientes', () => {
     const app = crearApp();
-    const guardados = [mov('cuy', 'ingreso', 10, hora('09:00'))];
+    const detalle = (id, n) => [{ nombre: 'Arroz Chaufa Chancho', cantidad: n, platos: n, factor: 1, comandaId: id, comanda: id }];
+    const ventas = ['c1', 'c2'].flatMap((id, i) => [
+        { rubro: 'trozo-panceta', cantidad: i + 1, fecha: hora('12:00'), detalle: detalle(id, i + 1) },
+        { rubro: 'chaufa-chancho', cantidad: i + 1, fecha: hora('12:00'), detalle: detalle(id, i + 1) }
+    ]);
+    pintar(app, [mov('trozo-panceta', 'ingreso', 10, hora('09:00'), 'Ingreso cocido', 'cocido')], ventas);
+    app.abrirVentaFila(app.filaReal('trozo_panceta'));
+    expect(app.ventaInfo.lineas).toHaveLength(2);
+    expect(app.ventaInfo.lineas.map((l) => l.cantidad).sort()).toEqual([1, 2]);
+    expect(app.ventaInfo.total).toBe(3);
+    expect(app.ventaInfo.propia).toBe(app.ventaColumna(app.filaReal('trozo_panceta')));
+});
+
+test('el modal conserva las partes reales consumidas de una reserva del mismo plato', () => {
+    const app = crearApp();
+    const parte = [{ nombre: 'Pollada', cantidad: 1, platos: 1, comandaId: 'c1', comanda: 'Comanda 1' }];
+    app.abrirVenta({ id: 'pollada', nombre: 'Pollada', clave: 'pollada', claves: ['pollada', 'pechuga-pollo'], venta: 1 }, {
+        ventas: [
+            { rubro: 'pollada', origen: 'pollada', nombre: 'Pollada', cantidad: 1, detalle: parte },
+            { rubro: 'pechuga-pollo', origen: 'pollada', nombre: 'Pollada', cantidad: 1, detalle: parte }
+        ], movimientos: []
+    });
+    expect(app.ventaInfo.lineas[0].cantidad).toBe(2);
+    expect(app.ventaInfo.propia).toBe(1);
+});
+
+test('editar stock establece apertura y recalcula total sin aumentar ingresos del período', async () => {
+    const app = crearApp();
+    const guardados = [mov('cuy', 'ingreso', 10, horaAyer('09:00')), mov('cuy', 'ingreso', 2, hora('09:00'))];
+    app.rangoVista = () => ({ desde: '2026-11-11', hasta: '2026-11-11' });
     app.fechaCierreVista = () => undefined;
     app.cargarKardex = async () => { pintar(app, guardados); };
-    app.paso = async (rubro, tipoProducto, cantidad, motivo, clase) => { guardados.push(mov(rubro, clase, cantidad, hora('15:00'), motivo, tipoProducto)); };
+    app.paso = async (rubro, tipoProducto, cantidad, motivo, clase, nombre, fecha) => { guardados.push(mov(rubro, clase, cantidad, fecha, motivo, tipoProducto)); };
     app.pulseRowTotal = () => {};
     app.anotarHistorial = () => {};
     await app.cargarKardex();
     app.abrirEditarStock('cuy');
-    expect(app.editarStock.crudo).toBe(10);
+    expect(app.editarStock.crudo).toBe(12);
     app.editarStock.crudo = 7;
     expect(await app.guardarModalStock()).toBe(true);
     const ajuste = guardados[guardados.length - 1];
-    expect(ajuste).toMatchObject({ clase: 'regulacion', cantidad: -3 });
-    expect(ajuste.motivo.indexOf('Ajuste de stock')).toBe(0);
+    expect(ajuste).toMatchObject({ clase: 'ingreso', cantidad: -5, fecha: '2026-11-11T04:00:00-05:00' });
+    expect(ajuste.motivo.indexOf('Ajuste apertura')).toBe(0);
     const row = app.filaReal('cuy');
-    expect(app.valorTipo(row, 'ingreso', 'crudo')).toBe(10);
-    expect(app.ingresoTotalColumna(row)).toBe(10);
+    expect(row.saldoAnterior).toBe(5);
+    expect(app.valorTipo(row, 'ingreso', 'crudo')).toBe(2);
+    expect(app.ingresoTotalColumna(row)).toBe(7);
     expect(app.saldoRealColumna(row)).toBe(7);
-    expect(app.stockCuadro('cuy', 'crudo')).toBe(7);
+    expect(row.correccion).toBe(0);
 });
 
-test('editar stock usa el número más reciente si entró una venta con el modal abierto', async () => {
+test('una venta con el modal abierto no altera la apertura escrita ni se pierde al guardar', async () => {
     const app = crearApp();
     const guardados = [mov('cuy', 'ingreso', 10, hora('09:00'))];
     const ventas = [];
+    app.rangoVista = () => ({ desde: '2026-11-11', hasta: '2026-11-11' });
     app.fechaCierreVista = () => undefined;
     app.cargarKardex = async () => { pintar(app, guardados, ventas); };
-    app.paso = async (rubro, tipoProducto, cantidad, motivo, clase) => { guardados.push(mov(rubro, clase, cantidad, hora('15:00'), motivo, tipoProducto)); };
+    app.paso = async (rubro, tipoProducto, cantidad, motivo, clase, nombre, fecha) => { guardados.push(mov(rubro, clase, cantidad, fecha, motivo, tipoProducto)); };
     app.pulseRowTotal = () => {};
     app.anotarHistorial = () => {};
     await app.cargarKardex();
@@ -177,16 +209,19 @@ test('editar stock usa el número más reciente si entró una venta con el modal
     ventas.push({ rubro: 'cuy', nombre: 'Cuy', cantidad: 4, fecha: hora('14:00'), detalle: [] });
     app.editarStock.crudo = 8;
     await app.guardarModalStock();
+    expect(app.filaReal('cuy')).toMatchObject({ saldoAnterior: 2, ingreso: 10, venta: 4 });
+    expect(app.ingresoTotalColumna(app.filaReal('cuy'))).toBe(12);
     expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(8);
 });
 
-test('en un día pasado el ajuste se guarda al cierre de ese día', () => {
+test('editar apertura de un día pasado usa el inicio de ese día', () => {
     const app = crearApp();
     app.ymdOperativo = () => '2026-11-17';
     app.activeTab = 'tabla';
     app.periodo = 'ayer';
     expect(app.fechaCierreVista()).toBe('2026-11-17T03:59:00-05:00');
-    expect(app.notaEditarStock()).toContain('día pasado');
+    expect(app.fechaSaldoAnterior()).toBe('2026-11-16T04:00:00-05:00');
+    expect(app.notaEditarStock()).toContain('Saldo anterior');
     app.periodo = 'hoy';
     expect(app.fechaCierreVista()).toBeUndefined();
 });

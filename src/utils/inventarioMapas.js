@@ -251,6 +251,17 @@ function aplicarArroz(mapas) {
     return mapas;
 }
 
+function aplicarCarnero(mapas) {
+    (mapas || []).forEach((m) => {
+        if (!m || m.id !== 'carnero') return;
+        m.nombre = 'Seco de carnero';
+        m.tipo = m.tipo === 'despiece' ? 'directo' : (m.tipo || 'directo');
+        m.origen = { clave: 'seco-cordero', nombre: 'Seco de carnero' };
+        m.cortes = (m.cortes || []).filter((c) => c && c.clave !== 'carnero');
+    });
+    return mapas;
+}
+
 function sanearLista(lista) {
     const vistos = new Set();
     const out = [];
@@ -260,7 +271,7 @@ function sanearLista(lista) {
         vistos.add(mapa.id);
         out.push(mapa);
     });
-    return aplicarArroz(aplicarGruposPollo(out));
+    return aplicarCarnero(aplicarArroz(aplicarGruposPollo(out)));
 }
 
 function clavesExtra(mapas) {

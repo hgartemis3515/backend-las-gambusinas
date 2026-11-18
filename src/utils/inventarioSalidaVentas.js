@@ -144,7 +144,7 @@ const ALIAS_RUBRO_RELACION = {
     'filete pollo crudo': 'filete',
     'pechuga de pollo': 'pechuga-pollo',
     'pierna de pollo': 'pierna-pollo',
-    'carnero crudo': 'carnero',
+    'carnero crudo': 'seco-cordero',
     'arroz verde': 'arroz-verde',
     'arroz pato': 'arroz-verde',
     'arroz con pato': 'arroz-verde',

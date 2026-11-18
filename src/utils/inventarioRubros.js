@@ -36,7 +36,6 @@ const KARDEX = [
     { clave: 'pieza-pescado', nombre: 'Pieza de pescado' },
     { clave: 'pieza-pota', nombre: 'Pieza de pota' },
     { clave: 'cuy', nombre: 'Cuy' },
-    { clave: 'carnero', nombre: 'Carnero Crudo' },
     { clave: 'carne-guiso', nombre: 'Seco de Res' },
     { clave: 'pollo-lena', nombre: 'Pecho a la Leña' },
     { clave: 'pollo-baby', nombre: 'Pollo Baby' },
