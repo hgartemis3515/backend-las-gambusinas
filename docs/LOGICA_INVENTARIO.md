@@ -37,7 +37,7 @@ Queda          = Ingreso total − Venta − Transformación + Cubierta + Correc
 
 Si Queda da menos de 0, la hoja muestra `0 (−N)` y lo marca como emergencia ese día. **El faltante no pasa al día siguiente**: se abre en 0.
 
-Cada fila cuadra sola. Las filas con platos (Pecho, Pierna, Filete, Octavo) muestran debajo una línea **Grupo** con la suma de la fila y sus platos.
+Cada fila cuadra sola. Las filas con platos (Pecho, Pierna, Filete, Octavo) muestran en la tabla el **total del grupo**: la fila más sus platos. Una lupa reparte ese total por producto, y su Ingreso abre un modal para ingresar stock sin transformar. Un pase dentro del grupo aparece en Ingreso y en Transformación, por eso no cambia lo que queda.
 
 ## 3. Problemas encontrados y cómo quedaron
 

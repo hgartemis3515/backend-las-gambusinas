@@ -12,9 +12,9 @@ Cada fila tiene su cuenta. La pantalla la enseña de dos maneras, y las dos son 
 | Número | Dónde se ve | Qué incluye |
 | --- | --- | --- |
 | Queda | Columna Queda, caja de Transformar, lápiz, pestaña Stock y tope del **+** | Lo que hay en esa fila. Es un solo número en toda la pantalla. |
-| Grupo | Línea pequeña bajo Saldo ant., Ingreso total, Venta y Queda | La fila más los platos que cuelgan de ella. El Estado se mide con este número. |
+| Total del grupo | Número principal de Saldo ant., Ingreso, Ingreso total, Transformación y Queda en Pecho, Pierna, Filete y Octavo | La fila más los platos que cuelgan de ella. La lupa muestra cuánto tiene cada uno. El Estado se mide con este número. |
 
-Un pecho con Queda 11 y Grupo 13 tiene 11 de pieza suelta y 2 ya pasados a platos. El **+** solo puede mover los 11.
+Un pecho con Queda 13 en la tabla y 11 en su lupa tiene 11 de pieza suelta y 2 ya pasados a platos. El **+** solo puede mover los 11.
 
 La lógica completa, con sus reglas y los problemas que se corrigieron, está en [LOGICA_INVENTARIO.md](LOGICA_INVENTARIO.md).
 
@@ -262,12 +262,12 @@ Transformar (cada + / − guarda ya: origen −, destino +)
         ↓
 Relación de platos (qué plato come ese producto)
         ↓
-Stock y Queda (de la fila; el grupo va aparte)
+Stock de la pieza (la tabla muestra el total del grupo)
 ```
 
 Ejemplo de un pecho que ya está en la hoja:
 
-1. Pecho de pollo tiene Queda 13. La línea Grupo puede ser más alta si ya hay platos colgando.
+1. Pecho de pollo muestra 13 en la tabla, con sus platos incluidos. La lupa dice cuánto es pieza suelta.
 2. En Transformar se pasan 2 pechos a filete. El stock de hoja del pecho queda en 11. La columna Transformación del pecho muestra −2 y el filete suma el ingreso del factor. Queda del pecho no baja en esos 2, porque ahora viven en el filete y la columna los sigue sumando.
 3. Esos filetes se reparten a milanesa, chaufa u otro plato del grupo, hasta el stock de hoja del filete.
 4. La relación dice cuánto filete come cada plato de la carta.

@@ -1711,6 +1711,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     }
 
     /* ===================================================================== */
+    /* CUADROS DE GRUPO: lupa de reparto e ingreso de stock                  */
+    /* ===================================================================== */
+    .grupo-entra { animation: ventaPanelIn 300ms cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 32ms); }
+    .grupo-barra { height: 4px; border-radius: 999px; background: #26263a; overflow: hidden; }
+    .grupo-barra > span { display: block; height: 100%; border-radius: inherit; background: #d4af37; transform-origin: left; animation: ventaBarraCrece 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .btn-ingreso-grupo { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; min-width: 3.25rem; height: 1.5rem; padding: 0 0.35rem; border-radius: 0.375rem; cursor: pointer; transition: background-color 150ms ease; }
+    .btn-ingreso-grupo:hover, .btn-ingreso-grupo:focus-visible { background: rgba(16, 185, 129, 0.2); }
+    .btn-ingreso-grupo-mas { display: inline-flex; align-items: center; justify-content: center; width: 1rem; height: 1rem; border-radius: 999px; background: #059669; color: #fff; font-size: 0.75rem; line-height: 1; }
+    .ingreso-grupo-input { display: block; width: 100%; margin-top: 0.25rem; padding: 0.45rem 0.6rem; border: 1px solid #2f4f46; border-radius: 0.5rem; background: #0a0a0f; color: #fff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95rem; font-weight: 700; text-align: center; outline: none; transition: border-color 150ms ease, box-shadow 150ms ease; }
+    .ingreso-grupo-input[type="number"] { box-sizing: border-box; width: 100% !important; min-width: 0; max-width: none; }
+    .ingreso-grupo-input::placeholder { color: #5a5a7a; }
+    .ingreso-grupo-input:focus { border-color: #34d399; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2); }
+    .ingreso-grupo-input-grande { padding: 0.65rem 0.75rem; font-size: 1.35rem; }
+    @media (prefers-reduced-motion: reduce) { .grupo-entra, .grupo-barra > span { animation: none; } }
+
+    /* ===================================================================== */
     /* MODAL DE VENTAS (lupa de Venta comandas)                               */
     /* ===================================================================== */
     @keyframes ventaFondoIn { from { opacity: 0; } to { opacity: 1; } }
@@ -2579,34 +2595,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     </div>
                   </td>
                     </template>
-                    <!-- Saldo anterior: solo el stock que ya estaba. El faltante del día se ve en Queda. -->
+                    <!-- Saldo anterior. En un producto con platos es el total del grupo; la lupa lo reparte. -->
                     <td class="col-texto-blanco px-3 py-2.5 py-fila text-center num-mono font-semibold border-r border-[#26263a]/40">
                       <div class="par-tipo-con-accion">
                         <template x-if="row.tieneCocido">
                           <div class="par-tipo">
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-crudo" x-text="etiquetaTipo('crudo', row)"></span>
-                              <span class="par-tipo-num caja-saldo-ant num-mono font-medium" :class="ajusteAperturaFila(row, 'crudo') ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnterior(row, 'crudo')" x-text="textoSaldoAnterior(row, 'crudo')"></span>
+                              <span class="par-tipo-num caja-saldo-ant num-mono font-medium" :class="ajusteAperturaCelda(row, 'crudo') ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnteriorCelda(row, 'crudo')" x-text="formatNum(cifraGrupo(row, 'saldoAnterior', 'crudo'))"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-cocido">Cocido</span>
-                              <span class="par-tipo-num caja-saldo-ant num-mono font-medium" :class="ajusteAperturaFila(row, 'cocido') ? 'text-amber-300' : 'text-amber-200'" :title="tituloSaldoAnterior(row, 'cocido')" x-text="textoSaldoAnterior(row, 'cocido')"></span>
+                              <span class="par-tipo-num caja-saldo-ant num-mono font-medium" :class="ajusteAperturaCelda(row, 'cocido') ? 'text-amber-300' : 'text-amber-200'" :title="tituloSaldoAnteriorCelda(row, 'cocido')" x-text="formatNum(cifraGrupo(row, 'saldoAnterior', 'cocido'))"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-total">Total</span>
-                              <span class="par-tipo-num caja-saldo-ant num-mono font-medium" :class="ajusteAperturaFila(row) ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnterior(row)" x-text="textoSaldoAnterior(row)"></span>
-                            </div>
-                            <div class="par-tipo-linea" x-show="tieneGrupo(row)">
-                              <span class="par-tipo-etiq es-total">Grupo</span>
-                              <span class="par-tipo-num num-mono font-medium text-[#a0a0b8]" title="Saldo anterior de esta fila y sus platos" x-text="formatNum(saldoAnteriorGrupo(row))"></span>
+                              <span class="par-tipo-num caja-saldo-ant num-mono font-medium" :class="ajusteAperturaCelda(row) ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnteriorCelda(row)" x-text="formatNum(cifraGrupo(row, 'saldoAnterior'))"></span>
                             </div>
                           </div>
                         </template>
                         <template x-if="!row.tieneCocido">
                           <div class="text-center">
-                            <span class="par-tipo-num caja-saldo-ant num-mono font-medium" :class="ajusteAperturaFila(row) ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnterior(row)" x-text="textoSaldoAnterior(row)"></span>
-                            <span x-show="tieneGrupo(row)" class="block text-[10px] leading-3 font-mono text-[#a0a0b8] mt-0.5 whitespace-nowrap" title="Saldo anterior de esta fila y sus platos" x-text="'Grupo ' + formatNum(saldoAnteriorGrupo(row))"></span>
+                            <span class="par-tipo-num caja-saldo-ant num-mono font-medium" :class="ajusteAperturaCelda(row) ? 'text-amber-300' : 'text-purple-200'" :title="tituloSaldoAnteriorCelda(row)" x-text="formatNum(cifraGrupo(row, 'saldoAnterior'))"></span>
                           </div>
+                        </template>
+                        <template x-if="tieneGrupo(row)">
+                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-purple-700/60 text-purple-200 bg-[#1c1c2b] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el saldo anterior de cada producto del grupo ' + row.nombre" :title="'Cuánto trae cada producto o plato del grupo'" @click="abrirDesgloseGrupo(row, 'saldoAnterior')"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                         </template>
                       </div>
                     </td>
@@ -2618,8 +2632,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="flex items-center gap-1">
                             <span x-show="row.tieneCocido || row.soloCocido" class="etiq-ingreso" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo, row)"></span>
                             <div class="caja-clara inline-flex items-center gap-1 border rounded-lg p-0.5">
-                              <input type="number" step="any" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
-                              <button type="button" class="btn-lupa-ingreso lupa-cuadro w-6 h-6 rounded-md inline-flex items-center justify-center cursor-pointer shrink-0" :aria-label="'Ver la transformación del ingreso ' + tipo + ' de ' + row.nombre" title="Ver qué se ingresó o se transformó para llegar a este ingreso" @click="abrirOrigenIngreso(row, tipo)">
+                              <template x-if="!tieneGrupo(row)">
+                                <input type="number" step="any" class="num-claro caja-digitos text-center num-mono font-bold text-sm focus:outline-none" :style="'--digitos:' + digitosDe(valorTipo(row, 'ingreso', tipo))" :value="valorTipo(row, 'ingreso', tipo)" :aria-label="'Ingreso ' + tipo + ' de ' + row.nombre" @input="ajustarCajaDigitos($el)" @change="fijarCampo(row.id, 'ingreso', tipo, $event.target.value)">
+                              </template>
+                              <template x-if="tieneGrupo(row)">
+                                <button type="button" class="btn-ingreso-grupo num-claro num-mono font-bold text-sm" :aria-label="'Ingresar stock en el grupo ' + row.nombre" title="Ingresar stock de este producto y sus platos" @click="abrirIngresoGrupo(row)">
+                                  <span x-text="formatNum(cifraCelda(row, 'ingreso', tipo))"></span>
+                                  <span class="btn-ingreso-grupo-mas" aria-hidden="true">+</span>
+                                </button>
+                              </template>
+                              <button type="button" class="btn-lupa-ingreso lupa-cuadro w-6 h-6 rounded-md inline-flex items-center justify-center cursor-pointer shrink-0" :aria-label="'Ver la transformación del ingreso ' + tipo + ' de ' + row.nombre" :title="tieneGrupo(row) ? 'Ver qué se ingresó y qué se transformó en todo el grupo' : 'Ver qué se ingresó o se transformó para llegar a este ingreso'" @click="abrirOrigenIngreso(row, tipo)">
                                 <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                               </button>
                             </div>
@@ -2652,43 +2674,38 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="par-tipo">
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-crudo" x-text="etiquetaTipo('crudo', row)"></span>
-                              <span class="par-tipo-num num-mono font-semibold text-cyan-200" x-text="formatNum(ingresoTotalColumnaTipo(row, 'crudo'))"></span>
+                              <span class="par-tipo-num num-mono font-semibold text-cyan-200" x-text="formatNum(cifraGrupo(row, 'ingresoTotal', 'crudo'))"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-cocido">Cocido</span>
-                              <span class="par-tipo-num num-mono font-semibold text-cyan-300" x-text="formatNum(ingresoTotalColumnaTipo(row, 'cocido'))"></span>
+                              <span class="par-tipo-num num-mono font-semibold text-cyan-300" x-text="formatNum(cifraGrupo(row, 'ingresoTotal', 'cocido'))"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-total">Total</span>
                               <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''">
-                                <span x-text="formatNum(ingresoTotalColumna(row))"></span>
-                                <span x-show="mostrarMasMenosIngreso && (sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0)" class="ingreso-total-flechas">
-                                  <span x-show="sumaIngresoTotalFila(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
-                                  <span x-show="restaIngresoTotalFila(row) > 0" class="badge-flecha-down-roja" :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'">↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
+                                <span x-text="formatNum(cifraGrupo(row, 'ingresoTotal'))"></span>
+                                <span x-show="mostrarMasMenosIngreso && (flechaSumaCelda(row) > 0 || flechaRestaCelda(row) > 0)" class="ingreso-total-flechas">
+                                  <span x-show="flechaSumaCelda(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(flechaSumaCelda(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(flechaSumaCelda(row))"></span></span>
+                                  <span x-show="flechaRestaCelda(row) > 0" class="badge-flecha-down-roja" :title="'Restando −' + formatNum(flechaRestaCelda(row)) + ' del Ingreso Total'">↓<span class="num-mono" x-text="'−' + formatNum(flechaRestaCelda(row))"></span></span>
                                 </span>
                               </span>
                             </div>
-                            <div class="par-tipo-linea" x-show="tieneGrupo(row)">
-                              <span class="par-tipo-etiq es-total">Grupo</span>
-                              <span class="par-tipo-num num-mono font-medium text-[#a0a0b8]" title="Ingreso total de esta fila y sus platos" x-text="formatNum(ingresoTotalGrupo(row))"></span>
-                            </div>
                           </div>
-                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el detalle del ingreso total de ' + row.nombre" title="Saldo anterior + Ingreso, y los platos del grupo" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 text-cyan-200 bg-[#1c1c2b] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el detalle del ingreso total de ' + row.nombre" :title="tieneGrupo(row) ? 'Cuánto tiene cada producto o plato del grupo' : 'Saldo anterior + Ingreso'" @click="tieneGrupo(row) ? abrirDesgloseGrupo(row, 'ingresoTotal') : abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                         </div>
                       </template>
                       <template x-if="!row.tieneCocido">
                         <div class="par-tipo-con-accion">
                           <div class="text-center">
                           <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" title="Saldo anterior + Ingreso">
-                            <span x-text="formatNum(ingresoTotalColumna(row))"></span>
-                            <span x-show="mostrarMasMenosIngreso && (sumaIngresoTotalFila(row) > 0 || restaIngresoTotalFila(row) > 0)" class="ingreso-total-flechas">
-                              <span x-show="sumaIngresoTotalFila(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(sumaIngresoTotalFila(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(sumaIngresoTotalFila(row))"></span></span>
-                              <span x-show="restaIngresoTotalFila(row) > 0" class="badge-flecha-down-roja" :title="'Restando −' + formatNum(restaIngresoTotalFila(row)) + ' del Ingreso Total'">↓<span class="num-mono" x-text="'−' + formatNum(restaIngresoTotalFila(row))"></span></span>
+                            <span x-text="formatNum(cifraGrupo(row, 'ingresoTotal'))"></span>
+                            <span x-show="mostrarMasMenosIngreso && (flechaSumaCelda(row) > 0 || flechaRestaCelda(row) > 0)" class="ingreso-total-flechas">
+                              <span x-show="flechaSumaCelda(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(flechaSumaCelda(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(flechaSumaCelda(row))"></span></span>
+                              <span x-show="flechaRestaCelda(row) > 0" class="badge-flecha-down-roja" :title="'Restando −' + formatNum(flechaRestaCelda(row)) + ' del Ingreso Total'">↓<span class="num-mono" x-text="'−' + formatNum(flechaRestaCelda(row))"></span></span>
                             </span>
                           </span>
-                          <span x-show="tieneGrupo(row)" class="block text-[10px] leading-3 font-mono text-[#a0a0b8] mt-0.5 whitespace-nowrap" title="Ingreso total de esta fila y sus platos" x-text="'Grupo ' + formatNum(ingresoTotalGrupo(row))"></span>
                           </div>
-                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 bg-[#1c1c2b] text-cyan-200 inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el detalle del ingreso total de ' + row.nombre" title="Saldo anterior + Ingreso, y los platos del grupo" @click="abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+                          <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 text-cyan-200 bg-[#1c1c2b] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el detalle del ingreso total de ' + row.nombre" :title="tieneGrupo(row) ? 'Cuánto tiene cada producto o plato del grupo' : 'Saldo anterior + Ingreso'" @click="tieneGrupo(row) ? abrirDesgloseGrupo(row, 'ingresoTotal') : abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                         </div>
                       </template>
                     </td>
@@ -2712,11 +2729,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <button
                           type="button"
                           @click="irATransformar(row)"
-                          :class="totalTransformacionFila(row) > 0 ? 'caja-transformacion-resta px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer' : 'caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer hover:border-[#d4af37]'"
-                          :title="totalTransformacionFila(row) > 0 ? ('Se transformaron ' + formatNum(totalTransformacionFila(row)) + ' ' + (row.unidad || 'unid') + ' (se resta del Ingreso Total para dar el Saldo). Clic para ver gráfico simétrico vertical.') : 'Sin salida por transformación hoy. Clic para ver detalle.'"
+                          :class="cifraGrupo(row, 'transformacion') > 0 ? 'caja-transformacion-resta px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer' : 'caja-clara inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition cursor-pointer hover:border-[#d4af37]'"
+                          :title="cifraGrupo(row, 'transformacion') > 0 ? ('Se transformaron ' + formatNum(cifraGrupo(row, 'transformacion')) + ' ' + (row.unidad || 'unid') + ' (se resta del Ingreso Total para dar el Saldo). Clic para ver gráfico simétrico vertical.') : 'Sin salida por transformación hoy. Clic para ver detalle.'"
                         >
                           <!-- Flecha que indica que está restando del saldo -->
-                          <span x-show="totalTransformacionFila(row) > 0" class="flecha-resta-anim" aria-hidden="true">
+                          <span x-show="cifraGrupo(row, 'transformacion') > 0" class="flecha-resta-anim" aria-hidden="true">
                             <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                               <path d="M12 4v16"></path>
                               <path d="m18 14-6 6-6-6"></path>
@@ -2724,8 +2741,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           </span>
                           <span
                             class="num-mono font-extrabold text-sm"
-                            :class="totalTransformacionFila(row) > 0 ? 'text-white' : 'text-[#111111]'"
-                            x-text="totalTransformacionFila(row) > 0 ? ('−' + formatNum(totalTransformacionFila(row))) : '0'"
+                            :class="cifraGrupo(row, 'transformacion') > 0 ? 'text-white' : 'text-[#111111]'"
+                            x-text="cifraGrupo(row, 'transformacion') > 0 ? ('−' + formatNum(cifraGrupo(row, 'transformacion'))) : '0'"
                           ></span>
                         </button>
 
@@ -2733,7 +2750,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <button
                           type="button"
                           @click.stop="irATransformar(row)"
-                          :class="totalTransformacionFila(row) > 0 ? 'btn-lupa-roja' : 'btn-lupa-roja-suave'"
+                          :class="cifraGrupo(row, 'transformacion') > 0 ? 'btn-lupa-roja' : 'btn-lupa-roja-suave'"
                           class="w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
                           :aria-label="'Ver gráfico de transformación de ' + row.nombre"
                           :title="'Ver qué se transformó de ' + row.nombre + ', en qué cortes/platos se convirtió y cuánto queda'"
@@ -2752,7 +2769,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <template x-for="tipo in tiposDe(row)" :key="row.id + '-sal-' + tipo">
                           <div class="flex items-center gap-1">
                             <span x-show="row.tieneCocido || row.soloCocido" class="text-[9px] font-bold" :class="tipo === 'cocido' ? 'text-[#d4af37]' : 'text-emerald-300'" x-text="etiquetaTipo(tipo, row)"></span>
-                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(row.tieneCocido ? saldoColumnaTipo(row, tipo) : saldoColumna(row))"></span>
+                            <span class="total-cell-base num-mono font-extrabold text-[#d4af37] bg-[#d4af37]/15 border-[#d4af37]/40" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" x-text="formatNum(cifraCelda(row, 'saldo', tipo))"></span>
                           </div>
                         </template>
                       </div>
@@ -2784,19 +2801,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="par-tipo">
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-crudo" x-text="etiquetaTipo('crudo', row)"></span>
-                              <span class="par-tipo-num num-mono font-bold" :class="emergenciaTipo(row, 'crudo') ? 'saldo-anterior-alarma' : 'text-teal-300'" :title="tituloQueda(row, 'crudo')" x-text="textoQueda(row, 'crudo')"></span>
+                              <span class="par-tipo-num  num-mono font-bold" :class="emergenciaCelda(row, 'crudo') ? 'saldo-anterior-alarma' : 'text-teal-300'" :title="tituloQuedaCelda(row, 'crudo')" x-text="textoQuedaCelda(row, 'crudo')"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-cocido">Cocido</span>
-                              <span class="par-tipo-num num-mono font-bold" :class="emergenciaTipo(row, 'cocido') ? 'saldo-anterior-alarma' : 'text-teal-200'" :title="tituloQueda(row, 'cocido')" x-text="textoQueda(row, 'cocido')"></span>
+                              <span class="par-tipo-num  num-mono font-bold" :class="emergenciaCelda(row, 'cocido') ? 'saldo-anterior-alarma' : 'text-teal-200'" :title="tituloQuedaCelda(row, 'cocido')" x-text="textoQuedaCelda(row, 'cocido')"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-total">Total</span>
-                              <span class="par-tipo-num total-cell-base num-mono font-bold text-teal-200" :class="[updatedRows[row.id] ? 'total-gold-flash' : '', emergenciaFila(row) ? 'saldo-anterior-alarma' : '']" :title="tituloQueda(row)" x-text="textoQueda(row)"></span>
-                            </div>
-                            <div class="par-tipo-linea" x-show="tieneGrupo(row)">
-                              <span class="par-tipo-etiq es-total">Grupo</span>
-                              <span class="par-tipo-num num-mono font-medium text-[#a0a0b8]" title="Lo que queda en esta fila y sus platos" x-text="formatNum(quedaGrupo(row))"></span>
+                              <span class="par-tipo-num total-cell-base text-teal-200 num-mono font-bold" :class="[updatedRows[row.id] ? 'total-gold-flash' : '', emergenciaCelda(row) ? 'saldo-anterior-alarma' : '']" :title="tituloQuedaCelda(row)" x-text="textoQuedaCelda(row)"></span>
                             </div>
                           </div>
                         </template>
@@ -2804,20 +2817,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="par-tipo">
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq" aria-hidden="true"></span>
-                              <span class="par-tipo-num total-cell-base num-mono font-bold text-teal-200" :class="[updatedRows[row.id] ? 'total-gold-flash' : '', emergenciaFila(row) ? 'saldo-anterior-alarma' : '']" :title="tituloQueda(row)" x-text="textoQueda(row)"></span>
-                            </div>
-                            <div class="par-tipo-linea" x-show="tieneGrupo(row)">
-                              <span class="par-tipo-etiq es-total">Grupo</span>
-                              <span class="par-tipo-num num-mono font-medium text-[#a0a0b8]" title="Lo que queda en esta fila y sus platos" x-text="formatNum(quedaGrupo(row))"></span>
+                              <span class="par-tipo-num total-cell-base text-teal-200 num-mono font-bold" :class="[updatedRows[row.id] ? 'total-gold-flash' : '', emergenciaCelda(row) ? 'saldo-anterior-alarma' : '']" :title="tituloQuedaCelda(row)" x-text="textoQuedaCelda(row)"></span>
                             </div>
                           </div>
                         </template>
                         <button
                           type="button"
-                          @click.stop="abrirModalProcedimientoSaldoReal(row)"
+                          @click.stop="tieneGrupo(row) ? abrirDesgloseGrupo(row, 'queda') : abrirModalProcedimientoSaldoReal(row)"
                           class="btn-lupa-saldo-real w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
                           :aria-label="'Ver procedimiento de Saldo Real de ' + row.nombre"
-                          :title="'Ver todo el procedimiento de sumas y restas para llegar al Saldo Real de ' + row.nombre + ' en el período seleccionado'"
+                          :title="tieneGrupo(row) ? ('Cuánto queda en cada producto o plato de ' + row.nombre) : ('Ver todo el procedimiento de sumas y restas para llegar al Saldo Real de ' + row.nombre + ' en el período seleccionado')"
                         >
                           <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="11" cy="11" r="7"></circle>
@@ -8671,6 +8680,133 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     </div>
   </template>
 
+  <!-- Lupa de un cuadro de grupo: cuánto aporta cada producto o plato -->
+  <template x-if="desgloseGrupo">
+    <div class="venta-fondo fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-3 sm:p-4" :class="modalGrupoCerrando ? 'cerrando' : ''" @click.self="cerrarModalGrupo('desgloseGrupo')" @keydown.escape.window="cerrarModalGrupo('desgloseGrupo')" role="dialog" aria-modal="true" :aria-label="desgloseGrupo.titulo + ' de ' + desgloseGrupo.nombre" data-testid="modal-desglose-grupo">
+      <div class="venta-panel w-full max-w-lg max-h-[90vh] flex flex-col bg-[#14141f] border border-[#d4af37]/60 rounded-2xl overflow-hidden shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
+        <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-[#26263a]">
+          <div class="min-w-0">
+            <p class="text-[11px] uppercase tracking-wider font-bold text-[#d4af37]" x-text="desgloseGrupo.titulo + ' del grupo'"></p>
+            <h3 class="text-xl font-extrabold text-white truncate" x-text="desgloseGrupo.nombre"></h3>
+            <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="desgloseGrupo.ayuda"></p>
+          </div>
+          <button type="button" class="shrink-0 w-8 h-8 rounded-lg text-[#a0a0b8] hover:text-white hover:bg-[#26263a] text-xl leading-none cursor-pointer" @click="cerrarModalGrupo('desgloseGrupo')" aria-label="Cerrar">×</button>
+        </div>
+        <div class="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+          <template x-for="(f, i) in desgloseGrupo.filas" :key="'desglose-' + f.id">
+            <div class="grupo-entra rounded-xl border px-3 py-2" :class="f.propio ? 'border-[#d4af37]/50 bg-[#d4af37]/10' : 'border-[#26263a] bg-[#0e0e16]'" :style="'--i:' + Math.min(i, 12)">
+              <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-white truncate" x-text="f.nombre"></p>
+                  <p x-show="f.tieneCocido && f.tieneCrudo" class="text-[11px] font-mono text-[#a0a0b8]" x-text="'Crudo ' + formatNum(f.crudo) + ' · Cocido ' + formatNum(f.cocido)"></p>
+                  <p x-show="f.tieneCocido && !f.tieneCrudo" class="text-[11px] font-mono text-[#a0a0b8]">Cocido</p>
+                </div>
+                <span class="text-lg font-mono font-extrabold shrink-0" :class="f.total ? 'text-white' : 'text-[#5a5a7a]'" x-text="formatNum(f.total)"></span>
+              </div>
+              <div class="grupo-barra mt-1.5" aria-hidden="true"><span :style="'width:' + f.porcentaje + '%'"></span></div>
+            </div>
+          </template>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-[#26263a] bg-[#0b0b12]">
+          <p class="text-sm text-[#a0a0b8]">Total del grupo <strong class="ml-1 text-xl font-mono font-extrabold text-[#d4af37]" x-text="formatNum(desgloseGrupo.total) + ' ' + desgloseGrupo.unidad"></strong></p>
+          <button type="button" x-show="desgloseGrupo.accion" class="px-3 py-2 rounded-lg border border-[#d4af37]/60 text-[#d4af37] text-xs font-bold cursor-pointer hover:bg-[#d4af37]/10" @click="accionDesgloseGrupo()" x-text="desgloseGrupo.accion"></button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Ingresar stock nuevo en un producto con grupo. No transforma ni resta de otro producto. -->
+  <template x-if="ingresoGrupo">
+    <div class="venta-fondo fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-3 sm:p-4" :class="modalGrupoCerrando ? 'cerrando' : ''" @click.self="totalIngresoGrupo() || cerrarModalGrupo('ingresoGrupo')" @keydown.escape.window="cerrarModalGrupo('ingresoGrupo')" role="dialog" aria-modal="true" :aria-label="'Ingresar stock de ' + ingresoGrupo.nombre" data-testid="modal-ingreso-grupo">
+      <form class="venta-panel w-full max-w-2xl max-h-[92vh] flex flex-col bg-[#14141f] border border-emerald-500/60 rounded-2xl overflow-hidden shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]" @submit.prevent="guardarIngresoGrupo()">
+        <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-[#26263a] bg-gradient-to-b from-emerald-950/40 to-[#14141f]">
+          <div class="min-w-0">
+            <p class="text-[11px] uppercase tracking-wider font-bold text-emerald-300">Ingresar stock</p>
+            <h3 class="text-xl font-extrabold text-white truncate" x-text="ingresoGrupo.nombre"></h3>
+            <p class="text-xs text-[#a0a0b8] mt-0.5">Escribe lo que entra. Se suma a lo que hay y no resta de ningún otro producto.</p>
+            <p x-show="ingresoGrupo.diaPasado" class="text-xs text-amber-200 mt-1">Estás viendo un día pasado: se guardará al cierre de ese día.</p>
+          </div>
+          <button type="button" class="shrink-0 w-8 h-8 rounded-lg text-[#a0a0b8] hover:text-white hover:bg-[#26263a] text-xl leading-none cursor-pointer" @click="cerrarModalGrupo('ingresoGrupo')" aria-label="Cerrar">×</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <template x-for="l in ingresoGrupo.lineas.filter((x) => x.principal)" :key="'ing-principal-' + l.id">
+            <section class="grupo-entra ingreso-principal rounded-xl border-2 border-[#d4af37]/70 bg-[#d4af37]/10 p-4" style="--i:0">
+              <div class="flex items-baseline justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-[10px] uppercase font-extrabold tracking-wide text-[#d4af37]">Producto principal</p>
+                  <p class="text-lg font-extrabold text-white truncate" x-text="l.nombre"></p>
+                </div>
+                <p class="text-xs text-[#a0a0b8] shrink-0">Hay <strong class="font-mono text-white" x-text="formatNum(l.hay)"></strong></p>
+              </div>
+              <div class="mt-3 grid gap-3" :class="l.cuadros.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
+                <template x-for="c in l.cuadros" :key="c.key">
+                  <label class="block text-xs font-bold text-emerald-200"><span x-text="c.etiqueta"></span>
+                    <input type="number" min="0" step="any" inputmode="decimal" placeholder="0" class="ingreso-grupo-input ingreso-grupo-input-grande" :aria-label="'Ingresar ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
+                    <span x-show="c.ya" class="block mt-1 font-normal text-[11px] text-[#a0a0b8]" x-text="'Ya ingresaste ' + formatNum(c.ya)"></span>
+                  </label>
+                </template>
+              </div>
+            </section>
+          </template>
+
+          <section x-show="ingresoGrupo.lineas.length > 1">
+            <p class="text-xs font-extrabold uppercase tracking-wide text-[#a0a0b8] mb-2">Otros productos y platos del grupo</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <template x-for="(l, i) in ingresoGrupo.lineas.filter((x) => !x.principal)" :key="'ing-plato-' + l.id">
+                <div class="grupo-entra rounded-xl border border-[#26263a] bg-[#0e0e16] p-3" :style="'--i:' + Math.min(i + 1, 12)">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <p class="text-sm font-bold text-white truncate" :title="l.nombre" x-text="l.nombre"></p>
+                    <p class="text-[11px] text-[#a0a0b8] shrink-0">Hay <strong class="font-mono text-white" x-text="formatNum(l.hay)"></strong></p>
+                  </div>
+                  <div class="mt-2 grid gap-2" :class="l.cuadros.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
+                    <template x-for="c in l.cuadros" :key="c.key">
+                      <label class="block text-[11px] font-semibold text-emerald-200"><span x-text="c.etiqueta"></span>
+                        <input type="number" min="0" step="any" inputmode="decimal" placeholder="0" class="ingreso-grupo-input" :aria-label="'Ingresar ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
+                        <span x-show="c.ya" class="block mt-1 font-normal text-[10px] text-[#a0a0b8]" x-text="'Ya ingresaste ' + formatNum(c.ya)"></span>
+                      </label>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </section>
+
+          <section class="rounded-xl border border-orange-500/30 bg-orange-950/15 p-3">
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <p class="text-xs font-extrabold uppercase tracking-wide text-orange-200">Ya transformado</p>
+              <p class="text-[11px] font-mono text-[#a0a0b8]" x-text="'Entró ' + formatNum(ingresoGrupo.transformadoEntra) + ' · Salió ' + formatNum(ingresoGrupo.transformadoSale)"></p>
+            </div>
+            <p class="text-[11px] text-[#a0a0b8] mt-0.5">Solo para consultar. Se maneja en la sección Transformar.</p>
+            <p x-show="!ingresoGrupo.transformaciones.length" class="text-xs text-[#5a5a7a] mt-2">Sin transformaciones en este período.</p>
+            <div x-show="ingresoGrupo.transformaciones.length" class="mt-2 space-y-1">
+              <template x-for="(x, i) in ingresoGrupo.transformaciones" :key="'ing-tr-' + i">
+                <div class="flex items-center justify-between gap-3 text-xs">
+                  <span class="text-[#c8c8dc] min-w-0 truncate" :title="x.texto" x-text="x.texto"></span>
+                  <span class="font-mono font-bold shrink-0" :class="x.cantidad < 0 ? 'text-rose-200' : 'text-orange-200'" x-text="(x.cantidad > 0 ? '+' : '−') + formatNum(Math.abs(x.cantidad))"></span>
+                </div>
+              </template>
+            </div>
+          </section>
+        </div>
+
+        <div class="px-5 py-3 border-t border-[#26263a] bg-[#0b0b12] space-y-2">
+          <p x-show="ingresoGrupo.error" class="text-xs font-semibold text-rose-300" role="alert" x-text="ingresoGrupo.error"></p>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="text-xs text-[#a0a0b8] leading-tight">
+              <p>Vas a ingresar <strong class="text-lg font-mono font-extrabold text-emerald-300" x-text="formatNum(totalIngresoGrupo())"></strong></p>
+              <p class="font-mono" x-text="ingresoGrupo ? ('Stock del grupo: ' + formatNum(ingresoGrupo.stockAntes) + ' → ' + formatNum(redondear3(ingresoGrupo.stockAntes + totalIngresoGrupo()))) : ''"></p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" class="px-4 py-2 rounded-lg bg-[#1c1c2b] text-white text-sm font-semibold cursor-pointer" @click="cerrarModalGrupo('ingresoGrupo')">Cancelar</button>
+              <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-500 text-[#04130d] text-sm font-extrabold cursor-pointer disabled:opacity-40 disabled:cursor-default" :disabled="!totalIngresoGrupo()">Ingresar stock</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </template>
+
   <template x-if="ingresoLupa">
     <div class="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4" @click.self="ingresoLupa = null" @keydown.escape.window="ingresoLupa = null" role="dialog" aria-modal="true" aria-label="Ingreso total">
       <div class="modal-platos-entra w-full bg-[#14141f] border border-cyan-700 p-5 max-h-[90vh] overflow-y-auto rounded-xl" :class="ingresoLupa.esOctavo ? 'max-w-3xl' : 'max-w-lg'">
@@ -9755,7 +9891,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <span class="proc-cuadre-icono" aria-hidden="true" x-text="saldoRealInfo.cuadra ? '✓' : '!'"></span>
             <p class="text-xs">
               <strong class="text-white" x-text="saldoRealInfo.cuadra ? 'Cuadra con Inventario Tabla.' : 'Hay una diferencia con Inventario Tabla.'"></strong>
-              <span class="text-[#a0a0b8]" x-text="saldoRealInfo.hayPlatos ? 'Cada paso es de esta fila, igual que las columnas. Sus platos están abajo.' : 'Cada paso usa los mismos números que las columnas de la hoja.'"></span>
+              <span class="text-[#a0a0b8]" x-text="saldoRealInfo.hayPlatos ? 'Cada paso es solo de esta fila. La tabla muestra el total del grupo y sus platos están abajo.' : 'Cada paso usa los mismos números que las columnas de la hoja.'"></span>
             </p>
           </div>
 
@@ -11055,6 +11191,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ventaDesdeReporte: false,
         ventaEliminando: false,
         ingresoLupa: null,
+        desgloseGrupo: null,
+        ingresoGrupo: null,
+        modalGrupoCerrando: false,
         ventaManualAbierta: false,
         ventaManualFila: null,
         ventaManualCantidad: 1,
@@ -11942,6 +12081,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (this.esPaseEntreTipos(m)) return m.indexOf('Pasa de ') === 0 ? ('Llegó por pase: ' + m) : ('Salió por pase: ' + m);
           if (m.indexOf('Ingreso de emergencia') === 0) return 'Ingreso de emergencia';
           if (m.indexOf('Ingreso directo') === 0) return 'Ingreso anotado en la hoja';
+          if (m.indexOf('Ingreso independiente ') === 0) return 'Ingreso de stock (' + m.slice('Ingreso independiente '.length) + ')';
           if (m.indexOf('Ingreso ') === 0) return 'Ingreso anotado (' + m.slice('Ingreso '.length) + ')';
           return m || 'Ingreso';
         },
@@ -11952,27 +12092,34 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return 'ingreso';
         },
 
-        abrirOrigenIngreso(row, tipo) {
-          if (!row) return;
-          const tipoOk = tipo === 'cocido' ? 'cocido' : 'crudo';
-          const tiposMov = (row.soloCocido || !row.tieneCocido) ? ['crudo', 'cocido'] : [tipoOk];
-          const clave = this.claveDeFila[row.id];
+        // Qué se ingresó y qué se transformó. En un producto con platos cubre todo el grupo.
+        origenIngresoDe(row, tipo) {
+          const soloTipo = tipo && row.tieneCocido && !row.soloCocido ? (tipo === 'cocido' ? 'cocido' : 'crudo') : '';
+          const filaDe = {};
+          this.filasDelGrupo(row).forEach((f) => {
+            const clave = this.claveDeFila[f.id];
+            if (clave) filaDe[clave] = f;
+          });
           const grupos = new Map();
           (this.movimientosPeriodo || []).forEach((m) => {
-            if (!m || m.clase !== 'ingreso' || !clave || m.rubro !== clave) return;
+            const fila = m && filaDe[m.rubro];
+            if (!fila || m.clase !== 'ingreso') return;
             const tp = m.tipoProducto === 'cocido' ? 'cocido' : 'crudo';
-            if (tiposMov.indexOf(tp) === -1) return;
+            const tiposFila = this.tiposDe(fila);
+            const cubeta = tiposFila.indexOf(tp) !== -1 ? tp : tiposFila[0];
+            if (soloTipo && cubeta !== soloTipo) return;
             const motivo = String(m.motivo || '');
-            if (motivo.indexOf('Saldo anterior') === 0) return;
+            if (this.esMotivoApertura(motivo)) return;
             if (motivo.indexOf('Pasa a ') === 0 && !this.esPaseEntreTipos(motivo)) return;
             const n = Number(m.cantidad) || 0;
             if (!n) return;
             const clase = this.claseOrigenIngreso(motivo);
-            const key = clase + '|' + motivo;
+            const key = clase + '|' + m.rubro + '|' + motivo;
             const t = new Date(m.fecha).getTime();
             let g = grupos.get(key);
             if (!g) {
-              g = { clase: clase, texto: this.textoOrigenIngreso(motivo), cantidad: 0, veces: 0, fecha: 0 };
+              const texto = this.textoOrigenIngreso(motivo);
+              g = { clase: clase, texto: fila.id === row.id ? texto : (fila.nombre + ': ' + texto), cantidad: 0, veces: 0, fecha: 0 };
               grupos.set(key, g);
             }
             g.cantidad = this.redondear3(g.cantidad + n);
@@ -11987,15 +12134,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             hora: g.fecha ? this.horaVenta(g.fecha) : ''
           }));
           const suma = (clase) => this.redondear3(lineas.reduce((a, l) => a + (l.clase === clase ? l.cantidad : 0), 0));
-          this.origenIngreso = {
+          return {
             nombre: row.nombre,
-            etiqueta: this.etiquetaTipo(tipoOk, row),
+            etiqueta: tipo ? this.etiquetaTipo(tipo === 'cocido' ? 'cocido' : 'crudo', row) : 'Total',
             unidad: row.unidad || 'unid',
-            total: this.valorTipo(row, 'ingreso', tipoOk),
+            total: this.cifraCelda(row, 'ingreso', tipo),
             transformado: suma('transformacion'),
             anotado: suma('ingreso'),
             lineas: lineas
           };
+        },
+
+        abrirOrigenIngreso(row, tipo) {
+          if (!row) return;
+          this.origenIngreso = this.origenIngresoDe(row, tipo);
         },
 
         lineaEsDePecho(rubro, nombre) {
@@ -15743,7 +15895,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(this.tiposDe(row).reduce((a, t) => a + this.calcIngresoTotalTipo(row, t), 0));
         },
 
-        // Platos que cuelgan de esta fila. Las columnas son de la fila; la línea «Grupo» suma estos.
+        // Platos que cuelgan de esta fila. Sus columnas propias siguen siendo de la fila;
+        // la tabla muestra arriba la suma de la fila y estos platos.
         miembrosGrupo(row) {
           if (!row || this.filaSaldoSolo(row) || this.filaPachamancaIndependiente(row)) return [];
           return this.filasTransformacionDe(row);
@@ -15771,6 +15924,215 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         quedaGrupo(row) {
           return this.sumaGrupo(row, (f) => this.saldoRealColumna(f));
+        },
+
+        filasDelGrupo(row) {
+          return [row].concat(this.miembrosGrupo(row));
+        },
+
+        leerColumnaGrupo(columna, fila, tipo) {
+          if (columna === 'saldoAnterior') return this.saldoAnteriorColumnaTipo(fila, tipo);
+          if (columna === 'ingresoTotal') return this.calcIngresoTotalTipo(fila, tipo);
+          if (columna === 'saldo') return this.calcSaldoTipo(fila, tipo);
+          if (columna === 'queda') return this.saldoRealColumnaTipo(fila, tipo);
+          return this.valorTipo(fila, columna, tipo);
+        },
+
+        tiposDelCuadro(fila, tipo) {
+          return this.tiposDe(fila).filter((t) => !tipo || t === tipo);
+        },
+
+        // Lo que muestra un cuadro de la tabla. Sin platos es el número de la fila;
+        // con platos, la suma del grupo. Sin tipo suma crudo y cocido.
+        cifraGrupo(row, columna, tipo) {
+          return this.redondear3(this.filasDelGrupo(row).reduce((suma, fila) => (
+            suma + this.tiposDelCuadro(fila, tipo).reduce((a, t) => a + this.leerColumnaGrupo(columna, fila, t), 0)
+          ), 0));
+        },
+
+        cifraCelda(row, columna, tipo) {
+          return this.cifraGrupo(row, columna, row && row.tieneCocido ? tipo : undefined);
+        },
+
+        flechaSumaCelda(row) {
+          return this.sumaGrupo(row, (f) => this.sumaIngresoTotalFila(f));
+        },
+
+        flechaRestaCelda(row) {
+          return this.sumaGrupo(row, (f) => this.restaIngresoTotalFila(f));
+        },
+
+        ajusteAperturaCelda(row, tipo) {
+          return this.redondear3(this.filasDelGrupo(row).reduce((suma, fila) => (
+            suma + this.tiposDelCuadro(fila, tipo).reduce((a, t) => a + this.valorTipo(fila, 'ajusteApertura', t), 0)
+          ), 0));
+        },
+
+        tituloSaldoAnteriorCelda(row, tipo) {
+          if (!this.tieneGrupo(row)) return this.tituloSaldoAnterior(row, tipo);
+          const ajuste = this.ajusteAperturaCelda(row, tipo);
+          const texto = 'Saldo anterior de ' + row.nombre + ' y su grupo.';
+          return ajuste ? texto + ' Incluye un ajuste de apertura de ' + (ajuste > 0 ? '+' : '−') + this.formatNum(Math.abs(ajuste)) + '.' : texto;
+        },
+
+        faltanteCelda(row, tipo) {
+          return this.redondear3(this.filasDelGrupo(row).reduce((suma, fila) => {
+            if (this.esFilaPapas(fila)) return suma;
+            return suma + this.tiposDelCuadro(fila, tipo).reduce((a, t) => a + Math.min(0, this.quedaSinTopeTipo(fila, t)), 0);
+          }, 0));
+        },
+
+        emergenciaCelda(row, tipo) {
+          return this.faltanteCelda(row, tipo) < -0.0004;
+        },
+
+        textoQuedaCelda(row, tipo) {
+          if (!this.tieneGrupo(row)) return this.textoQueda(row, tipo);
+          const total = this.formatNum(this.cifraGrupo(row, 'queda', tipo));
+          return this.emergenciaCelda(row, tipo) ? total + ' (' + this.formatNum(this.faltanteCelda(row, tipo)) + ')' : total;
+        },
+
+        tituloQuedaCelda(row, tipo) {
+          if (!this.tieneGrupo(row)) return this.tituloQueda(row, tipo);
+          if (!this.emergenciaCelda(row, tipo)) return 'Lo que queda en ' + row.nombre + ' y su grupo';
+          return 'Emergencia en el grupo: faltan ' + this.formatNum(Math.abs(this.faltanteCelda(row, tipo))) + '. Resuélvelo en Descuadre.';
+        },
+
+        abrirDesgloseGrupo(row, columna) {
+          if (!row || !this.tieneGrupo(row)) return;
+          const textos = {
+            saldoAnterior: { titulo: 'Saldo anterior', ayuda: 'Lo que cada uno traía del día anterior.', accion: '' },
+            ingresoTotal: { titulo: 'Ingreso total', ayuda: 'Saldo anterior + ingreso de cada uno.', accion: 'Ver detalle del ingreso' },
+            queda: { titulo: 'Queda', ayuda: 'Lo que hay ahora en cada uno.', accion: 'Ver procedimiento' }
+          }[columna];
+          if (!textos) return;
+          const partes = this.partesFamilia(this.filasDelGrupo(row), row, (f, t) => this.leerColumnaGrupo(columna, f, t), true);
+          const filas = partes.filter((p) => p.propio).concat(partes.filter((p) => !p.propio).sort((a, b) => b.total - a.total || String(a.nombre).localeCompare(String(b.nombre), 'es')));
+          const mayor = filas.reduce((a, p) => Math.max(a, Math.abs(p.total)), 0);
+          filas.forEach((p) => { p.porcentaje = mayor ? Math.round(Math.abs(p.total) * 100 / mayor) : 0; });
+          this.modalGrupoCerrando = false;
+          this.desgloseGrupo = Object.assign({}, textos, {
+            id: row.id,
+            columna,
+            nombre: row.nombre,
+            unidad: row.unidad || 'unid',
+            total: this.cifraGrupo(row, columna),
+            filas
+          });
+          this.sonarVenta('abrir');
+        },
+
+        accionDesgloseGrupo() {
+          const info = this.desgloseGrupo;
+          const row = info && this.filaReal(info.id);
+          this.desgloseGrupo = null;
+          if (!row) return;
+          if (info.columna === 'ingresoTotal') this.abrirIngresoLupa(row);
+          if (info.columna === 'queda') this.abrirModalProcedimientoSaldoReal(row);
+        },
+
+        cerrarModalGrupo(prop) {
+          const info = this[prop];
+          if (!info || this.modalGrupoCerrando) return;
+          this.sonarVenta('cerrar');
+          const reducido = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (reducido) {
+            this[prop] = null;
+            return;
+          }
+          this.modalGrupoCerrando = true;
+          setTimeout(() => {
+            this[prop] = null;
+            this.modalGrupoCerrando = false;
+          }, 170);
+        },
+
+        // Cada cuadro guarda igual que los ingresos de Transformar, para que ambas pantallas coincidan.
+        lineaIngresoGrupo(fila, row) {
+          const tipos = this.tiposDe(fila);
+          const cuadro = (tipo, corte, etiqueta) => ({
+            key: fila.id + '|' + tipo + '|' + (corte || ''),
+            tipo,
+            corte,
+            etiqueta,
+            ya: this.ingresoDirectoPeriodo(fila.id, tipo, corte),
+            valor: ''
+          });
+          const cuadros = [];
+          if (this.esFilaOctavo(row)) {
+            ['piernas', 'pechugas'].forEach((corte) => tipos.forEach((tipo) => {
+              const nombre = corte === 'piernas' ? 'Pierna' : 'Pecho';
+              cuadros.push(cuadro(tipo, corte, tipos.length > 1 || tipo === 'cocido' ? nombre + ' ' + tipo : nombre));
+            }));
+          } else {
+            tipos.forEach((tipo) => cuadros.push(cuadro(tipo, undefined, this.etiquetaTipo(tipo, fila))));
+          }
+          return { id: fila.id, nombre: fila.nombre, principal: fila.id === row.id, hay: this.saldoRealColumna(fila), cuadros };
+        },
+
+        abrirIngresoGrupo(row) {
+          if (!row || !this.tieneGrupo(row)) return;
+          const origen = this.origenIngresoDe(row);
+          this.modalGrupoCerrando = false;
+          this.ingresoGrupo = {
+            id: row.id,
+            nombre: row.nombre,
+            lineas: this.filasDelGrupo(row).filter((f) => this.claveDeFila[f.id]).map((f) => this.lineaIngresoGrupo(f, row)),
+            stockAntes: this.cifraGrupo(row, 'queda'),
+            transformaciones: origen.lineas.filter((l) => l.clase === 'transformacion'),
+            transformadoEntra: origen.transformado,
+            transformadoSale: this.cifraGrupo(row, 'transformacion'),
+            diaPasado: !!this.fechaCierreVista(),
+            error: ''
+          };
+          this.sonarVenta('abrir');
+          if (this.$nextTick) this.$nextTick(() => {
+            const campo = typeof document !== 'undefined' && document.querySelector('[data-testid="modal-ingreso-grupo"] input');
+            if (campo) campo.focus({ preventScroll: true });
+          });
+        },
+
+        cantidadIngresoGrupo(cuadro) {
+          const n = Number(cuadro && cuadro.valor);
+          return Number.isFinite(n) && n > 0 ? this.redondear3(n) : 0;
+        },
+
+        totalIngresoGrupo() {
+          const info = this.ingresoGrupo;
+          if (!info) return 0;
+          return this.redondear3(info.lineas.reduce((suma, l) => suma + l.cuadros.reduce((a, c) => a + this.cantidadIngresoGrupo(c), 0), 0));
+        },
+
+        guardarIngresoGrupo() {
+          const info = this.ingresoGrupo;
+          if (!info) return false;
+          if (info.lineas.some((l) => l.cuadros.some((c) => Number(c.valor) < 0))) {
+            info.error = 'Escribe solo cantidades positivas. Para bajar stock usa el lápiz.';
+            return false;
+          }
+          const total = this.totalIngresoGrupo();
+          if (!total) {
+            info.error = 'Escribe al menos una cantidad.';
+            return false;
+          }
+          info.error = '';
+          let guardado = 0;
+          info.lineas.forEach((linea) => linea.cuadros.forEach((cuadro) => {
+            const n = this.cantidadIngresoGrupo(cuadro);
+            const ctx = n && this.contextoIngresoDirecto(linea.id, cuadro.tipo, cuadro.corte);
+            if (!ctx || !this.aplicarVariacionIngreso(ctx, n, 0)) return;
+            // Ya guardado: si otro cuadro no se puede, reintentar no lo repite.
+            guardado = this.redondear3(guardado + n);
+            cuadro.valor = '';
+          }));
+          if (guardado !== total) {
+            info.error = 'No se pudo ingresar lo que quedó escrito.';
+            return false;
+          }
+          this.ingresoGrupo = null;
+          this.toastMessage = 'Se ingresaron ' + this.formatNum(total) + ' en ' + info.nombre + '.';
+          this.sonarVenta('filtro');
+          return true;
         },
 
         saldoColumnaTipo(row, tipo) {
@@ -17831,6 +18193,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const faltante = colQueda > calculado + 0.0005 ? this.redondear3(colQueda - calculado) : 0;
           const familia = this.quedaGrupo(row);
           const hayPlatos = this.tieneGrupo(row);
+          const etiquetaColumna = (nombre) => (hayPlatos ? 'Solo esta fila, ' : 'Columna ') + nombre;
           const contados = this.tiposDe(row).filter((t) => this.conteoTipo(row, t) !== null);
           const cortesQueda = this.cortesDeSaldoOctavo(marcasOctavo && marcasOctavo.queda, colQueda);
           const esOctavo = filaOctavo || this.esPlatoOctavo(row);
@@ -17857,7 +18220,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               crudo: sAnt.crudo, cocido: sAnt.cocido,
               partes: pAnt,
               cortes: this.cortesDeSaldoOctavo(marcasOctavo && marcasOctavo.inicial, sAnt.total),
-              columna: { etiqueta: 'Columna Saldo anterior', valor: colAnt, ok: iguales(sAnt.total, colAnt) },
+              columna: { etiqueta: etiquetaColumna('Saldo anterior'), valor: colAnt, ok: iguales(sAnt.total, colAnt) },
               abierto: true
             },
             {
@@ -17876,7 +18239,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               explicacion: 'Todo lo que hubo para vender o transformar en el período.',
               valor: sumaIT, valorFormateado: n(sumaIT),
               crudo: this.redondear3(sAnt.crudo + sIng.crudo), cocido: this.redondear3(sAnt.cocido + sIng.cocido),
-              partes: [], columna: { etiqueta: 'Columna Ingreso total', valor: colIT, ok: iguales(sumaIT, colIT) }, abierto: false
+              partes: [], columna: { etiqueta: etiquetaColumna('Ingreso total'), valor: colIT, ok: iguales(sumaIT, colIT) }, abierto: false
             },
             {
               clave: 'venta', tipo: 'resta', icono: '−',
@@ -17885,7 +18248,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               explicacion: colVta ? 'Lo que las ventas restaron de esta fila.' : 'No hubo ventas que restaran esta fila.',
               valor: colVta, valorFormateado: '−' + n(colVta),
               crudo: sVta.crudo, cocido: sVta.cocido,
-              partes: pVta, columna: { etiqueta: 'Columna Venta', valor: colVta, ok: iguales(sVta.total, colVta) }, abierto: false
+              partes: pVta, columna: { etiqueta: etiquetaColumna('Venta'), valor: colVta, ok: iguales(sVta.total, colVta) }, abierto: false
             },
             {
               clave: 'transformacion', tipo: 'resta', icono: '−',
@@ -17927,7 +18290,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             crudo: this.redondear3(this.saldoRealColumnaTipo(row, 'crudo')), cocido: this.redondear3(this.saldoRealColumnaTipo(row, 'cocido')),
             partes: partes((m, t) => this.calcSaldoRealTipo(m, t)),
             cortes: cortesQueda,
-            columna: { etiqueta: 'Columna Queda', valor: colQueda, ok: iguales(this.redondear3(calculado + faltante), colQueda) },
+            columna: { etiqueta: etiquetaColumna('Queda'), valor: colQueda, ok: iguales(this.redondear3(calculado + faltante), colQueda) },
             abierto: false
           });
           pasos.forEach((p, i) => { p.indice = i; });

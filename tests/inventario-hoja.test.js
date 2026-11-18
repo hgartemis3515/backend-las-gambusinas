@@ -471,3 +471,109 @@ test('los cuadros de octavos del procedimiento usan el mismo saldo que Queda', (
     expect(octavos.pierna.sueltos).toBe(60);
     expect(octavos.pecho.sueltos).toBe(20);
 });
+
+
+describe('productos con grupo en la tabla', () => {
+    const preparar = () => {
+        const app = crearApp();
+        pintar(app, [
+            mov('pierna-pollo', 'ingreso', 10, horaAyer('09:00')),
+            mov('pollada', 'ingreso', 4, horaAyer('09:00')),
+            mov('pierna-pollo', 'ingreso', 20, hora('09:00')),
+            mov('pierna-pollo', 'ingreso', -3, hora('10:00'), 'Pasa a Pollada'),
+            mov('pollada', 'ingreso', 3, hora('10:00'), 'Sale de Pierna de Pollo')
+        ]);
+        app.encolarMovimientos = jest.fn();
+        app.anotarMovs = () => {};
+        app.pulseRowTotal = () => {};
+        app.productoBloqueado = () => false;
+        return { app, pierna: app.filaReal('pierna') };
+    };
+
+    test('cada cuadro muestra el total del grupo y la lupa suma lo mismo', () => {
+        const { app, pierna } = preparar();
+        expect(app.cifraGrupo(pierna, 'saldoAnterior')).toBe(14);
+        expect(app.cifraGrupo(pierna, 'ingreso')).toBe(23);
+        expect(app.cifraGrupo(pierna, 'ingresoTotal')).toBe(37);
+        expect(app.cifraGrupo(pierna, 'transformacion')).toBe(3);
+        expect(app.cifraGrupo(pierna, 'queda')).toBe(34);
+        ['saldoAnterior', 'ingresoTotal', 'queda'].forEach((columna) => {
+            app.abrirDesgloseGrupo(pierna, columna);
+            const info = app.desgloseGrupo;
+            expect(info.filas[0]).toMatchObject({ id: 'pierna', propio: true });
+            expect(info.filas.map((f) => f.id)).toEqual(expect.arrayContaining(['pollada', 'pierna_lena', 'pollo_pachamanca']));
+            expect(info.filas.reduce((a, f) => a + f.total, 0)).toBe(info.total);
+            expect(info.total).toBe(app.cifraGrupo(pierna, columna));
+        });
+    });
+
+    test('un producto sin platos sigue mostrando solo lo suyo y no abre los modales de grupo', () => {
+        const app = crearApp();
+        pintar(app, [mov('cuy', 'ingreso', 5, hora('10:00'))]);
+        const cuy = app.filaReal('cuy');
+        expect(app.cifraGrupo(cuy, 'queda')).toBe(5);
+        app.abrirIngresoGrupo(cuy);
+        app.abrirDesgloseGrupo(cuy, 'queda');
+        expect(app.ingresoGrupo).toBeNull();
+        expect(app.desgloseGrupo).toBeNull();
+    });
+
+    test('ingresar suma stock en cada producto sin transformar y coincide con Transformar', () => {
+        const { app, pierna } = preparar();
+        const pollada = app.filaReal('pollada');
+        const piernaAntes = app.saldoRealColumna(pierna);
+        const polladaAntes = app.calcSaldoTipo(pollada, 'cocido');
+        app.abrirIngresoGrupo(pierna);
+        const lineas = app.ingresoGrupo.lineas;
+        expect(lineas[0]).toMatchObject({ id: 'pierna', principal: true });
+        lineas[0].cuadros[0].valor = '5';
+        lineas.find((l) => l.id === 'pollada').cuadros.find((c) => c.tipo === 'cocido').valor = '2';
+        expect(app.totalIngresoGrupo()).toBe(7);
+        expect(app.guardarIngresoGrupo()).toBe(true);
+        expect(app.ingresoGrupo).toBeNull();
+        expect(app.saldoRealColumna(pierna)).toBe(piernaAntes + 5);
+        expect(app.calcSaldoTipo(pollada, 'cocido')).toBe(polladaAntes + 2);
+        const movs = app.encolarMovimientos.mock.calls.flatMap((c) => c[0]);
+        expect(movs.map((m) => [m.rubro, m.tipoProducto, m.clase, m.cantidad, m.motivo])).toEqual([
+            ['pierna-pollo', 'crudo', 'ingreso', 5, 'Ingreso independiente crudo'],
+            ['pollada', 'cocido', 'ingreso', 2, 'Ingreso independiente cocido']
+        ]);
+    });
+
+    test('el ingreso de octavos se guarda por pierna o pecho', () => {
+        const app = crearApp();
+        pintar(app, []);
+        app.encolarMovimientos = jest.fn();
+        app.anotarMovs = () => {};
+        app.pulseRowTotal = () => {};
+        app.productoBloqueado = () => false;
+        app.abrirIngresoGrupo(app.filaReal('octavo_pollo'));
+        const cuadros = app.ingresoGrupo.lineas[0].cuadros;
+        expect(cuadros.map((c) => c.etiqueta)).toEqual(['Pierna', 'Pecho']);
+        cuadros[0].valor = '8';
+        app.guardarIngresoGrupo();
+        expect(app.encolarMovimientos.mock.calls[0][0][0]).toMatchObject({ rubro: 'octavo-pollo', cantidad: 8, motivo: 'Ingreso independiente crudo · pierna' });
+    });
+
+    test('no acepta negativos ni un ingreso vacío', () => {
+        const { app, pierna } = preparar();
+        app.abrirIngresoGrupo(pierna);
+        expect(app.guardarIngresoGrupo()).toBe(false);
+        app.ingresoGrupo.lineas[0].cuadros[0].valor = '-3';
+        expect(app.guardarIngresoGrupo()).toBe(false);
+        expect(app.ingresoGrupo.error).toMatch(/positivas/);
+        expect(app.encolarMovimientos).not.toHaveBeenCalled();
+    });
+
+    test('la lupa de Ingreso separa lo ingresado de lo transformado en todo el grupo', () => {
+        const { app, pierna } = preparar();
+        app.movimientosPeriodo = app.movimientosPeriodo.filter((m) => new Date(m.fecha) >= new Date(hora('04:00')));
+        const origen = app.origenIngresoDe(pierna);
+        expect(origen.total).toBe(23);
+        expect(origen.transformado).toBe(3);
+        expect(origen.anotado).toBe(20);
+        app.abrirIngresoGrupo(pierna);
+        expect(app.ingresoGrupo.transformaciones).toHaveLength(1);
+        expect(app.ingresoGrupo.transformadoSale).toBe(3);
+    });
+});
