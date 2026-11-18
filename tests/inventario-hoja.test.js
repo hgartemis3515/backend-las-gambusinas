@@ -315,3 +315,45 @@ describe('descarga manual de octavos en el modal de ventas', () => {
         expect(lineas([mov(2, 'Venta manual')]).lineas[0].uso).toBe('Principal — Octavo de pollo');
     });
 });
+
+describe('Procedimiento saldo real de Octavo de pollo', () => {
+    const textos = (lista) => lista.map((c) => c.texto);
+
+    test('dice cuánto incluye de pierna y de pecho el saldo anterior y lo que queda', () => {
+        const app = crearApp();
+        const row = app.filaReal('octavo_pollo');
+        Object.assign(row, {
+            saldoAnterior: 90, crudo: 80,
+            cortesOctavo: { inicial: { pierna: 60, pecho: 30 }, queda: { pierna: 60, pecho: 30 } }
+        });
+        const info = app.construirProcedimientoSaldoReal(row);
+        expect(textos(info.pasos[0].cortes)).toEqual(['Pierna 60', 'Pecho 30']);
+        const saldoQueda = info.quedaSaldoReal;
+        const esperado = ['Pierna 60', 'Pecho 30'];
+        if (saldoQueda > 90) esperado.push('Sin separar ' + app.formatNum(saldoQueda - 90));
+        if (saldoQueda < 90) esperado.push('Salió sin corte −' + app.formatNum(90 - saldoQueda));
+        expect(textos(info.cortesSueltas)).toEqual(esperado);
+    });
+
+    test('lo que las marcas no explican se dice aparte', () => {
+        const app = crearApp();
+        expect(textos(app.cortesDeSaldoOctavo({ pierna: 60, pecho: 30 }, 100))).toEqual(['Pierna 60', 'Pecho 30', 'Sin separar 10']);
+        expect(textos(app.cortesDeSaldoOctavo({ pierna: 60, pecho: 30 }, 80))).toEqual(['Pierna 60', 'Pecho 30', 'Salió sin corte −10']);
+    });
+
+    test('otras filas no muestran cortes', () => {
+        const app = crearApp();
+        const info = app.construirProcedimientoSaldoReal(app.filaReal('pierna'));
+        expect(info.pasos[0].cortes).toBeNull();
+        expect(info.cortesSueltas).toBeNull();
+    });
+});
+
+test('los cuadros de octavos del procedimiento usan el mismo saldo que Queda', () => {
+    const app = crearApp();
+    const row = app.filaReal('octavo_pollo');
+    row.cortesOctavo = { inicial: { pierna: 60, pecho: 30 }, queda: { pierna: 60, pecho: 20 } };
+    const { octavos } = app.construirProcedimientoSaldoReal(row);
+    expect(octavos.pierna.sueltos).toBe(60);
+    expect(octavos.pecho.sueltos).toBe(20);
+});

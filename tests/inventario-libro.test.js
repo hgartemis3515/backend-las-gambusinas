@@ -192,3 +192,51 @@ test('el kardex de un día pasado no cambia con lo que pasó después', () => {
     const movs = [mov('cuy', 'ingreso', 6, hora('2026-11-10', '09:00')), mov('cuy', 'ingreso', 50, hora('2026-11-12', '09:00'))];
     expect(fila(dia('2026-11-10', movs), 'cuy').queda).toBe(6);
 });
+
+describe('cortes del octavo de pollo', () => {
+    const marcas = [
+        mov('octavo-pollo', 'ingreso', 30, hora('2026-11-10', '10:00'), 'Viene de Pecho de Pollo · pecho'),
+        mov('octavo-pollo', 'ingreso', 100, hora('2026-11-10', '10:01'), 'Viene de Pierna de Pollo · pierna'),
+        mov('octavo-pollo', 'egreso', 40, hora('2026-11-10', '12:00'), 'Venta manual · pierna')
+    ];
+
+    test('el saldo anterior de cada corte es lo que quedó ayer', () => {
+        const ayer = fila(dia('2026-11-10', marcas), 'octavo-pollo');
+        expect(ayer.cortes).toEqual({ inicial: { pierna: 0, pecho: 0 }, queda: { pierna: 60, pecho: 30 } });
+        const hoy = fila(dia('2026-11-11', marcas), 'octavo-pollo');
+        expect(hoy.saldoInicial).toBe(90);
+        expect(hoy.cortes).toEqual({ inicial: { pierna: 60, pecho: 30 }, queda: { pierna: 60, pecho: 30 } });
+    });
+
+    test('la nota de reparto no duplica los cortes ni cambia el saldo', () => {
+        const notas = [
+            mov('octavo-pollo', 'ingreso', 30, hora('2026-11-11', '04:00'), 'Saldo anterior · pecho'),
+            mov('octavo-pollo', 'ingreso', 60, hora('2026-11-11', '04:00'), 'Saldo anterior · pierna'),
+            mov('octavo-pollo', 'ingreso', -90, hora('2026-11-11', '04:00'), 'Saldo anterior · sin separar')
+        ];
+        const hoy = fila(dia('2026-11-11', marcas.concat(notas)), 'octavo-pollo');
+        expect(hoy).toMatchObject({ saldoInicial: 90, ajusteApertura: 0, queda: 90 });
+        expect(hoy.cortes.inicial).toEqual({ pierna: 60, pecho: 30 });
+    });
+
+    test('la nota de reparto no se pierde aunque haya un faltante antiguo', () => {
+        const movs = [
+            mov('octavo-pollo', 'egreso', 5, hora('2026-11-09', '12:00'), 'Venta manual'),
+            ...marcas,
+            mov('octavo-pollo', 'ingreso', 30, hora('2026-11-11', '04:00'), 'Saldo anterior · pecho'),
+            mov('octavo-pollo', 'ingreso', 60, hora('2026-11-11', '04:00'), 'Saldo anterior · pierna'),
+            mov('octavo-pollo', 'ingreso', -90, hora('2026-11-11', '04:00'), 'Saldo anterior · sin separar')
+        ];
+        expect(fila(dia('2026-11-11', movs), 'octavo-pollo').queda).toBe(90);
+    });
+
+    test('los cortes no superan lo que de verdad quedó al cerrar', () => {
+        const hoy = fila(dia('2026-11-11', marcas, [venta('octavo-pollo', 45, hora('2026-11-10', '13:00'))]), 'octavo-pollo');
+        expect(hoy.saldoInicial).toBe(45);
+        expect(hoy.cortes.inicial).toEqual({ pierna: 30, pecho: 15 });
+    });
+
+    test('solo el octavo lleva cortes', () => {
+        expect(fila(dia('2026-11-11', marcas), 'bisteck').cortes).toBeUndefined();
+    });
+});

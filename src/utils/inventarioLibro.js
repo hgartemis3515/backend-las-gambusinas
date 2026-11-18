@@ -24,12 +24,34 @@ const {
 
 const r3 = (n) => Math.round((Number(n) || 0) * 1000) / 1000;
 
+const CLAVE_OCTAVO = 'octavo-pollo';
+
 function esAperturaAntigua(motivo) {
     return String(motivo || '').indexOf('Saldo anterior') === 0;
 }
 
 function esApertura(motivo) {
     return esAperturaAntigua(motivo) || String(motivo || '').indexOf('Ajuste apertura') === 0;
+}
+
+/**
+ * Nota que reparte el saldo del octavo al abrir el día: +pecho, +pierna y −«sin separar».
+ * Suma cero: indica de qué corte es el saldo, no agrega stock.
+ */
+function esNotaReparto(motivo) {
+    return /^Saldo anterior · (?:pecho|pierna|sin separar)$/.test(String(motivo || ''));
+}
+
+/** Corte que indica un motivo. Misma regla que motivoEsCorte en inventario.html. */
+function corteDeMotivo(motivo) {
+    const m = String(motivo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (/(?:^|·)\s*sin separar\s*$/.test(m)) return '';
+    const marca = m.match(/(?:^|·)\s*(pecho|pierna)\s*$/);
+    if (marca) return marca[1];
+    const pecho = m.includes('pecho') || m.includes('pechuga');
+    const pierna = m.includes('pierna');
+    if (pierna && !pecho) return 'pierna';
+    return pecho && !pierna ? 'pecho' : '';
 }
 
 function esConteo(motivo) {
@@ -127,6 +149,21 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
     let abreAlInicioDelDia = false;
     let finPrimerDia = -Infinity;
     const salida = [];
+    // Octavos marcados de cada corte. Las ventas de comanda no dicen el corte y no los bajan.
+    const cortes = { pierna: 0, pecho: 0 };
+    let cortesIniciales = { pierna: 0, pecho: 0 };
+
+    // Lo marcado pasa al día siguiente, sin superar lo que de verdad quedó.
+    const cerrarCortes = () => {
+        const octavo = cubetas.get(CLAVE_OCTAVO + '|' + cubetaDe(perfilDe(CLAVE_OCTAVO), 'crudo'));
+        const real = octavo ? octavo.cierreAnterior : 0;
+        const pierna = Math.max(0, cortes.pierna);
+        const pecho = Math.max(0, cortes.pecho);
+        const suma = pierna + pecho;
+        const factor = suma > real + 0.5 ? real / suma : 1;
+        cortes.pierna = Math.round(pierna * factor);
+        cortes.pecho = Math.round(pecho * factor);
+    };
 
     const cerrarDia = () => {
         cubetas.forEach((c) => {
@@ -137,6 +174,7 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
             c.abre = c.cierreAnterior;
             c.mov = 0;
         });
+        cerrarCortes();
     };
 
     const avanzarDia = (t) => {
@@ -156,13 +194,27 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
             c.w.inicial = saldoDe(c);
             c.w.cierreAnterior = c.cierreAnterior;
         });
+        cortesIniciales = { ...cortes };
+    };
+
+    const marcarCorte = (m, n, t) => {
+        if (m.rubro !== CLAVE_OCTAVO || (m.tipoProducto || 'crudo') !== 'crudo') return;
+        if (m.clase !== 'egreso' && m.clase !== 'ingreso' && m.clase !== 'regulacion') return;
+        if (esNotaReparto(m.motivo)) return;
+        const corte = corteDeMotivo(m.motivo);
+        if (!corte) return;
+        const cambio = m.clase === 'egreso' ? -n : n;
+        cortes[corte] += cambio;
+        if (enVentana && abreAlInicioDelDia && t <= finPrimerDia && esApertura(m.motivo)) {
+            cortesIniciales[corte] += cambio;
+        }
     };
 
     const aplicarApertura = (c, m, n, t) => {
         let x = n;
         // Los «Saldo anterior» antiguos tapaban negativos. Ese negativo ya no se arrastra:
         // el ajuste primero salda lo que el cierre ya había perdonado y solo el resto es stock.
-        if (x > 0 && esAperturaAntigua(m.motivo)) {
+        if (x > 0 && esAperturaAntigua(m.motivo) && !esNotaReparto(m.motivo)) {
             const absorbe = Math.min(x, c.credito);
             c.credito -= absorbe;
             x -= absorbe;
@@ -197,6 +249,7 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
             return;
         }
         if (!n) return;
+        marcarCorte(m, n, t);
         if (m.clase === 'egreso') {
             c.mov -= n;
             if (enVentana) c.w.egreso += n;
@@ -272,6 +325,8 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
 
     const umbralDe = umbrales || {};
     const filas = [];
+    const entero = (n) => Math.max(0, Math.round(n));
+    const cortesDe = (c) => ({ pierna: entero(c.pierna), pecho: entero(c.pecho) });
     definiciones(movimientos, ventas, extras).forEach((def) => {
         const minimo = umbralDe[def.clave] || {};
         ['crudo', 'cocido'].forEach((tipo) => {
@@ -284,7 +339,11 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
             const sinTope = c ? saldoDe(c) : 0;
             const queda = Math.max(0, sinTope);
             const umbral = Number(tipo === 'crudo' ? minimo.crudo : minimo.cocido) || 0;
+            const extraOctavo = def.clave === CLAVE_OCTAVO && tipo === 'crudo'
+                ? { cortes: { inicial: cortesDe(cortesIniciales), queda: cortesDe(cortes) } }
+                : {};
             filas.push({
+                ...extraOctavo,
                 plato: def.clave,
                 rubro: def.clave,
                 platoId: 0,

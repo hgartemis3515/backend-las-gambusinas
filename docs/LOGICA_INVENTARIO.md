@@ -75,7 +75,7 @@ Los pases siguen igual: el origen baja en Transformación y el destino sube en I
 ### Editar stock (lápiz): corregida
 
 - Se escribe cuánto hay y la diferencia queda como `Ajuste de stock`, en Corrección y en la auditoría.
-- Octavos y platos por presa conservan su marca de pecho o pierna.
+- Octavos y platos por presa conservan su marca de pecho o pierna. El libro lleva esas marcas de un día a otro, y Procedimiento saldo real muestra cuánto incluye de cada corte. Las ventas de comanda no indican el corte: si salen más octavos que los que puede explicar la marca, aparece «Salió sin corte».
 - Si estás viendo un día pasado, el ajuste se guarda al cierre de ese día y lo avisa en el modal.
 
 ### Conteo de cámara: corregido

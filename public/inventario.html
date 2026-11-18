@@ -9468,11 +9468,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div x-show="saldoRealInfo.esOctavo" class="grid grid-cols-2 gap-2 text-xs">
             <div class="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-2">
               <p class="text-[10px] font-extrabold uppercase text-emerald-300">Octavos de pierna</p>
-              <p class="font-mono text-white" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePierna) + ' · sueltos ' + formatNum(resumenOctavoVentaManual().octavosLibresPierna)"></p>
+              <p class="font-mono text-white" x-text="saldoRealInfo.esOctavo ? formatNum(saldoRealInfo.octavos.pierna.total) + ' · sueltos ' + formatNum(saldoRealInfo.octavos.pierna.sueltos) : ''"></p>
             </div>
             <div class="rounded-lg border border-sky-500/40 bg-sky-950/25 px-3 py-2">
               <p class="text-[10px] font-extrabold uppercase text-sky-300">Octavos de pecho</p>
-              <p class="font-mono text-white" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePecho) + ' · sueltos ' + formatNum(resumenOctavoVentaManual().octavosLibresPecho)"></p>
+              <p class="font-mono text-white" x-text="saldoRealInfo.esOctavo ? formatNum(saldoRealInfo.octavos.pecho.total) + ' · sueltos ' + formatNum(saldoRealInfo.octavos.pecho.sueltos) : ''"></p>
             </div>
           </div>
 
@@ -9497,6 +9497,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   </div>
 
                   <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                    <template x-if="paso.cortes">
+                      <span class="inline-flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
+                        <span class="text-[#a0a0b8]">Incluye</span>
+                        <template x-for="c in paso.cortes" :key="paso.clave + '-corte-' + c.id">
+                          <span class="px-1.5 py-0.5 rounded font-bold" :class="c.clase" x-text="c.texto"></span>
+                        </template>
+                      </span>
+                    </template>
                     <template x-if="saldoRealInfo.tieneCocido && (paso.crudo || paso.cocido)">
                       <span class="inline-flex items-center gap-1.5 text-[11px] font-mono">
                         <span class="px-1.5 py-0.5 rounded bg-emerald-950/70 text-emerald-300" x-text="'Crudo ' + formatNum(paso.crudo)"></span>
@@ -9556,10 +9564,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-white" x-text="saldoRealInfo.nombre + ' (suelto)'"></span>
               <span class="font-mono text-teal-200" x-text="formatNum(saldoRealInfo.sueltas) + ' ' + saldoRealInfo.unidad"></span>
             </div>
+            <div x-show="saldoRealInfo.cortesSueltas" class="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
+              <span class="text-[#a0a0b8]">Incluye</span>
+              <template x-for="c in (saldoRealInfo.cortesSueltas || [])" :key="'suelto-corte-' + c.id">
+                <span class="px-1.5 py-0.5 rounded font-bold" :class="c.clase" x-text="c.texto"></span>
+              </template>
+            </div>
             <template x-for="p in saldoRealInfo.platosConSaldo" :key="'saldo-plato-' + p.id">
-              <div class="fila-plato-modal flex items-center justify-between text-sm border-t border-[#26263a] pt-1.5">
-                <span class="text-[#a0a0b8]" x-text="p.nombre"></span>
-                <span class="font-mono text-xs">
+              <div class="fila-plato-modal flex items-center justify-between gap-3 text-sm border-t border-[#26263a] pt-1.5">
+                <span class="min-w-0 text-[#a0a0b8]">
+                  <span x-text="p.nombre"></span>
+                  <span x-show="p.cortes" class="mt-1 flex flex-wrap gap-1 text-[10px] font-mono">
+                    <template x-for="c in (p.cortes || [])" :key="p.id + '-corte-' + c.id">
+                      <span class="px-1 py-0.5 rounded font-bold" :class="c.clase" x-text="c.texto"></span>
+                    </template>
+                  </span>
+                </span>
+                <span class="font-mono text-xs shrink-0">
                   <span class="text-emerald-300" x-text="'Crudo ' + formatNum(p.crudo)"></span>
                   <span x-show="p.ventaCrudo" class="text-rose-300 ml-1" x-text="'(venta −' + formatNum(p.ventaCrudo) + ')'"></span>
                   <span x-show="p.tieneCocido" class="text-[#d4af37] ml-2" x-text="'Cocido ' + formatNum(p.cocido)"></span>
@@ -12276,6 +12297,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!row.tieneCocido) mover('Cocido', '');
           v.crudo = Number(crudo.queda) || 0;
           v.cocido = Number(cocido.queda) || 0;
+          v.cortesOctavo = crudo.cortes || null;
           if (row.soloCocido) {
             mover('', 'Cocido');
             v.cocido = v.crudo + v.cocido;
@@ -17209,7 +17231,37 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }), { crudo: 0, cocido: 0, total: 0 });
         },
 
+        // Qué incluye un saldo de octavos. Lo que no cuadra con las marcas se dice aparte:
+        // las ventas de comanda no indican si fueron de pierna o de pecho.
+        cortesDeSaldoOctavo(cortes, total) {
+          if (!cortes) return null;
+          const pierna = Number(cortes.pierna) || 0;
+          const pecho = Number(cortes.pecho) || 0;
+          const dif = this.redondear3((Number(total) || 0) - pierna - pecho);
+          const lista = [
+            { id: 'pierna', texto: 'Pierna ' + this.formatNum(pierna), clase: 'bg-emerald-950/70 text-emerald-300' },
+            { id: 'pecho', texto: 'Pecho ' + this.formatNum(pecho), clase: 'bg-sky-950/25 text-sky-300' }
+          ];
+          if (dif > 0.0005) lista.push({ id: 'sin-separar', texto: 'Sin separar ' + this.formatNum(dif), clase: 'bg-[#1c1c2b] text-white' });
+          if (dif < -0.0005) lista.push({ id: 'sin-corte', texto: 'Salió sin corte −' + this.formatNum(-dif), clase: 'bg-[#1c1c2b] text-rose-300' });
+          return lista;
+        },
+
+        // Platos de octavo: solo se reparte lo que tiene marca; el resto queda «sin separar».
+        cortesDePlatoOctavo(hijo, total) {
+          let pierna = 0;
+          let pecho = 0;
+          this.tiposDe(hijo).forEach((t) => {
+            if (!(this.netoMarcado(hijo.id, 'piernas', t) > 0 || this.netoMarcado(hijo.id, 'pechugas', t) > 0)) return;
+            pierna += this.stockOctavoPlato(hijo.id, 'piernas', t);
+            pecho += this.stockOctavoPlato(hijo.id, 'pechugas', t);
+          });
+          return this.cortesDeSaldoOctavo({ pierna, pecho }, total);
+        },
+
         construirProcedimientoSaldoReal(row) {
+          const filaOctavo = this.esFilaOctavo(row);
+          const marcasOctavo = filaOctavo ? row.cortesOctavo : null;
           const r = this.rangoPeriodo();
           const dias = this.diasMultiplicadorPeriodo();
           const etqPeriodo = this.etiquetaPeriodoSeleccionado();
@@ -17244,6 +17296,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const familia = this.quedaGrupo(row);
           const hayPlatos = this.tieneGrupo(row);
           const contados = this.tiposDe(row).filter((t) => this.conteoTipo(row, t) !== null);
+          const cortesQueda = this.cortesDeSaldoOctavo(marcasOctavo && marcasOctavo.queda, colQueda);
+          const esOctavo = filaOctavo || this.esPlatoOctavo(row);
+          const resumenOctavo = esOctavo ? this.resumenOctavoVentaManual() : null;
+          // Los sueltos salen del libro, igual que Saldo anterior y Queda de este modal.
+          const octavosDe = (sueltosHoja, enPlatos, marca) => {
+            const sueltos = marcasOctavo ? marcasOctavo.queda[marca] : sueltosHoja;
+            return { sueltos, total: this.redondear3(sueltos + enPlatos) };
+          };
+          const octavos = resumenOctavo ? {
+            pierna: octavosDe(resumenOctavo.octavosLibresPierna, resumenOctavo.platosPierna, 'pierna'),
+            pecho: octavosDe(resumenOctavo.octavosLibresPecho, resumenOctavo.platosPecho, 'pecho')
+          } : null;
 
           const pasos = [
             {
@@ -17256,6 +17320,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               valor: sAnt.total, valorFormateado: n(sAnt.total),
               crudo: sAnt.crudo, cocido: sAnt.cocido,
               partes: pAnt,
+              cortes: this.cortesDeSaldoOctavo(marcasOctavo && marcasOctavo.inicial, sAnt.total),
               columna: { etiqueta: 'Columna Saldo anterior', valor: colAnt, ok: iguales(sAnt.total, colAnt) },
               abierto: true
             },
@@ -17325,6 +17390,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             valor: colQueda, valorFormateado: n(colQueda),
             crudo: this.redondear3(this.saldoRealColumnaTipo(row, 'crudo')), cocido: this.redondear3(this.saldoRealColumnaTipo(row, 'cocido')),
             partes: partes((m, t) => this.calcSaldoRealTipo(m, t)),
+            cortes: cortesQueda,
             columna: { etiqueta: 'Columna Queda', valor: colQueda, ok: iguales(this.redondear3(calculado + faltante), colQueda) },
             abierto: false
           });
@@ -17333,7 +17399,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return {
             id: row.id,
             nombre: row.nombre,
-            esOctavo: this.esFilaOctavo(row) || this.esPlatoOctavo(row),
+            esOctavo,
+            octavos,
             unidad,
             tieneCocido: !!(row.tieneCocido || row.soloCocido),
             etiquetaPeriodo: etqPeriodo,
@@ -17351,6 +17418,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             quedaSaldoReal: colQueda,
             cuadra: pasos.every((p) => !p.columna || p.columna.ok),
             sueltas: colQueda,
+            cortesSueltas: cortesQueda,
             enPlatos: this.redondear3(familia - colQueda),
             familia,
             platosConSaldo: this.miembrosGrupo(row).map((hijo) => {
@@ -17362,6 +17430,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 tieneCocido: !!hijo.tieneCocido,
                 crudo: crudo,
                 cocido: cocido,
+                cortes: filaOctavo ? this.cortesDePlatoOctavo(hijo, this.redondear3(crudo + cocido)) : null,
                 ventaCrudo: this.ventaNetaTipo(hijo, 'crudo'),
                 ventaCocido: hijo.tieneCocido ? this.ventaNetaTipo(hijo, 'cocido') : 0
               };
