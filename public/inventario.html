@@ -4413,16 +4413,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#0a0a0f] border border-[#26263a] p-1">
             <span class="px-3 text-[11px] uppercase tracking-wider text-white font-semibold">Período</span>
             <template x-for="p in periodosVisibles()" :key="'graf-' + p.id">
-              <button type="button" @click="setPeriodo(p.id)" class="px-3 py-1.5 rounded-full text-sm font-medium transition" :class="periodo === p.id ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'text-white hover:bg-[#1c1c2b]'" x-text="p.label"></button>
+              <button type="button" @click="setPeriodoGrafico(p.id)" class="px-3 py-1.5 rounded-full text-sm font-medium transition" :class="periodoGrafico === p.id ? 'bg-[#d4af37] text-[#1a1200] font-bold' : 'text-white hover:bg-[#1c1c2b]'" x-text="p.label"></button>
             </template>
           </div>
           <div class="flex gap-2">
-            <input type="date" x-model="customDesde" @change="usarRangoManual()" aria-label="Desde" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white">
-            <input type="date" x-model="customHasta" @change="usarRangoManual()" aria-label="Hasta" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white">
+            <input type="date" x-model="customDesdeGrafico" @change="usarRangoManualGrafico()" aria-label="Desde" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white">
+            <input type="date" x-model="customHastaGrafico" @change="usarRangoManualGrafico()" aria-label="Hasta" class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-2 py-1 text-xs text-white">
           </div>
         </div>
         <p x-show="graficoRecortado" class="text-[11px] text-[#d4af37] max-w-xs">El gráfico muestra ingreso y ventas de los últimos 14 días. El saldo del período está en la tarjeta.</p>
       </div>
+      <p x-show="graficoCargando" role="status" class="text-sm text-[#a0a0b8]">Cargando datos del gráfico…</p>
+      <p x-show="graficoError" x-text="graficoError" role="alert" class="text-sm text-rose-300"></p>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4">
@@ -10790,6 +10792,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         graficoProducto: '',
         graficoCargando: false,
         graficoRecortado: false,
+        periodoGrafico: 'hoy',
+        customDesdeGrafico: '',
+        customHastaGrafico: '',
+        graficoFilas: [],
+        graficoMovimientos: [],
+        graficoVentas: [],
+        graficoError: '',
+        _graficoSolicitud: 0,
         cocidoOpciones: [],
         draftCocido: [],
         movimientosPeriodo: [],
@@ -10960,7 +10970,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         abrirGrafico() {
           this.irA('grafico');
-          this.asegurarChart().then(() => this.cargarSerieGrafico()).catch(() => {
+          this.asegurarChart().then(() => this.cargarDatosGrafico()).catch(() => {
             this.toastMessage = 'No se pudo cargar el gráfico.';
           });
         },
@@ -11034,8 +11044,78 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return String(r.desde) <= ymd && ymd <= String(r.hasta);
         },
 
+        rangoPeriodoGrafico() {
+          const TD = window.TurnosDiaNoche;
+          if (TD && TD.esSegmento(this.periodoGrafico)) {
+            const turno = TD.rangoDe(this.periodoGrafico, this);
+            if (turno) return turno;
+          }
+          return this.rangoDe(this.periodoGrafico, this.customDesdeGrafico, this.customHastaGrafico);
+        },
+
+        setPeriodoGrafico(id) {
+          this.periodoGrafico = id;
+          return this.cargarDatosGrafico();
+        },
+
+        usarRangoManualGrafico() {
+          this.periodoGrafico = 'custom';
+          return this.cargarDatosGrafico();
+        },
+
+        async cargarDatosGrafico() {
+          const solicitud = ++this._graficoSolicitud;
+          const rango = this.rangoPeriodoGrafico();
+          const q = this.queryRango(rango);
+          this.customDesdeGrafico = String(rango.desde).includes('T') ? this.ymdOperativo(rango.desde) : rango.desde;
+          this.customHastaGrafico = String(rango.hasta).includes('T') ? this.ymdOperativo(rango.hasta) : rango.hasta;
+          this.graficoCargando = true;
+          this.graficoError = '';
+          this.graficoFilas = [];
+          this.graficoMovimientos = [];
+          this.graficoVentas = [];
+          this.graficoSerie = [];
+          this.$nextTick(() => this.pintarGrafico());
+          try {
+            if (rango.desde > rango.hasta) throw new Error('La fecha Desde debe ser anterior o igual a Hasta.');
+            const [k, movs] = await Promise.all([
+              this.api('/inventario/kardex?carta=1&' + q),
+              this.api('/inventario/movimientos?' + q)
+            ]);
+            if (solicitud !== this._graficoSolicitud) return;
+            // Proyección independiente: reutiliza las cuentas del kardex sin escribir en la tabla.
+            // El scope combinado de Alpine no expone descriptores enumerables:
+            // Object.assign({}, this) pierde sus métodos al entrar desde @click.
+            const datos = {};
+            Reflect.ownKeys(this).forEach((key) => { datos[key] = this[key]; });
+            Object.assign(datos, {
+              rows: (this.rows || []).map((row) => Object.assign({}, row)),
+              claveDeFila: Object.assign({}, this.claveDeFila),
+              _indiceFilas: null
+            });
+            datos.aplicarOpcionesCocido(k.cocidoOpciones || []);
+            datos.asegurarFilasVendidas(k.ventas || []);
+            const rk = datos.resumenKardex(k.filas || [], movs.movimientos || [], k.ventas || []);
+            const cero = datos.resumenKardex([{ rubro: 'vacia', tipoProducto: 'crudo' }], [], []);
+            datos.rows.forEach((row) => {
+              const valores = datos.valoresKardexFila(rk, datos.claveDeFila[row.id], row)
+                || datos.valoresKardexFila(cero, 'vacia', row);
+              Object.assign(row, valores);
+            });
+            this.graficoFilas = datos.rows;
+            this.graficoMovimientos = movs.movimientos || [];
+            this.graficoVentas = k.ventas || [];
+            this.cargarSerieGrafico();
+          } catch (e) {
+            if (solicitud !== this._graficoSolicitud) return;
+            this.graficoError = 'No se pudieron cargar los datos del gráfico: ' + e.message;
+          } finally {
+            if (solicitud === this._graficoSolicitud) this.graficoCargando = false;
+          }
+        },
+
         ventanaGrafico() {
-          const r = this.rangoPeriodo();
+          const r = this.rangoPeriodoGrafico();
           if (String(r.desde).indexOf('T') !== -1) return { dias: [this.fechaHoy()], recortado: false };
           const dias = [];
           let cursor = r.desde;
@@ -11056,14 +11136,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         productosGrafico() {
-          return (this.rows || [])
+          return (this.graficoFilas || [])
             .filter((r) => r && r.nombre)
             .slice()
             .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
         },
 
         nombreGraficoProducto() {
-          const row = (this.rows || []).find((r) => r.id === this.graficoProducto);
+          const row = (this.graficoFilas || []).find((r) => r.id === this.graficoProducto);
           return row ? row.nombre : 'este producto';
         },
 
@@ -11073,8 +11153,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         rowsGrafico() {
-          if (!this.graficoProducto) return this.rows || [];
-          return (this.rows || []).filter((row) => row.id === this.graficoProducto);
+          if (!this.graficoProducto) return this.graficoFilas || [];
+          return (this.graficoFilas || []).filter((row) => row.id === this.graficoProducto);
         },
 
         sumarBase(base) {
@@ -11085,7 +11165,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         sumarSaldo() {
-          return this.rowsGrafico().reduce((a, row) => a + this.calcSaldo(row), 0);
+          return this.rowsGrafico().reduce((a, row) => a + this.saldoGrafico(row), 0);
+        },
+
+        saldoGrafico(row) {
+          const saldo = (fila) => this.tiposDe(fila).reduce((a, t) => a + this.calcSaldoTipo(fila, t), 0);
+          return saldo(row) + this.platosOcultosDe(row.id).reduce((a, n) => {
+            const hijo = (this.graficoFilas || []).find((f) => f.id === n.id);
+            return a + (hijo ? saldo(hijo) : 0);
+          }, 0);
         },
 
         filasGrafico() {
@@ -11094,7 +11182,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             nombre: row.nombre,
             ingreso: this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, 'ingreso', t), 0),
             ventas: this.tiposDe(row).reduce((s, t) => s + this.valorTipo(row, 'venta', t) - this.valorTipo(row, 'cubierta', t), 0),
-            saldo: this.calcSaldo(row)
+            saldo: this.saldoGrafico(row)
           })).filter((f) => this.graficoProducto || f.ingreso || f.ventas || f.saldo);
           lista.sort((a, b) => (b.ventas - a.ventas) || (b.ingreso - a.ingreso) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
           return lista;
@@ -11108,14 +11196,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         serieGraficoLocal() {
           const ventana = this.ventanaGrafico();
-          const rango = this.rangoPeriodo();
+          const rango = this.rangoPeriodoGrafico();
           const ingreso = {};
           const ingresoRaw = {};
           const egreso = {};
           const reg = {};
           const ventaComanda = {};
           const clave = this.claveGrafico();
-          (this.movimientosPeriodo || []).forEach((m) => {
+          (this.graficoMovimientos || []).forEach((m) => {
             if (!m || !m.fecha) return;
             if (clave && m.rubro !== clave) return;
             const dia = this.ymdOperativo(new Date(m.fecha));
@@ -11131,7 +11219,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               reg[dia] = (reg[dia] || 0) + n;
             }
           });
-          (this.ventasPeriodo || []).forEach((v) => {
+          (this.graficoVentas || []).forEach((v) => {
             if (!v || !v.fecha || v.sinSaldo) return;
             if (clave && (v.rubro || v.plato) !== clave) return;
             const n = Number(v.cantidad) || 0;
@@ -11158,9 +11246,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         cargarSerieGrafico() {
           const ventana = this.ventanaGrafico();
-          const rango = this.rangoPeriodo();
+          const rango = this.rangoPeriodoGrafico();
+          const desdeDia = String(rango.desde).includes('T') ? this.ymdOperativo(rango.desde) : rango.desde;
+          const hastaDia = String(rango.hasta).includes('T') ? this.ymdOperativo(rango.hasta) : rango.hasta;
           this.graficoRecortado = ventana.recortado;
-          if (ventana.dias.length === 1 && ventana.dias[0] === rango.desde && rango.desde === rango.hasta) {
+          if (ventana.dias.length === 1 && ventana.dias[0] === desdeDia && desdeDia === hastaDia) {
             this.graficoSerie = [{
               dia: ventana.dias[0],
               ingreso: this.sumarBase('ingreso'),
@@ -11174,10 +11264,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         soltarGrafico(ref, id) {
-          if (this[ref]) {
-            try { this[ref].destroy(); } catch (e) {}
-            this[ref] = null;
-          }
           const canvas = document.getElementById(id);
           if (canvas && window.Chart && Chart.getChart(canvas)) {
             try { Chart.getChart(canvas).destroy(); } catch (e) {}
@@ -11211,21 +11297,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ponerGrafico(ref, canvasId, config, totalAnillo) {
           const canvas = document.getElementById(canvasId);
           if (!canvas || typeof Chart === 'undefined') return;
-          const prev = this[ref];
+          // Chart mantiene las instancias fuera del estado reactivo de Alpine.
+          // También recibe datos planos: un array reactivo se vuelve a envolver al actualizarlo.
+          const data = JSON.parse(JSON.stringify(config.data));
+          const prev = Chart.getChart(canvas);
           if (prev && prev.canvas === canvas) {
-            prev.data.labels = config.data.labels;
-            prev.data.datasets = config.data.datasets;
+            prev.data = data;
             if (totalAnillo != null) prev.$totalAnillo = totalAnillo;
             prev.update();
             return;
           }
           if (prev) { try { prev.destroy(); } catch (e) {} }
-          const chart = new Chart(canvas, config);
+          const chart = new Chart(canvas, Object.assign({}, config, { data: data }));
           if (totalAnillo != null) {
             chart.$totalAnillo = totalAnillo;
             chart.update();
           }
-          this[ref] = chart;
         },
 
         pintarGrafico() {
@@ -12161,7 +12248,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!sigue()) { this._kardexOtraVez = true; return; }
             this.aplicarOpcionesCocido(this.cocidoOpciones);
             this.aplicarKardex(k.filas || [], this.movimientosPeriodo, this.ventasPeriodo);
-            if (this.activeTab === 'grafico') this.cargarSerieGrafico();
+            if (this.activeTab === 'grafico') this.cargarDatosGrafico();
             await this.asegurarRepartoOctavo();
             if (!sigue()) { this._kardexOtraVez = true; return; }
             this._cacheKardex[vista] = {
