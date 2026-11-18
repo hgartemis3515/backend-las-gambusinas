@@ -276,3 +276,42 @@ test('una bebida que acompaña un plato conserva su nombre', () => {
     app.asegurarFilasVendidas([{ rubro: 'gaseosa-inca-kola-300ml', nombre: 'Inca Kola 300ml', cantidad: 1, detalle: [{ nombre: 'Seco de Res + frijoles + arroz' }] }]);
     expect(app.filaPorClave('gaseosa-inca-kola-300ml').nombre).toBe('Inca Kola 300ml');
 });
+
+describe('descarga manual de octavos en el modal de ventas', () => {
+    const fila = { id: 'octavo_pollo', nombre: 'Octavo de pollo', clave: 'octavo-pollo', claves: ['octavo-pollo'], venta: 0 };
+    const mov = (cantidad, motivo, extra) => ({
+        _id: motivo + cantidad, rubro: 'octavo-pollo', nombre: 'Octavo de pollo', clase: 'egreso',
+        tipoProducto: 'crudo', cantidad, motivo, fecha: hora('10:00'), ...extra
+    });
+    const lineas = (movimientos) => {
+        const app = crearApp();
+        app.abrirVenta(fila, { ventas: [], movimientos });
+        return { app, lineas: app.ventaInfo.lineas };
+    };
+
+    test('dice si los octavos fueron de pierna o de pecho', () => {
+        const pierna = lineas([mov(40, 'Venta manual · pierna · Para evento', { lote: 'vm-aaaa-1111' })]).lineas[0];
+        expect(pierna.usos).toEqual([{ uso: 'Principal — Octavo de pollo · Pierna', cantidad: 40 }]);
+        expect(pierna.motivo).toBe('Para evento');
+        expect(lineas([mov(3, 'Venta manual · pecho')]).lineas[0].uso).toBe('Principal — Octavo de pollo · Pecho');
+    });
+
+    test('una descarga de sector separa cuánto fue de cada corte', () => {
+        const { app, lineas: [linea] } = lineas([
+            mov(10, 'Venta manual · Eventos · pecho', { lote: 'vm-bbbb-2222' }),
+            mov(30, 'Venta manual · Eventos · pierna', { lote: 'vm-bbbb-2222' })
+        ]);
+        expect(linea.cantidad).toBe(40);
+        expect(linea.motivo).toBe('Eventos');
+        expect(linea.usos).toEqual([
+            { uso: 'Principal — Octavo de pollo · Pecho', cantidad: 10 },
+            { uso: 'Principal — Octavo de pollo · Pierna', cantidad: 30 }
+        ]);
+        app.ventaBusqueda = 'pierna';
+        expect(app.lineasVentaVista()).toHaveLength(1);
+    });
+
+    test('una descarga antigua sin marca no inventa el corte', () => {
+        expect(lineas([mov(2, 'Venta manual')]).lineas[0].uso).toBe('Principal — Octavo de pollo');
+    });
+});

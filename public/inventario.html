@@ -11689,9 +11689,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           s = s.slice('Venta manual'.length);
           const placa = s.match(/^\s*·\s*.+?\s×\s*\d+\s*/);
           if (placa) s = s.slice(placa[0].length);
-          const corte = s.match(/^\s*·\s*(pecho|pierna)\s*(?=·|$)/i);
-          if (corte) s = s.slice(corte[0].length);
+          // El corte ya sale en la etiqueta de la línea; aquí queda el sector o la nota.
+          s = s.replace(/\s*·\s*(pecho|pierna)\s*(?=·|$)/i, '');
           return s.replace(/^\s*·\s*/, '').trim();
+        },
+
+        // Pierna o Pecho de una descarga de octavos. Solo el octavo y sus platos llevan esa marca.
+        corteDeVentaManual(m) {
+          const rubro = m && m.rubro;
+          const esOctavo = rubro === 'octavo-pollo' || rubro === this.claveDeFila.octavo_pollo || this.esPlatoOctavo({ nombre: m && m.nombre });
+          if (!esOctavo) return '';
+          const marca = String((m && m.motivo) || '').split('·').slice(1)
+            .map((p) => this.norm(p).trim())
+            .find((p) => p === 'pierna' || p === 'pecho');
+          if (marca === 'pierna') return 'Pierna';
+          return marca === 'pecho' ? 'Pecho' : '';
         },
 
         loteVentaManual() {
@@ -11724,16 +11736,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             visibles.forEach((m) => {
               const tipo = m.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
               const esPrincipal = m.rubro === (f && f.clave);
-              const uso = esPrincipal
+              const corte = this.corteDeVentaManual(m);
+              const uso = (esPrincipal
                 ? ('Principal — ' + (f.nombre || m.nombre || m.rubro))
-                : (tipo + ' — ' + (m.nombre || m.rubro));
-              if (usos.indexOf(uso) < 0) usos.push(uso);
+                : (tipo + ' — ' + (m.nombre || m.rubro))) + (corte ? ' · ' + corte : '');
+              const n = Number(m.cantidad) || 0;
+              const previo = usos.find((u) => u.uso === uso);
+              if (previo) previo.cantidad = this.redondear3(previo.cantidad + n);
+              else usos.push({ uso, cantidad: n });
             });
+            const textoUso = usos.map((u) => u.uso).join(' · ');
             const escrito = g.movs.map((m) => this.motivoEscritoVenta(m.motivo)).find((t) => t) || '';
             const propia = visibles.reduce((a, m) => a + (m.rubro === (f && f.clave) ? (Number(m.cantidad) || 0) : 0), 0);
             lineas.push({
               propia,
-              usos: [{ uso: usos.join(' · '), cantidad }],
+              usos,
               nombre: primero.nombre || (f && f.nombre) || 'Descarga manual',
               cantidad,
               platos: cantidad,
@@ -11741,7 +11758,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               comanda: 'Descarga manual',
               comandaId: '',
               hora: primero.fecha,
-              uso: usos.join(' · '),
+              uso: textoUso,
               manual: true,
               motivo: escrito,
               nota: escrito,
@@ -12004,7 +12021,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (c && c.info === info && c.filtro === filtro && c.q === q) return c.list;
           const list = ((info && info.lineas) || [])
             .filter((l) => filtro === 'todos' || this.usosDeLinea(l).some((u) => (l.manual ? 'manual' : this.categoriaDeUso(u.uso)) === filtro))
-            .filter((l) => !q || this.norm((l.nombre || '') + ' ' + (l.comanda || '') + ' ' + (l.motivo || '')).includes(q))
+            .filter((l) => !q || this.norm((l.nombre || '') + ' ' + (l.comanda || '') + ' ' + (l.motivo || '') + ' ' + (l.uso || '')).includes(q))
             .slice()
             .sort((a, b) => {
               const ta = a.hora ? new Date(a.hora).getTime() : 0;
