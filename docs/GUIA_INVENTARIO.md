@@ -1,9 +1,10 @@
 # Guía de Inventario — Las Gambusinas
 
-Pantalla: `backend-gambusinas/public/inventario.html`.  
-El panel es la hoja de producción. El backend guarda movimientos, kardex y ventas. Cocina y mozos no arman este despiece: la venta llega sola desde las comandas.
+La pantalla del restaurante se sirve desde [public/inventario.html](../public/inventario.html). El backend guarda los movimientos y calcula el kardex con las ventas de comandas.
 
-El día operativo corre de **04:00 a 04:00** (Lima). Todas las pestañas leen las mismas filas. Transformar no tiene un saldo aparte.
+**Regla de mantenimiento. Nunca modificar el código de Transformar.** Es la sección esencial del inventario. La regla abarca el bloque `#panel-transformar`, sus estilos, sus eventos, los mapas y las funciones que usa para calcular y guardar stock, ingresos, pases, cortes y descargas. Antes de editar una función compartida, verifica sus llamadas. Si la usa Transformar, implementa el cambio en la vista que lo necesita. Esta guía documenta los controles existentes.
+
+El día operativo va de **04:00 a 04:00** en Lima. Inventario Tabla, Transformar y Gráfico tienen selectores de período independientes. Tabla y Transformar consultan el mismo kardex para su respectivo rango.
 
 ## Dos números distintos
 
@@ -16,7 +17,7 @@ Cada fila tiene su cuenta. La pantalla la enseña de dos maneras, y las dos son 
 
 Un pecho con Queda 13 en la tabla y 11 en su lupa tiene 11 de pieza suelta y 2 ya pasados a platos. El **+** solo puede mover los 11.
 
-La lógica completa, con sus reglas y los problemas que se corrigieron, está en [LOGICA_INVENTARIO.md](LOGICA_INVENTARIO.md).
+El historial de la unificación del kardex está en [LOGICA_INVENTARIO.md](LOGICA_INVENTARIO.md). Para mantener la pantalla, usa la descripción vigente de esta guía y el código de la versión servida.
 
 En la vista **Pachamanca**, Pecho pachamanca y Pollo pachamanca pierna se muestran solos: Queda no les suma el padre ni los hermanos.
 
@@ -33,7 +34,7 @@ Diferencia     = Lo contado − lo que había en ese momento
 
 La cubierta es la parte de una venta que no alcanzó a salir del plato y salió de la pieza de reserva. Esa parte baja la pieza y no vuelve a bajar el plato.
 
-Corrección reúne los ajustes: el lápiz de Editar stock, la columna Corrección y el conteo de cámara. Un conteo deja el stock en lo contado y lo que se venda después sigue restando. Si Queda da menos de 0, se muestra 0 con el faltante al lado, y al día siguiente abre en 0.
+Corrección reúne las regulaciones y ajustes que quedan fuera de Ingreso total. Un conteo deja el stock en lo contado y las ventas posteriores siguen restando. Si Queda da menos de 0, se muestra 0 con el faltante al lado. Al día siguiente abre en 0.
 
 Estado, leído sobre el grupo (fila + platos directos):
 
@@ -65,9 +66,9 @@ Hoja de producción del período. Es la fuente de verdad.
 | Producto | Nombre, unidad y lugar en el grupo. |
 | Saldo ant. | Lo que quedó en esta fila el día anterior. Sale en ámbar si tiene un ajuste de apertura. |
 | Ingreso | Lo que entró a esta fila: compra, despiece o pase desde otro producto. |
-| Corrección | Ajustes de stock de esta fila: lápiz, corrección y conteo. Mueve Queda, no el Ingreso total. |
+| Corrección | Regulaciones de la fila, ajustes por conteo y la parte de una edición que no puede aplicarse a la apertura. |
 | Ingreso total | Saldo anterior + Ingreso de esta fila. La lupa muestra la suma y en qué platos o cortes quedó. |
-| Venta comandas | Lo que las ventas restaron de esta fila. No se escribe a mano. La lupa lista cada plato una vez, con de dónde salió. El botón **DM** abre la descarga manual. |
+| Venta comandas | Un total por producto, igual al detalle de la lupa. Incluye los platos vinculados que aparecen en ese detalle. El modal indica cuánto se descontó de la fila. El botón **DM** abre la descarga manual. |
 | Transformación | Lo que salió de esta fila hacia otro corte o plato. En rojo si resta. No incluye a los hijos. La lupa abre el gráfico vertical (origen arriba, destinos abajo). |
 | Saldo | Resultado de la fórmula de esta fila. Se puede ocultar. |
 | Conteo | Conteo físico de cámara de esta fila. Vacío si nadie contó. |
@@ -75,7 +76,7 @@ Hoja de producción del período. Es la fuente de verdad.
 | Diferencia | Lo que encontró el último conteo frente a lo que había en ese momento. Se puede ocultar. |
 | Estado | Normal, bajo o crítico, según Queda. Se puede ocultar. |
 
-En Configuración → Tabla, **Ocultar** empieza marcado en Saldo y Conteo, Diferencia, Estado y Corrección. Queda sigue visible. Si en este equipo ya se dejó alguna columna visible, se respeta. Cada opción se guarda en el navegador.
+En Configuración → Tabla puedes ocultar Saldo y Conteo, Diferencia, Estado, Corrección, Transformación, los indicadores de Ingreso Total y determinadas filas. En **Cuadros de Transformar** puedes ocultar el resumen de mapas y los controles de Ingreso. Estas preferencias se guardan en el navegador.
 
 Al sumar o restar el **Ingreso** de Pollo fresco, solo se convierte ese cambio: 1 pollo que entra sale en Transformación y entran 2 pechos y 2 piernas, igual que el **+** de Transformar. El pollo que entra se convierte entero aunque el saldo del fresco estuviera en 0 o en negativo. No se vuelve a cortar el ingreso que ya estaba. Al bajar el ingreso, se devuelven los pollos que todavía tienen su pecho y su pierna en la hoja. Si ya se usaron, solo baja el ingreso del fresco y sale un aviso. Si Pollo fresco está bloqueado, el ingreso se guarda pero no pasa a piezas.
 
@@ -106,7 +107,7 @@ Casos con cadena propia:
 
 ### Venta manual
 
-El botón rojo **−** de Venta comandas abre el modal. Tiene dos pestañas:
+El botón **DM** de Venta comandas abre el modal. Tiene dos pestañas:
 
 - **Por unidad**: resta unidades del producto con la misma cadena (cocido, crudo y reserva).
 - **Por plato vinculado**: se elige un plato y cuántos se vendieron. Salen los platos con fila propia que cuelgan del producto y los platos de la carta vinculados en Relación de platos. Un plato con fila propia gasta su cocido, su crudo y lo que falte sale del producto. Un plato de la carta resta *platos × lo que come* del producto. Antes de confirmar se ve qué va a restar.
@@ -129,10 +130,9 @@ El tope es el **stock de hoja** crudo del origen. Si el pecho tiene 13 de pieza 
 
 - El número grande es el **stock actual** de esa fila (crudo, o cocido en su propia caja).
 - Debajo, **+N ingreso hoy** o **−N resto hoy** es el neto del turno (04:00 a 04:00, o el tramo día/noche si el período es un tramo). Sumar 1 y restar 1 deja el neto en 0 y no muestra ninguna de las dos líneas.
-- Escribir un número en la caja de un origen (pollo fresco, pecho, pierna, panceta, arroz, carnero) ajusta el stock. Si el ingreso de hoy puede absorber la resta, va a Ingreso; si no, va a Corrección.
-- La caja de **cocido** no crea stock: pasa crudo a cocido del mismo producto.
-- La caja de **filete** no es un ingreso suelto: convierte pecho en filete con el factor de Configuración.
-- La caja de un **plato** pasa o devuelve piezas desde su padre.
+- **Ingreso** muestra la entrada independiente acumulada del período. Cambiar de 1 a 2 añade la diferencia de 1. Poner 0 revierte ese ingreso. Se conserva al recargar y cada período muestra su propio dato.
+- Las cajas vinculadas a Ingreso ajustan la existencia escrita. Al bajar una cantidad, primero reducen el ingreso independiente disponible y llevan el resto a Corrección. Al subirla, aumentan ese ingreso.
+- Los controles de conversión identificados como pases descuentan del origen y registran la entrada del destino. **Crudo → Cocido** mueve stock entre tipos del mismo producto. Los factores de filete, octavo y demás cortes pertenecen a los pases.
 
 **Pasar a la hoja** espera a que terminen de guardarse los pases, recarga el kardex y abre Inventario Tabla. No copia contadores: el pase ya estaba guardado.
 
@@ -151,9 +151,9 @@ En pecho y pierna, la cuenta del cuadro es la misma historia: stock antes = qued
 El mismo modal sirve en Transformar y en Inventario Tabla.
 
 - El número escrito es el stock que queda en esa fila (crudo, y cocido si la fila lo tiene).
-- La diferencia se guarda como **Ajuste de stock**. No es ingreso y no cambia el Ingreso total.
-- Si estás viendo un día pasado, el ajuste se guarda al cierre de ese día.
-- El lápiz de octavos deja el stock de Octavo de pollo en «octavos de pecho + octavos de pierna». Guarda ajustes de stock marcados «· pecho» o «· pierna». No resta piezas de Pecho ni de Pierna, así que guarda aunque esas piezas no tengan stock. Para pasar piezas a octavos (2 octavos = 1 pieza) se usan − / + del cuadro.
+- El editor recalcula Saldo anterior para alcanzar el stock escrito, conservando el ingreso y las ventas del período. Si el saldo anterior llega a cero, aplica el resto mediante Corrección. Ingreso total sigue siendo la suma de Saldo anterior e Ingreso.
+- El ajuste de apertura se fecha al inicio operativo del período consultado.
+- El lápiz de Octavo conserva las marcas de pecho y pierna. Los pases de piezas a octavos tienen sus propios controles.
 - En la tabla, el lápiz de la fila Octavo de pollo abre ese mismo modal: pecho, pierna y debajo sus platos (Arroz con pollo, Pollo a la olla, Caldo de pollo).
 - Un producto bloqueado se puede corregir con el lápiz. No se puede transformar ni vender en manual mientras siga bloqueado.
 
@@ -230,7 +230,7 @@ Para cargar, transformar, vender o contar se usa Inventario Tabla o Transformar.
 
 ## 5. Gráfico de inventario
 
-Ingreso, ventas y saldo del período, día por día. Se puede ver toda la hoja o un solo producto. Si el rango es largo, el gráfico dibuja los últimos 14 días y el saldo del período queda en la tarjeta.
+Ingreso, ventas y saldo del período, día por día. Se puede ver toda la hoja o un solo producto. Si el rango es largo, el gráfico dibuja los últimos 14 días y el saldo del período queda en la tarjeta. Cambiar sus fechas conserva las fechas de Tabla y Transformar.
 
 El saldo de esta pestaña suma también los platos que cuelgan más abajo de la fila. Queda, en la tabla, suma solo los platos directos. Por eso los dos números pueden diferir en un padre con varios niveles (fresco → pecho → filete → milanesa).
 
@@ -250,6 +250,22 @@ Icono de candado en la barra. **Aplicar bloqueo** guarda la lista en el servidor
 ## Avisos
 
 Los mensajes de la hoja (vínculo guardado, stock actualizado, bloqueo, error de guardado) salen abajo a la izquierda y se cierran solos a los 7 segundos. No empujan la hoja de producción. El panel de notificaciones del menú superior es otro sistema: avisos del restaurante, no estos mensajes de inventario.
+
+## 7. Auditoría, Descuadre y reporte
+
+- **Auditoría** muestra el registro del producto con fecha, tipo, motivo, cantidad y saldo. Usa sus filtros para comprobar qué movimiento cambió el número.
+- **Descuadre** distingue faltantes de stock, aperturas ajustadas y diferencias de conteo. Los ajustes intencionales del lápiz se conservan en el historial y quedan fuera del aviso de apertura pendiente. Los faltantes siguen activos.
+- **Reporte del día** consulta el día operativo seleccionado y reúne ingresos, ventas y transformaciones. **Imprimir** abre la hoja de Inventario Tabla.
+- **Configuración** contiene Colores, Factores, Aderezos, Crudo y cocido, Preferencias y Tabla. Para ajustar vínculos de consumo de un plato usa Relación de platos. Para administrar mapas usa sus controles existentes.
+
+## Referencia para mantenimiento
+
+- [inventarioController.js](../src/controllers/inventarioController.js) expone las rutas de kardex, movimientos, mapas, relaciones, rubros, bloqueo y descargas manuales bajo `/api/inventario`. La pantalla llama a estas rutas con el permiso de inventario.
+- [inventario.repository.js](../src/repository/inventario.repository.js) reúne movimientos, ventas y configuración para responder el kardex. [inventarioLibro.js](../src/utils/inventarioLibro.js) procesa los eventos por fecha, calcula la apertura, aplica ventas y conteos y arrastra el saldo al siguiente día.
+- [inventarioSalidaVentas.js](../src/utils/inventarioSalidaVentas.js) obtiene los consumos desde comandas y sus relaciones. [inventarioCascadaVenta.js](../src/utils/inventarioCascadaVenta.js) decide los tramos de stock y registra la parte cubierta. El conteo de la lupa y el descuento contable tienen usos distintos.
+- [inventario.html](../public/inventario.html) contiene la vista y el estado de Alpine. `cargarKardexUnaVez` carga movimientos y ventas. `valoresKardexFila` y `aplicarKardex` llevan esos valores a la tabla. `filtroVentaFila` y `detalleVenta` dan el alcance y el total de la lupa de venta. `abrirDesgloseGrupo` abre el detalle de cada producto. `cargarDatosGrafico` consulta el período propio de Gráfico.
+- La lupa **Saldo anterior** de Octavo muestra las marcas de apertura y el reparto guardado del primer día operativo. Las notas `Saldo anterior · pecho`, `Saldo anterior · pierna` y `Saldo anterior · sin separar` reclasifican cantidades cuando su suma es cero. `cortesAperturaOctavoEnModal` interpreta ese reparto solo para presentar el saldo anterior. En el caso del 18 de noviembre de 2026, 30 pechos marcados en el libro y un reparto de 30 pechos más 146 piernas dan **60 pechos y 146 piernas**, con total de **206**. Las salidas del día pertenecen a Queda.
+- Para verificar un cambio de presentación, reproduce el período y la fila con datos de prueba. Compara la cifra de la tabla, la lupa y el stock de Transformar antes y después. Desde `backend-LasGambusinas`, ejecuta `npm.cmd test -- --runInBand tests/inventario-hoja.test.js tests/inventario-libro.test.js tests/inventario-editar-stock.test.js`. Antes de cerrar, revisa `git diff` para confirmar que el código de Transformar permanece intacto.
 
 ## Cómo se conectan
 

@@ -431,6 +431,35 @@ describe('descarga manual de octavos en el modal de ventas', () => {
 });
 
 describe('Procedimiento saldo real de Octavo de pollo', () => {
+    test('la lupa de Saldo anterior muestra el reparto guardado sin cambiar el saldo ni cortes de otros cuadros', () => {
+        const app = crearApp();
+        app.rangoPeriodo = () => ({ desde: '2026-11-11', hasta: '2026-11-12' });
+        const movimientos = [
+            mov('octavo-pollo', 'ingreso', 176, horaAyer('09:00')),
+            mov('octavo-pollo', 'ingreso', 30, hora('04:00'), 'Ajuste apertura · Editar stock · pecho'),
+            mov('octavo-pollo', 'ingreso', 30, hora('04:00'), 'Saldo anterior · pecho'),
+            mov('octavo-pollo', 'ingreso', 146, hora('04:00'), 'Saldo anterior · pierna'),
+            mov('octavo-pollo', 'ingreso', -176, hora('04:00'), 'Saldo anterior · sin separar'),
+            mov('octavo-pollo', 'ingreso', -1, hora('12:00'), 'Pasa a Caldo de pollo · pecho')
+        ];
+        pintar(app, movimientos);
+        app.movimientosPeriodo = movimientos.concat([
+            mov('octavo-pollo', 'ingreso', 7, '2026-11-12T04:00:00-05:00', 'Saldo anterior · pecho'),
+            mov('octavo-pollo', 'ingreso', -7, '2026-11-12T04:00:00-05:00', 'Saldo anterior · sin separar')
+        ]);
+        const fila = app.filaReal('octavo_pollo');
+        const inicial = JSON.stringify(fila.cortesOctavo);
+        const stock = app.octavosVisibles();
+        app.abrirDesgloseGrupo(fila, 'saldoAnterior');
+        const octavo = app.desgloseGrupo.filas.find((f) => f.id === fila.id);
+        expect(octavo.total).toBe(206);
+        expect(octavo.cortes.map((c) => c.texto)).toEqual(['Pierna 146', 'Pecho 60']);
+        expect(JSON.stringify(fila.cortesOctavo)).toBe(inicial);
+        expect(app.octavosVisibles()).toEqual(stock);
+        app.abrirDesgloseGrupo(fila, 'ingresoTotal');
+        expect(app.desgloseGrupo.filas.find((f) => f.id === fila.id).cortes.map((c) => c.texto)).toContain('Sin separar 176');
+    });
+
     const textos = (lista) => lista.map((c) => c.texto);
 
     test('dice cuánto incluye de pierna y de pecho el saldo anterior y lo que queda', () => {

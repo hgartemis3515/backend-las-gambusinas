@@ -18187,6 +18187,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }, 0));
         },
 
+        // Solo para la lupa de Saldo anterior. El libro excluye las notas de reparto
+        // de cortes.inicial, pero esas notas sí identifican las unidades de la apertura.
+        cortesAperturaOctavoEnModal(fila, total) {
+          const inicial = fila.cortesOctavo && fila.cortesOctavo.inicial;
+          const desde = this.rangoPeriodo().desde;
+          const dia = String(desde).includes('T') ? this.ymdOperativo(desde) : desde;
+          const reparto = { pecho: 0, pierna: 0, 'sin separar': 0 };
+          const clave = this.claveDeFila[fila.id];
+          for (const m of this.movimientosPeriodo || []) {
+            if (!m || m.rubro !== clave || m.clase !== 'ingreso' || (m.tipoProducto || 'crudo') !== 'crudo') continue;
+            if (!this.esNotaRepartoOctavo(m.motivo) || !m.fecha) continue;
+            const fecha = new Date(m.fecha);
+            if (Number.isNaN(fecha.getTime()) || this.ymdOperativo(fecha) !== dia) continue;
+            const marca = m.motivo.slice('Saldo anterior · '.length);
+            reparto[marca] += Number(m.cantidad) || 0;
+          }
+          const asignado = this.redondear3(reparto.pecho + reparto.pierna);
+          if (asignado <= 0 || this.redondear3(asignado + reparto['sin separar']) !== 0) return inicial;
+          const pecho = this.redondear3(reparto.pecho + (Number(inicial && inicial.pecho) || 0));
+          const pierna = this.redondear3(reparto.pierna + (Number(inicial && inicial.pierna) || 0));
+          if (pecho < 0 || pierna < 0 || this.redondear3(pecho + pierna - total) > 0) return inicial;
+          return { pecho, pierna };
+        },
+
         // Pierna y pecho de una fila del grupo del octavo para cada cuadro de la tabla.
         cortesDeFilaOctavo(id, row, columna, total) {
           const fila = this.filaReal(id);
@@ -18203,7 +18227,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               inicial.pecho += c.pecho;
             });
           }
-          if (columna === 'saldoAnterior') return this.cortesDeSaldoOctavo(inicial, total);
+          if (columna === 'saldoAnterior') {
+            return this.cortesDeSaldoOctavo(esOctavo ? this.cortesAperturaOctavoEnModal(fila, total) : inicial, total);
+          }
           if (columna === 'queda') {
             return esOctavo ? this.cortesDeSaldoOctavo(marcas && marcas.queda, total) : this.cortesDePlatoOctavo(fila, total);
           }
