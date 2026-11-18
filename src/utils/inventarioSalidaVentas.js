@@ -220,7 +220,7 @@ function aplicarFactoresRelacion(nombre, lista, relaciones, fila) {
         if (item && item.rubro) ya[item.rubro] = true;
     });
     const mismoFilete = (clave) => clave === 'filete' || clave === 'filete-pollo' || clave === 'filete-junior';
-    const yaGastaFilete = Object.keys(ya).some(mismoFilete);
+    const yaGastaFilete = Object.keys(ya).some(mismoFilete) || !!ya.milanesa;
     claves.forEach((clave) => {
         if (ya[clave]) return;
         if (mismoFilete(clave) && yaGastaFilete) return;

@@ -279,6 +279,19 @@ test('un filete de pollo vinculado otra vez a filete no se resta dos veces', () 
     expect((porRubro['filete-pollo'] || 0) + (porRubro.filete || 0)).toBe(1);
 });
 
+test('dos milanesas no se duplican con el vínculo de filete', () => {
+    const porRubro = partirSalida([
+        { nombre: 'Milanesa + Papas Fritas + Arroz + Ensalada', cantidad: 2 }
+    ], 'Comanda 51', null, {
+        relaciones: [
+            { plato: 'Milanesa + Papas Fritas + Arroz + Ensalada', rubro: 'Milanesa', cantidad: 1 },
+            { plato: 'Milanesa + Papas Fritas + Arroz + Ensalada', rubro: 'Filete de pollo', cantidad: 1 }
+        ]
+    }).porRubro;
+    expect(porRubro.milanesa).toBe(2);
+    expect(porRubro.filete).toBeUndefined();
+});
+
 test('la milanesa junior de la carta gasta medio filete y no uno', () => {
     const porRubro = partirSalida([
         { nombre: 'Milanesa Junior + Arroz + papa frita + ensalada', cantidad: 1 }
