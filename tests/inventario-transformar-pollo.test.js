@@ -165,3 +165,37 @@ test('en el mapa de pollo solo Pollo fresco, Pecho y Pierna guardan su stock sin
     const usos = texto.slice(ini, fin).match(/@change="fijarStockConIngreso\([^"]+"/g);
     expect(usos.map((u) => u.match(/\('([a-z_]+)'/)[1])).toEqual(['pollo_fresco', 'pechuga', 'pierna']);
 });
+
+describe.each([['pollo_baby', 'pollo-baby'], ['seco_carnero', 'seco-cordero']])('cuadro de cocido de %s', (id, rubro) => {
+    test('subir gasta crudo, bajar lo devuelve y el total no cambia', async () => {
+        const { app, recargar, nuevos } = escenario([[rubro, 10]]);
+        const el = input(4);
+        expect(await app.cuadroPaseCocido(id, el)).toBe(true);
+        expect(el.value).toBe('4');
+        expect(app.stockCuadro(id, 'crudo')).toBe(6);
+        expect(nuevos().some((m) => /independiente/.test(m.motivo))).toBe(false);
+        recargar();
+        expect(app.stockCuadro(id, 'crudo')).toBe(6);
+        expect(app.stockCuadro(id, 'cocido')).toBe(4);
+        await app.cuadroPaseCocido(id, input(1));
+        recargar();
+        expect(app.stockCuadro(id, 'crudo')).toBe(9);
+        expect(app.stockCuadro(id, 'cocido')).toBe(1);
+    });
+
+    test('sin crudo suficiente no pasa nada y la caja vuelve al stock real', async () => {
+        const { app, nuevos } = escenario([[rubro, 2]]);
+        const el = input(5);
+        expect(await app.cuadroPaseCocido(id, el)).toBe(false);
+        expect(el.value).toBe('0');
+        expect(nuevos()).toHaveLength(0);
+    });
+
+    test('el icono de Ingreso de cocido sigue sin gastar crudo', () => {
+        const { app, recargar } = escenario([[rubro, 10]]);
+        expect(app.registrarIngresoDirecto(id, 'cocido', input(3))).toBe(true);
+        recargar();
+        expect(app.stockCuadro(id, 'crudo')).toBe(10);
+        expect(app.stockCuadro(id, 'cocido')).toBe(3);
+    });
+});

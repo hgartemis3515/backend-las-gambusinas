@@ -3987,7 +3987,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <p class="caja-stock-etiq">Stock actual (Cocido):</p>
               <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                 <div class="caja-stock-step">
-                  <input type="number" min="0" step="1" aria-label="Pasar Pollo Baby de crudo a cocido" :value="stockCuadro('pollo_baby', 'cocido')" @change="fijarStockConIngreso('pollo_baby', 'cocido', $event.target)">
+                  <input type="number" min="0" step="1" aria-label="Pasar Pollo Baby de crudo a cocido" :value="stockCuadro('pollo_baby', 'cocido')" @change="cuadroPaseCocido('pollo_baby', $event.target)">
                 </div>
                 <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Pasar Pollo Baby de crudo a cocido'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                 <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4417,7 +4417,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                   <div class="caja-stock-step">
-                    <input type="number" min="0" step="any" aria-label="Pasar Seco de carnero de crudo a cocido" :value="stockCuadro('seco_carnero', 'cocido')" @change="fijarStockConIngreso('seco_carnero', 'cocido', $event.target)">
+                    <input type="number" min="0" step="any" aria-label="Pasar Seco de carnero de crudo a cocido" :value="stockCuadro('seco_carnero', 'cocido')" @change="cuadroPaseCocido('seco_carnero', $event.target)">
                   </div>
                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Pasar Seco de carnero de crudo a cocido'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -18991,6 +18991,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         cuadroHijo(padreId, id, tipo, el) {
           return this.aplicarCuadroTransformar(el, () => this.stockCuadro(id, tipo), (v) => this.fijarStockHijo(padreId, id, tipo, v));
+        },
+
+        // Productos que solo pasan de crudo a cocido: subir gasta crudo y bajar lo devuelve.
+        cuadroPaseCocido(id, el) {
+          return this.aplicarCuadroTransformar(el, () => this.stockCuadro(id, 'cocido'), (v) => this.fijarPaseCrudoACocido(id, v));
         },
 
         cuadroFilete(el) {
