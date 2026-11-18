@@ -109,6 +109,51 @@ test('un día sin datos deja la fila en 0 en vez de repetir el período anterior
     expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(0);
 });
 
+test('Venta Comandas de pierna muestra las siete ventas del modal sin descontarlas dos veces', () => {
+    const app = crearApp();
+    const ventas = [
+        { rubro: 'pollada', nombre: 'Pollada', cantidad: 4, fecha: hora('12:00') },
+        { rubro: 'pierna-lena', nombre: 'Pierna a la leña', cantidad: 3, fecha: hora('13:00') },
+        { rubro: 'pollo-lena', nombre: 'Pecho a la leña', cantidad: 5, fecha: hora('13:00') }
+    ];
+    pintar(app, [mov('pierna-pollo', 'ingreso', 10, hora('09:00'))], ventas);
+    const pierna = app.filaReal('pierna');
+    expect(app.ventaColumna(pierna)).toBe(0);
+    expect(app.ventaComandasCocido(pierna)).toBe(7);
+    expect(app.stockCuadro('pierna', 'crudo')).toBe(10);
+    expect(app.ventaInfo).toBeNull();
+    app.abrirVentaFila(pierna);
+    expect(app.ventaInfo.total).toBe(7);
+    expect(app.ventaInfo.propia).toBe(0);
+    pintar(app, []);
+    expect(app.ventaComandasCocido(pierna)).toBe(0);
+});
+
+test('Venta Comandas usa el total de la lupa para Octavo, sus platos y productos individuales', () => {
+    const app = crearApp();
+    const movimientos = [
+        mov('octavo-pollo', 'ingreso', 10, hora('09:00')),
+        mov('octavo-pollo', 'egreso', 2, hora('13:00'), 'Venta manual · Eventos · pierna')
+    ];
+    const ventas = [
+        { rubro: 'arroz-pollo', nombre: 'Arroz con pollo', cantidad: 4, fecha: hora('12:00') },
+        { rubro: 'pollo-olla', nombre: 'Pollo a la olla', cantidad: 3, fecha: hora('12:00') },
+        { rubro: 'cuy', nombre: 'Cuy', cantidad: 5, fecha: hora('12:00') }
+    ];
+    pintar(app, movimientos, ventas);
+    expect(app.ventaColumna(app.filaReal('octavo_pollo'))).toBe(2);
+    for (const [id, total] of [['octavo_pollo', 9], ['arroz_con_pollo', 4], ['cuy', 5]]) {
+        const fila = app.filaReal(id);
+        expect(app.ventaComandasCocido(fila)).toBe(total);
+        app.abrirVentaFila(fila);
+        expect(app.ventaInfo.total).toBe(total);
+    }
+    expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(8);
+    // Mismas ventas, pero cambia una descarga del período.
+    pintar(app, movimientos.concat(mov('octavo-pollo', 'egreso', 1, hora('14:00'), 'Venta manual · Eventos · pecho')), ventas);
+    expect(app.ventaComandasCocido(app.filaReal('octavo_pollo'))).toBe(10);
+});
+
 test('el modal de ventas muestra un plato una vez, con de dónde salió', () => {
     const app = crearApp();
     const movs = [
@@ -257,6 +302,40 @@ test('descuadre: dice qué pasó y cómo resolverlo, sin falsas alarmas', async 
     expect(app.saldoAnteriorColumna(app.filaReal('yuca'))).toBe(6);
     expect(app.filasDescuadre().map((i) => i.clase)).toEqual(['conteo']);
     expect(app.cuentaDescuadre()).toBe(0);
+});
+
+test('editar stock de filete y octavo no crea apertura pendiente ni modifica sus existencias al consultar Descuadre', () => {
+    const app = crearApp();
+    app.rangoVista = () => ({ desde: '2026-11-11', hasta: '2026-11-11' });
+    const movimientos = [
+        mov('filete', 'ingreso', 10, horaAyer('09:00')),
+        mov('octavo-pollo', 'ingreso', 20, horaAyer('09:00')),
+        mov('filete', 'ingreso', 4, hora('04:00'), 'Ajuste apertura · Editar stock'),
+        mov('octavo-pollo', 'ingreso', -3, hora('04:00'), 'Ajuste apertura · Editar stock · pierna')
+    ];
+    pintar(app, movimientos);
+    const antes = JSON.stringify(app.rows);
+    expect(app.filasDescuadre().filter((i) => i.clase === 'apertura')).toHaveLength(0);
+    expect(app.cuentaDescuadre()).toBe(0);
+    expect(app.filaReal('filete').saldoAnterior).toBe(14);
+    expect(app.filaReal('octavo_pollo').saldoAnterior).toBe(17);
+    expect(JSON.stringify(app.rows)).toBe(antes);
+    expect(app.movimientosPeriodo).toBe(movimientos);
+});
+
+test('una edición de stock no oculta faltantes reales ni otros ajustes de apertura', () => {
+    const app = crearApp();
+    app.rangoVista = () => ({ desde: '2026-11-11', hasta: '2026-11-11' });
+    pintar(app, [
+        mov('filete', 'ingreso', 2, hora('04:00'), 'Ajuste apertura · Editar stock'),
+        mov('filete', 'ingreso', 3, hora('04:00'), 'Ajuste apertura'),
+        mov('filete', 'egreso', 10, hora('12:00'), 'Venta'),
+        mov('yuca', 'ingreso', 1, hora('04:00'), 'Ajuste apertura')
+    ]);
+    const lista = app.filasDescuadre();
+    expect(lista.find((i) => i.id === 'filete' && i.clase === 'apertura').ajuste).toBe(3);
+    expect(lista.some((i) => i.id === 'filete' && i.clase === 'emergencia')).toBe(true);
+    expect(lista.some((i) => i.id === 'yuca' && i.clase === 'apertura')).toBe(true);
 });
 
 test('descuadre: si hay crudo libre, primero se pasa a cocido', async () => {
