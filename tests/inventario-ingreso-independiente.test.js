@@ -63,6 +63,56 @@ test('1 a 2 edita el total, reenviar 2 no duplica y 2 a 0 restaura la base', () 
     expect(app.getRow('filete').ingreso).toBe(127);
 });
 
+test('el modal de Pecho reduce y quita su ingreso sin reducir el saldo que ya existía', () => {
+    const { app, guardados, recargar } = escenario([
+        { rubro: 'pechuga-pollo', cantidad: 20 },
+        { rubro: 'pechuga-pollo', cantidad: 8, motivo: 'Ingreso independiente crudo' },
+        { rubro: 'sandwiches', cantidad: 3 }
+    ]);
+    app.activeTab = 'tabla';
+    const otros = plain(app.rows.filter((r) => r.id !== 'pechuga'));
+    const abrir = () => {
+        app.abrirIngresoGrupo(app.filaReal('pechuga'));
+        return app.ingresoGrupo.lineas[0].cuadros[0];
+    };
+
+    let cuadro = abrir();
+    expect(cuadro.ya).toBe(8);
+    cuadro.valor = '-3';
+    expect(app.stockPrevistoIngresoGrupo()).toBe(app.ingresoGrupo.stockAntes - 3);
+    expect(app.guardarIngresoGrupo()).toBe(true);
+    recargar();
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(25);
+
+    cuadro = abrir();
+    expect(cuadro.ya).toBe(5);
+    cuadro.valor = -cuadro.ya;
+    expect(app.guardarIngresoGrupo()).toBe(true);
+    recargar();
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(20);
+    expect(app.ingresoDirectoPeriodo('pechuga', 'crudo')).toBe(0);
+    expect(plain(app.rows.filter((r) => r.id !== 'pechuga'))).toEqual(otros);
+    expect(guardados.slice(3).map(({ rubro, clase, tipoProducto, cantidad, motivo }) => ({ rubro, clase, tipoProducto, cantidad, motivo }))).toEqual(
+        [-3, -5].map((cantidad) => ({ rubro: 'pechuga-pollo', clase: 'ingreso', tipoProducto: 'crudo', cantidad, motivo: 'Ingreso independiente crudo' }))
+    );
+});
+
+test('los cambios de ingreso en dos productos pueden sumar cero y guardarse igual', () => {
+    const { app, guardados } = escenario([{ rubro: 'pechuga-pollo', cantidad: 4, motivo: 'Ingreso independiente crudo' }]);
+    app.activeTab = 'tabla';
+    app.abrirIngresoGrupo(app.filaReal('pechuga'));
+    const [principal, otro] = app.ingresoGrupo.lineas;
+    principal.cuadros[0].valor = '-5';
+    otro.cuadros[0].valor = '2';
+    expect(app.guardarIngresoGrupo()).toBe(false);
+    expect(guardados).toHaveLength(1);
+    principal.cuadros[0].valor = '-2';
+    expect(app.totalIngresoGrupo()).toBe(0);
+    expect(app.hayCambiosIngresoGrupo()).toBe(true);
+    expect(app.guardarIngresoGrupo()).toBe(true);
+    expect(guardados.slice(1).map((m) => m.cantidad)).toEqual([-2, 2]);
+});
+
 test('stock 128 a 127 elimina ingreso 1 sin devolver filetes a pechuga', () => {
     const { app, guardados, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }, { rubro: 'pechuga-pollo', cantidad: 40 }]);
     app.registrarIngresoDirecto('filete', 'crudo', input('1')); const otros = plain(app.rows.filter((r) => r.id !== 'filete'));

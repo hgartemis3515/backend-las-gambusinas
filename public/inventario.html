@@ -8844,15 +8844,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     </div>
   </template>
 
-  <!-- Ingresar stock nuevo en un producto con grupo. No transforma ni resta de otro producto. -->
+  <!-- Ajustar los ingresos de un producto con grupo. -->
   <template x-if="ingresoGrupo">
-    <div class="venta-fondo fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-3 sm:p-4" :class="modalGrupoCerrando ? 'cerrando' : ''" @click.self="totalIngresoGrupo() || cerrarModalGrupo('ingresoGrupo')" @keydown.escape.window="cerrarModalGrupo('ingresoGrupo')" role="dialog" aria-modal="true" :aria-label="'Ingresar stock de ' + ingresoGrupo.nombre" data-testid="modal-ingreso-grupo">
+    <div class="venta-fondo fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-3 sm:p-4" :class="modalGrupoCerrando ? 'cerrando' : ''" @click.self="hayCambiosIngresoGrupo() || cerrarModalGrupo('ingresoGrupo')" @keydown.escape.window="cerrarModalGrupo('ingresoGrupo')" role="dialog" aria-modal="true" :aria-label="'Ingresar stock de ' + ingresoGrupo.nombre" data-testid="modal-ingreso-grupo">
       <form class="venta-panel w-full max-w-2xl max-h-[92vh] flex flex-col bg-[#14141f] border border-emerald-500/60 rounded-2xl overflow-hidden shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]" @submit.prevent="guardarIngresoGrupo()">
         <div class="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-[#26263a] bg-gradient-to-b from-emerald-950/40 to-[#14141f]">
           <div class="min-w-0">
             <p class="text-[11px] uppercase tracking-wider font-bold text-emerald-300">Ingresar stock</p>
             <h3 class="text-xl font-extrabold text-white truncate" x-text="ingresoGrupo.nombre"></h3>
-            <p class="text-xs text-[#a0a0b8] mt-0.5">Escribe lo que entra. Se suma a lo que hay y no resta de ningún otro producto.</p>
+            <p class="text-xs text-[#a0a0b8] mt-0.5">Escribe una cantidad para sumar, o usa el signo menos (−) para reducir el ingreso del período.</p>
             <p x-show="ingresoGrupo.diaPasado" class="text-xs text-amber-200 mt-1">Estás viendo un día pasado: se guardará al cierre de ese día.</p>
           </div>
           <button type="button" class="shrink-0 w-8 h-8 rounded-lg text-[#a0a0b8] hover:text-white hover:bg-[#26263a] text-xl leading-none cursor-pointer" @click="cerrarModalGrupo('ingresoGrupo')" aria-label="Cerrar">×</button>
@@ -8877,10 +8877,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
               <div class="mt-3 grid gap-3" :class="l.cuadros.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
                 <template x-for="c in l.cuadros" :key="c.key">
-                  <label class="block text-xs font-bold text-emerald-200"><span x-text="c.etiqueta"></span>
-                    <input type="number" min="0" step="any" inputmode="decimal" placeholder="0" class="ingreso-grupo-input ingreso-grupo-input-grande" :aria-label="'Ingresar ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
-                    <span class="block mt-1 font-normal text-[11px] text-[#a0a0b8]" x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '')"></span>
-                  </label>
+                  <div>
+                    <label class="block text-xs font-bold text-emerald-200"><span x-text="c.etiqueta"></span>
+                      <input type="number" step="any" placeholder="0" class="ingreso-grupo-input ingreso-grupo-input-grande" :aria-label="'Ajustar ingreso ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
+                    </label>
+                    <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#a0a0b8]">
+                      <span x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '')"></span>
+                      <button type="button" x-show="c.ya > 0" class="rounded px-1.5 py-1 font-semibold text-red-200 hover:bg-red-900 cursor-pointer" :aria-label="'Quitar ingreso ' + c.etiqueta + ' de ' + l.nombre" @click="c.valor = -c.ya; ingresoGrupo.error = ''">Quitar ingreso</button>
+                    </div>
+                  </div>
                 </template>
               </div>
             </section>
@@ -8902,10 +8907,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   </p>
                   <div class="mt-2 grid gap-2" :class="l.cuadros.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
                     <template x-for="c in l.cuadros" :key="c.key">
-                      <label class="block text-[11px] font-semibold text-emerald-200"><span x-text="c.etiqueta"></span>
-                        <input type="number" min="0" step="any" inputmode="decimal" placeholder="0" class="ingreso-grupo-input" :aria-label="'Ingresar ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
-                        <span class="block mt-1 font-normal text-[10px] text-[#a0a0b8]" x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '')"></span>
-                      </label>
+                      <div>
+                        <label class="block text-[11px] font-semibold text-emerald-200"><span x-text="c.etiqueta"></span>
+                          <input type="number" step="any" placeholder="0" class="ingreso-grupo-input" :aria-label="'Ajustar ingreso ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
+                        </label>
+                        <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
+                          <span x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '')"></span>
+                          <button type="button" x-show="c.ya > 0" class="rounded px-1.5 py-1 font-semibold text-red-200 hover:bg-red-900 cursor-pointer" :aria-label="'Quitar ingreso ' + c.etiqueta + ' de ' + l.nombre" @click="c.valor = -c.ya; ingresoGrupo.error = ''">Quitar ingreso</button>
+                        </div>
+                      </div>
                     </template>
                   </div>
                 </div>
@@ -8932,15 +8942,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
 
         <div class="px-5 py-3 border-t border-[#26263a] bg-[#0b0b12] space-y-2">
-          <p x-show="ingresoGrupo.error" class="text-xs font-semibold text-rose-300" role="alert" x-text="ingresoGrupo.error"></p>
+          <p x-show="ingresoGrupo?.error" class="text-xs font-semibold text-rose-300" role="alert" x-text="ingresoGrupo?.error || ''"></p>
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="text-xs text-[#a0a0b8] leading-tight">
-              <p>Vas a ingresar <strong class="text-lg font-mono font-extrabold text-emerald-300" x-text="formatNum(totalIngresoGrupo())"></strong></p>
-              <p class="font-mono" x-text="ingresoGrupo ? ('Stock del grupo: ' + formatNum(ingresoGrupo.stockAntes) + ' → ' + formatNum(redondear3(ingresoGrupo.stockAntes + totalIngresoGrupo()))) : ''"></p>
+              <p>Cambio de ingreso <strong class="text-lg font-mono font-extrabold text-emerald-300" x-text="formatNum(totalIngresoGrupo())"></strong></p>
+              <p class="font-mono" x-text="ingresoGrupo ? ('Stock del grupo: ' + formatNum(ingresoGrupo.stockAntes) + ' → ' + formatNum(stockPrevistoIngresoGrupo())) : ''"></p>
             </div>
             <div class="flex items-center gap-2">
               <button type="button" class="px-4 py-2 rounded-lg bg-[#1c1c2b] text-white text-sm font-semibold cursor-pointer" @click="cerrarModalGrupo('ingresoGrupo')">Cancelar</button>
-              <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-500 text-[#04130d] text-sm font-extrabold cursor-pointer disabled:opacity-40 disabled:cursor-default" :disabled="!totalIngresoGrupo()">Ingresar stock</button>
+              <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-500 text-[#04130d] text-sm font-extrabold cursor-pointer disabled:opacity-40 disabled:cursor-default" :disabled="!hayCambiosIngresoGrupo()">Guardar cambios</button>
             </div>
           </div>
         </div>
@@ -16846,7 +16856,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         cantidadIngresoGrupo(cuadro) {
           const n = Number(cuadro && cuadro.valor);
-          return Number.isFinite(n) && n > 0 ? this.redondear3(n) : 0;
+          return Number.isFinite(n) ? this.redondear3(n) : 0;
+        },
+
+        hayCambiosIngresoGrupo() {
+          return !!this.ingresoGrupo?.lineas.some((l) => l.cuadros.some((c) => this.cantidadIngresoGrupo(c) !== 0));
         },
 
         totalIngresoGrupo() {
@@ -16855,34 +16869,59 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(info.lineas.reduce((suma, l) => suma + l.cuadros.reduce((a, c) => a + this.cantidadIngresoGrupo(c), 0), 0));
         },
 
+        stockPrevistoIngresoGrupo() {
+          const info = this.ingresoGrupo;
+          if (!info) return 0;
+          let diferencia = 0;
+          for (const linea of info.lineas) {
+            const fila = this.filaReal(linea.id);
+            if (!fila) continue;
+            for (const tipo of this.tiposDe(fila)) {
+              const delta = linea.cuadros.reduce((a, c) => a + (c.tipo === tipo ? this.cantidadIngresoGrupo(c) : 0), 0);
+              const saldo = this.quedaSinTopeTipo(fila, tipo);
+              diferencia += Math.max(0, saldo + delta) - Math.max(0, saldo);
+            }
+          }
+          return this.redondear3(info.stockAntes + diferencia);
+        },
+
         guardarIngresoGrupo() {
           const info = this.ingresoGrupo;
           if (!info) return false;
-          if (info.lineas.some((l) => l.cuadros.some((c) => Number(c.valor) < 0))) {
-            info.error = 'Escribe solo cantidades positivas. Para bajar stock usa el lápiz.';
-            return false;
-          }
-          const total = this.totalIngresoGrupo();
-          if (!total) {
+          const cambios = info.lineas.flatMap((linea) => linea.cuadros.map((cuadro) => ({ linea, cuadro, cantidad: this.cantidadIngresoGrupo(cuadro) })))
+            .filter((cambio) => cambio.cantidad !== 0);
+          if (!cambios.length) {
             info.error = 'Escribe al menos una cantidad.';
             return false;
           }
+          for (const { linea, cuadro, cantidad } of cambios) {
+            if (cantidad >= 0) continue;
+            cuadro.ya = this.ingresoDirectoPeriodo(linea.id, cuadro.tipo, cuadro.corte);
+            if (-cantidad > cuadro.ya) {
+              info.error = 'Puedes quitar hasta ' + this.formatNum(cuadro.ya) + ' del ingreso de ' + linea.nombre + ' (' + cuadro.etiqueta + ') en este período.';
+              return false;
+            }
+          }
           info.error = '';
-          let guardado = 0;
-          info.lineas.forEach((linea) => linea.cuadros.forEach((cuadro) => {
-            const n = this.cantidadIngresoGrupo(cuadro);
-            const ctx = n && this.contextoIngresoDirecto(linea.id, cuadro.tipo, cuadro.corte);
-            if (!ctx || !this.aplicarVariacionIngreso(ctx, n, 0)) return;
-            // Ya guardado: si otro cuadro no se puede, reintentar no lo repite.
-            guardado = this.redondear3(guardado + n);
+          let pendientes = false;
+          for (const { linea, cuadro, cantidad } of cambios) {
+            const ctx = this.contextoIngresoDirecto(linea.id, cuadro.tipo, cuadro.corte);
+            if (!ctx || !this.aplicarVariacionIngreso(ctx, cantidad, 0)) {
+              pendientes = true;
+              continue;
+            }
             cuadro.valor = '';
-          }));
-          if (guardado !== total) {
-            info.error = 'No se pudo ingresar lo que quedó escrito.';
+            cuadro.ya = this.ingresoDirectoPeriodo(linea.id, cuadro.tipo, cuadro.corte);
+            cuadro.hay = this.hayCuadroIngreso(ctx.row, cuadro.tipo, cuadro.corte);
+            linea.hay = this.saldoRealColumna(ctx.row);
+          }
+          if (pendientes) {
+            info.stockAntes = this.cifraGrupo(this.filaReal(info.id), 'queda');
+            info.error = 'No se pudo aplicar el cambio que quedó escrito.';
             return false;
           }
           this.ingresoGrupo = null;
-          this.toastMessage = 'Se ingresaron ' + this.formatNum(total) + ' en ' + info.nombre + '.';
+          this.toastMessage = 'Se actualizaron los ingresos de ' + info.nombre + '.';
           this.sonarVenta('filtro');
           return true;
         },

@@ -838,13 +838,13 @@ describe('productos con grupo en la tabla', () => {
         expect(app.encolarMovimientos.mock.calls[0][0][0]).toMatchObject({ rubro: 'octavo-pollo', cantidad: 8, motivo: 'Ingreso independiente crudo · pierna' });
     });
 
-    test('no acepta negativos ni un ingreso vacío', () => {
+    test('no guarda un ingreso vacío ni resta más de lo ingresado independientemente', () => {
         const { app, pierna } = preparar();
         app.abrirIngresoGrupo(pierna);
         expect(app.guardarIngresoGrupo()).toBe(false);
         app.ingresoGrupo.lineas[0].cuadros[0].valor = '-3';
         expect(app.guardarIngresoGrupo()).toBe(false);
-        expect(app.ingresoGrupo.error).toMatch(/positivas/);
+        expect(app.ingresoGrupo.error).toMatch(/Puedes quitar hasta 0/);
         expect(app.encolarMovimientos).not.toHaveBeenCalled();
     });
 
