@@ -15,7 +15,7 @@ Cada fila tiene su cuenta. La pantalla la enseña de dos maneras, y las dos son 
 | Queda | Columna Queda, caja de Transformar, lápiz, pestaña Stock y tope del **+** | Lo que hay en esa fila. Es un solo número en toda la pantalla. |
 | Total del grupo | Número principal de Saldo ant., Ingreso, Ingreso total, Transformación y Queda en Pecho, Pierna, Filete y Octavo | La fila más los platos que cuelgan de ella. La lupa muestra cuánto tiene cada uno. El Estado se mide con este número. |
 
-En Pierna de pollo, los cuadros **Ingreso** e **Ingreso total** muestran las cifras propias de la pierna. Cuando entran 40 piernas y pasan a Pollada, el ingreso de Pierna sigue siendo 40. La lupa de Ingreso total conserva el desglose con el saldo y el ingreso de cada plato del grupo.
+En Pierna de pollo, **Ingreso total** suma el saldo anterior visible del grupo y el ingreso propio de Pierna. Si el saldo anterior es 97 y entran 40 piernas que luego pasan a Pollada, la fila de Pierna muestra 137. La lupa muestra ese cálculo y el desglose por producto, que incluye el ingreso recibido por Pollada.
 
 Un pecho con Queda 13 en la tabla y 11 en su lupa tiene 11 de pieza suelta y 2 ya pasados a platos. El **+** solo puede mover los 11.
 
@@ -257,7 +257,7 @@ Los mensajes de la hoja (vínculo guardado, stock actualizado, bloqueo, error de
 
 - **Auditoría** muestra el registro del producto con fecha, tipo, motivo, cantidad y saldo. Usa sus filtros para comprobar qué movimiento cambió el número.
 - **Descuadre** distingue faltantes de stock, aperturas ajustadas y diferencias de conteo. Los ajustes intencionales del lápiz se conservan en el historial y quedan fuera del aviso de apertura pendiente. Los faltantes siguen activos.
-- **Reporte del día** consulta el día operativo seleccionado y reúne ingresos, ventas y transformaciones. **Imprimir** abre la hoja de Inventario Tabla.
+- **Reporte del día** muestra qué producto o plato recibió el ingreso, su tipo y el origen de la transformación cuando está registrado. Si una entrada se pasa a otro producto durante el día, se cuenta en el destino final. En Octavo se muestra si salió de pecho o pierna cuando el movimiento trae esa marca. De forma predeterminada se ve el detalle de ingresos y los totales de ventas. Desde **Editar reporte** se puede activar el detalle de ventas u ocultar el de ingresos. Al tocar un total de ventas se abre el detalle por comanda o descarga. **Imprimir** abre la hoja de Inventario Tabla.
 - **Configuración** contiene Colores, Factores, Aderezos, Crudo y cocido, Preferencias y Tabla. Para ajustar vínculos de consumo de un plato usa Relación de platos. Para administrar mapas usa sus controles existentes.
 
 ## Referencia para mantenimiento

@@ -109,7 +109,7 @@ test('un día sin datos deja la fila en 0 en vez de repetir el período anterior
     expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(0);
 });
 
-test('la tabla muestra 40 de Pierna aunque las mismas piezas pasen a Pollada y el grupo sume 177', () => {
+test('Pierna suma la apertura visible y su ingreso sin volver a contar el pase a Pollada', () => {
     const app = crearApp();
     pintar(app, [
         mov('pachamanca-pollo', 'ingreso', 53, horaAyer('09:00')),
@@ -121,8 +121,10 @@ test('la tabla muestra 40 de Pierna aunque las mismas piezas pasen a Pollada y e
     ]);
     const pierna = app.filaReal('pierna');
     const pollada = app.filaReal('pollada');
+    expect(app.cifraGrupo(pierna, 'saldoAnterior')).toBe(97);
     expect(app.cifraIngresoTabla(pierna, 'ingreso')).toBe(40);
-    expect(app.cifraIngresoTabla(pierna, 'ingresoTotal')).toBe(40);
+    expect(app.cifraIngresoTabla(pierna, 'ingresoTotal')).toBe(137);
+    expect(app.cifraIngresoTabla(pierna, 'ingresoTotal', 'crudo')).toBe(137);
     expect(app.cifraIngresoTabla(pollada, 'ingresoTotal')).toBe(52);
     expect(app.stockCuadro('pierna', 'crudo')).toBe(0);
     expect(app.stockCuadro('pollada', 'crudo')).toBe(52);
@@ -130,6 +132,138 @@ test('la tabla muestra 40 de Pierna aunque las mismas piezas pasen a Pollada y e
     expect(app.origenIngreso).toMatchObject({ total: 40, anotado: 40, transformado: 0 });
     app.abrirDesgloseGrupo(pierna, 'ingresoTotal');
     expect(app.desgloseGrupo.total).toBe(177);
+    expect(app.desgloseGrupo.ayuda).toContain('97 de saldo anterior + 40 de ingreso = 137');
+    const filaImpresa = app.documentoImpresionHoja().match(/<tr class="fila[^"]*">(?:(?!<\/tr>).)*>Pierna de Pollo<(?:(?!<\/tr>).)*<\/tr>/)[0];
+    expect([...filaImpresa.matchAll(/<span class="v">(\d+)<\/span>/g)].map((m) => Number(m[1]))).toEqual([97, 40, 137]);
+});
+
+test('la impresión respeta las columnas, los indicadores y las filas ocultas de la configuración', () => {
+    const app = crearApp();
+    pintar(app, [mov('pierna-pollo', 'ingreso', 40, hora('09:00'))]);
+    const apertura = ['Producto', 'Saldo anterior', 'Ingreso'];
+    const ingresoVenta = ['Ingreso total', 'Venta comandas'];
+    const queda = 'Queda (saldo real)';
+    const revisar = (esperadas, anchos) => {
+        const impreso = app.documentoImpresionHoja();
+        const titulos = impreso.match(/<tr class="sub">(.*?)<\/tr>/)[1];
+        expect([...titulos.matchAll(/<th>(.*?)<\/th>/g)].map((m) => m[1])).toEqual(esperadas);
+        const bandas = impreso.match(/<tr class="sup">(.*?)<\/tr>/)[1];
+        expect([...bandas.matchAll(/colspan="(\d+)"/g)].map((m) => Number(m[1]))).toEqual(anchos);
+        expect(impreso.match(/<col /g)).toHaveLength(esperadas.length);
+        const grupos = [...impreso.matchAll(/<tr class="grupo"><td colspan="(\d+)"/g)];
+        expect(grupos.length).toBeGreaterThan(0);
+        grupos.forEach((m) => expect(Number(m[1])).toBe(esperadas.length));
+        const filas = [...impreso.matchAll(/<tr class="fila[^"]*">(.*?)<\/tr>/g)];
+        expect(filas.length).toBeGreaterThan(0);
+        filas.forEach((m) => expect(m[1].match(/<td /g)).toHaveLength(esperadas.length));
+        return impreso;
+    };
+
+    const ocultas = revisar([...apertura, ...ingresoVenta, queda], [2, 2, 1, 1]);
+    expect(ocultas).not.toContain('Transformación');
+    expect(ocultas).not.toContain('↑+40');
+    expect(ocultas).not.toMatch(/>(Pollo|Pato) fresco</i);
+
+    app.setOcultarSaldoYConteo(false);
+    app.setOcultarEstado(false);
+    app.setOcultarMasMenosIngreso(false);
+    app.setOcultarPolloFresco(false);
+    app.cargarVistaTablaLocal();
+    const mixtas = revisar([...apertura, ...ingresoVenta, 'Saldo', 'Conteo', queda, 'Estado'], [2, 2, 1, 4]);
+    expect(mixtas).toContain('↑+40');
+    expect(mixtas).toMatch(/>Pollo fresco</i);
+    expect(mixtas).not.toMatch(/>Pato fresco</i);
+
+    app.setOcultarCorreccion(false);
+    app.setOcultarTransformacion(false);
+    app.setOcultarDiferencia(false);
+    revisar([...apertura, 'Corrección', ...ingresoVenta, 'Transformación', 'Saldo', 'Conteo', queda, 'Diferencia', 'Estado'], [2, 3, 2, 5]);
+});
+
+test('el reporte cuenta el producto final con su tipo y corte, y descarta pases deshechos', () => {
+    const app = crearApp();
+    const reporte = [
+        mov('octavo-pollo', 'ingreso', 146, hora('04:00'), 'Saldo anterior · pierna'),
+        mov('octavo-pollo', 'ingreso', 30, hora('04:00'), 'Ajuste apertura · Editar stock · pecho'),
+        mov('octavo-pollo', 'ingreso', -2, hora('08:00'), 'Pasa a Caldo de pollo'),
+        mov('caldo-pollo', 'ingreso', 2, hora('08:00'), 'Pasa a Caldo de pollo · pierna'),
+        mov('pierna-pollo', 'ingreso', 40, hora('09:00'), 'Ingreso independiente crudo'),
+        mov('pierna-pollo', 'ingreso', -40, hora('09:30'), 'Pasa a Pollada'),
+        mov('pollada', 'ingreso', 40, hora('09:30'), 'Sale de Pierna de Pollo'),
+        mov('pechuga-pollo', 'ingreso', 5, hora('10:00'), 'Ingreso independiente crudo'),
+        mov('pechuga-pollo', 'ingreso', -3, hora('10:30'), 'Pasa a Octavo de pollo'),
+        mov('octavo-pollo', 'ingreso', 6, hora('10:30'), 'Sale de Pecho de Pollo'),
+        mov('pierna-pollo', 'ingreso', -2, hora('11:00'), 'Pasa a Octavo de pollo'),
+        mov('octavo-pollo', 'ingreso', 4, hora('11:00'), 'Viene de Pierna de Pollo · pierna'),
+        mov('octavo-pollo', 'ingreso', -4, hora('11:30'), 'Pasa a Arroz con pollo · pecho'),
+        mov('arroz-pollo', 'ingreso', 4, hora('11:30'), 'Sale de Octavo de pollo · pecho'),
+        mov('arroz-pollo', 'ingreso', -2, hora('12:00'), 'Pasa a cocido Arroz con pollo · pecho'),
+        mov('arroz-pollo', 'ingreso', 2, hora('12:00'), 'Pasa de crudo Arroz con pollo · pecho', 'cocido'),
+        mov('pechuga-pollo', 'ingreso', -1, hora('13:00'), 'Pasa a Sandwich'),
+        mov('sandwiches', 'ingreso', 1, hora('13:00'), 'Sale de Pecho de Pollo', 'cocido'),
+        mov('pechuga-pollo', 'ingreso', -1, hora('14:00'), 'Pasa a Pecho a la Leña'),
+        mov('pollo-lena', 'ingreso', 1, hora('14:00'), 'Sale de Pecho de Pollo'),
+        mov('pechuga-pollo', 'ingreso', 1, hora('14:01'), 'Pasa a Pecho a la Leña'),
+        mov('pollo-lena', 'ingreso', -1, hora('14:01'), 'Sale de Pecho de Pollo'),
+        mov('pollada', 'ingreso', 1, hora('15:00'), 'Ingreso independiente cocido', 'cocido'),
+        mov('pollada', 'ingreso', -1, hora('15:01'), 'Ingreso independiente cocido', 'cocido')
+    ];
+    app.reporteDiaVista = app.vistaReporteHoja({}, reporte.reverse());
+    const filas = app.filasReporteIngreso();
+    const pierna = filas.find((f) => f.clave === 'pierna-pollo');
+    expect(pierna.ingreso).toBe(40);
+    expect(pierna.lineas).toMatchObject([{ nombre: 'Pollada', tipo: 'Crudo', detalle: 'Desde Pierna de Pollo', cantidad: 40 }]);
+    const pecho = filas.find((f) => f.clave === 'pechuga-pollo');
+    expect(pecho.ingreso).toBe(2);
+    expect(pecho.lineas).toMatchObject([{ clave: 'pechuga-pollo', cantidad: 1 }, { clave: 'sandwiches', tipo: 'Cocido', cantidad: 1 }]);
+    const octavo = filas.find((f) => f.clave === 'octavo-pollo');
+    expect(octavo.ingreso).toBe(12);
+    expect(octavo.lineas).toEqual(expect.arrayContaining([
+        expect.objectContaining({ clave: 'arroz-pollo', tipo: 'Crudo', corte: 'Pecho', detalle: 'Desde Octavo de pollo', cantidad: 2 }),
+        expect.objectContaining({ clave: 'arroz-pollo', tipo: 'Cocido', corte: 'Pecho', detalle: 'Desde crudo', cantidad: 2 }),
+        expect.objectContaining({ clave: 'caldo-pollo', corte: 'Pierna', detalle: 'Desde Octavo de pollo', cantidad: 2 }),
+        expect.objectContaining({ clave: 'octavo-pollo', corte: 'Pecho', detalle: 'Desde Pecho de Pollo', cantidad: 2 }),
+        expect.objectContaining({ clave: 'octavo-pollo', corte: 'Pierna', detalle: 'Desde Pierna de Pollo', cantidad: 4 })
+    ]));
+    expect(app.totalReporteIngreso()).toBe(54);
+    expect(filas.map((f) => f.clave)).toHaveLength(3);
+});
+
+test('el reporte de venta agrupa platos y abre las comandas con el mismo total y el stock utilizado', () => {
+    const app = crearApp();
+    const v = (rubro, origen, nombre, cantidad, tipoProducto, sinSaldo = false) => ({
+        rubro, origen, nombre, cantidad, tipoProducto, sinSaldo,
+        detalle: [{ nombre, cantidad, platos: cantidad, comanda: 'Comanda 1', comandaId: '1', hora: hora('13:00') }]
+    });
+    const ventas = [
+        v('pollada', 'pollada', 'Pollada con arroz', 2, 'cocido'),
+        v('pierna-pollo', 'pollada', 'Pollada con arroz', 1.5, 'crudo'),
+        v('pollada', 'pollada', 'Pollada con arroz', 1.5, 'cocido', true),
+        v('pierna-lena', 'pierna-lena', 'Cuarto a la leña', 1, 'cocido'),
+        v('arroz-pollo', 'arroz-pollo', 'Arroz con pollo', 3, 'cocido')
+    ];
+    const movimientos = [
+        mov('pollada', 'ingreso', 2, hora('08:00'), 'Ingreso directo', 'cocido'),
+        { ...mov('pollada', 'egreso', 1, hora('14:00'), 'Venta manual · Personal', 'cocido'), _id: 'manual', nombre: 'Pollada' }
+    ];
+    app.reporteDiaVista = app.vistaReporteHoja({ ventas }, movimientos);
+    const pierna = app.filasReporteVenta().find((f) => f.clave === 'pierna-pollo');
+    expect(pierna.venta).toBe(5.5);
+    expect(pierna.lineas).toEqual(expect.arrayContaining([
+        expect.objectContaining({ plato: 'Pollada con arroz', tipo: 'Crudo', detalle: 'Comandas · Stock de Pierna de Pollo', cantidad: 1.5 }),
+        expect.objectContaining({ plato: 'Pollada con arroz', tipo: 'Cocido', detalle: 'Comandas · Stock de Pollada', cantidad: 2 }),
+        expect.objectContaining({ nombre: 'Pollada', detalle: 'Descarga manual · Personal', cantidad: 1 })
+    ]));
+    app.abrirVenta(pierna, app.reporteDiaVista);
+    expect(app.ventaInfo.total).toBe(5.5);
+    expect(app.ventaInfo.lineas.find((l) => l.nombre === 'Pollada con arroz')).toMatchObject({ cantidad: 3.5, comandaId: '1' });
+    expect(app.totalReporteVenta()).toBe(8.5);
+
+    app.alternarReporteOculta(app.filasReporteEditar().find((f) => f.clave === 'pollada'));
+    expect(app.totalReporteIngreso()).toBe(0);
+    expect(app.totalReporteVenta()).toBe(4);
+    const filtrada = app.filasReporteVenta().find((f) => f.clave === 'pierna-pollo');
+    expect(app.detalleVenta(filtrada, app.reporteDiaVista).total).toBe(1);
 });
 
 test('Venta Comandas de pierna muestra las siete ventas del modal sin descontarlas dos veces', () => {

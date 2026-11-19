@@ -1818,6 +1818,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .rep-nombre { font-size: 1.2rem; }
     .rep-num { font-size: 1.75rem; }
     .rep-fila { padding: 0.75rem 0; border-bottom: 1px solid #26263a; }
+    .rep-fila:last-child { border-bottom: 0; }
+    .rep-detalle { padding: 0.45rem 0 0.45rem 0.75rem; border-left: 2px solid #303044; }
     .rep-kicker { font-size: 0.85rem; letter-spacing: 0.04em; }
     .rep-panel-ing { border-color: rgba(6, 95, 70, 0.7); }
     .rep-panel-ven { border-color: rgba(159, 18, 57, 0.6); }
@@ -2697,7 +2699,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <template x-if="!row.tieneCocido">
                         <div class="par-tipo-con-accion">
                           <div class="text-center">
-                          <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" :title="row.id === 'pierna' ? 'Saldo anterior de la pierna + su ingreso del período' : 'Saldo anterior + Ingreso'">
+                          <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" title="Saldo anterior + Ingreso">
                             <span x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal'))"></span>
                             <span x-show="mostrarMasMenosIngreso && (flechaSumaCelda(row) > 0 || flechaRestaCelda(row) > 0)" class="ingreso-total-flechas">
                               <span x-show="flechaSumaCelda(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(flechaSumaCelda(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(flechaSumaCelda(row))"></span></span>
@@ -8544,7 +8546,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </template>
 
   <template x-if="reporteDiaAbierto">
-    <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-3 sm:p-5" @click.self="reporteDiaAbierto = false" @keydown.escape.window="reporteDiaAbierto = false" role="dialog" aria-modal="true" aria-label="Reporte del día">
+    <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-3 sm:p-5" @click.self="reporteDiaAbierto = false" @keydown.escape.window="if (!ventaAbierta) reporteDiaAbierto = false" role="dialog" aria-modal="true" aria-label="Reporte del día">
       <div class="w-full max-w-6xl bg-[#14141f] border-2 border-[#d4af37] p-6 sm:p-5 max-h-[92vh] overflow-y-auto rounded-2xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)]">
         <div class="flex items-start justify-between gap-4 mb-4">
           <div>
@@ -8552,26 +8554,40 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <p class="rep-lead text-[#c8c8dc] mt-2" x-text="textoReporteDia()"></p>
           </div>
           <div class="flex items-center gap-1 shrink-0">
-            <button type="button" class="w-10 h-10 rounded-lg border-2 inline-flex items-center justify-center cursor-pointer transition" :class="reporteDiaEditando ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'text-[#d4af37] border-[#d4af37]/60 hover:bg-[#d4af37]/15'" @click="reporteDiaEditando = !reporteDiaEditando" :aria-pressed="reporteDiaEditando" aria-label="Editar qué productos se ven en el reporte" title="Editar: elegir qué productos se ven en el reporte">
+            <button type="button" class="w-10 h-10 rounded-lg border-2 inline-flex items-center justify-center cursor-pointer transition" :class="reporteDiaEditando ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'text-[#d4af37] border-[#d4af37]/60 hover:bg-[#d4af37]/15'" @click="reporteDiaEditando = !reporteDiaEditando" :aria-expanded="reporteDiaEditando" aria-controls="opciones-reporte-dia" aria-label="Editar reporte" title="Editar reporte">
               <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
             <button type="button" class="text-[#a0a0b8] hover:text-white text-2xl leading-none px-2 cursor-pointer" @click="reporteDiaAbierto = false" aria-label="Cerrar">×</button>
           </div>
         </div>
-        <section x-show="reporteDiaEditando" x-cloak class="mb-4 rounded-2xl border border-[#d4af37]/50 bg-[#0e0e16] p-4 sm:p-5">
+        <section id="opciones-reporte-dia" x-show="reporteDiaEditando && !reporteDiaCargando && !reporteDiaError" x-cloak class="mb-4 rounded-2xl border border-[#d4af37]/50 bg-[#0e0e16] p-4 sm:p-5">
           <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div>
-              <h4 class="text-xl font-extrabold text-[#d4af37]">Qué productos se ven en el reporte</h4>
-              <p class="text-base text-[#c8c8dc] mt-1">Desmarca los que no quieres ver. Quedan ocultos en Qué ingresó y Qué se vendió, y no suman en los totales. Se guarda en este navegador.</p>
+              <h4 class="text-xl font-extrabold text-[#d4af37]">Editar reporte</h4>
+              <p class="text-sm text-[#c8c8dc] mt-1">Las opciones se guardan en este navegador.</p>
             </div>
-            <div class="flex gap-2">
-              <button type="button" class="px-4 py-2 rounded-lg border border-[#26263a] text-[#c8c8dc] text-base font-bold cursor-pointer" @click="mostrarTodoReporte()">Mostrar todos</button>
-              <button type="button" class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-base font-bold cursor-pointer" @click="reporteDiaEditando = false">Listo</button>
+            <button type="button" class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-base font-bold cursor-pointer" @click="reporteDiaEditando = false">Listo</button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+            <label class="flex items-center gap-3 rounded-xl border border-[#26263a] bg-[#0a0a0f] px-4 py-2.5 cursor-pointer">
+              <input type="checkbox" class="w-5 h-5 accent-[#d4af37] shrink-0" :checked="reporteDetalles.ingreso" @change="setReporteDetalle('ingreso', $event.target.checked)">
+              <span class="font-bold text-white">Mostrar detalle de ingresos</span>
+            </label>
+            <label class="flex items-center gap-3 rounded-xl border border-[#26263a] bg-[#0a0a0f] px-4 py-2.5 cursor-pointer">
+              <input type="checkbox" class="w-5 h-5 accent-[#d4af37] shrink-0" :checked="reporteDetalles.venta" @change="setReporteDetalle('venta', $event.target.checked)">
+              <span class="font-bold text-white">Mostrar detalle de ventas</span>
+            </label>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[#26263a] pt-3 mb-2">
+            <div>
+              <h5 class="font-bold text-white">Productos visibles</h5>
+              <p class="text-sm text-[#c8c8dc]">Los productos desmarcados se excluyen de los totales.</p>
             </div>
+            <button type="button" class="px-4 py-2 rounded-lg border border-[#26263a] text-[#c8c8dc] text-base font-bold cursor-pointer" @click="mostrarTodoReporte()">Mostrar todos los productos</button>
           </div>
           <p x-show="filasReporteEditar().length === 0" class="text-base text-[#a0a0b8] py-2">Este día no tiene productos con movimiento.</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <template x-for="(f, i) in filasReporteEditar()" :key="'rep-edit-' + i">
+            <template x-for="f in filasReporteEditar()" :key="f.clave">
               <label class="flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 cursor-pointer" :class="reporteFilaOculta(f) ? 'border-[#26263a] bg-[#0a0a0f] opacity-60' : 'border-emerald-700/50 bg-[#10201a]'">
                 <span class="flex items-center gap-3 min-w-0">
                   <input type="checkbox" class="w-5 h-5 accent-[#d4af37] shrink-0" :checked="!reporteFilaOculta(f)" @change="alternarReporteOculta(f)" :aria-label="'Mostrar ' + f.nombre + ' en el reporte'">
@@ -8588,15 +8604,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <button type="button" @click="irReporteDia('manana')" class="rep-btn px-4 py-2 text-base font-bold rounded-lg cursor-pointer" :class="marcaReporteDia() === 'Mañana' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#c8c8dc] border border-[#26263a]'">Mañana</button>
           <span class="text-base font-mono text-[#a0a0b8]" x-text="reporteDiaFecha"></span>
         </div>
-        <p x-show="reporteDiaCargando" class="text-lg text-[#c8c8dc]">Cargando…</p>
-        <div x-show="!reporteDiaCargando" class="space-y-4">
+        <p x-show="reporteDiaCargando" role="status" class="text-lg text-[#c8c8dc]">Cargando…</p>
+        <p x-show="reporteDiaError" role="alert" class="text-base text-rose-200 py-2" x-text="reporteDiaError"></p>
+        <div x-show="!reporteDiaCargando && !reporteDiaError" class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="rep-kpi-ing bg-[#0a0a0f] border rounded-2xl px-5 py-4">
-              <p class="rep-kicker uppercase font-bold text-emerald-300">Ingresó en el día</p>
+              <p class="rep-kicker uppercase font-bold text-emerald-300">Ingresos por producto final</p>
               <p class="rep-cifra font-mono font-extrabold text-emerald-300 mt-1" x-text="formatNum(totalReporteIngreso())"></p>
             </div>
             <div class="rep-kpi-ven bg-[#0a0a0f] border rounded-2xl px-5 py-4">
-              <p class="rep-kicker uppercase font-bold text-rose-200">Se vendió</p>
+              <p class="rep-kicker uppercase font-bold text-rose-200">Unidades de inventario vendidas</p>
               <p class="rep-cifra font-mono font-extrabold text-rose-200 mt-1" x-text="formatNum(totalReporteVenta())"></p>
             </div>
           </div>
@@ -8604,21 +8621,51 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <section class="rep-panel-ing rounded-2xl border bg-[#0e0e16] p-4 sm:p-5">
               <h4 class="text-xl font-extrabold text-emerald-300 mb-3">Qué ingresó</h4>
               <p x-show="filasReporteIngreso().length === 0" class="text-base text-[#a0a0b8] py-4">Este día no tiene ingresos en la hoja.</p>
-              <template x-for="(f, i) in filasReporteIngreso()" :key="'rep-ing-' + i">
-                <div class="rep-fila flex items-center justify-between gap-3">
-                  <span class="rep-nombre font-bold text-white leading-snug" x-text="f.nombre"></span>
-                  <span class="rep-num font-mono font-extrabold text-emerald-300 shrink-0" x-text="formatNum(f.ingreso)"></span>
-                </div>
+              <template x-for="f in filasReporteIngreso()" :key="f.clave">
+                <article class="rep-fila">
+                  <div class="flex items-center justify-between gap-3">
+                    <h5 class="rep-nombre font-bold text-white leading-snug" x-text="f.nombre"></h5>
+                    <span class="rep-num font-mono font-extrabold text-emerald-300 shrink-0" x-text="formatNum(f.ingreso)"></span>
+                  </div>
+                  <template x-if="reporteDetalles.ingreso">
+                    <ul class="mt-1">
+                      <template x-for="l in f.lineas" :key="l.id">
+                        <li class="rep-detalle flex items-start justify-between gap-3">
+                          <div>
+                            <p x-show="l.clave !== f.clave" class="font-semibold text-white" x-text="l.nombre"></p>
+                            <p class="text-sm text-[#c8c8dc]" x-text="[l.tipo, l.corte, l.detalle].filter(Boolean).join(' · ')"></p>
+                          </div>
+                          <span class="font-mono font-bold text-emerald-200" x-text="'+' + formatNum(l.cantidad)"></span>
+                        </li>
+                      </template>
+                    </ul>
+                  </template>
+                </article>
               </template>
             </section>
             <section class="rep-panel-ven rounded-2xl border bg-[#0e0e16] p-4 sm:p-5">
               <h4 class="text-xl font-extrabold text-rose-200 mb-3">Qué se vendió</h4>
-              <p x-show="filasReporteVenta().length === 0" class="text-base text-[#a0a0b8] py-4">Este día no tiene ventas por comandas.</p>
-              <template x-for="(f, i) in filasReporteVenta()" :key="'rep-ven-' + i">
-                <div class="rep-fila flex items-center justify-between gap-3">
-                  <span class="rep-nombre font-bold text-white leading-snug" x-text="f.nombre"></span>
-                  <button type="button" class="rep-num font-mono font-extrabold text-rose-200 underline decoration-dotted underline-offset-2 shrink-0 cursor-pointer" @click="abrirVenta(f, reporteDiaVista)" :aria-label="'Ver en qué se vendió ' + f.nombre" x-text="formatNum(f.venta)"></button>
-                </div>
+              <p x-show="filasReporteVenta().length === 0" class="text-base text-[#a0a0b8] py-4">Este día no tiene ventas ni descargas registradas como venta.</p>
+              <template x-for="f in filasReporteVenta()" :key="f.clave">
+                <article class="rep-fila">
+                  <div class="flex items-center justify-between gap-3">
+                    <h5 class="rep-nombre font-bold text-white leading-snug" x-text="f.nombre"></h5>
+                    <button type="button" class="rep-num font-mono font-extrabold text-rose-200 underline decoration-dotted underline-offset-2 shrink-0 cursor-pointer" @click="abrirVenta(f, reporteDiaVista, true)" :aria-label="'Ver el detalle de ventas de ' + f.nombre" x-text="formatNum(f.venta)"></button>
+                  </div>
+                  <template x-if="reporteDetalles.venta">
+                    <ul class="mt-1">
+                      <template x-for="l in f.lineas" :key="l.id">
+                        <li class="rep-detalle flex items-start justify-between gap-3">
+                          <div>
+                            <p class="font-semibold text-white" x-text="l.plato || l.nombre"></p>
+                            <p class="text-sm text-[#c8c8dc]" x-text="[l.tipo, l.corte, l.detalle].filter(Boolean).join(' · ')"></p>
+                          </div>
+                          <span class="font-mono font-bold text-rose-200" x-text="formatNum(l.cantidad)"></span>
+                        </li>
+                      </template>
+                    </ul>
+                  </template>
+                </article>
               </template>
             </section>
           </div>
@@ -9032,7 +9079,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </div>
           </div>
 
-          <div x-show="ventaInfo.esOctavo" class="grid grid-cols-2 gap-2 text-xs">
+          <div x-show="ventaInfo.esOctavo && !ventaDesdeReporte" class="grid grid-cols-2 gap-2 text-xs">
             <div class="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-2">
               <p class="text-[10px] font-extrabold uppercase text-emerald-300">Octavos de pierna</p>
               <p class="text-base font-extrabold num-mono text-white" x-text="formatNum(resumenOctavoVentaManual().totalDisponiblePierna)"></p>
@@ -11217,9 +11264,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaAbierto: false,
         reporteDiaFecha: '',
         reporteDiaCargando: false,
-        reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
+        reporteDiaError: '',
+        reporteDiaSolicitud: 0,
+        reporteDiaVista: { filas: [], productos: [], ventas: [], movimientos: [] },
         reporteDiaSector: 'todos',
         reporteDiaEditando: false,
+        reporteDetalles: (() => {
+          let guardado;
+          try { guardado = JSON.parse(localStorage.getItem('inventario-reporte-detalles')); } catch (e) {}
+          return { ingreso: guardado?.ingreso !== false, venta: guardado?.venta === true };
+        })(),
         reporteOcultos: (() => { try { const v = JSON.parse(localStorage.getItem('inventario-reporte-ocultos') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } })(),
         origenIngreso: null,
         ventaAbierta: false,
@@ -11939,7 +11993,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
-        // Documento de impresión propio: se arma aparte de la pantalla, con todas las columnas y todos los grupos abiertos.
+        // Documento de impresión con las opciones de la tabla y los grupos abiertos.
         imprimirHoja() {
           this.irA('tabla');
           this.$nextTick(() => {
@@ -11973,20 +12027,80 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const lineas = (items) => '<div class="ap">' + items.map((it) => (
             '<div class="ln' + (it.total ? ' tot' : '') + '">' + (it.etiq ? '<span class="et ' + (it.cls || '') + '">' + esc(it.etiq) + '</span>' : '') + '<span class="v">' + it.v + '</span></div>'
           )).join('') + '</div>';
-          // Un valor por tipo (crudo / cocido) y, si hay cocido, el total.
           const porTipo = (row, leer, conTotal) => {
-            const etiquetar = !!(row.tieneCocido || row.soloCocido);
+            const etiquetar = row.tieneCocido || (row.soloCocido && !conTotal);
+            if (conTotal && !row.tieneCocido) return lineas([{ v: leer(undefined) }]);
             const items = this.tiposDe(row).map((t) => ({
               etiq: etiquetar ? this.etiquetaTipo(t, row) : '',
               cls: t === 'cocido' ? 'co' : 'cr',
               v: leer(t)
             }));
-            if (conTotal && row.tieneCocido) items.push({ etiq: 'Total', total: true, v: leer(undefined) });
+            if (conTotal) items.push({ etiq: 'Total', total: true, v: leer(undefined) });
             return lineas(items);
           };
-          const quedaClase = (row, tipo) => (this.emergenciaCelda(row, tipo) ? ' alarma' : '');
+          const ingresoTotal = (row, tipo) => {
+            const total = num(this.cifraIngresoTabla(row, 'ingresoTotal', tipo));
+            if (tipo || !this.mostrarMasMenosIngreso) return total;
+            const suma = this.flechaSumaCelda(row);
+            const resta = this.flechaRestaCelda(row);
+            return total
+              + (suma > 0 ? ' <span class="pos">↑+' + esc(this.formatNum(suma)) + '</span>' : '')
+              + (resta > 0 ? ' <span class="neg">↓−' + esc(this.formatNum(resta)) + '</span>' : '');
+          };
+          const correccion = (row) => {
+            const valor = this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'correccion', t), 0);
+            return valor ? esc((valor > 0 ? '+' : '−') + this.formatNum(Math.abs(valor))) : num(0);
+          };
+          const transformacion = (row) => {
+            const valor = this.cifraGrupo(row, 'transformacion');
+            return valor > 0 ? '−' + num(valor) : num(0);
+          };
+          const queda = (row, tipo) => {
+            const alarma = this.emergenciaCelda(row, tipo) ? ' class="alarma"' : '';
+            return '<span' + alarma + '>' + esc(this.textoQuedaCelda(row, tipo)) + '</span>';
+          };
+          const conteo = (row, tipo) => {
+            const valor = this.conteoTipo(row, tipo);
+            return valor === null ? num(0) : esc(this.formatNum(valor));
+          };
+          const diferencia = (row, tipo) => {
+            const valor = this.calcDiferenciaTipo(row, tipo);
+            if (valor === null) return num(0);
+            const clase = valor < 0 ? 'neg' : (valor > 0 ? 'pos' : '');
+            return '<span class="' + clase + '">' + (valor > 0 ? '+' : '') + esc(this.formatNum(valor)) + '</span>';
+          };
+          const producto = (row, it, emerg) => {
+            const profundidad = it.enGrupo ? Math.min(3, Number(it.depth) || 0) : 0;
+            return '<span class="nom d' + profundidad + '">' + esc(it.nombre || row.nombre) + '</span>'
+              + (this.productoBloqueado(row.id) ? ' <span class="chip rojo">Bloqueado</span>' : '')
+              + (emerg ? ' <span class="chip rojo">Emergencia</span>' : '')
+              + (row.unidad ? ' <span class="und">' + esc(row.unidad) + '</span>' : '');
+          };
+          const bandas = [
+            { titulo: '1 · Apertura', columnas: [
+              { titulo: 'Producto', clase: 'c-prod', ancho: 17, celda: producto },
+              { titulo: 'Saldo anterior', ancho: 7, celda: (row) => porTipo(row, (t) => num(this.cifraGrupo(row, 'saldoAnterior', t)), true) }
+            ] },
+            { titulo: '2 · Entró hoy', columnas: [
+              { titulo: 'Ingreso', clase: 'n ing', ancho: 7.5, celda: (row) => porTipo(row, (t) => num(this.cifraIngresoTabla(row, 'ingreso', row.tieneCocido ? t : undefined)), false) },
+              this.mostrarCorreccion && { titulo: 'Corrección', ancho: 5.5, celda: correccion },
+              { titulo: 'Ingreso total', ancho: 7.5, celda: (row) => porTipo(row, (t) => ingresoTotal(row, t), true) }
+            ] },
+            { titulo: '3 · Salió hoy', columnas: [
+              { titulo: 'Venta comandas', clase: 'n ven', ancho: 6, celda: (row) => num(this.ventaComandasCocido(row)) },
+              this.mostrarTransformacion && { titulo: 'Transformación', clase: 'n tra', ancho: 7, celda: transformacion }
+            ] },
+            { titulo: '4 · Queda (cierre y auditoría)', columnas: [
+              this.mostrarSaldoYConteo && { titulo: 'Saldo', ancho: 7, celda: (row) => porTipo(row, (t) => num(this.cifraCelda(row, 'saldo', t)), false) },
+              this.mostrarSaldoYConteo && { titulo: 'Conteo', ancho: 6.5, celda: (row) => porTipo(row, (t) => conteo(row, t), false) },
+              { titulo: 'Queda (saldo real)', clase: 'n q', ancho: 8.5, celda: (row) => porTipo(row, (t) => queda(row, t), true) },
+              this.mostrarDiferencia && { titulo: 'Diferencia', ancho: 7, celda: (row) => porTipo(row, (t) => diferencia(row, t), false) },
+              this.mostrarEstado && { titulo: 'Estado', clase: 'c-est', ancho: 9, celda: (row) => esc(this.estadoFila(row) || '') }
+            ] }
+          ];
+          bandas.forEach((banda) => { banda.columnas = banda.columnas.filter(Boolean); });
+          const columnas = bandas.flatMap((banda) => banda.columnas);
 
-          let hayFilas = false;
           let nFilas = 0;
           let nEmergencia = 0;
           let cuerpo = '';
@@ -11994,76 +12108,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const items = (bloque.filas || []).filter((it) => it && it.row && this.filaTablaVisible(it.row));
             if (!items.length) return;
             if (!bloque.suelto && bloque.group) {
-              cuerpo += '<tr class="grupo"><td colspan="12">' + esc(bloque.group.nombre) + ' <span class="cuenta">' + items.length + '</span></td></tr>';
-            } else if (bloque.suelto && hayFilas) {
-              cuerpo += '<tr class="grupo"><td colspan="12">Otros productos <span class="cuenta">' + items.length + '</span></td></tr>';
+              cuerpo += '<tr class="grupo"><td colspan="' + columnas.length + '">' + esc(bloque.group.nombre) + ' <span class="cuenta">' + items.length + '</span></td></tr>';
+            } else if (bloque.suelto && nFilas) {
+              cuerpo += '<tr class="grupo"><td colspan="' + columnas.length + '">Otros productos <span class="cuenta">' + items.length + '</span></td></tr>';
             }
             items.forEach((it, i) => {
               const row = it.row;
-              hayFilas = true;
               nFilas++;
               const emerg = !!this.emergenciaFila(row);
               if (emerg) nEmergencia++;
-              const trans = this.cifraGrupo(row, 'transformacion');
-              const venta = this.ventaComandasCocido(row);
-              const corr = this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'correccion', t), 0);
-              const profundidad = it.enGrupo ? Math.min(3, Number(it.depth) || 0) : 0;
-              const nombre = '<span class="nom d' + profundidad + '">' + esc(it.nombre || row.nombre) + '</span>'
-                + (this.productoBloqueado(row.id) ? ' <span class="chip rojo">Bloqueado</span>' : '')
-                + (emerg ? ' <span class="chip rojo">Emergencia</span>' : '')
-                + (row.unidad ? ' <span class="und">' + esc(row.unidad) + '</span>' : '');
-              const saldoAnt = row.tieneCocido
-                ? lineas([
-                  { etiq: this.etiquetaTipo('crudo', row), cls: 'cr', v: num(this.cifraGrupo(row, 'saldoAnterior', 'crudo')) },
-                  { etiq: 'Cocido', cls: 'co', v: num(this.cifraGrupo(row, 'saldoAnterior', 'cocido')) },
-                  { etiq: 'Total', total: true, v: num(this.cifraGrupo(row, 'saldoAnterior')) }
-                ])
-                : lineas([{ v: num(this.cifraGrupo(row, 'saldoAnterior')) }]);
-              const ingreso = porTipo(row, (t) => num(this.cifraIngresoTabla(row, 'ingreso', row.tieneCocido ? t : undefined)), false);
-              const ingTotal = row.tieneCocido
-                ? lineas([
-                  { etiq: this.etiquetaTipo('crudo', row), cls: 'cr', v: num(this.cifraIngresoTabla(row, 'ingresoTotal', 'crudo')) },
-                  { etiq: 'Cocido', cls: 'co', v: num(this.cifraIngresoTabla(row, 'ingresoTotal', 'cocido')) },
-                  { etiq: 'Total', total: true, v: num(this.cifraIngresoTabla(row, 'ingresoTotal')) }
-                ])
-                : lineas([{ v: num(this.cifraIngresoTabla(row, 'ingresoTotal')) }]);
-              const saldo = porTipo(row, (t) => num(this.cifraCelda(row, 'saldo', row.tieneCocido ? t : undefined)), false);
-              const queda = row.tieneCocido
-                ? lineas([
-                  { etiq: this.etiquetaTipo('crudo', row), cls: 'cr', v: '<span class="' + quedaClase(row, 'crudo') + '">' + esc(this.textoQuedaCelda(row, 'crudo')) + '</span>' },
-                  { etiq: 'Cocido', cls: 'co', v: '<span class="' + quedaClase(row, 'cocido') + '">' + esc(this.textoQuedaCelda(row, 'cocido')) + '</span>' },
-                  { etiq: 'Total', total: true, v: '<span class="' + quedaClase(row) + '">' + esc(this.textoQuedaCelda(row)) + '</span>' }
-                ])
-                : lineas([{ v: '<span class="' + quedaClase(row) + '">' + esc(this.textoQuedaCelda(row)) + '</span>' }]);
-              const conteo = porTipo(row, (t) => {
-                const tipo = row.tieneCocido ? t : (row.soloCocido ? 'cocido' : 'crudo');
-                const c = this.conteoTipo(row, tipo);
-                return c === null ? '<span class="cero">–</span>' : esc(this.formatNum(c));
-              }, false);
-              const dif = porTipo(row, (t) => {
-                const tipo = row.tieneCocido ? t : (row.soloCocido ? 'cocido' : 'crudo');
-                const d = this.calcDiferenciaTipo(row, tipo);
-                if (d === null) return '<span class="cero">–</span>';
-                return '<span class="' + (d < 0 ? 'neg' : (d > 0 ? 'pos' : '')) + '">' + (d > 0 ? '+' : '') + esc(this.formatNum(d)) + '</span>';
-              }, false);
-              const estado = esc(this.estadoFila(row) || '');
               cuerpo += '<tr class="fila' + (it.enGrupo ? ' engrupo' : '') + (i % 2 ? ' par' : '') + (emerg ? ' emerg' : '') + '">'
-                + '<td class="c-prod">' + nombre + '</td>'
-                + '<td class="n">' + saldoAnt + '</td>'
-                + '<td class="n ing">' + ingreso + '</td>'
-                + '<td class="n">' + (corr ? esc((corr > 0 ? '+' : '−') + this.formatNum(Math.abs(corr))) : '<span class="cero">–</span>') + '</td>'
-                + '<td class="n">' + ingTotal + '</td>'
-                + '<td class="n ven">' + (venta ? esc(this.formatNum(venta)) : '<span class="cero">–</span>') + '</td>'
-                + '<td class="n tra">' + (trans > 0 ? '−' + esc(this.formatNum(trans)) : '<span class="cero">–</span>') + '</td>'
-                + '<td class="n">' + saldo + '</td>'
-                + '<td class="n q">' + queda + '</td>'
-                + '<td class="n">' + conteo + '</td>'
-                + '<td class="n">' + dif + '</td>'
-                + '<td class="c-est">' + estado + '</td>'
+                + columnas.map(({ clase = 'n', celda }) => '<td class="' + clase + '">' + celda(row, it, emerg) + '</td>').join('')
                 + '</tr>';
             });
           });
-          if (!hayFilas) return '';
+          if (!nFilas) return '';
 
           const ahora = new Date();
           const fechaImp = ahora.toLocaleDateString('es-PE', { timeZone: 'America/Lima', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -12071,9 +12130,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           let periodo = '';
           try { periodo = this.etiquetaPeriodoSeleccionado(); } catch (e) { periodo = ''; }
           const dia = this.ymdOperativo();
-          const cabeza = ['Producto', 'Saldo anterior', 'Ingreso', 'Corrección', 'Ingreso total', 'Venta', 'Transf.', 'Saldo', 'Queda (saldo real)', 'Conteo', 'Diferencia', 'Estado'];
-          const grupos = '<tr class="sup"><th colspan="2" class="g1">1 · Apertura</th><th colspan="3" class="g2">2 · Entró hoy</th><th colspan="2" class="g3">3 · Salió hoy</th><th colspan="5" class="g4">4 · Queda (cierre y auditoría)</th></tr>';
-          const titulos = '<tr class="sub">' + cabeza.map((c, i) => '<th class="' + (i === 0 ? 'l' : '') + '">' + c + '</th>').join('') + '</tr>';
+          const grupos = '<tr class="sup">' + bandas.map((banda, i) => '<th colspan="' + banda.columnas.length
+            + '" class="g' + (i + 1) + '">' + banda.titulo + '</th>').join('') + '</tr>';
+          const titulos = '<tr class="sub">' + columnas.map(({ titulo }) => '<th>' + titulo + '</th>').join('') + '</tr>';
           const css = `
             @page { size: A4 landscape; margin: 8mm 8mm 10mm; }
             * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -12094,7 +12153,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             tr.sup th { font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; color: #fff; padding: 3px 4px; text-align: left; }
             th.g1 { background: #7a6320; } th.g2 { background: #1f7a55; } th.g3 { background: #b4631b; } th.g4 { background: #24598f; }
             tr.sub th { background: #ececf3; font-size: 8.5px; font-weight: 700; text-align: center; color: #14141f; padding: 3px 3px; }
-            tr.sub th.l { text-align: left; }
+            tr.sub th:first-child { text-align: left; }
             tr.grupo td { background: #14141f; color: #f1d98a; font-weight: 800; font-size: 10px; letter-spacing: .6px; text-transform: uppercase; padding: 3px 6px; border-color: #14141f; }
             tr.grupo .cuenta { background: #b8932a; color: #14141f; border-radius: 8px; padding: 0 6px; font-size: 8.5px; margin-left: 5px; letter-spacing: 0; }
             tr.fila.par td { background: #f6f6fa; }
@@ -12118,16 +12177,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             .cero { color: #b5b5c0; font-weight: 400; }
             .alarma, .neg { color: #b3261e; font-weight: 800; } .pos { color: #24598f; font-weight: 800; }
             .pie { margin-top: 6px; font-size: 8px; color: #666; display: flex; justify-content: space-between; border-top: 1px solid #ccc; padding-top: 3px; }
-            col.c1 { width: 17%; } col.c2 { width: 7%; } col.c3 { width: 7.5%; } col.c4 { width: 5.5%; } col.c5 { width: 7.5%; } col.c6 { width: 6%; } col.c7 { width: 5.5%; }
-            col.c8 { width: 7%; } col.c9 { width: 8.5%; } col.c10 { width: 6.5%; } col.c11 { width: 7%; } col.c12 { width: 9%; }
           `;
-          const cols = '<colgroup>' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => '<col class="c' + n + '">').join('') + '</colgroup>';
+          const anchoTotal = columnas.reduce((suma, columna) => suma + columna.ancho, 0);
+          const cols = '<colgroup>' + columnas.map(({ ancho }) => '<col style="width:' + (ancho * 100 / anchoTotal).toFixed(3) + '%">').join('') + '</colgroup>';
           return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Hoja de producción · ' + esc(dia) + '</title><style>' + css + '</style></head><body>'
             + '<div class="cab"><h1><small>Las Gambusinas · Inventario</small>Hoja de producción</h1>'
             + '<div class="meta"><div>Día operativo: <b>' + esc(dia) + '</b>' + (periodo ? ' · Periodo: <b>' + esc(periodo) + '</b>' : '') + '</div>'
             + '<div>Impreso: ' + esc(fechaImp) + ', ' + esc(horaImp) + '</div></div></div>'
             + '<div class="resumen"><div><b>' + nFilas + '</b>productos</div><div class="al"><b>' + nEmergencia + '</b>en emergencia</div>'
-            + '<div>Día de 04:00 a 04:00 · Queda = Ingreso total − Venta − Transformación + Corrección</div></div>'
+            + '<div>Día operativo de 04:00 a 04:00</div></div>'
             + '<table>' + cols + '<thead>' + grupos + titulos + '</thead><tbody>' + cuerpo + '</tbody></table>'
             + '<div class="pie"><span>Las Gambusinas · Hoja de producción</span><span>Cr = crudo · Co = cocido · – = sin movimiento</span></div>'
             + '</body></html>';
@@ -12156,11 +12214,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         tituloReporteDia() {
-          return 'Reporte de día (hoja)';
+          return 'Reporte del día';
         },
 
         textoReporteDia() {
-          return 'Ingreso anotado en la hoja y ventas que salieron por comandas. Un día, de 04:00 a 04:00.';
+          return 'Ingresos, transformaciones y ventas del día operativo, de 04:00 a 04:00.';
         },
 
         marcaReporteDia() {
@@ -12171,65 +12229,164 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return '';
         },
 
-        paseDeTipo(motivo) {
-          return /^Pasa (?:a|de) (?:crudo|cocido) /.test(String(motivo || ''));
+        ingresosFinalesReporte(movimientos, nombreDe, esOctavo) {
+          const series = new Map();
+          const ordenados = movimientos.slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+          ordenados.forEach((m, orden) => {
+            const clave = m.rubro;
+            const motivo = String(m.motivo || '');
+            let cantidad = Number(m.cantidad) || 0;
+            if (!clave || m.clase !== 'ingreso' || !cantidad || this.esMotivoApertura(motivo)) return;
+            const [concepto, ...marcas] = motivo.split(/\s*·\s*/);
+            const tipo = m.tipoProducto === 'cocido' ? 'cocido' : 'crudo';
+            const destino = this.norm(concepto.slice('Pasa a '.length));
+            // Algunas transferencias antiguas registraron «Pasa a [plato]» también en el plato.
+            const destinoAntiguo = concepto.startsWith('Pasa a ') && !this.esPaseEntreTipos(concepto)
+              && (destino === this.norm(nombreDe(clave)) || (m.nombre && destino === this.norm(m.nombre)));
+            const sale = (concepto.startsWith('Pasa a ') && !destinoAntiguo) || concepto.startsWith('Devuelve a ');
+            const corte = esOctavo(clave) ? (this.motivoEsCorte(motivo, 'pierna') ? 'Pierna'
+              : (this.motivoEsCorte(motivo, 'pecho') ? 'Pecho' : '')) : '';
+            let detalle = this.textoOrigenIngreso(concepto);
+            if (/^(?:Sale|Viene) de /.test(concepto)) detalle = 'Desde ' + concepto.replace(/^(?:Sale|Viene) de /, '');
+            else if (/^Pasa de (?:crudo|cocido)\b/.test(concepto)) detalle = 'Desde ' + concepto.split(' ')[2];
+            else if (destinoAntiguo) detalle = esOctavo(clave) ? 'Desde Octavo de pollo' : 'Por transformación';
+            else if (/^Ingreso(?: (?:directo|independiente|crudo|cocido))?$/.test(concepto)
+              || concepto.startsWith('Ingreso independiente ')) detalle = 'Ingreso directo';
+            detalle = [detalle].concat(marcas.filter((marca) => /^Sector /i.test(marca))).join(' · ');
+
+            const cubeta = clave + '|' + tipo;
+            const id = JSON.stringify([cubeta, motivo, sale]);
+            if (!series.has(id)) series.set(id, { eventos: [], pendiente: 0 });
+            const serie = series.get(id);
+            if (sale) cantidad = -cantidad;
+            // Un ajuste o una devolución cancela la última anotación del mismo movimiento.
+            if (cantidad < 0) {
+              let resta = -cantidad;
+              while (resta > 0 && serie.eventos.length) {
+                const ultimo = serie.eventos[serie.eventos.length - 1];
+                const toma = Math.min(resta, ultimo.cantidad);
+                ultimo.cantidad = this.redondear3(ultimo.cantidad - toma);
+                resta = this.redondear3(resta - toma);
+                if (!ultimo.cantidad) serie.eventos.pop();
+              }
+              serie.pendiente = this.redondear3(serie.pendiente + resta);
+              return;
+            }
+            const compensado = Math.min(cantidad, serie.pendiente);
+            serie.pendiente = this.redondear3(serie.pendiente - compensado);
+            cantidad = this.redondear3(cantidad - compensado);
+            if (cantidad > 0) serie.eventos.push({ clave, cubeta, tipo, corte, detalle, sale, cantidad, orden });
+          });
+          const acumulados = new Map();
+          const eventos = Array.from(series.values()).flatMap((s) => s.eventos).sort((a, b) => a.orden - b.orden);
+          eventos.forEach((evento) => {
+            if (!acumulados.has(evento.cubeta)) acumulados.set(evento.cubeta, []);
+            const ingresos = acumulados.get(evento.cubeta);
+            if (!evento.sale) {
+              ingresos.push(evento);
+              return;
+            }
+            // El destino ya trae su propia cantidad, incluso si el rendimiento usa otra unidad.
+            let salida = evento.cantidad;
+            const disponibles = evento.corte
+              ? ingresos.filter((l) => l.corte === evento.corte).concat(ingresos.filter((l) => !l.corte))
+              : ingresos;
+            for (const linea of disponibles) {
+              const toma = Math.min(salida, linea.cantidad);
+              linea.cantidad = this.redondear3(linea.cantidad - toma);
+              salida = this.redondear3(salida - toma);
+              if (!salida) break;
+            }
+          });
+          return Array.from(acumulados.values()).flat().filter((l) => l.cantidad > 0);
+        },
+
+        partesVentaReporte(v) {
+          const partes = [];
+          let restante = Number(v.cantidad) || 0;
+          for (const detalle of Array.isArray(v.detalle) ? v.detalle : []) {
+            if (!detalle || !detalle.nombre || restante <= 0) continue;
+            const cantidad = Math.min(restante, Number(detalle.cantidad) || 0);
+            if (cantidad <= 0) continue;
+            partes.push(Object.assign({}, detalle, { cantidad }));
+            restante = this.redondear3(restante - cantidad);
+          }
+          if (restante > 0) partes.push({ nombre: v.nombre || v.origen || v.rubro || v.plato, cantidad: restante, hora: v.fecha });
+          return partes;
         },
 
         vistaReporteHoja(k, movs) {
-          const ventas = (k && k.ventas) || [];
-          const carta = (k && k.carta) || {};
-          const kardex = (carta.kardex || []).slice();
-          const yaClave = new Set(kardex.map((item) => item.clave));
-          (ventas || []).forEach((v) => {
-            const rubro = v && (v.rubro || v.plato);
-            if (!rubro || yaClave.has(rubro) || v.sinSaldo) return;
-            yaClave.add(rubro);
-            const detalle = Array.isArray(v.detalle) ? v.detalle.find((d) => d && d.nombre) : null;
-            kardex.push({ clave: rubro, nombre: (detalle && detalle.nombre) || v.nombre || rubro });
+          const movimientos = (movs || []).filter(Boolean);
+          const ventas = ((k && k.ventas) || []).filter(Boolean);
+          const catalogo = (k && k.carta && k.carta.kardex) || [];
+          const nombres = new Map();
+          const nombrar = (clave, nombre) => { if (clave && nombre && !nombres.has(clave)) nombres.set(clave, nombre); };
+          this.rows.forEach((row) => nombrar(this.claveDeFila[row.id], row.nombre));
+          catalogo.forEach((item) => nombrar(item.clave, item.nombre));
+          ((k && k.filas) || []).forEach((f) => nombrar(f.rubro || f.plato, f.nombre));
+          movimientos.forEach((m) => nombrar(m.rubro, m.nombre));
+          ventas.forEach((v) => nombrar(v.origen || v.rubro || v.plato, v.nombre));
+          const nombreDe = (clave) => nombres.get(clave) || clave;
+
+          const familias = new Map();
+          const asignar = (padre, hijos) => {
+            if (!padre) return;
+            hijos.forEach((clave) => { if (clave && !familias.has(clave)) familias.set(clave, padre); });
+          };
+          this.rows.forEach((row) => asignar(this.claveDeFila[row.id], this.miembrosGrupo(row).map((h) => this.claveDeFila[h.id])));
+          asignar('filete', ['filete-pollo', 'filete-junior']);
+          catalogo.forEach((item) => asignar(item.clave, item.suma || []));
+          const esOctavo = (clave) => clave === 'octavo-pollo' || familias.get(clave) === 'octavo-pollo';
+          const grupos = new Map();
+          const productos = new Map();
+          const agregar = (seccion, clave, cantidad, datos) => {
+            if (!clave || !cantidad) return;
+            const grupo = familias.get(clave) || clave;
+            const nombre = nombreDe(clave);
+            if (!grupos.has(grupo)) grupos.set(grupo, { clave: grupo, nombre: nombreDe(grupo), ingreso: new Map(), venta: new Map() });
+            if (!productos.has(clave)) productos.set(clave, { clave, nombre, ingreso: 0, venta: 0 });
+            const producto = productos.get(clave);
+            producto[seccion] = this.redondear3(producto[seccion] + cantidad);
+            const lineas = grupos.get(grupo)[seccion];
+            const id = JSON.stringify([clave, datos.tipo, datos.corte, datos.detalle, this.norm(datos.plato)]);
+            if (!lineas.has(id)) lineas.set(id, Object.assign({ id, clave, nombre, cantidad: 0 }, datos));
+            const linea = lineas.get(id);
+            linea.cantidad = this.redondear3(linea.cantidad + cantidad);
+          };
+          const tipoDe = (tipo, clave) => this.esVentaStockGeneral(clave) ? 'Stock general' : this.etiquetaTipo(tipo, this.filaPorClave(clave));
+          this.ingresosFinalesReporte(movimientos, nombreDe, esOctavo).forEach((l) => {
+            agregar('ingreso', l.clave, l.cantidad, {
+              tipo: tipoDe(l.tipo, l.clave), corte: l.corte || (esOctavo(l.clave) ? 'Corte sin indicar' : ''), detalle: l.detalle
+            });
           });
-          const origenDe = { Pollo: 'pollo-origen', Pescado: 'pescado-origen' };
-          Object.keys(origenDe).forEach((nombre) => {
-            const clave = origenDe[nombre];
-            if (!kardex.some((item) => item.clave === clave)) kardex.unshift({ clave: clave, nombre: nombre });
+          ventas.forEach((v) => {
+            const stock = v.rubro || v.plato;
+            const clave = v.origen || stock;
+            // Las coberturas del kardex son un reflejo de la misma venta; sus partes ya tienen stock real.
+            if (!clave || v.sinSaldo) return;
+            this.partesVentaReporte(v).forEach((p) => {
+              agregar('venta', clave, p.cantidad, {
+                plato: p.nombre, tipo: tipoDe(v.tipoProducto, stock),
+                detalle: 'Comandas · Stock de ' + nombreDe(stock)
+              });
+            });
           });
-          const ingresoDe = (claves) => (movs || []).reduce((a, m) => {
-            if (!claves.has(m.rubro) || m.clase !== 'ingreso') return a;
+          movimientos.forEach((m) => {
             const motivo = String(m.motivo || '');
-            if (motivo.indexOf('Saldo anterior') === 0 || motivo.indexOf('Pasa a ') === 0 || this.paseDeTipo(motivo)) return a;
-            // El reporte solo muestra lo que ingresó: lo que se restó nunca cuenta.
-            return a + Math.max(0, Number(m.cantidad) || 0);
-          }, 0);
-          const ventaDe = (claves) => {
-            const manual = (movs || []).reduce((a, m) => {
-              if (!claves.has(m.rubro) || m.clase !== 'egreso') return a;
-              if (String(m.motivo || '').indexOf('Venta') !== 0) return a;
-              return a + (Number(m.cantidad) || 0);
-            }, 0);
-            const comandas = (ventas || []).reduce((a, v) => {
-              const rubro = v && (v.rubro || v.plato);
-              if (!rubro || !claves.has(rubro)) return a;
-              if (!v.sinSaldo && v.origen && v.origen !== rubro) return a;
-              return a + (Number(v.cantidad) || 0);
-            }, 0);
-            return manual + comandas;
-          };
-          const rows = kardex.map((item) => {
-            const claves = new Set(item.suma && item.suma.length ? item.suma : [item.clave]);
-            return {
-              nombre: item.nombre,
-              claves: Array.from(claves),
-              ingreso: ingresoDe(claves),
-              venta: ventaDe(claves)
-            };
-          }).filter((f) => f.ingreso || f.venta);
-          const suma = (campo) => rows.reduce((a, f) => a + (Number(f[campo]) || 0), 0);
-          return {
-            filas: rows,
-            ingreso: suma('ingreso'),
-            venta: suma('venta'),
-            ventas: ventas,
-            movimientos: movs || []
-          };
+            if (m.clase !== 'egreso' || !motivo.startsWith('Venta')) return;
+            const manual = motivo.startsWith('Venta manual');
+            const nota = manual ? this.motivoEscritoVenta(motivo) : '';
+            agregar('venta', m.rubro, Number(m.cantidad) || 0, {
+              tipo: tipoDe(m.tipoProducto, m.rubro), corte: this.corteDeVentaManual(m),
+              detalle: manual ? ['Descarga manual', nota].filter(Boolean).join(' · ') : motivo
+            });
+          });
+          const nombreOrden = (a, b) => a.nombre.localeCompare(b.nombre, 'es');
+          const ordenar = (lineas) => Array.from(lineas.values()).filter((l) => l.cantidad).sort(nombreOrden);
+          const filas = Array.from(grupos.values()).sort(nombreOrden).map((f) => ({
+            clave: f.clave, nombre: f.nombre, ingreso: ordenar(f.ingreso), venta: ordenar(f.venta)
+          }));
+          return { filas, productos: Array.from(productos.values()).sort(nombreOrden), ventas, movimientos };
         },
 
         async abrirReporteDia(fecha) {
@@ -12248,7 +12405,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         async cargarReporteDia() {
+          const solicitud = ++this.reporteDiaSolicitud;
           this.reporteDiaCargando = true;
+          this.reporteDiaError = '';
           try {
             const f = this.reporteDiaFecha;
             const dia = 'desde=' + encodeURIComponent(f) + '&hasta=' + encodeURIComponent(f) + '&ciclo=04';
@@ -12256,26 +12415,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               this.api('/inventario/kardex?carta=1&' + dia),
               this.api('/inventario/movimientos?' + dia)
             ]);
-            this.reporteDiaVista = this.vistaReporteHoja(k, (m && m.movimientos) || []);
+            if (solicitud === this.reporteDiaSolicitud) this.reporteDiaVista = this.vistaReporteHoja(k, (m && m.movimientos) || []);
           } catch (e) {
-            this.toastMessage = e.message || 'No se pudo abrir el reporte';
+            if (solicitud === this.reporteDiaSolicitud) this.reporteDiaError = e.message || 'No se pudo cargar el reporte';
           } finally {
-            this.reporteDiaCargando = false;
+            if (solicitud === this.reporteDiaSolicitud) this.reporteDiaCargando = false;
           }
         },
 
-        claveReporteFila(f) {
-          return String((f && f.claves && f.claves[0]) || (f && f.nombre) || '');
+        setReporteDetalle(seccion, visible) {
+          this.reporteDetalles[seccion] = visible;
+          try { localStorage.setItem('inventario-reporte-detalles', JSON.stringify(this.reporteDetalles)); } catch (e) {}
         },
 
         reporteFilaOculta(f) {
-          return this.reporteOcultos.indexOf(this.claveReporteFila(f)) !== -1;
+          return this.reporteOcultos.includes(f.clave);
         },
 
         alternarReporteOculta(f) {
-          const k = this.claveReporteFila(f);
-          if (this.reporteOcultos.indexOf(k) === -1) this.reporteOcultos = this.reporteOcultos.concat([k]);
-          else this.reporteOcultos = this.reporteOcultos.filter((x) => x !== k);
+          if (this.reporteFilaOculta(f)) this.reporteOcultos = this.reporteOcultos.filter((x) => x !== f.clave);
+          else this.reporteOcultos = this.reporteOcultos.concat([f.clave]);
           try { localStorage.setItem('inventario-reporte-ocultos', JSON.stringify(this.reporteOcultos)); } catch (e) {}
         },
 
@@ -12285,15 +12444,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         filasReporteEditar() {
-          return (this.reporteDiaVista.filas || []).filter((f) => f.ingreso > 0 || f.venta);
+          return this.reporteDiaVista.productos.filter((f) => f.ingreso > 0 || f.venta);
+        },
+
+        filasReporteVisibles(seccion) {
+          return this.reporteDiaVista.filas.map((f) => {
+            const lineas = f[seccion].filter((l) => !this.reporteFilaOculta(l));
+            const total = this.redondear3(lineas.reduce((a, l) => a + l.cantidad, 0));
+            return { clave: f.clave, nombre: f.nombre, lineas, [seccion]: total };
+          }).filter((f) => f.lineas.length);
         },
 
         filasReporteIngreso() {
-          return (this.reporteDiaVista.filas || []).filter((f) => f.ingreso > 0 && !this.reporteFilaOculta(f));
+          return this.filasReporteVisibles('ingreso');
         },
 
         filasReporteVenta() {
-          return (this.reporteDiaVista.filas || []).filter((f) => f.venta && !this.reporteFilaOculta(f));
+          return this.filasReporteVisibles('venta').map((f) => ({
+            ...f, reporte: true, claves: Array.from(new Set(f.lineas.map((l) => l.clave)))
+          }));
         },
 
         totalReporteIngreso() {
@@ -12565,7 +12734,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const tipo = m.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
               const esPrincipal = m.rubro === (f && f.clave);
               const corte = this.corteDeVentaManual(m);
-              const uso = (esPrincipal
+              const uso = (esPrincipal && !f.reporte
                 ? ('Principal — ' + (f.nombre || m.nombre || m.rubro))
                 : (tipo + ' — ' + (m.nombre || m.rubro))) + (corte ? ' · ' + corte : '');
               const n = Number(m.cantidad) || 0;
@@ -12635,7 +12804,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             return comanda && p.nombre ? String(comanda) + '\u0000' + this.norm(p.nombre) : '';
           };
           const platosPropios = new Set();
-          ventas.forEach((v) => {
+          if (!f.reporte) ventas.forEach((v) => {
             if (!v || (v.rubro || v.plato) !== (f && f.clave)) return;
             if (v.sinSaldo && !(f && f.incluirCubierta)) return;
             (Array.isArray(v.detalle) ? v.detalle : []).forEach((p) => {
@@ -12671,6 +12840,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const rubro = v && (v.rubro || v.plato);
             const origen = v && v.origen;
             const plato = (v && v.nombre) || rubro || '';
+            if (f.reporte) {
+              const fila = this.filaPorClave(rubro);
+              const tipo = this.esVentaStockGeneral(rubro) ? 'Stock general' : this.etiquetaTipo(v.tipoProducto, fila);
+              return tipo + ' — ' + (fila ? fila.nombre : (origen === rubro ? plato : rubro));
+            }
             const detalleJunior = Array.isArray(v && v.detalle) && v.detalle.some((d) => {
               const n = this.norm(d && d.nombre);
               return n.includes('filete') && n.includes('junior');
@@ -12689,18 +12863,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           (ventas || []).forEach((v) => {
             const rubro = v && (v.rubro || v.plato);
             if (!rubro) return;
-            if (f && f.incluirCubierta && rubro !== f.clave) return;
-            if (v.sinSaldo && !(f && f.incluirCubierta && rubro === f.clave)) return;
-            if (!claves.has(rubro) && !claves.has(v.origen)) return;
+            if (f.reporte) {
+              if (v.sinSaldo || !claves.has(v.origen || rubro)) return;
+            } else {
+              if (f.incluirCubierta && rubro !== f.clave) return;
+              if (v.sinSaldo && !(f.incluirCubierta && rubro === f.clave)) return;
+              if (!claves.has(rubro) && !claves.has(v.origen)) return;
+            }
             const uso = usoDe(v);
-            const partes = Array.isArray(v.detalle) && v.detalle.length
+            const partes = f.reporte ? this.partesVentaReporte(v) : (Array.isArray(v.detalle) && v.detalle.length
               ? v.detalle
-              : [{ nombre: v.nombre || rubro, cantidad: v.cantidad, comanda: '', hora: v.fecha }];
+              : [{ nombre: v.nombre || rubro, cantidad: v.cantidad, comanda: '', hora: v.fecha }]);
             partes.forEach((p) => {
               // El producto ya explica esta venta: el registro de su plato relacionado no es otra unidad.
               // Una reserva del mismo plato sí puede ser una parte adicional del consumo.
-              if (rubro !== f.clave && v.origen !== f.clave && platosPropios.has(clavePlatoComanda(p))) return;
-              if (f.clave === 'pechuga-pollo' && !this.lineaEsDePecho(rubro, p.nombre || v.nombre)) return;
+              if (!f.reporte && rubro !== f.clave && v.origen !== f.clave && platosPropios.has(clavePlatoComanda(p))) return;
+              if (!f.reporte && f.clave === 'pechuga-pollo' && !this.lineaEsDePecho(rubro, p.nombre || v.nombre)) return;
               sumar({
                 nombre: p.nombre,
                 cantidad: p.cantidad,
@@ -12726,7 +12904,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               comanda: motivo,
               hora: m.fecha,
               platos: m.cantidad,
-              uso: esPrincipal ? ('Principal — ' + (f.nombre || m.nombre || m.rubro)) : (tipo + ' — ' + (m.nombre || m.rubro)),
+              uso: esPrincipal && !f.reporte ? ('Principal — ' + (f.nombre || m.nombre || m.rubro)) : (tipo + ' — ' + (m.nombre || m.rubro)),
               origen: m.rubro,
               propia: esPrincipal
             });
@@ -12750,14 +12928,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const totalLineas = this.redondear3(lineas.reduce((a, l) => a + (Number(l.cantidad) || 0), 0));
           const propia = this.redondear3(lineas.reduce((a, l) => a + (Number(l.propia) || 0), 0));
           let nota = '';
-          if (f && f.clave && Math.abs(totalLineas - propia) > 0.0005) {
+          if (!f.reporte && f.clave && Math.abs(totalLineas - propia) > 0.0005) {
             nota = propia > 0
               ? ('De esta fila se restaron ' + this.formatNum(propia) + '. Los otros ' + this.formatNum(this.redondear3(totalLineas - propia)) + ' salieron de sus platos o de la pieza principal.')
               : 'Estas ventas no restan el stock de esta fila: salieron de sus platos o de la pieza principal.';
           }
           return {
             nombre: f.nombre,
-            total: totalLineas || f.venta,
+            total: f.reporte ? totalLineas : (totalLineas || f.venta),
             propia,
             nota,
             lineas: lineas,
@@ -16228,6 +16406,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         cifraIngresoTabla(row, columna, tipo) {
           // En Pierna, los pases a Pollada ya se ven en la fila de destino.
           if (row.id !== 'pierna') return this.cifraGrupo(row, columna, tipo);
+          if (columna === 'ingresoTotal') {
+            return this.redondear3(this.cifraGrupo(row, 'saldoAnterior', tipo) + this.cifraIngresoTabla(row, 'ingreso', tipo));
+          }
           return this.redondear3(this.tiposDelCuadro(row, tipo).reduce((a, t) => a + this.leerColumnaGrupo(columna, row, t), 0));
         },
 
@@ -16285,6 +16466,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             queda: { titulo: 'Queda', ayuda: 'Lo que hay ahora en cada uno.', accion: 'Ver procedimiento' }
           }[columna];
           if (!textos) return;
+          if (row.id === 'pierna' && columna === 'ingresoTotal') {
+            const saldo = this.formatNum(this.cifraGrupo(row, 'saldoAnterior'));
+            const ingreso = this.formatNum(this.cifraIngresoTabla(row, 'ingreso'));
+            const total = this.formatNum(this.cifraIngresoTabla(row, 'ingresoTotal'));
+            textos.ayuda = 'En la tabla: ' + saldo + ' de saldo anterior + ' + ingreso + ' de ingreso = ' + total + '. Los pases a Pollada figuran en su propia fila.';
+          }
           const partes = this.partesFamilia(this.filasDelGrupo(row), row, (f, t) => this.leerColumnaGrupo(columna, f, t), true);
           const filas = partes.filter((p) => p.propio).concat(partes.filter((p) => !p.propio).sort((a, b) => b.total - a.total || String(a.nombre).localeCompare(String(b.nombre), 'es')));
           if (this.esFilaOctavo(row)) filas.forEach((p) => { p.cortes = this.cortesDeFilaOctavo(p.id, row, columna, p.total); });
