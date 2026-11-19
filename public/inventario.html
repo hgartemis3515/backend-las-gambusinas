@@ -484,6 +484,40 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       max-height: calc(100vh - 210px);
       overflow: auto;
     }
+    .asa-orden-fila {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.75rem;
+      height: 1.75rem;
+      flex: 0 0 auto;
+      border: 1px solid #353449;
+      border-radius: .375rem;
+      background: #181825;
+      color: #b5a986;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      transition: background-color 150ms, color 150ms, border-color 150ms;
+    }
+    .asa-orden-fila::before {
+      content: '';
+      width: 10px;
+      height: 15px;
+      background: radial-gradient(circle, currentColor 1.2px, transparent 1.5px) 0 0 / 5px 5px;
+    }
+    .asa-orden-fila:hover, .asa-orden-fila:focus-visible, .fila-en-arrastre .asa-orden-fila {
+      color: #ffe6a0;
+      background: #382d18;
+      border-color: #c9a749;
+    }
+    .tabla-reordenando { overflow-anchor: none; user-select: none; cursor: grabbing; }
+    .tabla-reordenando .asa-orden-fila { cursor: grabbing; }
+    .fila-en-arrastre > td { opacity: .65; }
+    .fila-destino-antes > td { box-shadow: inset 0 3px #e7c45d; }
+    .fila-destino-despues > td { box-shadow: inset 0 -3px #e7c45d; }
+    .orden-aviso-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    @media (prefers-reduced-motion: reduce) { .asa-orden-fila { transition: none; } }
     .tabla-scroll-fija thead th {
       position: sticky;
       z-index: 25;
@@ -2319,6 +2353,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <option value="personalizado">Personalizado</option>
             </select>
           </label>
+          <span id="ayuda-orden-inventario" x-show="ordenHoja === 'personalizado' && filtroCategoria !== 'emergencia'" class="text-[11px] text-[#a0a0b8]">
+            Arrastra desde los puntos. Los grupos se mueven juntos.
+          </span>
+          <span class="orden-aviso-lector" role="status" x-text="mensajeOrdenHoja"></span>
         </div>
 
         <!-- Fila 3: Filtros rápidos por familia de producto (chips) + Contador de coincidencias -->
@@ -2452,7 +2490,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <!-- TABLA REDISEÑADA (TEMA OSCURO #14141f / #1a1a28, BANDAS Y COLUMNAS CON COLORES DISTINTOS) -->
       <div x-show="!cargandoDatosTabla" class="tabla-impresion bg-[#14141f] border border-[#26263a] overflow-hidden shadow-2xl" :class="compactView ? 'rounded-none' : 'rounded-xl'">
         <h2 class="titulo-impresion">Hoja de Producción del Día</h2>
-        <div class="tabla-scroll-fija">
+        <div class="tabla-scroll-fija" @pointerdown="iniciarArrastreFila($event)" @pointermove="moverArrastreFila($event)"
+          @pointerup="soltarArrastreFila($event)" @pointercancel="cancelarArrastreFila($event)"
+          @lostpointercapture="cancelarArrastreFila($event)" @keydown="teclaOrdenFila($event)" @keydown.escape.window="cancelarArrastreFila()">
           <table class="tabla-hoja text-left">
             <thead>
               <tr class="bg-[#101018] uppercase font-bold">
@@ -2481,27 +2521,35 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <!-- GRUPOS DESPLEGABLES (▶/▼ + pastilla GRUPO)                    -->
             <!-- ============================================================= -->
             <template x-for="bloque in bloquesHoja()" :key="bloque.key">
-              <tbody x-show="bloque.suelto || groupHasMatch(bloque.group.id)" class="divide-y divide-[#26263a] text-sm border-t-2 border-[#26263a]">
-                <template x-if="!bloque.suelto && (esGrupoSinDatos(bloque.group) || bloque.group.id === 'pachamancas')">
-                <tr @click="toggleGroup(bloque.group)" class="bg-[#1a1a28] hover:bg-[#232336] cursor-pointer" :style="colorFondoGrupo(bloque.group) ? ('background-color:' + colorFondoGrupo(bloque.group)) : ''">
+              <tbody x-show="bloque.suelto || groupHasMatch(bloque.group.id)" class="divide-y divide-[#26263a] text-sm border-[#26263a]"
+                :class="bloque.key.startsWith('s-') ? 'border-t' : 'border-t-2'">
+                <template x-if="!bloque.suelto && (esGrupoSinDatos(bloque.group) || bloque.group.id === 'pachamancas' || bloque.cabeceraOrden)">
+                <tr @click="if (!bloque.cabeceraOrden) toggleGroup(bloque.group)" class="bg-[#1a1a28] hover:bg-[#232336]"
+                  :class="bloque.cabeceraOrden ? '' : 'cursor-pointer'" :data-orden-id="'bloque:' + bloque.key" data-orden-ambito="hoja"
+                  :style="colorFondoGrupo(bloque.group) ? ('background-color:' + colorFondoGrupo(bloque.group)) : ''">
                   <td class="py-3 px-4 font-bold text-white sticky left-0" :class="colorFondoGrupo(bloque.group) ? '' : 'bg-[#1a1a28]'" :style="colorFondoGrupo(bloque.group) ? ('background-color:' + colorFondoGrupo(bloque.group)) : ''">
                     <div class="flex items-center gap-2.5">
-                      <span class="w-6 h-6 rounded-md bg-[#0a0a0f] border border-[#26263a] inline-flex items-center justify-center text-xs text-[#d4af37]" :class="bloque.group.open ? 'rotate-0' : '-rotate-90'">▼</span>
-                      <span class="text-[16px] text-white font-bold" x-text="bloque.group.nombre"></span>
+                      <button type="button" x-show="ordenHoja === 'personalizado'" class="asa-orden-fila" @click.stop
+                        :aria-label="'Mover grupo ' + (bloque.cabeceraOrden || bloque.group.nombre)" aria-describedby="ayuda-orden-inventario" title="Arrastra el grupo o usa ↑ y ↓"></button>
+                      <span x-show="!bloque.cabeceraOrden" class="w-6 h-6 rounded-md bg-[#0a0a0f] border border-[#26263a] inline-flex items-center justify-center text-xs text-[#d4af37]" :class="bloque.group.open ? 'rotate-0' : '-rotate-90'">▼</span>
+                      <span class="text-[16px] text-white font-bold" x-text="bloque.cabeceraOrden || bloque.group.nombre"></span>
                       <span class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200]">GRUPO</span>
                     </div>
                   </td>
                   <td :colspan="columnasRestoGrupo()" class="py-3 px-4 text-xs text-[#a0a0b8]">
                     <span x-show="bloque.group.id === 'pachamancas'" x-text="bloque.filas.length + ' pachamancas'"></span>
-                    <span x-show="bloque.group.id !== 'pachamancas'" x-text="getRowsByGroup(bloque.group.id).length + (bloque.group.id === 'carnes' ? ' carnes' : ' bebidas')"></span>
+                    <span x-show="!bloque.cabeceraOrden && bloque.group.id !== 'pachamancas'" x-text="getRowsByGroup(bloque.group.id).length + (bloque.group.id === 'carnes' ? ' carnes' : ' bebidas')"></span>
                     <span class="ml-2" x-show="bloque.group.id === 'pachamancas'">Fuera de Pollo, Carnes y Carnero. Aquí están todas juntas.</span>
-                    <span class="ml-2" x-show="bloque.group.id !== 'pachamancas'" x-text="bloque.group.id === 'carnes' ? 'El grupo no suma. Cada carne tiene su ingreso y su venta.' : 'El grupo no suma. Cada bebida tiene su ingreso y su venta.'"></span>
+                    <span class="ml-2" x-show="!bloque.cabeceraOrden && bloque.group.id !== 'pachamancas'" x-text="bloque.group.id === 'carnes' ? 'El grupo no suma. Cada carne tiene su ingreso y su venta.' : 'El grupo no suma. Cada bebida tiene su ingreso y su venta.'"></span>
                   </td>
                 </tr>
                 </template>
                 <template x-for="(item, idx) in bloque.filas" :key="item.key + '-' + (bloque.group ? bloque.group.staggerKey : 's')">
                   <tr
                     :id="'fila-prod-' + row.id"
+                    :data-orden-id="ambitoOrdenFila(bloque, item) === 'hoja' ? 'bloque:' + bloque.key : row.id"
+                    :data-orden-ambito="ambitoOrdenFila(bloque, item)"
+                    :data-orden-profundidad="item.depth"
                     x-show="(!item.enGrupo || item.visible || (busqueda || '').trim() !== '') && filaTablaVisible(item.row)"
                     x-data="{ get row() { return item.row } }"
                     x-transition:enter="transition ease-out duration-300 transform"
@@ -2547,12 +2595,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             >▼</button>
                           </span>
                           <span class="font-semibold text-white whitespace-nowrap" x-text="item.nombre"></span>
-                          <span x-show="ordenHoja === 'personalizado'" class="inline-flex flex-col leading-none ml-1">
-                            <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, -1)" :aria-label="'Subir ' + row.nombre">▲</button>
-                            <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, 1)" :aria-label="'Bajar ' + row.nombre">▼</button>
-                          </span>
+                          <button type="button" x-show="ordenHoja === 'personalizado'" class="asa-orden-fila"
+                            :aria-label="'Mover ' + (item.hasChildren ? 'grupo ' : '') + item.nombre" aria-describedby="ayuda-orden-inventario" title="Arrastra para mover o usa ↑ y ↓"></button>
                           <span x-show="productoBloqueado(row.id)" class="px-1.5 py-0.5 rounded bg-[#ff0000]/20 border border-[#ff0000]/50 text-[10px] font-extrabold text-red-200" title="Bloqueado para los mozos">Bloqueado</span>
-                          <span x-show="item.hasChildren" class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200] tracking-wide">GRUPO</span>
+                          <span x-show="item.hasChildren || tieneGrupo(row)" class="px-2 py-0.5 text-[11px] font-extrabold rounded bg-[#d4af37] text-[#1a1200] tracking-wide">GRUPO</span>
                           <button
                             type="button"
                             @click.stop="abrirModalAuditoria(row)"
@@ -2579,10 +2625,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <span class="w-6 h-6 shrink-0" aria-hidden="true"></span>
                       <span class="text-white font-bold whitespace-nowrap" x-text="row.nombre"></span>
                       <span x-show="emergenciaFila(row)" class="saldo-anterior-alarma px-1.5 py-0.5 rounded text-[10px] font-extrabold" title="Se vendió sin cocido, o Queda quedó en negativo. Ingresa stock en Descuadre.">Emergencia</span>
-                      <span x-show="ordenHoja === 'personalizado'" class="inline-flex flex-col leading-none ml-1">
-                        <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, -1)" :aria-label="'Subir ' + row.nombre">▲</button>
-                        <button type="button" class="text-[9px] leading-none text-[#d4af37] cursor-pointer" @click.stop="moverFilaOrden(row.id, 1)" :aria-label="'Bajar ' + row.nombre">▼</button>
-                      </span>
+                      <button type="button" x-show="ordenHoja === 'personalizado' && filtroCategoria !== 'emergencia'" class="asa-orden-fila"
+                        :aria-label="'Mover ' + row.nombre" aria-describedby="ayuda-orden-inventario" title="Arrastra para mover o usa ↑ y ↓"></button>
                       <span x-show="productoBloqueado(row.id)" class="px-1.5 py-0.5 rounded bg-[#ff0000]/20 border border-[#ff0000]/50 text-[10px] font-extrabold text-red-200" title="Bloqueado para los mozos">Bloqueado</span>
                       <button
                         type="button"
@@ -10152,6 +10196,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 <script src="/assets/js/notificaciones-dashboard.js"></script>
   <script>
     function inventarioApp() {
+      let arrastreFila = null;
       return {
         activeTab: 'tabla',
         tabMontada: { transformar: false, grafico: false, stock: false, platos: false },
@@ -10223,8 +10268,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         soundEnabled: true,
         busqueda: '',
         busquedaEscrita: '',
-        ordenHoja: 'cantidad',
+        ordenHoja: 'personalizado',
         ordenPersonal: [],
+        mensajeOrdenHoja: '',
         grupoPachamancas: { id: 'pachamancas', nombre: 'Pachamancas', open: true, staggerKey: 1, nota: 'Pollo, pecho, carne, carnero, cerdo y humita' },
         configMenuOpen: false,
         showConversionesModal: false,
@@ -12118,7 +12164,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           let nFilas = 0;
           let nEmergencia = 0;
           let cuerpo = '';
+          const bloquesImpresos = [];
           this.bloquesHoja().forEach((bloque) => {
+            const anterior = bloquesImpresos.at(-1);
+            if (bloque.suelto && anterior?.suelto) anterior.filas.push(...bloque.filas);
+            else bloquesImpresos.push({ ...bloque, filas: bloque.filas.slice() });
+          });
+          bloquesImpresos.forEach((bloque) => {
             const items = (bloque.filas || []).filter((it) => it && it.row && this.filaTablaVisible(it.row));
             if (!items.length) return;
             if (!bloque.suelto && bloque.group) {
@@ -13119,9 +13171,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               abrir: [{ f: 523.25, t: 0, d: 0.12 }, { f: 659.25, t: 0.07, d: 0.12 }, { f: 783.99, t: 0.14, d: 0.2 }],
               cerrar: [{ f: 587.33, t: 0, d: 0.08 }, { f: 440, t: 0.06, d: 0.12 }],
               filtro: [{ f: 880, t: 0, d: 0.05 }],
+              tomarFila: [{ f: 440, t: 0, d: 0.055 }],
+              colocarFila: [{ f: 587.33, t: 0, d: 0.07 }, { f: 783.99, t: 0.045, d: 0.10 }],
               borrar: [{ f: 392, t: 0, d: 0.1 }, { f: 293.66, t: 0.08, d: 0.16 }]
             }[tipo] || [{ f: 660, t: 0, d: 0.08 }];
-            const vol = tipo === 'filtro' ? 0.035 : 0.06;
+            const vol = ['filtro', 'tomarFila', 'colocarFila'].includes(tipo) ? 0.035 : 0.06;
             const ahora = ctx.currentTime;
             notas.forEach((n) => {
               const osc = ctx.createOscillator();
@@ -15098,7 +15152,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               venta += Number(rows[i] && rows[i].ventaCocido) || 0;
             }
           }
-          return [this.busqueda || '', this.ordenHoja || '', this._ordenRev || 0, this.filtroCategoria || '', this._revHoja || 0, rows.length, venta, this.mostrarPatoFresco ? '1' : '0', this.mostrarPolloFresco ? '1' : '0'].join('\u0001');
+          return [this.busqueda || '', this.ordenHoja || '', this.filtroCategoria || '', this._revHoja || 0, rows.length, venta, this.mostrarPatoFresco ? '1' : '0', this.mostrarPolloFresco ? '1' : '0'].join('\u0001');
         },
 
         filasPollo(raiz, troncoDesde, troncoHasta) {
@@ -15121,7 +15175,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             return (node.children || []).some(coincide);
           };
 
-          const walk = (node, depth, ancestorsOpen, branchGroup) => {
+          const walk = (node, depth, ancestorsOpen, branchGroup, padreOrden) => {
             if (node.plato) return;
             if (!coincide(node)) return;
             const row = filaReal(node.id);
@@ -15140,6 +15194,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 depth: depth,
                 hasChildren: vistaPacha ? false : hijosVisibles.length > 0,
                 node: node,
+                padreOrden,
                 nombre: nombreDe(node, row),
                 branchGroup: currentBranch,
                 visible: visible,
@@ -15165,7 +15220,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 return vb - va || na.localeCompare(nb, 'es');
               });
             }
-            hijos.forEach((ch) => walk(ch, depth + 1, nextOpen, currentBranch));
+            hijos.forEach((ch) => walk(ch, depth + 1, nextOpen, currentBranch, node.id));
           };
 
           walk(raiz || this.arbolPollo, 0, true, 'root');
@@ -15683,49 +15738,195 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         alCambiarOrdenHoja() {
-          if (this.ordenHoja === 'personalizado' && !(this.ordenPersonal || []).length) this.sembrarOrdenPersonal();
+          this.cancelarArrastreFila();
           this.tocarHoja();
         },
 
-        idsVisiblesHoja() {
-          const ids = [];
-          this.bloquesHoja().forEach((b) => {
-            (b.filas || []).forEach((f) => {
-              if (f && f.row && f.row.id) ids.push(f.row.id);
+        ambitoOrdenFila(bloque, item) {
+          if (bloque.suelto && bloque.key.startsWith('s-')) return 'hoja';
+          const grupo = bloque.group?.id;
+          const raiz = grupo === 'pollo' ? this.arbolPollo : this.arbolesGrupo[grupo];
+          if (raiz && item.node?.id === raiz.id && !item.padreOrden) return 'hoja';
+          return bloque.key + '/' + (item.padreOrden || '');
+        },
+
+        idsOrdenHoja(ambito) {
+          if (ambito === 'hoja') {
+            const grupos = this.tableGroups.flatMap((g) => g.id === 'pollo' ? ['g-pollo', 'g-pachamancas'] : ['g-' + g.id]);
+            const sueltos = this.ordenarFilas(this.getLooseRows().filter((r) => !this.filaPachamanca(r))).map((r) => 's-' + r.id);
+            return grupos.concat(sueltos).map((k) => 'bloque:' + k)
+              .sort((a, b) => this.indiceOrdenPersonal(a) - this.indiceOrdenPersonal(b));
+          }
+          const [bloque, padre] = ambito.split('/');
+          const grupo = bloque.slice(2);
+          const nodos = padre ? this.nodoInventario(padre)?.children : this.bosquesGrupo[grupo];
+          if (nodos) return this.ordenarNodos(nodos.filter((n) => !n.plato)).map((n) => n.id);
+          const filas = bloque === 'g-pachamancas' || bloque === 'pachamanca'
+            ? this.idsPachamanca().map((id) => this.filaReal(id)).filter(Boolean)
+            : this.getRowsByGroup(grupo);
+          return this.ordenarFilas(filas).map((r) => r.id);
+        },
+
+        moverOrdenHoja(ambito, id, objetivo, despues) {
+          if (this.ordenHoja !== 'personalizado' || id === objetivo) return false;
+          const ids = this.idsOrdenHoja(ambito);
+          const origen = ids.indexOf(id);
+          const destino = ids.indexOf(objetivo);
+          if (origen === -1 || destino === -1) return false;
+          const posicion = destino + Number(despues) - Number(origen < destino);
+          if (posicion === origen) return false;
+          ids.splice(origen, 1);
+          ids.splice(posicion, 0, id);
+          const enAmbito = new Set(ids);
+          this.ordenPersonal = this.ordenPersonal.filter((k) => !enAmbito.has(k)).concat(ids);
+          this.guardarOrdenPersonal();
+          this.tocarHoja();
+          return true;
+        },
+
+        filasOrdenablesVisibles(tabla) {
+          return Array.from(tabla.querySelectorAll('tbody tr[data-orden-id]')).filter((fila) => fila.getClientRects().length);
+        },
+
+        zonasOrdenFila(tabla, ambito) {
+          const visibles = this.filasOrdenablesVisibles(tabla);
+          const zonas = [];
+          for (let i = 0; i < visibles.length; i++) {
+            const fila = visibles[i];
+            if (fila.dataset.ordenAmbito !== ambito) continue;
+            let filas;
+            if (ambito === 'hoja') {
+              filas = visibles.filter((f) => f.parentElement === fila.parentElement);
+            } else {
+              let fin = i + 1;
+              const nivel = Number(fila.dataset.ordenProfundidad);
+              while (visibles[fin]?.parentElement === fila.parentElement && Number(visibles[fin].dataset.ordenProfundidad) > nivel) fin++;
+              filas = visibles.slice(i, fin);
+            }
+            zonas.push({ fila, filas });
+          }
+          return zonas;
+        },
+
+        iniciarArrastreFila(evento) {
+          if (arrastreFila || this.ordenHoja !== 'personalizado' || evento.button !== 0 || !evento.isPrimary) return;
+          const asa = evento.target.closest('.asa-orden-fila');
+          const fila = asa?.closest('tr');
+          if (!fila) return;
+          const tabla = evento.currentTarget;
+          const ambito = fila.dataset.ordenAmbito;
+          const zonas = this.zonasOrdenFila(tabla, ambito);
+          const origen = zonas.find((z) => z.fila === fila);
+          if (!origen || zonas.length < 2) return;
+          asa.setPointerCapture(evento.pointerId);
+          arrastreFila = { asa, tabla, ambito, zonas, origen, puntero: evento.pointerId, x: evento.clientX, y: evento.clientY, activo: false };
+        },
+
+        moverArrastreFila(evento) {
+          const arrastre = arrastreFila;
+          if (!arrastre || arrastre.puntero !== evento.pointerId) return;
+          if (!arrastre.activo) {
+            if (Math.hypot(evento.clientX - arrastre.x, evento.clientY - arrastre.y) < 5) return;
+            arrastre.activo = true;
+            arrastre.origen.filas.forEach((fila) => fila.classList.add('fila-en-arrastre'));
+            arrastre.tabla.classList.add('tabla-reordenando');
+            this.sonarVenta('tomarFila');
+          }
+          arrastre.x = evento.clientX;
+          arrastre.y = evento.clientY;
+          this.marcarDestinoArrastre(arrastre);
+        },
+
+        marcarDestinoArrastre(arrastre) {
+          arrastre.marca?.classList.remove('fila-destino-antes', 'fila-destino-despues');
+          arrastre.marca = null;
+          const bajoPuntero = document.elementFromPoint(arrastre.x, arrastre.y)?.closest('tbody tr[data-orden-id]');
+          const destino = arrastre.zonas.find((z) => z !== arrastre.origen && z.filas.includes(bajoPuntero));
+          arrastre.destino = destino;
+          if (destino) {
+            const primera = destino.filas[0];
+            const ultima = destino.filas.at(-1);
+            arrastre.despues = arrastre.y >= (primera.getBoundingClientRect().top + ultima.getBoundingClientRect().bottom) / 2;
+            arrastre.marca = arrastre.despues ? ultima : primera;
+            arrastre.marca.classList.add(arrastre.despues ? 'fila-destino-despues' : 'fila-destino-antes');
+          }
+          const limites = arrastre.tabla.getBoundingClientRect();
+          const arriba = Math.max(0, limites.top);
+          const abajo = Math.min(window.innerHeight, limites.bottom);
+          const superior = arriba + (arrastre.tabla.querySelector('thead')?.offsetHeight || 0);
+          if (arrastre.x < limites.left || arrastre.x > limites.right || arrastre.y < arriba || arrastre.y > abajo) return;
+          const paso = arrastre.y < superior + 32 ? -12 : (arrastre.y > abajo - 32 ? 12 : 0);
+          if (!paso || arrastre.raf) return;
+          arrastre.raf = requestAnimationFrame(() => {
+            arrastre.raf = 0;
+            if (arrastreFila !== arrastre) return;
+            const previo = arrastre.tabla.scrollTop;
+            arrastre.tabla.scrollTop += paso;
+            if (previo !== arrastre.tabla.scrollTop) {
+              this.marcarDestinoArrastre(arrastre);
+            } else if (arrastre.y <= 32 || arrastre.y >= window.innerHeight - 32) {
+              const scrollPrevio = window.scrollY;
+              window.scrollBy(0, paso);
+              if (scrollPrevio !== window.scrollY) this.marcarDestinoArrastre(arrastre);
+            }
+          });
+        },
+
+        soltarArrastreFila(evento) {
+          const arrastre = arrastreFila;
+          if (!arrastre || arrastre.puntero !== evento.pointerId) return;
+          if (arrastre.activo) {
+            arrastre.x = evento.clientX;
+            arrastre.y = evento.clientY;
+            this.marcarDestinoArrastre(arrastre);
+          }
+          this.cancelarArrastreFila(evento);
+          if (arrastre.destino) this.colocarFilaOrden(arrastre.tabla, arrastre.origen.fila, arrastre.destino.fila, arrastre.despues);
+        },
+
+        cancelarArrastreFila(evento) {
+          const arrastre = arrastreFila;
+          if (!arrastre || (evento && arrastre.puntero !== evento.pointerId)) return;
+          arrastreFila = null;
+          if (arrastre.raf) cancelAnimationFrame(arrastre.raf);
+          arrastre.marca?.classList.remove('fila-destino-antes', 'fila-destino-despues');
+          arrastre.origen.filas.forEach((fila) => fila.classList.remove('fila-en-arrastre'));
+          arrastre.tabla.classList.remove('tabla-reordenando');
+          if (arrastre.asa.hasPointerCapture(arrastre.puntero)) arrastre.asa.releasePointerCapture(arrastre.puntero);
+        },
+
+        teclaOrdenFila(evento) {
+          if (this.ordenHoja !== 'personalizado' || !['ArrowUp', 'ArrowDown'].includes(evento.key)) return;
+          const asa = evento.target.closest('.asa-orden-fila');
+          const fila = asa?.closest('tr');
+          if (!fila) return;
+          evento.preventDefault();
+          const despues = evento.key === 'ArrowDown';
+          const tabla = evento.currentTarget;
+          const zonas = this.zonasOrdenFila(tabla, fila.dataset.ordenAmbito);
+          const indice = zonas.findIndex((z) => z.fila === fila);
+          const destino = zonas[indice + (despues ? 1 : -1)];
+          if (indice < 0 || !destino || !this.colocarFilaOrden(tabla, fila, destino.fila, despues)) return;
+          this.$nextTick(() => { asa.focus({ preventScroll: true }); asa.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
+        },
+
+        colocarFilaOrden(tabla, fila, destino, despues) {
+          const { ordenAmbito, ordenId } = fila.dataset;
+          if (ordenAmbito !== destino.dataset.ordenAmbito) return false;
+          const reducido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+          const posiciones = reducido ? [] : this.filasOrdenablesVisibles(tabla).map((el) => [el, el.getBoundingClientRect().top]);
+          if (!this.moverOrdenHoja(ordenAmbito, ordenId, destino.dataset.ordenId, despues)) return false;
+          const nombre = fila.querySelector('.asa-orden-fila').getAttribute('aria-label').replace(/^Mover /, '');
+          this.mensajeOrdenHoja = nombre + (despues ? ' se movió hacia abajo.' : ' se movió hacia arriba.');
+          this.sonarVenta('colocarFila');
+          this.$nextTick(() => {
+            posiciones.forEach(([el, anterior]) => {
+              if (!el.isConnected) return;
+              const distancia = anterior - el.getBoundingClientRect().top;
+              if (distancia) el.animate?.([{ translate: '0 ' + distancia + 'px' }, { translate: '0 0' }], { duration: 210, easing: 'ease-out' });
             });
           });
-          return ids;
-        },
-
-        sembrarOrdenPersonal() {
-          this.ordenPersonal = this.idsVisiblesHoja();
-          this.guardarOrdenPersonal();
-        },
-
-        moverFilaOrden(id, dir) {
-          if (!id || this.ordenHoja !== 'personalizado') return;
-          let lista = (this.ordenPersonal || []).slice();
-          if (!lista.length) lista = this.idsVisiblesHoja();
-          let visibles = [];
-          this.bloquesHoja().some((b) => {
-            const ids = (b.filas || []).filter((f) => f && f.row && f.visible !== false).map((f) => f.row.id);
-            if (ids.indexOf(id) === -1) return false;
-            visibles = ids;
-            return true;
-          });
-          const pos = visibles.indexOf(id);
-          const vecino = visibles[pos + dir];
-          if (pos < 0 || !vecino) return;
-          if (lista.indexOf(id) < 0) lista.push(id);
-          if (lista.indexOf(vecino) < 0) lista.push(vecino);
-          const i = lista.indexOf(id);
-          const j = lista.indexOf(vecino);
-          lista[i] = vecino;
-          lista[j] = id;
-          this.ordenPersonal = lista;
-          this._ordenRev = (this._ordenRev || 0) + 1;
-          this.guardarOrdenPersonal();
-          this.tocarHoja();
+          return true;
         },
 
         ordenarNodos(nodos) {
@@ -15931,9 +16132,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             return solo;
           }
           const list = [];
+          const personalizado = this.ordenHoja === 'personalizado';
           for (let i = 0; i < groups.length; i++) {
             const group = groups[i];
-            list.push({ key: 'g-' + group.id, suelto: false, group: group, filas: this.filasDeGrupo(group) });
+            const filas = this.filasDeGrupo(group);
+            const raiz = group.id === 'pollo' ? this.arbolPollo : this.arbolesGrupo[group.id];
+            const necesitaCabecera = personalizado && (this.bosquesGrupo[group.id] || (raiz && !filas.some((f) => f.node?.id === raiz.id)));
+            const cabeceraOrden = necesitaCabecera && ({ pollo: 'Pollo', pato: 'Pato' }[group.id] || group.nombre);
+            list.push({ key: 'g-' + group.id, suelto: false, group, filas, cabeceraOrden });
             if (group.id === 'pollo' && this.filtroCategoria === 'todos') {
               list.push({
                 key: 'g-pachamancas',
@@ -15943,7 +16149,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               });
             }
           }
-          list.push({ key: 'sueltos', suelto: true, group: null, filas: this.filasSueltas() });
+          const sueltos = this.filasSueltas();
+          if (personalizado) {
+            list.push(...sueltos.map((fila) => ({ key: 's-' + fila.row.id, suelto: true, group: null, filas: [fila] })));
+            list.sort((a, b) => this.indiceOrdenPersonal('bloque:' + a.key) - this.indiceOrdenPersonal('bloque:' + b.key));
+          } else {
+            list.push({ key: 'sueltos', suelto: true, group: null, filas: sueltos });
+          }
           this._bloques = { firma, list };
           return list;
         },

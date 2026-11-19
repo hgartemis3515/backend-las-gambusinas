@@ -8,8 +8,7 @@ const { boundsDiaOperativo } = require('../src/utils/diaOperativoRestaurante');
 const html = fs.readFileSync(path.join(__dirname, '../public/inventario.html'), 'utf8');
 const factoryCode = html.slice(html.indexOf('function inventarioApp()'), html.lastIndexOf('</script>'));
 
-function crearApp() {
-    const store = {};
+function crearApp(store = {}) {
     const localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
     const fabrica = vm.runInNewContext('(' + factoryCode.trim() + ')', {
         window: {}, localStorage, sessionStorage: localStorage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0
@@ -38,6 +37,47 @@ function pintar(app, movimientos, ventas, ymd = '2026-11-11') {
     app.aplicarKardex(libro.filas, movimientos, libro.ventas);
     return libro;
 }
+
+test('la tabla abre en Personalizado y conserva los órdenes guardados antes de arrastrar', () => {
+    const app = crearApp({ 'inventario-orden-personal': '["pierna","pechuga"]' });
+    expect(app.ordenHoja).toBe('personalizado');
+    app.cargarOrdenPersonal();
+    expect(app.idsOrdenHoja('g-pollo/pollo_fresco').slice(0, 2)).toEqual(['pierna', 'pechuga']);
+});
+
+test('arrastrar un grupo frente a una fila suelta conserva sus miembros y su posición al recargar', () => {
+    const store = {};
+    const app = crearApp(store);
+    const filasArroz = app.bloquesHoja().find((b) => b.key === 'g-arroz').filas.map((f) => f.row.id);
+    expect(filasArroz).toContain('arroz_blanco');
+    expect(app.moverOrdenHoja('hoja', 'bloque:g-arroz', 'bloque:s-papas', true)).toBe(true);
+    const recargada = crearApp(store);
+    recargada.cargarOrdenPersonal();
+    const bloques = recargada.bloquesHoja();
+    const posicion = bloques.findIndex((b) => b.key === 's-papas');
+    expect(bloques[posicion + 1].key).toBe('g-arroz');
+    expect(bloques[posicion + 1].filas.map((f) => f.row.id)).toEqual(filasArroz);
+});
+
+test('reordenar Pierna conserva Pollada y permite mover solo entre filas del mismo nivel', () => {
+    const app = crearApp();
+    const movimientos = [mov('pierna-pollo', 'ingreso', 8, horaAyer('09:00')), mov('pollada', 'ingreso', 4, hora('09:00'))];
+    const ventas = [{ rubro: 'pollada', nombre: 'Pollada', cantidad: 2, fecha: hora('13:00'), detalle: [] }];
+    pintar(app, movimientos, ventas);
+    const datos = () => JSON.stringify([app.rows, app.arbolPollo, app.movimientosPeriodo, app.ventasPeriodo]);
+    const antes = datos();
+    const pierna = app.filaReal('pierna');
+    app.api = jest.fn();
+
+    expect(app.moverOrdenHoja('g-pollo/pollo_fresco', 'pierna', 'pechuga', false)).toBe(true);
+    expect(app.idsOrdenHoja('g-pollo/pollo_fresco').slice(0, 2)).toEqual(['pierna', 'pechuga']);
+    expect(app.miembrosGrupo(pierna).map((row) => row.id)).toContain('pollada');
+    expect(app.moverOrdenHoja('g-pollo/pollo_fresco', 'pierna', 'arroz_blanco', true)).toBe(false);
+    expect(app.quedaGrupo(pierna)).toBe(10);
+    expect(app.ventaGrupo(pierna)).toBe(2);
+    expect(datos()).toBe(antes);
+    expect(app.api).not.toHaveBeenCalled();
+});
 
 test('la hoja y el servidor usan la misma regla de cocido en todas las filas', () => {
     const app = crearApp();
