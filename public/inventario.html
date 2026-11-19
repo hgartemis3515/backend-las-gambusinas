@@ -8551,8 +8551,37 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <h3 class="rep-titulo font-extrabold tracking-tight text-[#d4af37]" x-text="tituloReporteDia()"></h3>
             <p class="rep-lead text-[#c8c8dc] mt-2" x-text="textoReporteDia()"></p>
           </div>
-          <button type="button" class="text-[#a0a0b8] hover:text-white text-2xl leading-none px-2 cursor-pointer" @click="reporteDiaAbierto = false" aria-label="Cerrar">×</button>
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" class="w-10 h-10 rounded-lg border-2 inline-flex items-center justify-center cursor-pointer transition" :class="reporteDiaEditando ? 'bg-[#d4af37] text-[#1a1200] border-[#d4af37]' : 'text-[#d4af37] border-[#d4af37]/60 hover:bg-[#d4af37]/15'" @click="reporteDiaEditando = !reporteDiaEditando" :aria-pressed="reporteDiaEditando" aria-label="Editar qué productos se ven en el reporte" title="Editar: elegir qué productos se ven en el reporte">
+              <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </button>
+            <button type="button" class="text-[#a0a0b8] hover:text-white text-2xl leading-none px-2 cursor-pointer" @click="reporteDiaAbierto = false" aria-label="Cerrar">×</button>
+          </div>
         </div>
+        <section x-show="reporteDiaEditando" x-cloak class="mb-4 rounded-2xl border border-[#d4af37]/50 bg-[#0e0e16] p-4 sm:p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <h4 class="text-xl font-extrabold text-[#d4af37]">Qué productos se ven en el reporte</h4>
+              <p class="text-base text-[#c8c8dc] mt-1">Desmarca los que no quieres ver. Quedan ocultos en Qué ingresó y Qué se vendió, y no suman en los totales. Se guarda en este navegador.</p>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" class="px-4 py-2 rounded-lg border border-[#26263a] text-[#c8c8dc] text-base font-bold cursor-pointer" @click="mostrarTodoReporte()">Mostrar todos</button>
+              <button type="button" class="px-4 py-2 rounded-lg bg-[#d4af37] text-[#1a1200] text-base font-bold cursor-pointer" @click="reporteDiaEditando = false">Listo</button>
+            </div>
+          </div>
+          <p x-show="filasReporteEditar().length === 0" class="text-base text-[#a0a0b8] py-2">Este día no tiene productos con movimiento.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <template x-for="(f, i) in filasReporteEditar()" :key="'rep-edit-' + i">
+              <label class="flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 cursor-pointer" :class="reporteFilaOculta(f) ? 'border-[#26263a] bg-[#0a0a0f] opacity-60' : 'border-emerald-700/50 bg-[#10201a]'">
+                <span class="flex items-center gap-3 min-w-0">
+                  <input type="checkbox" class="w-5 h-5 accent-[#d4af37] shrink-0" :checked="!reporteFilaOculta(f)" @change="alternarReporteOculta(f)" :aria-label="'Mostrar ' + f.nombre + ' en el reporte'">
+                  <span class="font-bold text-white truncate" x-text="f.nombre"></span>
+                </span>
+                <span class="font-mono text-sm text-[#c8c8dc] shrink-0" x-text="(f.ingreso > 0 ? '+' + formatNum(f.ingreso) : '') + (f.ingreso > 0 && f.venta ? ' · ' : '') + (f.venta ? '−' + formatNum(f.venta) : '')"></span>
+              </label>
+            </template>
+          </div>
+        </section>
         <div class="flex flex-wrap items-center gap-2 mb-4">
           <button type="button" @click="irReporteDia('ayer')" class="rep-btn px-4 py-2 text-base font-bold rounded-lg cursor-pointer" :class="marcaReporteDia() === 'Ayer' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#c8c8dc] border border-[#26263a]'">Ayer</button>
           <button type="button" @click="irReporteDia('hoy')" class="rep-btn px-4 py-2 text-base font-bold rounded-lg cursor-pointer" :class="marcaReporteDia() === 'Hoy' ? 'bg-[#d4af37] text-[#1a1200]' : 'text-[#c8c8dc] border border-[#26263a]'">Hoy</button>
@@ -8564,11 +8593,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="rep-kpi-ing bg-[#0a0a0f] border rounded-2xl px-5 py-4">
               <p class="rep-kicker uppercase font-bold text-emerald-300">Ingresó en el día</p>
-              <p class="rep-cifra font-mono font-extrabold text-emerald-300 mt-1" x-text="formatNum(reporteDiaVista.ingreso)"></p>
+              <p class="rep-cifra font-mono font-extrabold text-emerald-300 mt-1" x-text="formatNum(totalReporteIngreso())"></p>
             </div>
             <div class="rep-kpi-ven bg-[#0a0a0f] border rounded-2xl px-5 py-4">
               <p class="rep-kicker uppercase font-bold text-rose-200">Se vendió</p>
-              <p class="rep-cifra font-mono font-extrabold text-rose-200 mt-1" x-text="formatNum(reporteDiaVista.venta)"></p>
+              <p class="rep-cifra font-mono font-extrabold text-rose-200 mt-1" x-text="formatNum(totalReporteVenta())"></p>
             </div>
           </div>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -11190,6 +11219,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         reporteDiaCargando: false,
         reporteDiaVista: { filas: [], ingreso: 0, venta: 0, ventas: [], movimientos: [] },
         reporteDiaSector: 'todos',
+        reporteDiaEditando: false,
+        reporteOcultos: (() => { try { const v = JSON.parse(localStorage.getItem('inventario-reporte-ocultos') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } })(),
         origenIngreso: null,
         ventaAbierta: false,
         modalComandaVer: false,
@@ -11908,9 +11939,198 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
+        // Documento de impresión propio: se arma aparte de la pantalla, con todas las columnas y todos los grupos abiertos.
         imprimirHoja() {
           this.irA('tabla');
-          this.$nextTick(() => window.print());
+          this.$nextTick(() => {
+            let html = '';
+            try { html = this.documentoImpresionHoja(); } catch (e) { html = ''; }
+            if (!html) { window.print(); return; }
+            const viejo = document.getElementById('marco-impresion-hoja');
+            if (viejo) viejo.remove();
+            const marco = document.createElement('iframe');
+            marco.id = 'marco-impresion-hoja';
+            marco.setAttribute('aria-hidden', 'true');
+            marco.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+            marco.onload = () => {
+              const w = marco.contentWindow;
+              if (!w) return;
+              w.focus();
+              w.print();
+              setTimeout(() => { if (marco.parentNode) marco.remove(); }, 60000);
+            };
+            marco.srcdoc = html;
+            document.body.appendChild(marco);
+          });
+        },
+
+        documentoImpresionHoja() {
+          const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+          const num = (n) => {
+            const v = Number(n) || 0;
+            return v === 0 ? '<span class="cero">–</span>' : esc(this.formatNum(v));
+          };
+          const lineas = (items) => '<div class="ap">' + items.map((it) => (
+            '<div class="ln' + (it.total ? ' tot' : '') + '">' + (it.etiq ? '<span class="et ' + (it.cls || '') + '">' + esc(it.etiq) + '</span>' : '') + '<span class="v">' + it.v + '</span></div>'
+          )).join('') + '</div>';
+          // Un valor por tipo (crudo / cocido) y, si hay cocido, el total.
+          const porTipo = (row, leer, conTotal) => {
+            const etiquetar = !!(row.tieneCocido || row.soloCocido);
+            const items = this.tiposDe(row).map((t) => ({
+              etiq: etiquetar ? this.etiquetaTipo(t, row) : '',
+              cls: t === 'cocido' ? 'co' : 'cr',
+              v: leer(t)
+            }));
+            if (conTotal && row.tieneCocido) items.push({ etiq: 'Total', total: true, v: leer(undefined) });
+            return lineas(items);
+          };
+          const quedaClase = (row, tipo) => (this.emergenciaCelda(row, tipo) ? ' alarma' : '');
+
+          let hayFilas = false;
+          let nFilas = 0;
+          let nEmergencia = 0;
+          let cuerpo = '';
+          this.bloquesHoja().forEach((bloque) => {
+            const items = (bloque.filas || []).filter((it) => it && it.row && this.filaTablaVisible(it.row));
+            if (!items.length) return;
+            if (!bloque.suelto && bloque.group) {
+              cuerpo += '<tr class="grupo"><td colspan="12">' + esc(bloque.group.nombre) + ' <span class="cuenta">' + items.length + '</span></td></tr>';
+            } else if (bloque.suelto && hayFilas) {
+              cuerpo += '<tr class="grupo"><td colspan="12">Otros productos <span class="cuenta">' + items.length + '</span></td></tr>';
+            }
+            items.forEach((it, i) => {
+              const row = it.row;
+              hayFilas = true;
+              nFilas++;
+              const emerg = !!this.emergenciaFila(row);
+              if (emerg) nEmergencia++;
+              const trans = this.cifraGrupo(row, 'transformacion');
+              const venta = this.ventaComandasCocido(row);
+              const corr = this.tiposDe(row).reduce((a, t) => a + this.valorTipo(row, 'correccion', t), 0);
+              const profundidad = it.enGrupo ? Math.min(3, Number(it.depth) || 0) : 0;
+              const nombre = '<span class="nom d' + profundidad + '">' + esc(it.nombre || row.nombre) + '</span>'
+                + (this.productoBloqueado(row.id) ? ' <span class="chip rojo">Bloqueado</span>' : '')
+                + (emerg ? ' <span class="chip rojo">Emergencia</span>' : '')
+                + (row.unidad ? ' <span class="und">' + esc(row.unidad) + '</span>' : '');
+              const saldoAnt = row.tieneCocido
+                ? lineas([
+                  { etiq: this.etiquetaTipo('crudo', row), cls: 'cr', v: num(this.cifraGrupo(row, 'saldoAnterior', 'crudo')) },
+                  { etiq: 'Cocido', cls: 'co', v: num(this.cifraGrupo(row, 'saldoAnterior', 'cocido')) },
+                  { etiq: 'Total', total: true, v: num(this.cifraGrupo(row, 'saldoAnterior')) }
+                ])
+                : lineas([{ v: num(this.cifraGrupo(row, 'saldoAnterior')) }]);
+              const ingreso = porTipo(row, (t) => num(this.cifraIngresoTabla(row, 'ingreso', row.tieneCocido ? t : undefined)), false);
+              const ingTotal = row.tieneCocido
+                ? lineas([
+                  { etiq: this.etiquetaTipo('crudo', row), cls: 'cr', v: num(this.cifraIngresoTabla(row, 'ingresoTotal', 'crudo')) },
+                  { etiq: 'Cocido', cls: 'co', v: num(this.cifraIngresoTabla(row, 'ingresoTotal', 'cocido')) },
+                  { etiq: 'Total', total: true, v: num(this.cifraIngresoTabla(row, 'ingresoTotal')) }
+                ])
+                : lineas([{ v: num(this.cifraIngresoTabla(row, 'ingresoTotal')) }]);
+              const saldo = porTipo(row, (t) => num(this.cifraCelda(row, 'saldo', row.tieneCocido ? t : undefined)), false);
+              const queda = row.tieneCocido
+                ? lineas([
+                  { etiq: this.etiquetaTipo('crudo', row), cls: 'cr', v: '<span class="' + quedaClase(row, 'crudo') + '">' + esc(this.textoQuedaCelda(row, 'crudo')) + '</span>' },
+                  { etiq: 'Cocido', cls: 'co', v: '<span class="' + quedaClase(row, 'cocido') + '">' + esc(this.textoQuedaCelda(row, 'cocido')) + '</span>' },
+                  { etiq: 'Total', total: true, v: '<span class="' + quedaClase(row) + '">' + esc(this.textoQuedaCelda(row)) + '</span>' }
+                ])
+                : lineas([{ v: '<span class="' + quedaClase(row) + '">' + esc(this.textoQuedaCelda(row)) + '</span>' }]);
+              const conteo = porTipo(row, (t) => {
+                const tipo = row.tieneCocido ? t : (row.soloCocido ? 'cocido' : 'crudo');
+                const c = this.conteoTipo(row, tipo);
+                return c === null ? '<span class="cero">–</span>' : esc(this.formatNum(c));
+              }, false);
+              const dif = porTipo(row, (t) => {
+                const tipo = row.tieneCocido ? t : (row.soloCocido ? 'cocido' : 'crudo');
+                const d = this.calcDiferenciaTipo(row, tipo);
+                if (d === null) return '<span class="cero">–</span>';
+                return '<span class="' + (d < 0 ? 'neg' : (d > 0 ? 'pos' : '')) + '">' + (d > 0 ? '+' : '') + esc(this.formatNum(d)) + '</span>';
+              }, false);
+              const estado = esc(this.estadoFila(row) || '');
+              cuerpo += '<tr class="fila' + (it.enGrupo ? ' engrupo' : '') + (i % 2 ? ' par' : '') + (emerg ? ' emerg' : '') + '">'
+                + '<td class="c-prod">' + nombre + '</td>'
+                + '<td class="n">' + saldoAnt + '</td>'
+                + '<td class="n ing">' + ingreso + '</td>'
+                + '<td class="n">' + (corr ? esc((corr > 0 ? '+' : '−') + this.formatNum(Math.abs(corr))) : '<span class="cero">–</span>') + '</td>'
+                + '<td class="n">' + ingTotal + '</td>'
+                + '<td class="n ven">' + (venta ? esc(this.formatNum(venta)) : '<span class="cero">–</span>') + '</td>'
+                + '<td class="n tra">' + (trans > 0 ? '−' + esc(this.formatNum(trans)) : '<span class="cero">–</span>') + '</td>'
+                + '<td class="n">' + saldo + '</td>'
+                + '<td class="n q">' + queda + '</td>'
+                + '<td class="n">' + conteo + '</td>'
+                + '<td class="n">' + dif + '</td>'
+                + '<td class="c-est">' + estado + '</td>'
+                + '</tr>';
+            });
+          });
+          if (!hayFilas) return '';
+
+          const ahora = new Date();
+          const fechaImp = ahora.toLocaleDateString('es-PE', { timeZone: 'America/Lima', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+          const horaImp = ahora.toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' });
+          let periodo = '';
+          try { periodo = this.etiquetaPeriodoSeleccionado(); } catch (e) { periodo = ''; }
+          const dia = this.ymdOperativo();
+          const cabeza = ['Producto', 'Saldo anterior', 'Ingreso', 'Corrección', 'Ingreso total', 'Venta', 'Transf.', 'Saldo', 'Queda (saldo real)', 'Conteo', 'Diferencia', 'Estado'];
+          const grupos = '<tr class="sup"><th colspan="2" class="g1">1 · Apertura</th><th colspan="3" class="g2">2 · Entró hoy</th><th colspan="2" class="g3">3 · Salió hoy</th><th colspan="5" class="g4">4 · Queda (cierre y auditoría)</th></tr>';
+          const titulos = '<tr class="sub">' + cabeza.map((c, i) => '<th class="' + (i === 0 ? 'l' : '') + '">' + c + '</th>').join('') + '</tr>';
+          const css = `
+            @page { size: A4 landscape; margin: 8mm 8mm 10mm; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            html, body { margin: 0; padding: 0; background: #fff; color: #14141f; font-family: "Segoe UI", Arial, Helvetica, sans-serif; font-size: 9px; }
+            .cab { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2.5px solid #b8932a; padding-bottom: 5px; margin-bottom: 6px; }
+            .cab h1 { margin: 0; font-size: 18px; letter-spacing: .3px; color: #14141f; }
+            .cab h1 small { display: block; font-size: 9px; font-weight: 600; color: #7a6320; letter-spacing: 1.6px; text-transform: uppercase; margin-bottom: 1px; }
+            .cab .meta { text-align: right; font-size: 9px; color: #444; line-height: 1.45; }
+            .cab .meta b { color: #14141f; }
+            .resumen { display: flex; gap: 6px; margin-bottom: 6px; }
+            .resumen div { border: 1px solid #d6cfb8; background: #fbf8ee; border-radius: 4px; padding: 3px 9px; font-size: 9px; color: #555; }
+            .resumen b { font-size: 12px; color: #14141f; margin-right: 3px; }
+            .resumen .al b { color: #b3261e; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            thead { display: table-header-group; }
+            tr { break-inside: avoid; page-break-inside: avoid; }
+            th, td { border: .6px solid #c9c9d3; padding: 2px 4px; vertical-align: middle; }
+            tr.sup th { font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; color: #fff; padding: 3px 4px; text-align: left; }
+            th.g1 { background: #7a6320; } th.g2 { background: #1f7a55; } th.g3 { background: #b4631b; } th.g4 { background: #24598f; }
+            tr.sub th { background: #ececf3; font-size: 8.5px; font-weight: 700; text-align: center; color: #14141f; padding: 3px 3px; }
+            tr.sub th.l { text-align: left; }
+            tr.grupo td { background: #14141f; color: #f1d98a; font-weight: 800; font-size: 10px; letter-spacing: .6px; text-transform: uppercase; padding: 3px 6px; border-color: #14141f; }
+            tr.grupo .cuenta { background: #b8932a; color: #14141f; border-radius: 8px; padding: 0 6px; font-size: 8.5px; margin-left: 5px; letter-spacing: 0; }
+            tr.fila.par td { background: #f6f6fa; }
+            tr.fila.emerg td { background: #fdecea; }
+            td.n { text-align: right; font-variant-numeric: tabular-nums; }
+            td.c-prod { font-size: 10px; font-weight: 700; word-break: break-word; }
+            td.c-prod .nom.d1 { padding-left: 8px; } td.c-prod .nom.d2 { padding-left: 16px; } td.c-prod .nom.d3 { padding-left: 24px; }
+            tr.engrupo td.c-prod { border-left: 2.5px solid #b8932a; }
+            .und { color: #777; font-weight: 500; font-size: 8px; }
+            .chip { display: inline-block; border-radius: 3px; padding: 0 3px; font-size: 7.5px; font-weight: 800; }
+            .chip.rojo { background: #fdecea; color: #b3261e; border: .6px solid #b3261e; }
+            td.c-est { font-size: 8.5px; font-weight: 600; color: #333; }
+            .ln { display: flex; justify-content: flex-end; align-items: baseline; gap: 4px; line-height: 1.3; font-size: 10px; }
+            .ln .et { font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; margin-right: auto; }
+            .ln .et.cr { color: #1f7a55; } .ln .et.co { color: #9a6a00; }
+            .ln.tot { border-top: .6px dashed #999; margin-top: 1px; padding-top: 1px; font-weight: 800; }
+            .ln.tot .et { color: #555; }
+            td.ing .v, td.ven, td.q .v { font-weight: 700; }
+            td.ing { background: rgba(31,122,85,.07); } td.ven { color: #a8261e; font-size: 11px; } td.tra { color: #b4631b; font-weight: 700; font-size: 10.5px; }
+            td.q { background: rgba(36,89,143,.08); }
+            .cero { color: #b5b5c0; font-weight: 400; }
+            .alarma, .neg { color: #b3261e; font-weight: 800; } .pos { color: #24598f; font-weight: 800; }
+            .pie { margin-top: 6px; font-size: 8px; color: #666; display: flex; justify-content: space-between; border-top: 1px solid #ccc; padding-top: 3px; }
+            col.c1 { width: 17%; } col.c2 { width: 7%; } col.c3 { width: 7.5%; } col.c4 { width: 5.5%; } col.c5 { width: 7.5%; } col.c6 { width: 6%; } col.c7 { width: 5.5%; }
+            col.c8 { width: 7%; } col.c9 { width: 8.5%; } col.c10 { width: 6.5%; } col.c11 { width: 7%; } col.c12 { width: 9%; }
+          `;
+          const cols = '<colgroup>' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => '<col class="c' + n + '">').join('') + '</colgroup>';
+          return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Hoja de producción · ' + esc(dia) + '</title><style>' + css + '</style></head><body>'
+            + '<div class="cab"><h1><small>Las Gambusinas · Inventario</small>Hoja de producción</h1>'
+            + '<div class="meta"><div>Día operativo: <b>' + esc(dia) + '</b>' + (periodo ? ' · Periodo: <b>' + esc(periodo) + '</b>' : '') + '</div>'
+            + '<div>Impreso: ' + esc(fechaImp) + ', ' + esc(horaImp) + '</div></div></div>'
+            + '<div class="resumen"><div><b>' + nFilas + '</b>productos</div><div class="al"><b>' + nEmergencia + '</b>en emergencia</div>'
+            + '<div>Día de 04:00 a 04:00 · Queda = Ingreso total − Venta − Transformación + Corrección</div></div>'
+            + '<table>' + cols + '<thead>' + grupos + titulos + '</thead><tbody>' + cuerpo + '</tbody></table>'
+            + '<div class="pie"><span>Las Gambusinas · Hoja de producción</span><span>Cr = crudo · Co = cocido · – = sin movimiento</span></div>'
+            + '</body></html>';
         },
 
         ymdOperativo(fecha) {
@@ -11976,7 +12196,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!claves.has(m.rubro) || m.clase !== 'ingreso') return a;
             const motivo = String(m.motivo || '');
             if (motivo.indexOf('Saldo anterior') === 0 || motivo.indexOf('Pasa a ') === 0 || this.paseDeTipo(motivo)) return a;
-            return a + (Number(m.cantidad) || 0);
+            // El reporte solo muestra lo que ingresó: lo que se restó nunca cuenta.
+            return a + Math.max(0, Number(m.cantidad) || 0);
           }, 0);
           const ventaDe = (claves) => {
             const manual = (movs || []).reduce((a, m) => {
@@ -12043,12 +12264,44 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
+        claveReporteFila(f) {
+          return String((f && f.claves && f.claves[0]) || (f && f.nombre) || '');
+        },
+
+        reporteFilaOculta(f) {
+          return this.reporteOcultos.indexOf(this.claveReporteFila(f)) !== -1;
+        },
+
+        alternarReporteOculta(f) {
+          const k = this.claveReporteFila(f);
+          if (this.reporteOcultos.indexOf(k) === -1) this.reporteOcultos = this.reporteOcultos.concat([k]);
+          else this.reporteOcultos = this.reporteOcultos.filter((x) => x !== k);
+          try { localStorage.setItem('inventario-reporte-ocultos', JSON.stringify(this.reporteOcultos)); } catch (e) {}
+        },
+
+        mostrarTodoReporte() {
+          this.reporteOcultos = [];
+          try { localStorage.setItem('inventario-reporte-ocultos', '[]'); } catch (e) {}
+        },
+
+        filasReporteEditar() {
+          return (this.reporteDiaVista.filas || []).filter((f) => f.ingreso > 0 || f.venta);
+        },
+
         filasReporteIngreso() {
-          return (this.reporteDiaVista.filas || []).filter((f) => f.ingreso);
+          return (this.reporteDiaVista.filas || []).filter((f) => f.ingreso > 0 && !this.reporteFilaOculta(f));
         },
 
         filasReporteVenta() {
-          return (this.reporteDiaVista.filas || []).filter((f) => f.venta);
+          return (this.reporteDiaVista.filas || []).filter((f) => f.venta && !this.reporteFilaOculta(f));
+        },
+
+        totalReporteIngreso() {
+          return this.redondear3(this.filasReporteIngreso().reduce((a, f) => a + (Number(f.ingreso) || 0), 0));
+        },
+
+        totalReporteVenta() {
+          return this.redondear3(this.filasReporteVenta().reduce((a, f) => a + (Number(f.venta) || 0), 0));
         },
 
         lineasSectoresReporte() {
