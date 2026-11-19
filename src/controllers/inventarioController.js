@@ -172,6 +172,16 @@ router.get('/inventario/kardex', adminAuth, checkPermission('ver-inventario'), a
     }
 });
 
+router.put('/inventario/descuadres/omitidos', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const { desde, hasta, ciclo } = req.query;
+        await inventario.omitirDescuadre(desde, hasta, ciclo, req.body?.aviso);
+        res.json({ success: true });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
 router.get('/inventario/movimientos', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
     try {
         const movimientos = await inventario.listarMovimientos(req.query);

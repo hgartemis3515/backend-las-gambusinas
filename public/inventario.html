@@ -7993,7 +7993,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1 cursor-pointer" @click="descuadreAbierto = false" aria-label="Cerrar">×</button>
         </div>
         <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-2">
-          <p x-show="filasDescuadre().length === 0" class="text-sm text-emerald-200">Todo cuadra en este período.</p>
+          <p x-show="filasDescuadre().length === 0" class="text-sm text-emerald-200">No hay avisos pendientes en este período.</p>
           <template x-for="item in filasDescuadre()" :key="'descuadre-' + item.clase + '-' + item.id + '-' + item.tipo">
             <div class="rounded-lg border border-[#26263a] bg-[#0e0e16] px-3 py-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <div class="min-w-0 flex-1">
@@ -8015,6 +8015,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <template x-if="item.clase === 'apertura'">
                   <button type="button" class="px-2.5 py-1 rounded-lg border border-amber-500 text-amber-300 text-[11px] font-bold cursor-pointer disabled:opacity-40" :disabled="!!descuadreGuardando" @click="resolverDescuadre(item, 'apertura')">Volver a lo que quedó ayer</button>
                 </template>
+                <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#26263a] text-red-200 hover:bg-red-900 hover:text-white cursor-pointer disabled:opacity-40"
+                  :disabled="!!descuadreGuardando" :aria-label="'Quitar aviso de ' + item.nombre + ' sin modificar el stock'" title="Quitar aviso sin modificar el stock" @click="omitirDescuadre(item)">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>
+                </button>
               </div>
             </div>
           </template>
@@ -10388,6 +10392,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         historialLocal: [],
         descuadreAbierto: false,
         descuadreGuardando: '',
+        descuadresOmitidos: {},
         ventaEspecialAbierta: false,
         ventaEspecial: {
           tab: 'platos',
@@ -13187,6 +13192,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             await this.cargarMovimientosOctavoDia(r);
             if (!sigue()) { this._kardexOtraVez = true; return; }
             this.aplicarOpcionesCocido(this.cocidoOpciones);
+            this.registrarDescuadresOmitidos(q, k.descuadresOmitidos || []);
             this.aplicarKardex(k.filas || [], this.movimientosPeriodo, this.ventasPeriodo);
             if (this.activeTab === 'grafico') this.cargarDatosGrafico();
             await this.asegurarRepartoOctavo();
@@ -16236,27 +16242,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         filasDescuadre() {
           const n = (v) => this.formatNum(this.redondear3(v));
+          const omitidos = new Set(this.descuadresOmitidos[this.queryRango(this.rangoVista())] || []);
           const out = [];
           (this.rows || []).forEach((row) => {
             if (!row || !row.id || this.esFilaPapas(row) || !this.claveDeFila[row.id]) return;
             this.tiposDe(row).forEach((tipo) => {
               const base = { id: row.id, nombre: row.nombre, tipo, etiqueta: this.etiquetaTipo(tipo, row) };
+              const firma = (clase, ...cifras) => [this.claveDeFila[row.id], tipo, clase, ...cifras.map((v) => this.redondear3(v))].join('|');
               const sinTope = this.quedaSinTopeTipo(row, tipo);
               if (sinTope < -0.0004) {
                 const falta = this.redondear3(-sinTope);
                 const crudoLibre = this.crudoLibreParaCocido(row, tipo);
                 out.push(Object.assign({}, base, {
-                  clase: 'emergencia', orden: 0, falta, crudoLibre,
+                  clase: 'emergencia', orden: 0, falta, crudoLibre, firma: firma('emergencia', falta),
                   titulo: 'Faltan ' + n(falta),
                   explica: 'Se vendió o se descargó más de lo que había.' + (crudoLibre > 0 ? ' Hay ' + n(crudoLibre) + ' en crudo.' : '')
                 }));
               }
               const ajuste = this.ajusteAperturaPendiente(row, tipo);
               if (Math.abs(ajuste) > 0.0004) {
+                const cierreAnterior = this.valorTipo(row, 'cierreAnterior', tipo);
+                const apertura = this.saldoAnteriorColumnaTipo(row, tipo);
                 out.push(Object.assign({}, base, {
                   clase: 'apertura', orden: 1, ajuste: this.redondear3(ajuste),
+                  firma: firma('apertura', ajuste, cierreAnterior, apertura),
                   titulo: (ajuste > 0 ? '+' : '−') + n(Math.abs(ajuste)),
-                  explica: 'Quedó ' + n(this.valorTipo(row, 'cierreAnterior', tipo)) + ' el día anterior y abre con ' + n(this.saldoAnteriorColumnaTipo(row, tipo)) + '.'
+                  explica: 'Quedó ' + n(cierreAnterior) + ' el día anterior y abre con ' + n(apertura) + '.'
                 }));
               }
               const dif = this.calcDiferenciaTipo(row, tipo);
@@ -16264,6 +16275,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 const contado = this.conteoTipo(row, tipo);
                 out.push(Object.assign({}, base, {
                   clase: 'conteo', orden: 2,
+                  firma: firma('conteo', dif, contado),
                   titulo: (dif > 0 ? 'Sobraron ' : 'Faltaron ') + n(Math.abs(dif)),
                   explica: 'Se contó ' + n(contado) + ' y el sistema esperaba ' + n(contado - dif) + '. El stock ya quedó en lo contado.'
                 }));
@@ -16271,7 +16283,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             });
           });
           out.sort((a, b) => (a.orden - b.orden) || String(a.nombre).localeCompare(String(b.nombre), 'es'));
-          return out;
+          return out.filter((aviso) => !omitidos.has(aviso.firma));
+        },
+
+        registrarDescuadresOmitidos(q, avisos) {
+          if (!avisos.length) return;
+          this.descuadresOmitidos[q] = [...new Set([...(this.descuadresOmitidos[q] || []), ...avisos])];
+        },
+
+        async omitirDescuadre(item) {
+          if (!item || this.descuadreGuardando) return;
+          const q = this.queryRango(this.rangoVista());
+          if (this._cacheKardex[this.vistaKardex()]?.q !== q) {
+            this.toastMessage = 'Espera a que termine de cargar este período.';
+            return;
+          }
+          this.descuadreGuardando = item.firma;
+          try {
+            await this.api('/inventario/descuadres/omitidos?' + q, {
+              method: 'PUT', body: JSON.stringify({ aviso: item.firma })
+            });
+            this.registrarDescuadresOmitidos(q, [item.firma]);
+            this.toastMessage = 'Se quitó el aviso de ' + item.nombre + '.';
+          } catch (e) {
+            this.toastMessage = e.message || 'No se pudo quitar el aviso';
+          } finally {
+            this.descuadreGuardando = '';
+          }
         },
 
         // Lo que pide atención. Las diferencias de conteo ya están resueltas: no prenden la alerta.

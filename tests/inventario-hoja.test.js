@@ -500,6 +500,43 @@ test('editar stock de filete y octavo no crea apertura pendiente ni modifica sus
     expect(app.movimientosPeriodo).toBe(movimientos);
 });
 
+test('quitar el aviso de Filete lo oculta en su período sin ajustar el stock', async () => {
+    const app = crearApp();
+    const rango = { desde: '2026-11-11', hasta: '2026-11-11' };
+    const q = app.queryRango(rango);
+    app.rangoVista = () => rango;
+    app._cacheKardex.tabla = { q };
+    const movimientos = [
+        mov('filete', 'ingreso', 10, horaAyer('09:00')),
+        mov('filete', 'ingreso', -3, hora('04:00'), 'Ajuste apertura'),
+        mov('yuca', 'ingreso', 1, hora('04:00'), 'Ajuste apertura')
+    ];
+    pintar(app, movimientos);
+    const antes = JSON.stringify(app.rows);
+    const aviso = app.filasDescuadre().find((item) => item.id === 'filete');
+    expect(aviso.firma).toBe('filete|crudo|apertura|-3|10|7');
+    app.api = jest.fn().mockResolvedValue({ success: true });
+    app.paso = jest.fn();
+
+    await app.omitirDescuadre(aviso);
+    expect(app.api).toHaveBeenCalledWith('/inventario/descuadres/omitidos?' + q, {
+        method: 'PUT', body: JSON.stringify({ aviso: aviso.firma })
+    });
+    expect(app.paso).not.toHaveBeenCalled();
+    expect(JSON.stringify(app.rows)).toBe(antes);
+    expect(app.movimientosPeriodo).toBe(movimientos);
+    expect(app.filasDescuadre().map((item) => item.id)).toEqual(['yuca']);
+    expect(app.cuentaDescuadre()).toBe(1);
+
+    const recargada = crearApp();
+    recargada.rangoVista = () => rango;
+    recargada.registrarDescuadresOmitidos(q, [aviso.firma]);
+    pintar(recargada, movimientos);
+    expect(recargada.filasDescuadre().map((item) => item.id)).toEqual(['yuca']);
+    pintar(recargada, movimientos.concat(mov('filete', 'ingreso', -1, hora('04:00'), 'Ajuste apertura')));
+    expect(recargada.filasDescuadre().find((item) => item.id === 'filete').ajuste).toBe(-4);
+});
+
 test('una edición de stock no oculta faltantes reales ni otros ajustes de apertura', () => {
     const app = crearApp();
     app.rangoVista = () => ({ desde: '2026-11-11', hasta: '2026-11-11' });

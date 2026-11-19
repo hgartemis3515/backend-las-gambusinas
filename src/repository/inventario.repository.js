@@ -328,8 +328,11 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
         ? rango(desdeStr, hastaStr || desdeStr, ciclo)
         : hoy();
     const { desde, hasta } = ampliarTramoAlDia(pedido.desde, pedido.hasta);
-    const { filas, ventas, cocidoOpciones } = await filasCartaEn(desde, hasta);
-    const data = { desde, hasta, filas, carta: await cartaConMapas(), ventas, cocidoOpciones };
+    const [{ filas, ventas, cocidoOpciones }, doc] = await Promise.all([
+        filasCartaEn(desde, hasta),
+        MapaSemantico.findOne({ clave: claveDescuadresOmitidos(desde, hasta) }).select('descuadresOmitidos').lean()
+    ]);
+    const data = { desde, hasta, filas, carta: await cartaConMapas(), ventas, cocidoOpciones, descuadresOmitidos: doc?.descuadresOmitidos || [] };
     if (operativo && desdeStr && desdeStr === (hastaStr || desdeStr)) {
         const fecha = String(desdeStr);
         const hoyOp = ymdOperativo();
@@ -355,6 +358,26 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
         }
     }
     return data;
+}
+
+function claveDescuadresOmitidos(desde, hasta) {
+    return 'descuadres-omitidos:' + desde.toISOString() + ':' + hasta.toISOString();
+}
+
+async function omitirDescuadre(desdeStr, hastaStr, ciclo, aviso) {
+    const firmaValida = /^[a-z0-9][a-z0-9_-]{0,79}\|(crudo|cocido)\|(emergencia|apertura|conteo)(\|-?\d{1,15}(\.\d{1,3})?){1,3}$/;
+    if (typeof aviso !== 'string' || !firmaValida.test(aviso)) {
+        const err = new Error('Aviso de descuadre inválido');
+        err.statusCode = 400;
+        throw err;
+    }
+    const pedido = rango(desdeStr, hastaStr, ciclo);
+    const { desde, hasta } = ampliarTramoAlDia(pedido.desde, pedido.hasta);
+    await MapaSemantico.updateOne(
+        { clave: claveDescuadresOmitidos(desde, hasta) },
+        { $addToSet: { descuadresOmitidos: aviso } },
+        { upsert: true }
+    );
 }
 
 async function saldosRubroHoy(claves) {
@@ -680,6 +703,7 @@ async function eliminarHoy() {
 module.exports = {
     kardex,
     kardexCarta,
+    omitirDescuadre,
     saldosRubroHoy,
     listarMovimientos,
     crearMovimiento,

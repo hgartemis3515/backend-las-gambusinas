@@ -5,6 +5,7 @@ const inventarioMapaSchema = new mongoose.Schema({
     mapas: { type: Array, default: [] },
     relaciones: { type: Array, default: [] },
     quitadas: { type: Array, default: [] },
+    descuadresOmitidos: { type: [String], default: undefined },
     bloqueo: { type: mongoose.Schema.Types.Mixed, default: null }
 }, { collection: 'inventario_mapas' });
 
