@@ -109,6 +109,29 @@ test('un día sin datos deja la fila en 0 en vez de repetir el período anterior
     expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(0);
 });
 
+test('la tabla muestra 40 de Pierna aunque las mismas piezas pasen a Pollada y el grupo sume 177', () => {
+    const app = crearApp();
+    pintar(app, [
+        mov('pachamanca-pollo', 'ingreso', 53, horaAyer('09:00')),
+        mov('pierna-lena', 'ingreso', 32, horaAyer('09:00')),
+        mov('pollada', 'ingreso', 12, horaAyer('09:00')),
+        mov('pierna-pollo', 'ingreso', 40, hora('09:00'), 'Ingreso independiente crudo'),
+        mov('pierna-pollo', 'ingreso', -40, hora('10:00'), 'Pasa a Pollada'),
+        mov('pollada', 'ingreso', 40, hora('10:00'), 'Sale de Pierna de Pollo')
+    ]);
+    const pierna = app.filaReal('pierna');
+    const pollada = app.filaReal('pollada');
+    expect(app.cifraIngresoTabla(pierna, 'ingreso')).toBe(40);
+    expect(app.cifraIngresoTabla(pierna, 'ingresoTotal')).toBe(40);
+    expect(app.cifraIngresoTabla(pollada, 'ingresoTotal')).toBe(52);
+    expect(app.stockCuadro('pierna', 'crudo')).toBe(0);
+    expect(app.stockCuadro('pollada', 'crudo')).toBe(52);
+    app.abrirOrigenIngreso(pierna, 'crudo');
+    expect(app.origenIngreso).toMatchObject({ total: 40, anotado: 40, transformado: 0 });
+    app.abrirDesgloseGrupo(pierna, 'ingresoTotal');
+    expect(app.desgloseGrupo.total).toBe(177);
+});
+
 test('Venta Comandas de pierna muestra las siete ventas del modal sin descontarlas dos veces', () => {
     const app = crearApp();
     const ventas = [

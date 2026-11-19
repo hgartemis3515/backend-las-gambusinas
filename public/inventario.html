@@ -2637,11 +2637,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               </template>
                               <template x-if="tieneGrupo(row)">
                                 <button type="button" class="btn-ingreso-grupo num-claro num-mono font-bold text-sm" :aria-label="'Ingresar stock en el grupo ' + row.nombre" title="Ingresar stock de este producto y sus platos" @click="abrirIngresoGrupo(row)">
-                                  <span x-text="formatNum(cifraCelda(row, 'ingreso', tipo))"></span>
+                                  <span x-text="formatNum(cifraIngresoTabla(row, 'ingreso', row.tieneCocido ? tipo : undefined))"></span>
                                   <span class="btn-ingreso-grupo-mas" aria-hidden="true">+</span>
                                 </button>
                               </template>
-                              <button type="button" class="btn-lupa-ingreso lupa-cuadro w-6 h-6 rounded-md inline-flex items-center justify-center cursor-pointer shrink-0" :aria-label="'Ver la transformación del ingreso ' + tipo + ' de ' + row.nombre" :title="tieneGrupo(row) ? 'Ver qué se ingresó y qué se transformó en todo el grupo' : 'Ver qué se ingresó o se transformó para llegar a este ingreso'" @click="abrirOrigenIngreso(row, tipo)">
+                              <button type="button" class="btn-lupa-ingreso lupa-cuadro w-6 h-6 rounded-md inline-flex items-center justify-center cursor-pointer shrink-0" :aria-label="'Ver la transformación del ingreso ' + tipo + ' de ' + row.nombre" :title="row.id !== 'pierna' && tieneGrupo(row) ? 'Ver qué se ingresó y qué se transformó en todo el grupo' : 'Ver qué se ingresó o se transformó para llegar a este ingreso'" @click="abrirOrigenIngreso(row, tipo)">
                                 <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                               </button>
                             </div>
@@ -2674,16 +2674,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="par-tipo">
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-crudo" x-text="etiquetaTipo('crudo', row)"></span>
-                              <span class="par-tipo-num num-mono font-semibold text-cyan-200" x-text="formatNum(cifraGrupo(row, 'ingresoTotal', 'crudo'))"></span>
+                              <span class="par-tipo-num num-mono font-semibold text-cyan-200" x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal', 'crudo'))"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-cocido">Cocido</span>
-                              <span class="par-tipo-num num-mono font-semibold text-cyan-300" x-text="formatNum(cifraGrupo(row, 'ingresoTotal', 'cocido'))"></span>
+                              <span class="par-tipo-num num-mono font-semibold text-cyan-300" x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal', 'cocido'))"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-total">Total</span>
                               <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''">
-                                <span x-text="formatNum(cifraGrupo(row, 'ingresoTotal'))"></span>
+                                <span x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal'))"></span>
                                 <span x-show="mostrarMasMenosIngreso && (flechaSumaCelda(row) > 0 || flechaRestaCelda(row) > 0)" class="ingreso-total-flechas">
                                   <span x-show="flechaSumaCelda(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(flechaSumaCelda(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(flechaSumaCelda(row))"></span></span>
                                   <span x-show="flechaRestaCelda(row) > 0" class="badge-flecha-down-roja" :title="'Restando −' + formatNum(flechaRestaCelda(row)) + ' del Ingreso Total'">↓<span class="num-mono" x-text="'−' + formatNum(flechaRestaCelda(row))"></span></span>
@@ -2697,8 +2697,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <template x-if="!row.tieneCocido">
                         <div class="par-tipo-con-accion">
                           <div class="text-center">
-                          <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" title="Saldo anterior + Ingreso">
-                            <span x-text="formatNum(cifraGrupo(row, 'ingresoTotal'))"></span>
+                          <span class="par-tipo-num ingreso-total-numero total-cell-base caja-ingreso-total num-mono font-bold text-cyan-200" :class="updatedRows[row.id] ? 'total-gold-flash' : ''" :title="row.id === 'pierna' ? 'Saldo anterior de la pierna + su ingreso del período' : 'Saldo anterior + Ingreso'">
+                            <span x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal'))"></span>
                             <span x-show="mostrarMasMenosIngreso && (flechaSumaCelda(row) > 0 || flechaRestaCelda(row) > 0)" class="ingreso-total-flechas">
                               <span x-show="flechaSumaCelda(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(flechaSumaCelda(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(flechaSumaCelda(row))"></span></span>
                               <span x-show="flechaRestaCelda(row) > 0" class="badge-flecha-down-roja" :title="'Restando −' + formatNum(flechaRestaCelda(row)) + ' del Ingreso Total'">↓<span class="num-mono" x-text="'−' + formatNum(flechaRestaCelda(row))"></span></span>
@@ -12110,10 +12110,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Qué se ingresó y qué se transformó. En un producto con platos cubre todo el grupo.
-        origenIngresoDe(row, tipo) {
+        origenIngresoDe(row, tipo, soloFila = false) {
           const soloTipo = tipo && row.tieneCocido && !row.soloCocido ? (tipo === 'cocido' ? 'cocido' : 'crudo') : '';
           const filaDe = {};
-          this.filasDelGrupo(row).forEach((f) => {
+          const filas = soloFila ? [row] : this.filasDelGrupo(row);
+          filas.forEach((f) => {
             const clave = this.claveDeFila[f.id];
             if (clave) filaDe[clave] = f;
           });
@@ -12155,7 +12156,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             nombre: row.nombre,
             etiqueta: tipo ? this.etiquetaTipo(tipo === 'cocido' ? 'cocido' : 'crudo', row) : 'Total',
             unidad: row.unidad || 'unid',
-            total: this.cifraCelda(row, 'ingreso', tipo),
+            total: soloFila ? this.cifraIngresoTabla(row, 'ingreso', soloTipo) : this.cifraCelda(row, 'ingreso', tipo),
             transformado: suma('transformacion'),
             anotado: suma('ingreso'),
             lineas: lineas
@@ -12164,7 +12165,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         abrirOrigenIngreso(row, tipo) {
           if (!row) return;
-          this.origenIngreso = this.origenIngresoDe(row, tipo);
+          this.origenIngreso = this.origenIngresoDe(row, tipo, row.id === 'pierna');
         },
 
         lineaEsDePecho(rubro, nombre) {
@@ -15971,11 +15972,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.cifraGrupo(row, columna, row && row.tieneCocido ? tipo : undefined);
         },
 
+        cifraIngresoTabla(row, columna, tipo) {
+          // En Pierna, los pases a Pollada ya se ven en la fila de destino.
+          if (row.id !== 'pierna') return this.cifraGrupo(row, columna, tipo);
+          return this.redondear3(this.tiposDelCuadro(row, tipo).reduce((a, t) => a + this.leerColumnaGrupo(columna, row, t), 0));
+        },
+
         flechaSumaCelda(row) {
+          if (row.id === 'pierna') return this.sumaIngresoTotalFila(row);
           return this.sumaGrupo(row, (f) => this.sumaIngresoTotalFila(f));
         },
 
         flechaRestaCelda(row) {
+          if (row.id === 'pierna') return this.restaIngresoTotalFila(row);
           return this.sumaGrupo(row, (f) => this.restaIngresoTotalFila(f));
         },
 

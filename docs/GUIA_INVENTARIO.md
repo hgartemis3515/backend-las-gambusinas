@@ -15,6 +15,8 @@ Cada fila tiene su cuenta. La pantalla la enseña de dos maneras, y las dos son 
 | Queda | Columna Queda, caja de Transformar, lápiz, pestaña Stock y tope del **+** | Lo que hay en esa fila. Es un solo número en toda la pantalla. |
 | Total del grupo | Número principal de Saldo ant., Ingreso, Ingreso total, Transformación y Queda en Pecho, Pierna, Filete y Octavo | La fila más los platos que cuelgan de ella. La lupa muestra cuánto tiene cada uno. El Estado se mide con este número. |
 
+En Pierna de pollo, los cuadros **Ingreso** e **Ingreso total** muestran las cifras propias de la pierna. Cuando entran 40 piernas y pasan a Pollada, el ingreso de Pierna sigue siendo 40. La lupa de Ingreso total conserva el desglose con el saldo y el ingreso de cada plato del grupo.
+
 Un pecho con Queda 13 en la tabla y 11 en su lupa tiene 11 de pieza suelta y 2 ya pasados a platos. El **+** solo puede mover los 11.
 
 El historial de la unificación del kardex está en [LOGICA_INVENTARIO.md](LOGICA_INVENTARIO.md). Para mantener la pantalla, usa la descripción vigente de esta guía y el código de la versión servida.
