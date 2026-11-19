@@ -495,6 +495,26 @@ test('la yuca del chicharrón BBQ solo baja si el mozo la elige', () => {
     expect(dosYucas.yuca).toBe(2);
 });
 
+test('las relaciones guardadas no duplican ni agregan la yuca opcional de los chicharrones', () => {
+    const { armarContadorPlatos } = require('../src/utils/contadorPlatosReporte');
+    const chico = 'Chicharron de pollo chico + yuca frita + zarza criolla';
+    const acevichado = 'Chicharrón de pollo acevichada + arroz y papa frita';
+    const catalogo = [chico, acevichado].map((nombre, i) => ({
+        _id: String(i), nombre,
+        complementos: [{ grupo: 'GUARNICIONES', opciones: [{ nombre: 'Yuca Frita' }, { nombre: 'Papa Frita' }] }]
+    }));
+    const linea = (i, opcion) => ({ platoId: String(i), cantidad: 1, complementos: [{ grupo: 'GUARNICIONES', opcion }] });
+    const relaciones = [chico, acevichado].map((plato) => ({ plato, rubro: 'Yuca', cantidad: 1 }));
+    const calcular = (lineas, numero) => partirSalida(filasDelContador(armarContadorPlatos(lineas, catalogo)), numero, null, { relaciones });
+
+    const sinYuca = calcular([linea(0, 'Papa Frita'), linea(1, 'Papa Frita')], 'Comanda 6');
+    expect(sinYuca.porRubro).toMatchObject({ 'chicharron-pollo': 1, 'chi-pollo-acevichada': 1, papas: 2 });
+    expect(sinYuca.porRubro.yuca).toBeUndefined();
+    const conYuca = calcular([linea(0, 'Yuca Frita')], 'Comanda 22');
+    expect(conYuca.porRubro.yuca).toBe(1);
+    expect(conYuca.detalle.yuca).toMatchObject([{ nombre: 'Yuca Frita', cantidad: 1, comanda: 'Comanda 22' }]);
+});
+
 test('yuca, inca 300, carnero, frugos y pizza descuentan su fila', () => {
     const yuca = aplicarMapa([
         { nombre: 'Chicharrón de Pota + yuca + zarza', cantidad: 1 },

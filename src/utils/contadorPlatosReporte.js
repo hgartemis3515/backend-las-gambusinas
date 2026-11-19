@@ -426,7 +426,8 @@ function armarContadorPlatos(lineas, catalogo) {
     const ficha = fichaParaLinea(linea, catalogoPorId);
     const idPlato = linea && (linea.platoId || (linea.plato && (linea.plato._id || linea.plato)));
     const cat = idPlato != null ? catalogoPorId.get(String(idPlato)) : null;
-    const tieneGuarnicion = gruposDe(cat).some((g) => norm(g && g.grupo).includes('guarnicion'));
+    const tieneGuarnicion = gruposDe(cat || { complementos: linea.complementosCatalogo })
+      .some((g) => norm(g && g.grupo).includes('guarnicion'));
     soles = round2(soles + solesLinea(linea));
     for (const p of piezasDeLinea(ficha, linea)) {
       if (tieneGuarnicion) p.guarnicionOpcional = true;

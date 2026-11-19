@@ -311,6 +311,10 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
             meta && meta.relaciones,
             fila
         );
+        // La yuca opcional ya tiene su propia fila cuando se eligió en la comanda.
+        if (fila && fila.guarnicionOpcional && !fila.esGuarnicion) {
+            mapas = mapas.filter((m) => m && m.rubro !== 'yuca');
+        }
         if (fila && !fila.soloArroz && conGuarnicionArroz.has(norm(fila.nombre))) {
             mapas = mapas.filter((m) => m && m.rubro !== 'arroz-blanco');
         }
@@ -667,6 +671,7 @@ function lineasDeComanda(comanda) {
             nombre: p.nombre || ref?.nombre || 'Sin nombre',
             cantidad: cant,
             soles: Number(p.subtotal) || 0,
+            complementosCatalogo: ref?.complementos,
             complementos: p.complementosSeleccionados || []
         });
     });

@@ -180,6 +180,26 @@ test('la impresión respeta las columnas, los indicadores y las filas ocultas de
     revisar([...apertura, 'Corrección', ...ingresoVenta, 'Transformación', 'Saldo', 'Conteo', queda, 'Diferencia', 'Estado'], [2, 3, 2, 5]);
 });
 
+test('la impresión incluye el stock propio y los platos con stock debajo de su grupo', () => {
+    const app = crearApp();
+    app.aplicarOpcionesCocido([{ clave: 'pollada', tieneCocido: true }]);
+    pintar(app, [
+        mov('pierna-pollo', 'ingreso', 3, hora('09:00')),
+        mov('pollada', 'ingreso', 7, hora('09:00')),
+        mov('pollada', 'ingreso', 2, hora('09:00'), 'Ingreso independiente cocido', 'cocido'),
+        mov('pachamanca-pollo', 'ingreso', 4, hora('09:00'))
+    ]);
+    app.tableGroups.find((g) => g.id === 'pollo').open = false;
+    const pierna = app.filaReal('pierna');
+    expect(app.quedaGrupo(pierna)).toBe(16);
+    const impreso = app.documentoImpresionHoja();
+    const detalle = impreso.match(/<tr class="fila[^\"]*">(?:(?!<\/tr>).)*>Pierna de Pollo<(?:(?!<\/tr>).)*<\/tr>(<tr class="detalle-stock">.*?<\/tr>)/)[1];
+    expect(detalle).toContain('Pierna de Pollo (propia)');
+    expect(detalle).toMatch(/Pollada<.*?Crudo 7<.*?Cocido 2</);
+    expect(detalle).toMatch(/Pollo pachamanca pierna<.*?Macerado 4</i);
+    expect(detalle).not.toMatch(/Pierna a la Leña|Cocido 0|Crudo 0/i);
+});
+
 test('el reporte cuenta el producto final con su tipo y corte, y descarta pases deshechos', () => {
     const app = crearApp();
     const reporte = [

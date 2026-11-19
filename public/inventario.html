@@ -11993,7 +11993,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           });
         },
 
-        // Documento de impresión con las opciones de la tabla y los grupos abiertos.
+        // Documento de impresión con las opciones de la tabla y el stock de cada grupo.
         imprimirHoja() {
           this.irA('tabla');
           this.$nextTick(() => {
@@ -12076,6 +12076,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               + (emerg ? ' <span class="chip rojo">Emergencia</span>' : '')
               + (row.unidad ? ' <span class="und">' + esc(row.unidad) + '</span>' : '');
           };
+          const stockPorProducto = (fila, nombre) => {
+            const stocks = this.tiposDe(fila).map((tipo) => {
+              const stock = this.saldoRealColumnaTipo(fila, tipo);
+              if (!stock) return '';
+              const etiqueta = fila.tieneCocido || fila.soloCocido ? this.etiquetaTipo(tipo, fila) + ' ' : '';
+              return '<span class="stock-cifra">' + esc(etiqueta + this.formatNum(stock)) + '</span>';
+            }).join('');
+            return stocks ? '<li><strong>' + esc(nombre) + '</strong>' + stocks + '</li>' : '';
+          };
           const bandas = [
             { titulo: '1 · Apertura', columnas: [
               { titulo: 'Producto', clase: 'c-prod', ancho: 17, celda: producto },
@@ -12117,9 +12126,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               nFilas++;
               const emerg = !!this.emergenciaFila(row);
               if (emerg) nEmergencia++;
-              cuerpo += '<tr class="fila' + (it.enGrupo ? ' engrupo' : '') + (i % 2 ? ' par' : '') + (emerg ? ' emerg' : '') + '">'
+              const platosConStock = this.miembrosGrupo(row).filter((hijo) => this.filaTablaVisible(hijo))
+                .map((hijo) => stockPorProducto(hijo, hijo.nombre)).join('');
+              cuerpo += '<tr class="fila' + (it.enGrupo ? ' engrupo' : '') + (i % 2 ? ' par' : '') + (emerg ? ' emerg' : '') + (platosConStock ? ' con-detalle' : '') + '">'
                 + columnas.map(({ clase = 'n', celda }) => '<td class="' + clase + '">' + celda(row, it, emerg) + '</td>').join('')
                 + '</tr>';
+              if (platosConStock) {
+                cuerpo += '<tr class="detalle-stock"><td colspan="' + columnas.length + '">'
+                  + '<div class="stock-titulo">Stock por producto</div><ul>'
+                  + stockPorProducto(row, (it.nombre || row.nombre) + ' (propia)') + platosConStock + '</ul></td></tr>';
+              }
             });
           });
           if (!nFilas) return '';
@@ -12162,6 +12178,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             td.c-prod { font-size: 10px; font-weight: 700; word-break: break-word; }
             td.c-prod .nom.d1 { padding-left: 8px; } td.c-prod .nom.d2 { padding-left: 16px; } td.c-prod .nom.d3 { padding-left: 24px; }
             tr.engrupo td.c-prod { border-left: 2.5px solid #b8932a; }
+            tr.con-detalle { break-after: avoid; page-break-after: avoid; }
+            .detalle-stock td { padding: 4px 7px 5px; background: #eef4fa; border-left: 2.5px solid #24598f; }
+            .stock-titulo { color: #24598f; font-size: 8px; font-weight: 800; margin-bottom: 2px; }
+            .detalle-stock ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 8px; margin: 0; padding: 0; list-style: none; }
+            .detalle-stock li { background: #fff; border: .6px solid #c8d6e5; padding: 2px 4px; overflow-wrap: anywhere; }
+            .stock-cifra { display: inline-block; margin-left: 5px; color: #24598f; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
             .und { color: #777; font-weight: 500; font-size: 8px; }
             .chip { display: inline-block; border-radius: 3px; padding: 0 3px; font-size: 7.5px; font-weight: 800; }
             .chip.rojo { background: #fdecea; color: #b3261e; border: .6px solid #b3261e; }
