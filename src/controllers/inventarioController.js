@@ -100,12 +100,15 @@ async function auditarVentaManualAnulada(req, data) {
             entidadTipo: 'inventario',
             usuario: objectIdUsuarioOrNull(admin.id),
             usuarioNombre: admin.name || null,
-            motivo: 'Eliminó una venta manual',
+            motivo: data.sectorRestaurado ? 'Revirtió una descarga de ' + data.sectorRestaurado : 'Eliminó una venta manual',
             ip: req.ip || null,
             datosAntes: { eliminados: n, movimientos: lista },
             metadata: {
-                resumen: 'Venta manual eliminada · ' + n + (n === 1 ? ' movimiento' : ' movimientos'),
+                resumen: data.sectorRestaurado
+                    ? 'Descarga revertida · ' + data.sectorRestaurado
+                    : 'Venta manual eliminada · ' + n + (n === 1 ? ' movimiento' : ' movimientos'),
                 eliminados: n,
+                sectorRestaurado: data.sectorRestaurado || '',
                 movimientos: lista
             }
         });
@@ -215,7 +218,7 @@ router.post('/inventario/venta-manual/eliminar', adminAuth, checkPermission('ver
     try {
         const data = await inventario.eliminarVentaManual(req.body || {});
         await auditarVentaManualAnulada(req, data);
-        res.json({ success: true, eliminados: data.eliminados });
+        res.json({ success: true, eliminados: data.eliminados, sectorRestaurado: data.sectorRestaurado });
     } catch (error) {
         errorHttp(error, res);
     }

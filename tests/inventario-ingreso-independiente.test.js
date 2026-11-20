@@ -181,6 +181,54 @@ test.each([['arroz_beata', 'arroz-beata'], ['arroz_rio_lindo', 'arroz-rio-lindo'
     app.registrarIngresoDirecto(id, tipo, input('0')); recargar(); expect(app.stockCuadro(id, tipo)).toBe(0); expect(app.stockCuadro('arroz', 'crudo')).toBe(50); expect(app.kgDescargaArroz({ id })).toBe(0);
 });
 
+test.each([
+    ['arrozVerde', 'arroz-verde', 0.833, 7.167],
+    ['arrozBlanco', 'arroz-blanco', 0.625, 7.375]
+])('%s conserva cinco porciones en Transformar y en la hoja', (campo, rubro, kg, restante) => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'arroz', cantidad: 8 }]);
+    app.encolarMovimientos.mockImplementation((movs) => guardados.push(...plain(movs).map((m) => ({ ...m, fecha: fechaIngreso }))));
+    const destino = app.destinosArroz().find((d) => d.campo === campo);
+
+    expect(app.fijarIngresoArrozPorciones(campo, '5')).toBe(true);
+    expect(app.ingresoTransformaArroz(destino)).toBe(5);
+    expect(app.totalPorcionesArroz(destino)).toBe(5);
+    expect(guardados.slice(1)).toEqual([
+        expect.objectContaining({ rubro: 'arroz', cantidad: -kg }),
+        expect.objectContaining({ rubro, tipoProducto: 'cocido', cantidad: 5 })
+    ]);
+
+    const libro = recargar();
+    expect(app.ingresoTransformaArroz(destino)).toBe(5);
+    expect(app.stockCuadro('arroz', 'crudo')).toBe(restante);
+    expect(app.saldoPorcionesArroz(destino)).toBe(5);
+    const desglose = app.construirDetalleTransformacion(app.filaReal('arroz'));
+    expect(desglose.destinos.find((d) => d.id === destino.id)).toMatchObject({ usadoDelOrigen: kg, generado: 5 });
+    expect(libro.filas.find((f) => f.rubro === rubro && f.tipoProducto === 'cocido')).toMatchObject({ ingresoBruto: 5, queda: 5 });
+    expect(app.fijarIngresoArrozPorciones(campo, '5')).toBe(false);
+
+    expect(app.fijarIngresoArrozPorciones(campo, '0')).toBe(true);
+    recargar();
+    expect(app.stockCuadro('arroz', 'crudo')).toBe(8);
+    expect(app.saldoPorcionesArroz(destino)).toBe(0);
+});
+
+test('reescribir cinco porciones corrige 4.998 sin volver a consumir arroz crudo', () => {
+    const { app, guardados, recargar } = escenario([
+        { rubro: 'arroz', cantidad: 8 },
+        { rubro: 'arroz', cantidad: -0.833, motivo: 'Pasa a Arroz verde + Pato' },
+        { rubro: 'arroz-verde', tipoProducto: 'cocido', cantidad: 4.998, motivo: 'Sale de Arroz crudo' }
+    ]);
+    app.encolarMovimientos.mockImplementation((movs) => guardados.push(...plain(movs).map((m) => ({ ...m, fecha: fechaIngreso }))));
+    const destino = app.destinosArroz().find((d) => d.campo === 'arrozVerde');
+    expect(app.fijarIngresoArrozPorciones(destino.campo, '5')).toBe(true);
+    expect(guardados.slice(3)).toEqual([
+        expect.objectContaining({ rubro: 'arroz-verde', cantidad: 0.002 })
+    ]);
+    recargar();
+    expect(app.stockCuadro('arroz', 'crudo')).toBe(7.167);
+    expect(app.saldoPorcionesArroz(destino)).toBe(5);
+});
+
 test('octavos conservan ingresos independientes por corte al editar y recargar', () => {
     const { app, recargar } = escenario(); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('3'), 'pechugas'); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('4'), 'piernas');
     expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas')).toBe(3); expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'piernas')).toBe(4);

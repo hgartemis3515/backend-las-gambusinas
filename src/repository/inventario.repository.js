@@ -234,8 +234,8 @@ async function opcionesCocido() {
         let tieneCocido = guardado ? doc.tieneCocido : sem.tieneCocido;
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
-        const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada', 'caldo-pollo'];
-        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'seco-cordero', 'pachamanca-pollo-pecho', 'tamal-chancho', 'tamal-pollo', 'pollada'];
+        const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada'];
+        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'caldo-pollo', 'seco-cordero', 'pachamanca-pollo-pecho', 'tamal-chancho', 'tamal-pollo', 'pollada'];
         if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
             if (!esMateria(d.clave) && !reservaClave) reservaClave = 'pechuga-pollo';
@@ -676,15 +676,35 @@ async function eliminarVentaManual({ lote, ids }) {
     const docs = await Movimiento.find(filtro)
         .select('nombre rubro tipoProducto clase cantidad motivo lote fecha')
         .lean();
-    if (!docs.length) {
+    const anulados = [];
+    let sectorRestaurado = '';
+    for (const doc of docs) {
+        const vigente = { _id: doc._id, clase: 'egreso', motivo: doc.motivo };
+        const sector = doc.rubro === 'octavo-pollo' && doc.tipoProducto === 'crudo' && doc.cantidad > 0 && doc.lote
+            && /^Venta manual · (Beata|Personal|Eventos?|Rio Lindo)(?: · Motivo: .+)? · (pecho|pierna)$/s.exec(doc.motivo);
+        if (sector) {
+            const [, nombre, corte] = sector;
+            // La descarga liberó la separación con una regulación positiva. El egreso pasa a ser una
+            // separación del mismo signo contable, con el mismo corte y fecha. Así admite lotes antiguos.
+            const anterior = await Movimiento.findOneAndUpdate(vigente, {
+                $set: { clase: 'regulacion', cantidad: -doc.cantidad, motivo: `Separado · ${nombre} · ${corte}`, lote: '' }
+            }).lean();
+            if (!anterior) continue;
+            anulados.push(anterior);
+            sectorRestaurado = nombre === 'Eventos' ? 'Evento' : nombre;
+        } else {
+            const anterior = await Movimiento.findOneAndDelete(vigente).lean();
+            if (anterior) anulados.push(anterior);
+        }
+    }
+    if (!anulados.length) {
         const err = new Error('Esa venta manual ya no está');
         err.statusCode = 404;
         throw err;
     }
-    await Movimiento.deleteMany({ _id: { $in: docs.map((d) => d._id) } });
     const despues = await alertasActuales();
     emitirAlerta({ alertas: despues, cambio: null });
-    return { eliminados: docs.length, movimientos: docs };
+    return { eliminados: anulados.length, movimientos: anulados, sectorRestaurado };
 }
 
 async function eliminarHoy() {

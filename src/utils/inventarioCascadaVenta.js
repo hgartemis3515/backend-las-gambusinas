@@ -40,7 +40,7 @@ const SEMILLA = {
     'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' },
     'arroz-pollo': { tieneCocido: true, reservaClave: '' },
     'pollo-olla': { tieneCocido: true, reservaClave: '' },
-    'caldo-pollo': { tieneCocido: false, reservaClave: '' }
+    'caldo-pollo': { tieneCocido: true, reservaClave: '' }
 };
 
 function esMateria(clave) {
@@ -50,7 +50,7 @@ function esMateria(clave) {
 /** Filas que solo manejan crudo aunque la configuración diga otra cosa. */
 const SOLO_CRUDO = [
     'milanesa', 'milanesa-junior', 'filete-junior', 'salt-pollo', 'chaufa-pollo',
-    'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada', 'caldo-pollo'
+    'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada'
 ];
 
 /** Productos con un solo stock: la venta resta su crudo y no pasa por cocido ni reserva. */
@@ -436,6 +436,7 @@ module.exports = {
     cadenaDe,
     arrozPorcionCocida,
     tipoProductoDe,
+    esPlatoOctavoVenta,
     platoPolloSoloCocido,
     cadenaMixPechoLena,
     cadenaPachamancaPollo,

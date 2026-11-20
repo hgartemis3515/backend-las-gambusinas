@@ -29,13 +29,13 @@ function escenario(iniciales) {
     app.rangoVista = () => ({ desde: DIA, hasta: DIA });
     app.rangoPeriodo = app.rangoVista;
     app.rangoPeriodoTransformar = app.rangoVista;
-    const guardados = iniciales.map(([rubro, cantidad, motivo, tipoProducto]) => ({
-        rubro, cantidad, clase: 'ingreso', tipoProducto: tipoProducto || 'crudo', motivo: motivo || 'Ingreso inicial', fecha: `${DIA}T10:00:00-05:00`
+    const guardados = iniciales.map(([rubro, cantidad, motivo, tipoProducto, fechaInicial]) => ({
+        rubro, cantidad, clase: 'ingreso', tipoProducto: tipoProducto || 'crudo', motivo: motivo || 'Ingreso inicial', fecha: fechaInicial || `${DIA}T10:00:00-05:00`
     }));
     const recargar = () => {
         const b = boundsDiaOperativo(DIA);
         const libro = armarLibro({ movimientos: guardados, ventas: [], desde: b.inicio, hasta: b.fin });
-        app.movimientosPeriodo = plain(guardados);
+        app.movimientosPeriodo = plain(guardados.filter((m) => new Date(m.fecha) >= b.inicio && new Date(m.fecha) <= b.fin));
         app.movimientosTurno = app.movimientosPeriodo.slice();
         app.ventasPeriodo = libro.ventas;
         app.aplicarKardex(libro.filas, app.movimientosPeriodo, libro.ventas);
@@ -141,6 +141,49 @@ test('los octavos restan su pieza, y platos y sectores restan el octavo de ese c
     recargar();
     expect(app.octavosEnDestino('beata', 'piernas')).toBe(1);
     expect(app.octavosStockCorte('piernas')).toBe(3);
+});
+
+test.each([
+    ['caldo_pollo', 'caldo-pollo'],
+    ['pollo_olla', 'pollo-olla'],
+    ['arroz_con_pollo', 'arroz-pollo']
+])('%s mueve crudo y cocido del mismo corte, incluso con saldo de ayer', async (id, rubro) => {
+    const ayer = '2026-11-17T11:00:00-05:00';
+    const { app, recargar, nuevos } = escenario([
+        [rubro, 5, 'Ingreso independiente crudo · pecho', 'crudo', ayer],
+        [rubro, 3, 'Ingreso independiente crudo · pierna', 'crudo', ayer]
+    ]);
+    const crudo = (corte) => app.stockOctavoPlato(id, corte, 'crudo');
+    const cocido = (corte) => app.stockOctavoPlato(id, corte, 'cocido');
+    const mover = (corte, objetivo) => app.cuadroOctavoPlato(id, corte, 'cocido', input(objetivo));
+    expect(app.movimientosPeriodo).toHaveLength(0);
+    expect([crudo('pechugas'), crudo('piernas')]).toEqual([5, 3]);
+
+    expect(await mover('pechugas', 3)).toBe(true);
+    expect([crudo('pechugas'), cocido('pechugas'), crudo('piernas')]).toEqual([2, 3, 3]);
+    recargar();
+    expect(await mover('pechugas', 4)).toBe(true);
+    expect([crudo('pechugas'), cocido('pechugas'), crudo('piernas')]).toEqual([1, 4, 3]);
+    expect(await mover('pechugas', 6)).toBe(false);
+    expect(await mover('piernas', 2)).toBe(true);
+    expect(await mover('pechugas', 1)).toBe(true);
+    const libro = recargar();
+    expect([crudo('pechugas'), crudo('piernas'), cocido('pechugas'), cocido('piernas')]).toEqual([4, 1, 1, 2]);
+    expect(libro.filas.filter((f) => f.rubro === rubro).map((f) => [f.tipoProducto, f.queda])).toEqual([['crudo', 5], ['cocido', 3]]);
+    expect(nuevos()).toHaveLength(8);
+    expect(nuevos().every((m) => m.rubro === rubro && / · (pecho|pierna)$/.test(m.motivo))).toBe(true);
+});
+
+test('el crudo sin marca sigue disponible al lado de las entradas marcadas de pecho', async () => {
+    const { app, recargar } = escenario([
+        ['caldo-pollo', 3],
+        ['caldo-pollo', 2, 'Ingreso independiente crudo · pecho']
+    ]);
+    expect(await app.cuadroOctavoPlato('caldo_pollo', 'piernas', 'cocido', input(3))).toBe(true);
+    recargar();
+    expect(app.stockOctavoPlato('caldo_pollo', 'pechugas', 'crudo')).toBe(2);
+    expect(app.stockOctavoPlato('caldo_pollo', 'piernas', 'crudo')).toBe(0);
+    expect(app.stockOctavoPlato('caldo_pollo', 'piernas', 'cocido')).toBe(3);
 });
 
 test('Pollo pachamanca resta Pierna también desde su tarjeta de Pachamancas', async () => {

@@ -966,6 +966,71 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .control-ingreso-stock > .ingreso-panel { width: 100%; box-sizing: border-box; }
     #panel-transformar.ingresos-transformar-ocultos .ingreso-chip,
     #panel-transformar.ingresos-transformar-ocultos .ingreso-panel { display: none !important; }
+
+    #panel-transformar input[type="number"]:enabled:not([readonly]) { cursor: pointer; }
+    .teclado-transformar {
+      width: min(19rem, calc(100vw - 2rem));
+      max-height: calc(100dvh - 2rem);
+      margin: auto;
+      padding: 1rem;
+      overflow-y: auto;
+      color: #f5f3ff;
+      background: #15151f;
+      border: 1px solid #575033;
+      border-radius: 1.15rem;
+      box-shadow: 0 20px 60px #000a;
+    }
+    .teclado-transformar[open] { animation: teclado-transformar-entrada 170ms ease-out; }
+    .teclado-transformar::backdrop { background: #080810b8; }
+    .teclado-transformar h2 { font-size: 0.875rem; font-weight: 700; margin: 0 0 0.6rem; }
+    .teclado-transformar .teclado-transformar-valor {
+      display: block;
+      width: 100%;
+      min-height: 3rem;
+      margin-bottom: 0.75rem;
+      padding: 0.35rem 0.7rem;
+      background: #090910;
+      color: #f4d87a;
+      border: 1px solid #6a582a;
+      border-radius: 0.6rem;
+      text-align: right;
+      font: 700 1.5rem 'JetBrains Mono', monospace;
+    }
+    .teclado-transformar-teclas {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.45rem;
+    }
+    .teclado-transformar-teclas button:nth-last-child(-n+2) { grid-column: span 2; }
+    .teclado-transformar button {
+      min-height: 2.65rem;
+      border: 1px solid #3d3d54;
+      border-radius: 0.6rem;
+      background: #252536;
+      cursor: pointer;
+      font-weight: 700;
+      touch-action: manipulation;
+      transition: background 130ms ease, transform 100ms ease;
+    }
+    .teclado-transformar button:hover { background: #353550; }
+    .teclado-transformar button:active { transform: scale(0.93); }
+    .teclado-transformar :is(button, input):focus-visible { outline: 2px solid #f4d87a; outline-offset: 2px; }
+    .teclado-transformar button:disabled { opacity: 0.4; cursor: default; }
+    .teclado-transformar .teclado-transformar-operacion { color: #f4d87a; }
+    .teclado-transformar .teclado-transformar-acciones { display: flex; gap: 0.45rem; margin-top: 0.65rem; }
+    .teclado-transformar .teclado-transformar-acciones button { flex: 1; font-size: 0.85rem; }
+    .teclado-transformar .teclado-transformar-aplicar { color: #211800; background: #e0bb53; border-color: #e0bb53; }
+    .teclado-transformar .teclado-transformar-aplicar:hover { background: #f4d87a; }
+    .teclado-transformar .teclado-transformar-error { color: #fda4af; font-size: 0.8rem; margin-top: 0.5rem; }
+    @keyframes teclado-transformar-entrada {
+      from { opacity: 0; transform: translateY(0.4rem) scale(0.97); }
+      to { opacity: 1; transform: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .teclado-transformar[open] { animation: none; }
+      .teclado-transformar button { transition: none; }
+      .teclado-transformar button:active { transform: none; }
+    }
     .ingreso-panel-cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
     .ingreso-panel-cabecera span { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #d4af37; }
     .ingreso-panel-cabecera button { color: #a0a0b8; font-size: 10px; cursor: pointer; }
@@ -988,6 +1053,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center;
       padding: 20px; background: rgba(3, 3, 9, 0.8); backdrop-filter: blur(7px);
     }
+    .modal-descarga-sector { width: min(440px, calc(100% - 20px)); margin: auto; padding: 0; border: 0; border-radius: 24px; background: transparent; }
+    .modal-descarga-sector::backdrop { background: rgba(3, 3, 9, 0.8); backdrop-filter: blur(7px); }
+    .modal-descarga-sector .stock-editor-footer { justify-content: flex-end; }
+    .venta-linea-motivo { flex-basis: 100%; overflow-wrap: anywhere; white-space: pre-wrap; }
     .modal-editar-stock {
       width: 100%; max-width: 660px; max-height: calc(100dvh - 40px);
       display: flex; flex-direction: column; overflow: hidden; color: #eeeef6;
@@ -2999,7 +3068,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <template x-if="tabMontada.transformar">
     <section id="panel-transformar" x-show="activeTab === 'transformar'" x-cloak class="space-y-6"
       :class="{ 'ingresos-transformar-ocultos': !mostrarIngresosTransformar }"
-      @focusin="prepararNumeroTransformar($event)" @click="prepararNumeroTransformar($event)"
+      @focusin="prepararNumeroTransformar($event)"
+      @pointerdown="prepararTecladoTransformar($event)" @click="abrirTecladoTransformar($event)"
+      @keydown.alt.arrow-down="abrirTecladoTransformar($event)"
       @focusout="restaurarCeroTransformar($event)" @change.capture="ignorarIngresoVacio($event)">
       <div class="flex flex-wrap items-center gap-1.5 bg-[#0a0a0f] border border-[#26263a] rounded-xl p-1 w-fit">
         <span class="px-2 text-[10px] uppercase tracking-wider text-[#a0a0b8] font-bold">Período:</span>
@@ -3701,7 +3772,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                       <p class="caja-stock-etiq">Crudo</p>
                                       <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                         <div class="caja-stock-step">
-                                          <input type="number" min="0" step="1" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="cuadroOctavoPlato(plato.id, corte, 'crudo', $event.target)">
+                                          <input type="number" min="0" step="any" :aria-label="'Stock crudo ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'crudo')" @change="cuadroOctavoPlato(plato.id, corte, 'crudo', $event.target)">
                                         </div>
                                         <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock crudo ' + corte + ' de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                         <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3719,7 +3790,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                         <p class="caja-stock-etiq">Cocido</p>
                                         <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                           <div class="caja-stock-step">
-                                            <input type="number" min="0" step="1" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="cuadroOctavoPlato(plato.id, corte, 'cocido', $event.target)">
+                                            <input type="number" min="0" step="any" :aria-label="'Stock cocido ' + corte + ' de ' + plato.nombre" :value="stockOctavoPlato(plato.id, corte, 'cocido')" @change="cuadroOctavoPlato(plato.id, corte, 'cocido', $event.target)">
                                           </div>
                                           <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido ' + corte + ' de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                           <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3744,9 +3815,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <span class="tr-dish-title" x-text="dest.nombre"></span>
                                 <span class="octavo-sector-acciones">
                                   <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + dest.nombre" title="Editar stock" @click="abrirEditarSector(dest)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-                                  <button type="button" class="btn-descarga-sector" :aria-label="'Descargar ' + dest.nombre" title="Descargar este cuadro: recién ahí entra en ventas comandas de Octavo de pollo" @click="descargarSectorOctavo(dest)">
+                                  <button type="button" class="btn-descarga-sector" :aria-label="'Descargar ' + dest.nombre" title="Descargar los octavos separados" @click="abrirDescargaSector(dest)">
                                     <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M5 19h14"/></svg>
-                                    <span>Descarga</span>
+                                    <span>Descargar</span>
                                   </button>
                                 </span>
                               </div>
@@ -7272,7 +7343,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       :aria-busy="!!editarStock.guardando" x-show="editarStock.abierto"
       x-transition:enter="stock-editor-enter" x-transition:enter-start="stock-editor-from" x-transition:enter-end="stock-editor-to"
       x-transition:leave="stock-editor-leave" x-transition:leave-start="stock-editor-to" x-transition:leave-end="stock-editor-from"
-      @keydown.tab="atraparFocoEditarStock($event)"
+      @keydown.tab="atraparFocoEditarStock($event)" @pointerdown="prepararTecladoTransformar($event)"
+      @click="abrirTecladoTransformar($event)" @keydown.alt.arrow-down="abrirTecladoTransformar($event)"
     >
       <div class="stock-editor-header">
         <div class="stock-editor-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9M7.5 5.5l9 5"/></svg></div>
@@ -7390,6 +7462,68 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </div>
     </div>
   </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL DE DESCARGA DE OCTAVOS POR SECTOR                                -->
+  <!-- ===================================================================== -->
+  <dialog class="modal-descarga-sector" x-ref="modalDescargaSector" aria-labelledby="descarga-sector-titulo"
+    aria-describedby="descarga-sector-detalle" @click.self="$el.close()"
+    @close="if (!$el.open) descargaSector = { destino: null, motivo: '' }">
+    <form class="modal-editar-stock" @submit.prevent="confirmarDescargaSector()">
+      <div class="stock-editor-header">
+        <div class="stock-editor-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 19h14"/></svg>
+        </div>
+        <div class="stock-editor-heading">
+          <h2 id="descarga-sector-titulo" x-text="'Descargar ' + (descargaSector.destino?.nombre || '')"></h2>
+          <p id="descarga-sector-detalle">Los octavos separados pasarán a Venta comandas de Octavo de pollo.</p>
+        </div>
+        <button type="button" class="stock-editor-close" aria-label="Cerrar descarga" @click="$refs.modalDescargaSector.close()">✕</button>
+      </div>
+      <div class="stock-editor-body">
+        <div class="stock-editor-grid">
+          <div class="stock-editor-stat"><span>Pecho</span><strong x-text="formatNum(octavosSeparadosDestino(descargaSector.destino?.id, 'pechugas'))"></strong></div>
+          <div class="stock-editor-stat"><span>Pierna</span><strong x-text="formatNum(octavosSeparadosDestino(descargaSector.destino?.id, 'piernas'))"></strong></div>
+        </div>
+        <p class="stock-editor-notice" x-show="octavosSeparadosSector(descargaSector.destino?.id) <= 0">Separa octavos en el cuadro para descargarlos.</p>
+        <label class="stock-editor-reason">Motivo <span>(opcional)</span>
+          <input type="text" maxlength="155" placeholder="Escribe por qué se hace la descarga" x-model="descargaSector.motivo" autofocus>
+        </label>
+      </div>
+      <div class="stock-editor-footer">
+        <div class="stock-editor-actions">
+          <button type="button" class="stock-editor-button" @click="$refs.modalDescargaSector.close()">Cancelar</button>
+          <button type="submit" class="stock-editor-button stock-editor-save"
+            :disabled="octavosSeparadosSector(descargaSector.destino?.id) <= 0">Descargar</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===================================================================== -->
+  <dialog class="teclado-transformar" x-ref="dialogoTecladoTransformar" aria-labelledby="titulo-teclado-transformar"
+    @click.self="cerrarTecladoTransformar()" @cancel.prevent="cerrarTecladoTransformar()" @keydown.escape.stop>
+    <form @submit.prevent="aplicarTecladoTransformar()">
+      <h2 id="titulo-teclado-transformar" x-text="tecladoTransformar.etiqueta"></h2>
+      <input type="text" class="teclado-transformar-valor" x-ref="valorTecladoTransformar"
+        inputmode="none" autocomplete="off" autofocus aria-label="Cantidad" x-model="tecladoTransformar.cantidad"
+        @input="tecladoTransformar.error = ''" aria-describedby="error-teclado-transformar">
+      <div class="teclado-transformar-teclas">
+        <template x-for="tecla in ['7', '8', '9', '−', '4', '5', '6', '+', '1', '2', '3', '⌫', '0', ',']" :key="tecla">
+          <button type="button" x-text="tecla" :disabled="tecla === ',' && !tecladoTransformar.decimales"
+            :class="{ 'teclado-transformar-operacion': ['−', '+', '⌫', ','].includes(tecla) }"
+            :aria-label="({ '−': 'Restar', '+': 'Sumar', '⌫': 'Borrar dígito', ',': 'Separador decimal' })[tecla] || tecla"
+            @pointerdown.prevent @click="pulsarTeclaTransformar(tecla, $event)"></button>
+        </template>
+      </div>
+      <p id="error-teclado-transformar" class="teclado-transformar-error" role="status" x-show="tecladoTransformar.error"
+        x-text="tecladoTransformar.error"></p>
+      <div class="teclado-transformar-acciones">
+        <button type="button" @click="cerrarTecladoTransformar()">Cancelar</button>
+        <button type="submit" class="teclado-transformar-aplicar">Aplicar</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- ===================================================================== -->
   <!-- MODAL 1: «CONTAR CÁMARA» (CONTEO FÍSICO EN COLUMNA INVENTARIO)        -->
@@ -9193,7 +9327,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                     <span class="font-mono" x-text="horaVenta(l.hora)"></span>
                   </span>
-                  <span x-show="l.motivo" class="italic truncate max-w-[18rem]" x-text="l.motivo"></span>
+                  <span x-show="l.motivo" class="venta-linea-motivo italic" x-text="l.motivo"></span>
                 </div>
               </div>
               <div class="flex items-center gap-3">
@@ -10207,6 +10341,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   <script>
     function inventarioApp() {
       let arrastreFila = null;
+      let campoTecladoTransformar = null;
       return {
         activeTab: 'tabla',
         tabMontada: { transformar: false, grafico: false, stock: false, platos: false },
@@ -10546,6 +10681,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Estado del cuadro Transformar
+        tecladoTransformar: { etiqueta: '', cantidad: '', decimales: false, error: '' },
         despiece: {
           frescos: 10,
           ingresoCorte: { pechuga: 0, pierna: 0 },
@@ -11366,6 +11502,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         ventaManualPlatoKey: '',
         ventaManualPlatos: 1,
         ventaManualCorte: '',
+        descargaSector: { destino: null, motivo: '' },
         sectoresAbierto: false,
         sectoresCargando: false,
         sectoresMovs: [],
@@ -12772,6 +12909,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         motivoEscritoVenta(motivo) {
           let s = String(motivo || '').trim();
           if (s.indexOf('Venta manual') !== 0) return '';
+          const sector = this.detalleDescargaSector(s);
+          if (sector) return sector.nombre + ' · Motivo: ' + sector.nota;
           s = s.slice('Venta manual'.length);
           const placa = s.match(/^\s*·\s*.+?\s×\s*\d+\s*/);
           if (placa) s = s.slice(placa[0].length);
@@ -12785,7 +12924,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const rubro = m && m.rubro;
           const esOctavo = rubro === 'octavo-pollo' || rubro === this.claveDeFila.octavo_pollo || this.esPlatoOctavo({ nombre: m && m.nombre });
           if (!esOctavo) return '';
-          const marca = String((m && m.motivo) || '').split('·').slice(1)
+          const motivo = String(m.motivo || '');
+          const sector = this.detalleDescargaSector(motivo);
+          const marca = sector ? sector.corte : motivo.split('·').slice(1)
             .map((p) => this.norm(p).trim())
             .find((p) => p === 'pierna' || p === 'pecho');
           if (marca === 'pierna') return 'Pierna';
@@ -12858,16 +12999,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         async eliminarVentaManual(linea) {
           if (!linea || !linea.manual || this.ventaEliminando) return;
           const cual = linea.nota ? (linea.nombre + ' · ' + linea.nota) : linea.nombre;
-          if (!window.confirm('¿Eliminar esta descarga manual de ' + cual + '? Se devuelve el stock que restó.')) return;
+          if (!window.confirm('¿Eliminar esta descarga manual de ' + cual + '? Se revertirá el movimiento.')) return;
           const filtro = this.ventaFiltro;
           const desdeReporte = this.ventaDesdeReporte;
           this.ventaEliminando = true;
           try {
-            await this.api('/inventario/venta-manual/eliminar', {
+            await (this._colaTransformar || Promise.resolve());
+            const resultado = await this.api('/inventario/venta-manual/eliminar', {
               method: 'POST',
               body: JSON.stringify(linea.lote ? { lote: linea.lote } : { ids: linea.ids || [] })
             });
-            this.toastMessage = 'Descarga manual eliminada. El stock volvió.';
+            this._cacheKardex = { tabla: null, transformar: null };
+            this.toastMessage = resultado?.sectorRestaurado
+              ? 'Descarga revertida. La cantidad volvió al cuadro de ' + resultado.sectorRestaurado + ' en Transformar.'
+              : 'Descarga manual eliminada. El stock volvió.';
             this.sonarVenta('borrar');
             await this.cargarKardex();
             if (desdeReporte && this.reporteDiaAbierto) await this.cargarReporteDia();
@@ -13181,11 +13326,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               abrir: [{ f: 523.25, t: 0, d: 0.12 }, { f: 659.25, t: 0.07, d: 0.12 }, { f: 783.99, t: 0.14, d: 0.2 }],
               cerrar: [{ f: 587.33, t: 0, d: 0.08 }, { f: 440, t: 0.06, d: 0.12 }],
               filtro: [{ f: 880, t: 0, d: 0.05 }],
+              tecla: [{ f: 680, t: 0, d: 0.045 }],
               tomarFila: [{ f: 440, t: 0, d: 0.055 }],
               colocarFila: [{ f: 587.33, t: 0, d: 0.07 }, { f: 783.99, t: 0.045, d: 0.10 }],
               borrar: [{ f: 392, t: 0, d: 0.1 }, { f: 293.66, t: 0.08, d: 0.16 }]
             }[tipo] || [{ f: 660, t: 0, d: 0.08 }];
-            const vol = ['filtro', 'tomarFila', 'colocarFila'].includes(tipo) ? 0.035 : 0.06;
+            const vol = ['filtro', 'tecla', 'tomarFila', 'colocarFila'].includes(tipo) ? 0.035 : 0.06;
             const ahora = ctx.currentTime;
             notas.forEach((n) => {
               const osc = ctx.createOscillator();
@@ -13395,6 +13541,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           v.crudo = Number(crudo.queda) || 0;
           v.cocido = Number(cocido.queda) || 0;
           v.cortesOctavo = crudo.cortes || null;
+          v.repartoPlatoOctavo = Number.isFinite(crudo.pechoOctavo) ? {
+            crudo: { pecho: crudo.pechoOctavo, saldo: Number(crudo.sinTope) || 0 },
+            cocido: { pecho: Number(cocido.pechoOctavo) || 0, saldo: Number(cocido.sinTope) || 0 }
+          } : null;
           if (row.soloCocido) {
             mover('', 'Cocido');
             v.cocido = v.crudo + v.cocido;
@@ -13630,7 +13780,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         abrirDescargaSector(dest) {
-          return this.descargarSectorOctavo(dest);
+          if (!dest) return;
+          this.descargaSector = { destino: dest, motivo: '' };
+          this.$nextTick(() => this.$refs.modalDescargaSector.showModal());
+        },
+
+        confirmarDescargaSector() {
+          const { destino, motivo } = this.descargaSector;
+          if (this.descargarSectorOctavo(destino, motivo)) this.$refs.modalDescargaSector.close();
         },
 
         abrirVentaManual(row) {
@@ -15563,7 +15720,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'octavo_pollo', grupo: 'pollo', nombre: 'Octavo de pollo', detalle: '2 octavos salen de 1 pecho o de 1 pierna', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
             { id: 'arroz_con_pollo', grupo: 'pollo', nombre: 'Arroz con pollo', detalle: 'Sale de octavo de pollo. Crudo y cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
             { id: 'pollo_olla', grupo: 'pollo', nombre: 'Pollo a la olla', detalle: 'Sale de octavo de pollo. Crudo y cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
-            { id: 'caldo_pollo', grupo: 'pollo', nombre: 'Caldo de pollo', detalle: 'Sale de octavo de pollo. Solo crudo', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: false, crudo: 0, cocido: 0 },
+            { id: 'caldo_pollo', grupo: 'pollo', nombre: 'Caldo de pollo', detalle: 'Sale de octavo de pollo. Crudo y cocido', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 6, transformacion: 0, destinoTrans: '', inventario: null, tieneCocido: true, crudo: 0, cocido: 0 },
             { id: 'chi_pollo_bbq', grupo: 'pollo', nombre: 'Chi. pollo a la BBQ', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chi_pollo_acevichada', grupo: 'pollo', nombre: 'Chi. pollo acevichada', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chicharron_pollo', grupo: 'pollo', nombre: 'Chicharrón de pollo', detalle: 'Aderezo de la carta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, ingresoCocido: 0, correccion: 0, venta: 0, ritmoVentaDiario: 4, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -17050,7 +17207,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         soloCrudoClave(clave) {
-          return ['milanesa', 'milanesa_junior', 'milanesa-junior', 'filete_junior', 'filete-junior', 'salt_pollo', 'salt-pollo', 'chaufa_pollo', 'chaufa-pollo', 'chicharron_pollo', 'chicharron-pollo', 'chi_pollo_bbq', 'chi-pollo-bbq', 'chi_pollo_acevichada', 'chi-pollo-acevichada', 'caldo-pollo', 'caldo_pollo'].indexOf(String(clave || '')) !== -1;
+          return ['milanesa', 'milanesa_junior', 'milanesa-junior', 'filete_junior', 'filete-junior', 'salt_pollo', 'salt-pollo', 'chaufa_pollo', 'chaufa-pollo', 'chicharron_pollo', 'chicharron-pollo', 'chi_pollo_bbq', 'chi-pollo-bbq', 'chi_pollo_acevichada', 'chi-pollo-acevichada'].indexOf(String(clave || '')) !== -1;
         },
 
         semillaCocido: {
@@ -17083,7 +17240,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' },
           'arroz-pollo': { tieneCocido: true, reservaClave: '' },
           'pollo-olla': { tieneCocido: true, reservaClave: '' },
-          'caldo-pollo': { tieneCocido: false, reservaClave: '' }
+          'caldo-pollo': { tieneCocido: true, reservaClave: '' }
         },
 
         opcionCocidoDe(clave) {
@@ -19447,8 +19604,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.destinosArroz().forEach((d) => {
               const crudos = this.arrozHacia(d);
               const factor = Number(this.config[d.factorKey]) || 1;
+              const generado = this.ingresoTransformaArroz(d);
               info.destinos.push(
-                makeDest(d.id, '1 crudo → ' + factor, crudos, crudos * factor, 'sky', false)
+                makeDest(d.id, '1 crudo → ' + factor, crudos, generado, 'sky', false)
               );
             });
           } else if (id === 'pato_fresco') {
@@ -19600,6 +19758,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         anotarMovs(movs) {
           const lista = movs || [];
+          for (const m of lista) {
+            const fila = this.filaPorClave(m.rubro);
+            const reparto = fila && fila.repartoPlatoOctavo && fila.repartoPlatoOctavo[m.tipoProducto || 'crudo'];
+            if (!reparto) continue;
+            const antes = Math.max(0, reparto.saldo);
+            const n = Number(m.cantidad) || 0;
+            reparto.saldo = this.redondear3(m.clase === 'inventario' ? n : reparto.saldo + (m.clase === 'egreso' ? -n : n));
+            const despues = Math.max(0, reparto.saldo);
+            if (this.motivoEsCorte(m.motivo, 'pechugas')) reparto.pecho += despues - antes;
+            else if (despues < antes && !this.motivoEsCorte(m.motivo, 'piernas')) reparto.pecho *= despues / antes;
+            reparto.pecho = Math.max(0, Math.min(despues, this.redondear3(reparto.pecho)));
+          }
           this.movimientosPeriodo = (this.movimientosPeriodo || []).concat(lista);
           this.movimientosTurno = (this.movimientosTurno || []).concat(lista);
           if (Array.isArray(this.movimientosOctavoDia)) this.movimientosOctavoDia = this.movimientosOctavoDia.concat(lista);
@@ -19841,25 +20011,21 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         stockOctavoPlato(platoId, corte, tipo) {
+          const rowId = this.filaIdDePlatoTransformar(platoId) || platoId;
+          const row = this.filaReal(rowId);
           const total = this.stockCuadro(platoId, tipo);
-          let pecho = Math.max(0, this.netoMarcado(platoId, 'pechugas', tipo));
-          let pierna = Math.max(0, this.netoMarcado(platoId, 'piernas', tipo));
-          const marcado = this.redondear3(pecho + pierna);
-          const venta = (() => {
-            const rowId = this.filaReal(platoId) ? platoId : (this.filaIdDePlatoTransformar(platoId) || platoId);
-            const row = this.filaReal(rowId);
-            return row ? Math.max(0, this.valorTipo(row, 'venta', tipo === 'cocido' ? 'cocido' : 'crudo')) : 0;
-          })();
-          // Si el saldo de la fila quedó en 0, el corte igual muestra su ingreso menos la venta.
-          let tope = total;
-          if (marcado > 0 && tope <= 0) tope = Math.max(0, this.redondear3(marcado - venta));
-          if (marcado <= 0) return corte === 'piernas' ? tope : 0;
-          if (marcado > tope + 0.0001) {
-            const f = tope / marcado;
-            pecho = pecho * f;
-            pierna = pierna * f;
+          const reparto = row && row.repartoPlatoOctavo && row.repartoPlatoOctavo[tipo === 'cocido' ? 'cocido' : 'crudo'];
+          let pecho;
+          if (reparto) {
+            pecho = Math.min(total, reparto.pecho);
+          } else {
+            // Compatibilidad con un kardex anterior al reparto por plato.
+            const marcadoPecho = Math.max(0, this.netoMarcado(platoId, 'pechugas', tipo));
+            const marcadoPierna = Math.max(0, this.netoMarcado(platoId, 'piernas', tipo));
+            const marcado = marcadoPecho + marcadoPierna;
+            pecho = marcado > total ? marcadoPecho * total / marcado : marcadoPecho;
           }
-          return this.redondear3(corte === 'pechugas' ? pecho : pierna);
+          return this.redondear3(this.marcaCorte(corte) === 'pecho' ? pecho : total - pecho);
         },
 
         // Día, Noche y cajas son el mismo día operativo. Hoy también.
@@ -19989,9 +20155,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const delta = this.redondear3(next - actual);
           if (!delta) return false;
           if (tipo === 'cocido') {
-            if (delta > 0 && this.stockOctavoPlato(platoId, corte, 'crudo') + 0.0001 < delta) {
-              return this.avisoTransformar('Aviso ámbar: no hay crudo de ' + this.marcaCorte(corte) + ' para cocido.');
-            }
             return this.pasarCrudoACocido(platoId, delta, corte);
           }
           if (delta > 0) {
@@ -20771,8 +20934,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return 'Separado · ' + nombre + ' · ' + this.marcaCorte(corte);
         },
 
-        motivoDescargaOctavo(nombre, corte) {
-          return 'Venta manual · ' + nombre + ' · ' + this.marcaCorte(corte);
+        detalleDescargaSector(motivo) {
+          return motivo.match(/^Venta manual · (?<nombre>[^·]+) · Motivo: (?<nota>.+) · (?<corte>pecho|pierna)$/s)?.groups;
+        },
+
+        motivoDescargaOctavo(nombre, corte, nota) {
+          const motivo = String(nota || '').trim().slice(0, 155);
+          return 'Venta manual · ' + nombre + (motivo ? ' · Motivo: ' + motivo : '') + ' · ' + this.marcaCorte(corte);
         },
 
         sumaOctavoSector(id, corte, pred) {
@@ -20789,13 +20957,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(total);
         },
 
-        octavosDescargadosDestino(id, corte) {
-          return this.sumaOctavoSector(id, corte, (m) => m.clase === 'egreso' && String(m.motivo || '').indexOf('Venta manual') === 0);
-        },
-
         octavosSeparadosDestino(id, corte) {
           const neto = this.sumaOctavoSector(id, corte, (m) => m.clase === 'regulacion' && String(m.motivo || '').indexOf('Separado · ') === 0);
-          return this.redondear3(-neto);
+          return Math.max(0, this.redondear3(-neto));
         },
 
         octavosSeparadosSector(id) {
@@ -20803,7 +20967,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         octavosEnDestino(id, corte) {
-          return Math.max(0, this.redondear3(this.octavosDescargadosDestino(id, corte) + this.octavosSeparadosDestino(id, corte)));
+          return this.octavosSeparadosDestino(id, corte);
         },
 
         pintarAjusteOctavo(row, separado, venta) {
@@ -20823,9 +20987,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const row = this.filaReal('octavo_pollo');
           const clave = this.claveDeFila.octavo_pollo;
           if (!dest || !row || !clave) return false;
-          const descargados = this.octavosDescargadosDestino(id, corte);
-          const separados = this.octavosSeparadosDestino(id, corte);
-          const actual = this.redondear3(descargados + separados);
+          const actual = this.octavosEnDestino(id, corte);
           const next = Math.max(0, Math.round(Number(valor) || 0));
           const delta = this.redondear3(next - actual);
           if (!delta) return false;
@@ -20838,46 +21000,24 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               return this.avisoTransformar('Aviso ámbar: en octavo de ' + this.marcaCorte(corte) + ' quedan ' + this.formatNum(libres) + '. No alcanza para ' + dest.nombre + '.');
             }
           }
-          const ahora = new Date().toISOString();
-          const marca = this.marcaCorte(corte);
-          let ajustarSeparado = delta;
-          let ajustarVenta = 0;
-          if (next < descargados - 0.0004) {
-            ajustarSeparado = this.redondear3(-separados);
-            ajustarVenta = this.redondear3(next - descargados);
-          }
-          const movs = [];
-          if (ajustarSeparado) {
-            movs.push({
-              rubro: clave,
-              clase: 'regulacion',
-              tipoProducto: 'crudo',
-              cantidad: this.redondear3(-ajustarSeparado),
-              motivo: this.motivoSeparadoOctavo(dest.nombre, corte),
-              fecha: ahora,
-              nombre: row.nombre
-            });
-          }
-          if (ajustarVenta) {
-            movs.push({
-              rubro: clave,
-              clase: 'egreso',
-              tipoProducto: 'crudo',
-              cantidad: ajustarVenta,
-              motivo: this.motivoDescargaOctavo(dest.nombre, marca),
-              lote: this.loteVentaManual(),
-              fecha: ahora,
-              nombre: row.nombre
-            });
-          }
-          this.pintarAjusteOctavo(row, ajustarSeparado, ajustarVenta);
+          const movs = [{
+            rubro: clave,
+            clase: 'regulacion',
+            tipoProducto: 'crudo',
+            cantidad: -delta,
+            motivo: this.motivoSeparadoOctavo(dest.nombre, corte),
+            fecha: new Date().toISOString(),
+            nombre: row.nombre
+          }];
+          this.pintarAjusteOctavo(row, delta, 0);
           this.anotarMovs(movs);
           this.pulseRowTotal(row.id);
+          this._cacheKardex = { tabla: null, transformar: null };
           this.encolarMovimientos(movs);
           return true;
         },
 
-        descargarSectorOctavo(dest) {
+        descargarSectorOctavo(dest, motivo) {
           const row = this.filaReal('octavo_pollo');
           const clave = this.claveDeFila.octavo_pollo;
           if (!row || !clave || !dest) return false;
@@ -20907,19 +21047,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               clase: 'egreso',
               tipoProducto: 'crudo',
               cantidad: n,
-              motivo: this.motivoDescargaOctavo(dest.nombre, corte),
+              motivo: this.motivoDescargaOctavo(dest.nombre, corte, motivo),
               lote: lote,
               fecha: ahora,
               nombre: row.nombre
             });
           });
           if (!movs.length) {
-            this.toastMessage = dest.nombre + ' no tiene octavos separados. Escribe la cantidad y después pulsa Descarga.';
+            this.toastMessage = dest.nombre + ' no tiene octavos separados. Escribe la cantidad y después pulsa Descargar.';
             return false;
           }
           this.pintarAjusteOctavo(row, -total, total);
           this.anotarMovs(movs);
           this.pulseRowTotal(row.id);
+          this._cacheKardex = { tabla: null, transformar: null };
           this.encolarMovimientos(movs);
           this.toastMessage = 'Descarga de ' + dest.nombre + ': ' + this.formatNum(total) + ' octavos. Ya salen en ventas comandas de Octavo de pollo.';
           return true;
@@ -21490,6 +21631,90 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return true;
         },
 
+        prepararTecladoTransformar(ev) {
+          const el = ev && ev.target;
+          if (this.activeTab !== 'transformar' || !el?.matches?.('input[type="number"]:enabled:not([readonly])')) return false;
+          el.inputMode = 'none';
+          el.setAttribute('aria-haspopup', 'dialog');
+          el.setAttribute('aria-keyshortcuts', 'Alt+ArrowDown');
+          return true;
+        },
+
+        abrirTecladoTransformar(ev) {
+          const dialogo = this.$refs.dialogoTecladoTransformar;
+          if (ev.defaultPrevented || dialogo.open || !this.prepararTecladoTransformar(ev)) return;
+          ev.preventDefault();
+          const el = ev.target;
+          campoTecladoTransformar = el;
+          this.tecladoTransformar = {
+            etiqueta: el.getAttribute('aria-label') || el.title || 'Editar cantidad',
+            cantidad: el.value || el.dataset.ceroAntesDeEditar || '',
+            decimales: el.step !== '1',
+            error: ''
+          };
+          const entrada = this.$refs.valorTecladoTransformar;
+          entrada.value = this.tecladoTransformar.cantidad;
+          dialogo.showModal();
+          entrada.select();
+        },
+
+        cerrarTecladoTransformar() {
+          campoTecladoTransformar = null;
+          this.$refs.dialogoTecladoTransformar.close();
+        },
+
+        pulsarTeclaTransformar(tecla, ev) {
+          const campo = campoTecladoTransformar;
+          if (!campo) return;
+          const entrada = this.$refs.valorTecladoTransformar;
+          const valor = entrada.value;
+          const min = campo.min === '' ? -Infinity : Number(campo.min);
+          const max = campo.max === '' ? Infinity : Number(campo.max);
+          let inicio = entrada.selectionStart;
+          let fin = entrada.selectionEnd;
+          let nuevo;
+          if (tecla === '+' || tecla === '−') {
+            const paso = Number(campo.step) || 1;
+            const actual = Number(valor.replace(',', '.')) || 0;
+            const ajustado = actual + (tecla === '+' ? paso : -paso);
+            nuevo = String(Math.min(max, Math.max(min, this.redondear3(ajustado))));
+            inicio = 0;
+            fin = nuevo.length;
+          } else {
+            const borrar = tecla === '⌫';
+            if (borrar && inicio === fin) inicio = Math.max(0, inicio - 1);
+            nuevo = valor.slice(0, inicio) + (borrar ? '' : tecla) + valor.slice(fin);
+            if (!/^-?\d*(?:[.,]\d*)?$/.test(nuevo)) return;
+            inicio += borrar ? 0 : 1;
+            fin = inicio;
+          }
+          this.tecladoTransformar.cantidad = nuevo;
+          this.tecladoTransformar.error = '';
+          entrada.value = nuevo;
+          if (ev.detail > 0) entrada.focus({ preventScroll: true });
+          entrada.setSelectionRange(inicio, fin);
+          this.sonarVenta('tecla');
+        },
+
+        aplicarTecladoTransformar() {
+          const el = campoTecladoTransformar;
+          if (!el || !el.isConnected) return this.cerrarTecladoTransformar();
+          const texto = this.tecladoTransformar.cantidad.trim().replace(',', '.');
+          const valor = Number(texto);
+          const actual = el.value || el.dataset.ceroAntesDeEditar;
+          if (texto !== '' && Number(actual) === valor) return this.cerrarTecladoTransformar();
+          if (!/^-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(texto) || !Number.isFinite(valor)
+            || (el.min !== '' && valor < Number(el.min)) || (el.max !== '' && valor > Number(el.max))
+            || (el.step === '1' && !Number.isInteger(valor))) {
+            this.tecladoTransformar.error = 'Ingresa una cantidad válida.';
+            return;
+          }
+          this.cerrarTecladoTransformar();
+          el.value = String(valor);
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        },
+
         vaciarSiCero(ev) {
           const el = ev && ev.target;
           if (el && el.value !== '' && Number(el.value) === 0) {
@@ -21503,6 +21728,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         prepararNumeroTransformar(ev) {
+          this.prepararTecladoTransformar(ev);
           if (!this.esNumeroTransformar(ev && ev.target)) return;
           if (ev.type === 'focusin') ev.target.dataset.valorAlEnfocar = ev.target.value;
           this.vaciarSiCero(ev);
@@ -21539,8 +21765,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         ingresoTransformaArroz(d) {
-          const factor = Number(this.config[d.factorKey]) || 1;
-          return this.redondear3(this.arrozHacia(d) * factor);
+          return this.ingresadoHoy(d.id, this.motivoDesde('arroz'));
         },
 
         totalPorcionesArroz(d) {
@@ -21597,10 +21822,24 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         fijarIngresoArrozPorciones(campo, valor) {
           const d = this.destinosArroz().find((x) => x.campo === campo);
-          if (!d) return false;
+          if (!d || !this.esArrozPorcion(d)) return false;
           const factor = Number(this.config[d.factorKey]) || 1;
           const porciones = Math.max(0, this.redondear3(Number(valor) || 0));
-          return this.fijarArrozDestino(campo, porciones / factor);
+          const kgActuales = this.arrozHacia(d);
+          // El peso se guarda al gramo. Las porciones se guardan con su cantidad escrita.
+          const deltaKg = this.redondear3(this.redondear3(porciones / factor) - kgActuales);
+          const deltaPorciones = this.redondear3(porciones - this.ingresoTransformaArroz(d));
+          if (!deltaPorciones || (!deltaKg && deltaPorciones > 0 && !kgActuales)) return false;
+          if (!deltaKg && deltaPorciones > 0 && this.productoBloqueado('arroz')) {
+            return this.avisoTransformar('Aviso ámbar: ' + this.nombreFila('arroz') + ' está bloqueado.');
+          }
+          return this.transferir({
+            origenId: 'arroz',
+            salen: deltaKg,
+            destinos: [{ id: d.id, entran: deltaPorciones, tipo: this.tipoArrozDestino(d) }],
+            motivo: this.motivoHacia(d.id),
+            historial: 'Arroz crudo → ' + d.nombre + ' (1 = ' + factor + ')'
+          });
         },
 
         fijarStockArrozTipo(campo, valor) {
@@ -22604,11 +22843,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   color: '#fbbf24',
                   factorTexto: '2 octavos = 1 pecho o 1 pierna',
                   subFactorTexto: 'Elige pecho o pierna',
-                  notaCorte: 'Del octavo cuelgan estos platos. Caldo de pollo solo tiene crudo.',
+                  notaCorte: 'Cada plato tiene crudo y cocido por corte de pecho o pierna.',
                   platos: [
                     { nombre: 'Arroz con pollo', complemento: 'Crudo y cocido', cantidad: 1, esAderezo: true },
                     { nombre: 'Pollo a la olla', complemento: 'Crudo y cocido', cantidad: 1, esAderezo: true },
-                    { nombre: 'Caldo de pollo', complemento: 'Solo crudo', cantidad: 1, esAderezo: true }
+                    { nombre: 'Caldo de pollo', complemento: 'Crudo y cocido', cantidad: 1, esAderezo: true }
                   ]
                 }
               ]
@@ -23583,18 +23822,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         moverTipoEnFila(row, desde, hacia, n) {
-          const cant = Math.max(0, Math.round(Number(n) || 0));
-          if (!row || !cant) return;
           const campoDesde = this.campoTipo('ingreso', desde);
-          const corDesde = this.campoTipo('correccion', desde);
           const campoHacia = this.campoTipo('ingreso', hacia);
-          let falta = cant;
-          const ing = Math.max(0, Number(row[campoDesde]) || 0);
-          const toma = Math.min(falta, ing);
-          row[campoDesde] = ing - toma;
-          falta -= toma;
-          if (falta) row[corDesde] = (Number(row[corDesde]) || 0) - falta;
-          row[campoHacia] = (Number(row[campoHacia]) || 0) + cant;
+          row[campoDesde] = this.redondear3((Number(row[campoDesde]) || 0) - n);
+          row[campoHacia] = this.redondear3((Number(row[campoHacia]) || 0) + n);
         },
 
         async guardarPaseTipo(row, desde, hacia, n) {
@@ -23617,7 +23848,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // así la venta de comandas que llegue después gasta primero ese cocido.
         pasarCrudoACocido(idOrClave, delta, corte) {
           const raw = String(idOrClave || '');
-          const n = Math.round(Number(delta) || 0);
+          const n = corte ? this.redondear3(delta) : Math.round(Number(delta) || 0);
           if (!n) return false;
           const rowId = this.filaIdDePlatoTransformar(raw) || raw;
           const row = this.filaReal(rowId);
@@ -23626,10 +23857,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!row.tieneCocido || !this.tienePaseCocido(row.id)) {
             return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' no tiene cocido. Actívalo en Configuración → Cocido y reservas.');
           }
+          if (this.productoBloqueado(row.id)) return this.avisoTransformar('Aviso ámbar: ' + row.nombre + ' está bloqueado.');
           const desde = n > 0 ? 'crudo' : 'cocido';
           const hacia = n > 0 ? 'cocido' : 'crudo';
           const cant = Math.abs(n);
           const marca = corte ? (' · ' + this.marcaCorte(corte)) : '';
+          if (corte && this.stockOctavoPlato(row.id, corte, desde) + 0.0001 < cant) {
+            return this.avisoTransformar('Aviso ámbar: no hay suficiente ' + desde + ' de ' + this.marcaCorte(corte) + ' en ' + row.nombre + '.');
+          }
           // Lo reservado de ese tipo queda apartado: no se pasa a cocido (ni vuelve a crudo).
           const reservado = this.reservaDe(row.id, desde);
           const disp = this.redondear3(this.calcSaldoTipo(row, desde) - reservado);

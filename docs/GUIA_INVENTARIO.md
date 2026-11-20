@@ -131,6 +131,7 @@ El tope es el **stock de hoja** crudo del origen. Si el pecho tiene 13 de pieza 
 ### Qué muestra cada caja
 
 - El número grande es el **stock actual** de esa fila (crudo, o cocido en su propia caja).
+- Toca un campo numérico para abrir el teclado en pantalla. Usa **+** o **−** para ajustar la cantidad y pulsa **Aplicar** para guardar. El sonido usa el interruptor de Configuración.
 - Debajo, **+N ingreso hoy** o **−N resto hoy** es el neto del turno (04:00 a 04:00, o el tramo día/noche si el período es un tramo). Sumar 1 y restar 1 deja el neto en 0 y no muestra ninguna de las dos líneas.
 - **Ingreso** muestra la entrada independiente acumulada del período. Cambiar de 1 a 2 añade la diferencia de 1. Poner 0 revierte ese ingreso. Se conserva al recargar y cada período muestra su propio dato.
 - Las cajas vinculadas a Ingreso ajustan la existencia escrita. Al bajar una cantidad, primero reducen el ingreso independiente disponible y llevan el resto a Corrección. Al subirla, aumentan ese ingreso.
@@ -181,9 +182,15 @@ Sale del fresco o de un ingreso directo.
 | --- | --- |
 | Arroz con pollo | Crudo y cocido |
 | Pollo a la olla | Crudo y cocido |
-| Caldo de pollo | Solo crudo |
+| Caldo de pollo | Crudo y cocido |
 
 1 octavo = 1 porción de esos platos. La venta de Arroz con pollo, Pollo a la olla y Caldo de pollo se ve en la columna Venta comandas de Octavo de pollo, y también en la fila de cada plato. El stock de cada plato se reparte entre lo que vino de pecho y lo que vino de pierna.
+
+Subir el número de **Cocido** descuenta esa diferencia del **Crudo** del mismo plato y corte. Al bajar el número, la diferencia vuelve al crudo. Los cortes se conservan al recargar y al pasar al siguiente día operativo.
+
+En los cuadros de **Beata**, **Personal**, **Evento** y **Rio Lindo**, separa los octavos por pecho o pierna. Pulsa **Descargar** para revisar las cantidades y, si quieres, escribir el motivo. Al confirmar, la descarga se registra en **Venta comandas** de Octavo de pollo y en **Auditoría**, con el motivo escrito.
+
+Después de descargar, los cuadros de pecho y pierna del sector quedan en **0**. En **Venta comandas**, pulsa **Eliminar** sobre la descarga para revertirla. Las piezas vuelven a quedar separadas en el mismo sector y corte. Puedes descargarlas de nuevo desde Transformar.
 
 ### Otras familias
 
@@ -194,7 +201,7 @@ Sale del fresco o de un ingreso directo.
 | Pieza de pescado | Entra directo. Ocupa el lugar del origen en el mapa. Los platos vinculados restan la pieza. |
 | Pieza de pota | Entra directo. Ocupa el lugar del origen en el mapa. Los platos vinculados restan la pieza. |
 | Carnero | **Carnero pachamanca** (1 carnero = el factor configurado, por defecto 1) y **Seco de carnero** (1 a 1). Los dos tienen crudo y cocido. El tope es el stock de hoja del carnero. |
-| Arroz crudo | Tres cuadros: blanco (8), verde + pato (6) y beata (su factor). Cada **+** resta 1 arroz crudo y suma esa cantidad. Ya no hay arroz pollo, chaufa ni mariscos en esta familia. |
+| Arroz crudo | Blanco y verde + pato reciben porciones mediante **Transformar**. Con los factores base, 1 kg rinde 8 porciones de blanco o 6 de verde. El peso se muestra al gramo y el destino conserva las porciones ingresadas. Por ejemplo, 5 porciones de verde descuentan 0,833 kg y suman 5 porciones. Beata y Rio Lindo manejan kilos según su factor. |
 | Carnes, trucha, cuy, papas y similares | Entran directo. No se despiezan en este mapa. |
 
 El **editor de mapas** crea o ajusta familias nuevas. Esas familias usan la misma regla: el origen no pasa de su stock de hoja y el destino suma, sin borrar el ingreso que ya tenía. El mapa de pollo fresco de esta pantalla es el mapa fijo descrito arriba.

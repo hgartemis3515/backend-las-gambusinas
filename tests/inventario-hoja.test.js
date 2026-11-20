@@ -8,10 +8,10 @@ const { boundsDiaOperativo } = require('../src/utils/diaOperativoRestaurante');
 const html = fs.readFileSync(path.join(__dirname, '../public/inventario.html'), 'utf8');
 const factoryCode = html.slice(html.indexOf('function inventarioApp()'), html.lastIndexOf('</script>'));
 
-function crearApp(store = {}) {
+function crearApp(store = {}, window = {}) {
     const localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } };
     const fabrica = vm.runInNewContext('(' + factoryCode.trim() + ')', {
-        window: {}, localStorage, sessionStorage: localStorage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0
+        window, localStorage, sessionStorage: localStorage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0
     });
     const app = fabrica();
     app.$nextTick = (f) => f && f();
@@ -681,6 +681,79 @@ describe('descarga manual de octavos en el modal de ventas', () => {
 
     test('una descarga antigua sin marca no inventa el corte', () => {
         expect(lineas([mov(2, 'Venta manual')]).lineas[0].uso).toBe('Principal — Octavo de pollo');
+    });
+
+    test.each([
+        ['beata', 'Beata', 'Entrega acordada · pierna · 12:00'],
+        ['personal', 'Personal', ''],
+        ['eventos', 'Evento', 'Servicio'],
+        ['rio-lindo', 'Rio Lindo', 'Traslado '.repeat(24)]
+    ])('%s queda en cero al descargar y recupera ambos cortes al eliminar la descarga', async (id, nombre, motivo) => {
+        const app = crearApp({}, { confirm: () => true });
+        app.pulseRowTotal = () => {};
+        app.$refs.modalDescargaSector = { showModal: jest.fn(), close: jest.fn() };
+        const movimientos = [
+            mov(8, 'Ingreso · pecho', { clase: 'ingreso' }),
+            mov(7, 'Ingreso · pierna', { clase: 'ingreso' }),
+            mov(-2, 'Separado · ' + nombre + ' · pecho', { clase: 'regulacion' }),
+            mov(-3, 'Separado · ' + nombre + ' · pierna', { clase: 'regulacion' })
+        ];
+        pintar(app, movimientos, []);
+        app.api = jest.fn(async (_url, { body }) => {
+            const datos = JSON.parse(body);
+            movimientos.push({ ...datos, fecha: hora('11:00'), _id: datos.motivo });
+        });
+
+        app.abrirDescargaSector(app.destinosOctavoExtra().find((dest) => dest.id === id));
+        expect(app.$refs.modalDescargaSector.showModal).toHaveBeenCalledTimes(1);
+        expect(app.api).not.toHaveBeenCalled();
+        expect(app.descargaSector.motivo).toBe('');
+        app.descargaSector.motivo = motivo;
+        app.confirmarDescargaSector();
+        expect(app.$refs.modalDescargaSector.close).toHaveBeenCalledTimes(1);
+        expect(app.octavosEnDestino(id, 'pechugas')).toBe(0);
+        expect(app.octavosEnDestino(id, 'piernas')).toBe(0);
+        await app._colaTransformar;
+        expect(app.api).toHaveBeenCalledTimes(4);
+
+        const libro = pintar(app, movimientos, []);
+        const nota = motivo.trim().slice(0, 155);
+        const prefijo = 'Venta manual · ' + nombre + (nota ? ' · Motivo: ' + nota : '');
+        expect(movimientos.filter((m) => m.clase === 'egreso').map((m) => m.motivo)).toEqual([
+            prefijo + ' · pecho', prefijo + ' · pierna'
+        ]);
+        expect(prefijo.length + ' · pierna'.length).toBeLessThanOrEqual(200);
+        expect(app.octavosSeparadosSector(id)).toBe(0);
+        expect(app.octavosEnDestino(id, 'pechugas')).toBe(0);
+        expect(app.octavosEnDestino(id, 'piernas')).toBe(0);
+        expect(libro.filas.find((r) => r.rubro === 'octavo-pollo')).toMatchObject({ queda: 10 });
+        app.abrirVenta(fila, { ventas: [], movimientos });
+        const [linea] = app.ventaInfo.lineas;
+        expect(linea.motivo).toBe(nombre + (nota ? ' · Motivo: ' + nota : ''));
+        expect(linea.usos).toEqual([
+            { uso: 'Principal — Octavo de pollo · Pecho', cantidad: 2 },
+            { uso: 'Principal — Octavo de pollo · Pierna', cantidad: 3 }
+        ]);
+
+        expect(app.fijarOctavoDestino(id, 'pechugas', 1)).toBe(true);
+        await app._colaTransformar;
+        app.api.mockImplementationOnce(async (_url, { body }) => {
+            const { lote } = JSON.parse(body);
+            for (const m of movimientos.filter((m) => m.lote === lote && m.clase === 'egreso')) {
+                const corte = m.motivo.split(' · ').at(-1);
+                Object.assign(m, { clase: 'regulacion', cantidad: -m.cantidad, motivo: `Separado · ${nombre} · ${corte}`, lote: '' });
+            }
+            return { success: true, eliminados: 2, sectorRestaurado: nombre };
+        });
+        app.cargarKardex = jest.fn(async () => pintar(app, movimientos, []));
+        await app.eliminarVentaManual(linea);
+        expect(app.api).toHaveBeenLastCalledWith('/inventario/venta-manual/eliminar', expect.objectContaining({
+            body: JSON.stringify({ lote: linea.lote })
+        }));
+        expect(app.ventaInfo.lineas).toHaveLength(0);
+        expect(app.octavosEnDestino(id, 'pechugas')).toBe(3);
+        expect(app.octavosEnDestino(id, 'piernas')).toBe(3);
+        expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(9);
     });
 });
 

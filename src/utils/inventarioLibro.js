@@ -6,6 +6,7 @@ const {
     perfilRubro,
     cubetaDe,
     cadenaDeVenta,
+    esPlatoOctavoVenta,
     semillaCocido,
     registrosDeVenta,
     normalizarVenta
@@ -92,6 +93,15 @@ function saldoDe(c) {
     return Math.max(0, c.abre) + c.mov;
 }
 
+// Para los platos de octavo se arrastra el corte junto al saldo de cada tipo.
+// Los ingresos sin marca se muestran en pierna, como en los cuadros históricos.
+function ajustarPecho(c, antes, corte) {
+    const despues = Math.max(0, saldoDe(c));
+    if (corte === 'pecho') c.pecho += despues - antes;
+    if (!corte && despues < antes) c.pecho *= despues / antes;
+    c.pecho = Math.max(0, Math.min(despues, r3(c.pecho)));
+}
+
 /** Productos de la hoja: los fijos, los de mapas, los vendidos y los que tienen movimientos. */
 function definiciones(movimientos, ventas, extras) {
     const defs = clavesGuardables().map((d) => ({ clave: d.clave, nombre: d.nombre }));
@@ -126,6 +136,7 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
         let c = cubetas.get(key);
         if (!c) {
             c = nuevaCubeta();
+            if (esPlatoOctavoVenta(rubro)) c.pecho = 0;
             cubetas.set(key, c);
         }
         return c;
@@ -140,7 +151,7 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
         const t = new Date(v && v.fecha).getTime();
         if (v && (v.rubro || v.plato) && Number(v.cantidad) > 0 && Number.isFinite(t)) eventos.push({ t, venta: v });
     });
-    eventos.sort((a, b) => a.t - b.t || (a.mov ? -1 : 1));
+    eventos.sort((a, b) => a.t - b.t || Number(!!b.mov) - Number(!!a.mov));
 
     let finDia = -Infinity;
     let inicioDia = -Infinity;
@@ -231,9 +242,7 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
         }
     };
 
-    const aplicarMovimiento = (m, t) => {
-        const c = cubeta(m.rubro, m.tipoProducto);
-        const n = Number(m.cantidad) || 0;
+    const aplicarMovimiento = (c, m, n, t) => {
         if (m.clase === 'inventario') {
             const antes = saldoDe(c);
             c.abre = 0;
@@ -297,7 +306,11 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
             const nv = normalizarVenta(rec);
             if (nv) {
                 const c = cubeta(nv.rubro, nv.tipo);
-                if (!nv.sinSaldo) c.mov -= nv.n;
+                if (!nv.sinSaldo) {
+                    const antes = Math.max(0, saldoDe(c));
+                    c.mov -= nv.n;
+                    if (c.pecho !== undefined) ajustarPecho(c, antes, '');
+                }
                 if (enVentana) {
                     c.w.venta += nv.n;
                     if (nv.sinSaldo) c.w.cubierta += nv.n;
@@ -314,8 +327,13 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
         if (e.t > hastaMs) break;
         avanzarDia(e.t);
         if (!enVentana && e.t >= desdeMs) entrarVentana();
-        if (e.mov) aplicarMovimiento(e.mov, e.t);
-        else aplicarVenta(e.venta, e.t);
+        if (e.mov) {
+            const m = e.mov;
+            const c = cubeta(m.rubro, m.tipoProducto);
+            const antes = Math.max(0, saldoDe(c));
+            aplicarMovimiento(c, m, Number(m.cantidad) || 0, e.t);
+            if (c.pecho !== undefined) ajustarPecho(c, antes, corteDeMotivo(m.motivo));
+        } else aplicarVenta(e.venta, e.t);
     }
     if (!enVentana) {
         avanzarDia(desdeMs);
@@ -344,6 +362,7 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
                 : {};
             filas.push({
                 ...extraOctavo,
+                ...(esPlatoOctavoVenta(def.clave) ? { pechoOctavo: c ? c.pecho : 0 } : {}),
                 plato: def.clave,
                 rubro: def.clave,
                 platoId: 0,
