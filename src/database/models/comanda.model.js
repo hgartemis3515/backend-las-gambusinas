@@ -712,13 +712,8 @@ const comandaSchema = new mongoose.Schema({
     // Origen de creación de la comanda (auditoría y reportes)
     origenCreacion: {
         type: String,
-        enum: ['mozos', 'dashboard', 'reserva', 'sistema', 'rio-lindo-caja'],
+        enum: ['mozos', 'dashboard', 'reserva', 'sistema'],
         default: 'mozos'
-    },
-    cobroCaja: {
-        monto: { type: Number, default: null },
-        fecha: { type: Date, default: null },
-        clienteNombre: { type: String, default: null }
     },
     // Usuario del dashboard que creó la comanda (auditoría). mozos sigue siendo el mozo asignado a retirar.
     createdByDashboard: {

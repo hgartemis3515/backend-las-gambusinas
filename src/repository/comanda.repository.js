@@ -598,7 +598,6 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     if (opciones && opciones.mozoId && mongoose.Types.ObjectId.isValid(String(opciones.mozoId)) && String(opciones.mozoId).length === 24) {
       query.mozos = new mongoose.Types.ObjectId(String(opciones.mozoId));
     }
-    query.origenCreacion = { $ne: 'rio-lindo-caja' };
     if (opciones && opciones.desde && opciones.hasta) {
       const { rangoLima } = require('../utils/estadisticasComandas');
       const r = rangoLima(opciones.desde, opciones.hasta);
@@ -3255,7 +3254,6 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true, opci
       IsActive: true,
       status: { $nin: incluirEntregadas ? ["pagado"] : ["entregado", "pagado"] },
       programadaPorReserva: { $ne: true },
-      origenCreacion: { $ne: 'rio-lindo-caja' },
       $or: [
         { createdAt: { $gte: fechaInicio, $lte: fechaFin } },
         { createdAt: { $lt: fechaInicio } }
