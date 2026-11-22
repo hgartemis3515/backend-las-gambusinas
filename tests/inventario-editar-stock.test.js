@@ -58,6 +58,36 @@ test.each([false, true])('lapiz desde tabla=%s establece saldo anterior y total 
     expect(app.stockCuadro('filete', 'crudo')).toBe(100);
 });
 
+test.each([false, true])('edita directamente el saldo anterior desde tabla=%s con ingresos y ventas', async (tabla) => {
+    const ventas = [{ rubro: 'filete', cantidad: 3, fecha: hoy, tipoProducto: 'crudo' }];
+    const { app, recargar } = escenario([mov('filete', 20, ayer), mov('filete', 5, hoy)], ventas);
+    if (tabla) app.abrirEditarStockFila(app.filaReal('filete')); else app.abrirEditarStock('filete');
+    app.cambiarModoEditarStock('apertura');
+    expect(app.editarStock.crudo).toBe(20);
+    app.editarStock.crudo = 12;
+    expect(await app.guardarModalStock()).toBe(true);
+    recargar();
+    expect(app.filaReal('filete')).toMatchObject({ saldoAnterior: 12, ingreso: 5, venta: 3 });
+    expect(app.stockCuadro('filete', 'crudo')).toBe(14);
+});
+
+test('editar saldo anterior de octavos conserva el ingreso de pecho del día', async () => {
+    const { app, recargar } = escenario([
+        mov('octavo-pollo', 30, ayer, 'crudo', 'Ingreso · pecho'),
+        mov('octavo-pollo', 100, ayer, 'crudo', 'Ingreso · pierna'),
+        mov('octavo-pollo', 2, hoy, 'crudo', 'Ingreso · pecho')
+    ]);
+    app.abrirEditarOctavo();
+    app.cambiarModoEditarStock('apertura');
+    expect(app.editarStock).toMatchObject({ pecho: 30, pierna: 100 });
+    app.editarStock.pecho = 60;
+    expect(await app.guardarModalStock()).toBe(true);
+    recargar();
+    expect(app.filaReal('octavo_pollo')).toMatchObject({ saldoAnterior: 160, ingreso: 2 });
+    expect(app.octavosStockCorte('pechugas')).toBe(62);
+    expect(app.octavosStockCorte('piernas')).toBe(100);
+});
+
 test('ventas y transformaciones conservan sus cantidades al cambiar la apertura', async () => {
     const transf = [mov('filete', -4, hoy, 'crudo', 'Pasa a milanesa'), mov('milanesa', 4, hoy, 'crudo', 'Viene de filete')];
     const ventas = [{ rubro: 'filete', cantidad: 3, fecha: hoy, tipoProducto: 'crudo' }];

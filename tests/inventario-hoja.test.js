@@ -289,6 +289,49 @@ test('el reporte cuenta el producto final con su tipo y corte, y descarta pases 
     expect(filas.map((f) => f.clave)).toHaveLength(3);
 });
 
+test('un pase de tira de panceta a pieza queda fuera de Ingreso y aparece una vez en el detalle y el reporte', () => {
+    const app = crearApp();
+    const movimientos = [
+        mov('tira-panceta', 'ingreso', 6, hora('08:00'), 'Sale de Panceta', 'cocido'),
+        mov('tira-panceta', 'ingreso', -4, hora('09:00'), 'Pasa a trozos', 'cocido'),
+        mov('trozo-panceta', 'ingreso', 4, hora('09:00'), 'Sale de Tira de panceta', 'cocido')
+    ];
+    pintar(app, movimientos);
+    const tira = app.filaReal('tira_panceta');
+    const pieza = app.filaReal('trozo_panceta');
+    expect(app.cifraIngresoTabla(tira, 'ingreso')).toBe(0);
+    expect(app.cifraIngresoTabla(pieza, 'ingreso')).toBe(0);
+    expect(app.stockCuadro(pieza.id, 'cocido')).toBe(4);
+    expect(app.origenIngresoDe(tira, 'cocido', true).lineas).toEqual(expect.arrayContaining([
+        expect.objectContaining({ clase: 'transformacion', salida: true, cantidad: -4 })
+    ]));
+    expect(app.origenIngresoDe(pieza).lineas).toMatchObject([{ clase: 'transformacion', cantidad: 4 }]);
+    app.reporteDiaVista = app.vistaReporteHoja({}, movimientos.slice().reverse());
+    expect(app.totalReporteIngreso()).toBe(6);
+});
+
+test('el reporte resta el origen de un pase antiguo de crudo a cocido', () => {
+    const app = crearApp();
+    app.reporteDiaVista = app.vistaReporteHoja({}, [
+        mov('pollada', 'ingreso', 4, hora('08:00'), 'Sale de Pierna de Pollo'),
+        mov('pollada', 'ingreso', -4, hora('09:00'), 'Cocido desde crudo Pollada'),
+        mov('pollada', 'ingreso', 4, hora('09:00'), 'Ingreso cocido', 'cocido')
+    ]);
+    expect(app.totalReporteIngreso()).toBe(4);
+    expect(app.filasReporteIngreso().flatMap((f) => f.lineas)).toMatchObject([
+        { clave: 'pollada', tipo: 'Cocido', cantidad: 4 }
+    ]);
+});
+
+test('un saldo insuficiente se muestra como No hay stock y el detalle identifica el faltante', () => {
+    const app = crearApp();
+    pintar(app, [mov('cuy', 'egreso', 1, hora('08:00'), 'Venta manual')]);
+    const cuy = app.filaReal('cuy');
+    expect(app.textoQuedaCelda(cuy)).toBe('No hay stock');
+    app.abrirModalProcedimientoSaldoReal(cuy);
+    expect(app.saldoRealInfo.faltantes).toMatchObject([{ cantidad: 1 }]);
+});
+
 test('el reporte de venta agrupa platos y abre las comandas con el mismo total y el stock utilizado', () => {
     const app = crearApp();
     const v = (rubro, origen, nombre, cantidad, tipoProducto, sinSaldo = false) => ({
@@ -929,8 +972,7 @@ describe('productos con grupo en la tabla', () => {
         expect(origen.transformado).toBe(3);
         expect(origen.anotado).toBe(20);
         app.abrirIngresoGrupo(pierna);
-        expect(app.ingresoGrupo.transformaciones).toHaveLength(1);
-        expect(app.ingresoGrupo.transformadoSale).toBe(3);
+        expect(app.ingresoGrupo.transformaciones).toMatchObject([{ cantidad: 3 }]);
     });
 });
 
