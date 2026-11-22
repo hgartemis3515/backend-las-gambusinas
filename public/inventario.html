@@ -366,6 +366,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       border-spacing: 0;
       font-size: 13px;
     }
+    @media screen {
+      main table.tabla-hoja {
+        border-block: 2px solid #000;
+        border-inline-start: 2px solid #000;
+      }
+      main table.tabla-hoja th,
+      main table.tabla-hoja td {
+        border-inline-end: 2px solid #000;
+      }
+    }
     main table.tabla-hoja th,
     main table.tabla-hoja td {
       text-align: center !important;
@@ -619,6 +629,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     main table.tabla-hoja td.col-texto-blanco .text-amber-300:not(button),
     main table.tabla-hoja td.col-texto-blanco .text-teal-200:not(button),
     main table.tabla-hoja td.col-texto-blanco .text-teal-300:not(button),
+    main table.tabla-hoja td.ingreso-total-td .caja-ingreso-total,
     main table.tabla-hoja td.col-texto-blanco .total-cell-base:not(button) {
       display: inline-flex;
       align-items: center;
@@ -1033,7 +1044,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .ingreso-panel-cabecera span { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #d4af37; }
     .ingreso-panel-cabecera button { color: #a0a0b8; font-size: 10px; cursor: pointer; }
     .ingreso-panel .caja-stock-step { margin-top: 8px; }
-    .btn-lapiz-stock {
+    .btn-lapiz-stock,
+    .btn-acceso-stock {
       width: 1.55rem;
       height: 1.55rem;
       display: inline-flex;
@@ -1046,7 +1058,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       cursor: pointer;
       flex-shrink: 0;
     }
-    .btn-lapiz-stock:hover { background: #1c1c2b; }
+    .btn-lapiz-stock:hover, .btn-acceso-stock:hover { background: #1c1c2b; }
+    .btn-acceso-stock:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+    .btn-acceso-stock:disabled { opacity: 0.4; cursor: default; }
+    .btn-kardex-transformar { color: #fbbf24; }
+    .btn-ir-inventario { color: #4ade80; border-color: #22c55e; }
+    .btn-ir-transformar { color: #7dd3fc; border-color: #38bdf8; }
+    .acciones-cuadro-stock { display: inline-flex; align-items: center; flex-shrink: 0; gap: 4px; }
+    .accesos-cuadro-stock { display: contents; }
+    #panel-transformar .platos-grupo > * span.flex > .acciones-cuadro-stock { flex: none; }
+    [data-producto-transformar]:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 4px; }
     .stock-editor-overlay {
       position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center;
       padding: 20px; background: rgba(3, 3, 9, 0.8); backdrop-filter: blur(7px);
@@ -1339,7 +1360,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       text-transform: none;
       white-space: normal;
     }
-    #panel-transformar .octavo-modelo .tr-dish-title { font-size: 13px; font-weight: 700; flex: none; width: 100%; min-width: 0; text-align: center; }
+    #panel-transformar .octavo-modelo .tr-dish-title { font-size: 13px; font-weight: 700; flex: 1 1 6.5rem; min-width: 0; text-align: center; }
     #panel-transformar .octavo-modelo .tr-dish-card {
       background: #0b0c14;
       border: 1px solid #26283e;
@@ -1351,30 +1372,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       height: 100%;
     }
     #panel-transformar .octavo-modelo .tr-dish-head {
-      position: relative;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: center;
+      gap: 4px;
       min-height: 28px;
     }
-    #panel-transformar .octavo-modelo .tr-dish-head .btn-lapiz-stock {
-      position: absolute;
-      right: 0;
-      top: 0;
-    }
     #panel-transformar .octavo-modelo .octavo-sector-acciones {
-      position: absolute;
-      right: 0;
-      top: 0;
       display: inline-flex;
       align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 4px;
-    }
-    #panel-transformar .octavo-modelo .octavo-sector-acciones .btn-lapiz-stock {
-      position: static;
-    }
-    #panel-transformar .octavo-modelo .octavo-sector .tr-dish-title {
-      padding-right: 108px;
     }
     #panel-transformar .octavo-modelo .platos-grupo-octavo {
       display: grid;
@@ -2098,6 +2108,24 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 <body class="min-h-screen bg-bg-primary text-white font-sans antialiased select-none" x-data="inventarioApp()" x-cloak
   @pointerdown.capture="prepararTecladoTransformar($event)" @focusin="prepararTecladoTransformar($event)"
   @click="abrirTecladoTransformar($event)" @keydown.alt.arrow-down="abrirTecladoTransformar($event)">
+<svg width="0" height="0" class="absolute" aria-hidden="true">
+  <symbol id="icono-acceso-kardex" viewBox="0 0 24 24">
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 12h6m-6 4h4"/>
+    <rect x="8" y="2" width="8" height="4" rx="1"/>
+  </symbol>
+  <symbol id="icono-acceso-abajo" viewBox="0 0 24 24"><path d="M12 4v16m-6-6 6 6 6-6"/></symbol>
+  <symbol id="icono-acceso-arriba" viewBox="0 0 24 24"><path d="M12 20V4m-6 6 6-6 6 6"/></symbol>
+</svg>
+<template x-ref="accesosCuadroStock">
+  <button type="button" class="btn-acceso-stock btn-kardex-transformar" :disabled="!filaReal(productoCuadro) && !filaReal(familiaCuadro)"
+    @click.stop="abrirModalAuditoria(filaReal(productoCuadro) || filaReal(familiaCuadro))" :aria-label="'Kardex de ' + nombreFila(productoCuadro || familiaCuadro)" title="Kardex">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icono-acceso-kardex"/></svg>
+  </button>
+  <button type="button" class="btn-acceso-stock btn-ir-inventario" :disabled="!filaReal(productoCuadro) && !filaReal(familiaCuadro)"
+    @click.stop="irAFilaProducto(productoCuadro, familiaCuadro)" :aria-label="'Ir a Inventario Tabla: ' + nombreFila(productoCuadro || familiaCuadro)" title="Ir a Inventario Tabla">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icono-acceso-abajo"/></svg>
+  </button>
+</template>
 <div id="topbar-container" class="select-text"></div>
 <div class="flex pt-[72px] min-h-screen">
   <div id="sidebar-container" class="select-text"></div>
@@ -2678,6 +2706,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 12h6"></path><path d="M9 16h4"></path></svg>
                           </button>
                           <button type="button" class="btn-lapiz-stock ml-1" @click.stop="abrirEditarStockFila(row)" :aria-label="'Editar stock de ' + row.nombre" title="Editar stock"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                          <button type="button" class="btn-acceso-stock btn-ir-transformar" @click.stop="irATransformar(row, true)" :aria-label="'Ir a Transformar: ' + row.nombre" title="Ir a Transformar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icono-acceso-arriba"/></svg></button>
                         </div>
                     </td>
                     </template>
@@ -2707,6 +2736,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 12h6"></path><path d="M9 16h4"></path></svg>
                       </button>
                       <button type="button" class="btn-lapiz-stock ml-1" @click.stop="abrirEditarStockFila(row)" :aria-label="'Editar stock de ' + row.nombre" title="Editar stock"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                      <button type="button" class="btn-acceso-stock btn-ir-transformar" @click.stop="irATransformar(row, true)" :aria-label="'Ir a Transformar: ' + row.nombre" title="Ir a Transformar"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icono-acceso-arriba"/></svg></button>
                     </div>
                   </td>
                     </template>
@@ -2789,11 +2819,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="par-tipo">
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-crudo" x-text="etiquetaTipo('crudo', row)"></span>
-                              <span class="par-tipo-num num-mono font-semibold text-cyan-200" x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal', 'crudo'))"></span>
+                              <span class="par-tipo-num caja-ingreso-total num-mono font-medium" x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal', 'crudo'))"></span>
                             </div>
                             <div class="par-tipo-linea">
                               <span class="par-tipo-etiq es-cocido">Cocido</span>
-                              <span class="par-tipo-num num-mono font-semibold text-cyan-300" x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal', 'cocido'))"></span>
+                              <span class="par-tipo-num caja-ingreso-total num-mono font-medium" x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal', 'cocido'))"></span>
                             </div>
                           </div>
                           <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 text-cyan-200 bg-[#1c1c2b] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el detalle del ingreso total de ' + row.nombre" :title="tieneGrupo(row) ? 'Cuánto tiene cada producto o plato del grupo' : 'Saldo anterior + Ingreso'" @click="tieneGrupo(row) ? abrirDesgloseGrupo(row, 'ingresoTotal') : abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
@@ -2801,14 +2831,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       </template>
                       <template x-if="!row.tieneCocido">
                         <div class="par-tipo-con-accion">
-                          <div class="text-center">
-                          <span class="par-tipo-num ingreso-total-numero num-mono font-bold text-cyan-200" title="Saldo anterior + Ingreso">
-                            <span x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal'))"></span>
+                          <div class="ingreso-total-numero" title="Saldo anterior + Ingreso">
+                            <span class="par-tipo-num caja-ingreso-total num-mono font-medium" x-text="formatNum(cifraIngresoTabla(row, 'ingresoTotal'))"></span>
                             <span x-show="mostrarMasMenosIngreso && (flechaSumaCelda(row) > 0 || flechaRestaCelda(row) > 0)" class="ingreso-total-flechas">
                               <span x-show="flechaSumaCelda(row) > 0" class="badge-flecha-up-verde" :title="'Sumando +' + formatNum(flechaSumaCelda(row)) + ' al Ingreso Total'">↑<span class="num-mono" x-text="'+' + formatNum(flechaSumaCelda(row))"></span></span>
                               <span x-show="flechaRestaCelda(row) > 0" class="badge-flecha-down-roja" :title="'Restando −' + formatNum(flechaRestaCelda(row)) + ' del Ingreso Total'">↓<span class="num-mono" x-text="'−' + formatNum(flechaRestaCelda(row))"></span></span>
                             </span>
-                          </span>
                           </div>
                           <button type="button" class="lupa-cuadro w-7 h-7 rounded-lg border border-cyan-800/60 text-cyan-200 bg-[#1c1c2b] inline-flex items-center justify-center cursor-pointer hover:bg-[#26263a] shrink-0" :aria-label="'Ver el detalle del ingreso total de ' + row.nombre" :title="tieneGrupo(row) ? 'Cuánto tiene cada producto o plato del grupo' : 'Saldo anterior + Ingreso'" @click="tieneGrupo(row) ? abrirDesgloseGrupo(row, 'ingresoTotal') : abrirIngresoLupa(row)"><svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
                         </div>
@@ -3172,7 +3200,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <span class="text-[10px] uppercase font-bold text-[#d4af37]">Origen crudo</span>
               <span class="inline-flex items-center gap-1">
                 <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('arroz'))"></strong></span>
-                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Arroz" title="Editar stock" @click="abrirEditarStock('arroz')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'arroz' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                  <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Arroz" title="Editar stock" @click="abrirEditarStock('arroz')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                </span>
               </span>
             </div>
             <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
@@ -3213,7 +3244,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1" :class="esArrozPorcion(d) ? 'arroz-card-porcion' : 'arroz-card-corto'">
                   <span class="flex items-center justify-between gap-1">
                     <span class="text-xs font-bold text-white block" x-text="d.nombre"></span>
-                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + d.nombre" title="Editar stock" @click="abrirEditarStock(d.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                    <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(d.id) }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                      <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                      <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + d.nombre" title="Editar stock" @click="abrirEditarStock(d.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                    </span>
                   </span>
                   <p class="caja-stock-venta text-center" x-show="ventaPlato(d.id) > 0" x-text="'Venta ' + formatNum(ventaPlato(d.id))"></p>
                   <span class="flex items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
@@ -3335,7 +3369,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-4 space-y-3 shadow-lg relative">
                 <div class="flex items-center justify-between">
                   <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pollo fresco" title="Editar stock" @click="abrirEditarStock('pollo_fresco')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'pollo_fresco' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                    <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                    <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pollo fresco" title="Editar stock" @click="abrirEditarStock('pollo_fresco')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  </span>
                 </div>
                 <h3 class="text-base font-extrabold text-white">Pollo fresco</h3>
                 <div class="caja-stock">
@@ -3379,7 +3416,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3.5 space-y-2.5 shadow-lg">
                       <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-200 font-bold text-[10px] uppercase">Corte Primario</span>
-                        <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pecho de pollo" title="Editar stock" @click="abrirEditarStock('pechuga')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'pechuga' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                          <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                          <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pecho de pollo" title="Editar stock" @click="abrirEditarStock('pechuga')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        </span>
                       </div>
                       <h3 class="text-sm font-extrabold text-white">Pecho de pollo</h3>
                       <div class="caja-stock">
@@ -3411,7 +3451,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div class="bg-[#0a0a0f] border-2 border-[#d4af37]/80 rounded-xl p-3 space-y-2 shadow-md">
                             <div class="flex items-center justify-between gap-1.5">
                               <span class="px-1.5 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase whitespace-nowrap">1 pecho = <span x-text="config.factorFiletesPorPechuga"></span></span>
-                              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Filete de pollo" title="Editar stock" @click="abrirEditarStock('filete')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                              <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'filete' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                                <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Filete de pollo" title="Editar stock" @click="abrirEditarStock('filete')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                              </span>
                             </div>
                             <h4 class="text-sm font-bold text-white">Filete de pollo</h4>
                             <div class="caja-stock">
@@ -3458,7 +3501,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                       <div class="min-w-0">
                                         <span class="flex items-center justify-between gap-1">
                                           <span class="text-xs font-bold text-white block truncate" x-text="plato.nombre"></span>
-                                          <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                          <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(plato.id) }, familiaCuadro: 'filete' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                                            <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                                            <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                          </span>
                                         </span>
                                         <span class="text-[10px] text-[#a0a0b8] block" x-text="'Come ' + plato.cantidad + ' filete'"></span>
                                         <p class="caja-stock-venta" x-show="ventaPlato(plato.id) > 0" x-text="'Venta ' + formatNum(ventaPlato(plato.id))"></p>
@@ -3536,7 +3582,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-sky-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
                               <span class="flex items-center justify-between gap-1">
                                 <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
-                                <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(ad.id) }, familiaCuadro: 'pechuga' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                                  <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                                  <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                </span>
                               </span>
                               <p class="caja-stock-venta text-center" x-show="ventaPlato(ad.id) > 0" x-text="'Venta ' + formatNum(ventaPlato(ad.id))"></p>
                               <div class="caja-stock">
@@ -3592,7 +3641,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3.5 space-y-2.5 shadow-lg">
                       <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-bold text-[10px] uppercase">Corte Primario</span>
-                        <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pierna de pollo" title="Editar stock" @click="abrirEditarStock('pierna')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'pierna' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                          <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                          <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pierna de pollo" title="Editar stock" @click="abrirEditarStock('pierna')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        </span>
                       </div>
                       <h3 class="text-sm font-extrabold text-white">Pierna de pollo</h3>
                       <div class="caja-stock">
@@ -3633,7 +3685,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="bg-[#0a0a0f] border border-[#26263a] hover:border-emerald-500/50 rounded-lg px-2.5 py-2 space-y-1.5 transition">
                               <span class="flex items-center justify-between gap-1">
                                 <span class="text-xs font-semibold text-white block truncate" x-text="ad.nombre"></span>
-                                <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(ad.id) }, familiaCuadro: 'pierna' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                                  <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                                  <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + ad.nombre" title="Editar stock" @click="abrirEditarStock(ad.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                </span>
                               </span>
                               <p class="caja-stock-venta text-center" x-show="ventaPlato(ad.id) > 0" x-text="'Venta ' + formatNum(ventaPlato(ad.id))"></p>
                               <div class="caja-stock">
@@ -3689,7 +3744,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="tr-node border-2 border-amber-400/80">
                       <div class="tr-node-head">
                         <span class="tr-node-badge bg-amber-400 text-[#1a1200]">2 = 1</span>
-                        <button type="button" class="btn-lapiz-stock" aria-label="Editar octavos de pecho y pierna" title="Editar stock" @click="abrirEditarOctavo()"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'octavo_pollo' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                          <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                          <button type="button" class="btn-lapiz-stock" aria-label="Editar octavos de pecho y pierna" title="Editar stock" @click="abrirEditarOctavo()"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                        </span>
                       </div>
                       <h4 class="tr-node-title">Octavo de pollo</h4>
                       <div class="bg-[#131522] border border-[#282a40] rounded-lg px-3 py-2 text-center">
@@ -3749,7 +3807,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="tr-dish-card hover:border-amber-400/60" :class="platosDelOctavo().length === 3 && pIdx === 2 ? 'col-span-2' : ''">
                               <div class="tr-dish-head">
                                 <span class="tr-dish-title" x-text="plato.nombre"></span>
-                                <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(plato.id) }, familiaCuadro: 'octavo_pollo' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                                  <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                                  <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + plato.nombre" title="Editar stock" @click="abrirEditarStock(plato.id)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                </span>
                               </div>
                               <p class="caja-stock-venta text-center" x-show="ventaPlato(plato.id) > 0" x-text="'Venta ' + formatNum(ventaPlato(plato.id))"></p>
                               <div class="octavo-cortes">
@@ -3802,7 +3863,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <div class="tr-dish-head">
                                 <span class="tr-dish-title" x-text="dest.nombre"></span>
                                 <span class="octavo-sector-acciones">
-                                  <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + dest.nombre" title="Editar stock" @click="abrirEditarSector(dest)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                  <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'octavo_pollo' }, familiaCuadro: '' }">
+                                    <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + dest.nombre" title="Editar stock" @click="abrirEditarSector(dest)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                  </span>
                                   <button type="button" class="btn-descarga-sector" :aria-label="'Descargar ' + dest.nombre" title="Descargar los octavos separados" @click="abrirDescargaSector(dest)">
                                     <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M5 19h14"/></svg>
                                     <span>Descargar</span>
@@ -3879,7 +3943,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div class="bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-4 space-y-3 shadow-lg">
                   <div class="flex items-center justify-between">
                     <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase" x-text="mapa.tipo === 'directo' ? 'Origen directo' : 'Origen crudo'"></span>
-                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + mapa.origen.nombre" title="Editar stock" @click="abrirEditarStock(idDeClave(mapa.origen.clave))"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                    <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(idDeClave(mapa.origen.clave)) }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                      <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                      <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + mapa.origen.nombre" title="Editar stock" @click="abrirEditarStock(idDeClave(mapa.origen.clave))"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                    </span>
                   </div>
                   <h3 class="text-base font-extrabold text-white" x-text="mapa.origen.nombre"></h3>
                   <p class="caja-stock-venta text-center" x-show="ventaPlato(idDeClave(mapa.origen.clave)) > 0" x-text="'Venta ' + formatNum(ventaPlato(idDeClave(mapa.origen.clave)))"></p>
@@ -3929,7 +3996,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <span class="px-2 py-0.5 rounded border font-bold text-[10px] uppercase" :style="'color:' + rama.color + ';border-color:' + rama.color">Corte Primario</span>
                               <span class="inline-flex items-center gap-1">
                                 <span class="text-[11px] font-mono" :style="'color:' + rama.color" x-text="origenMapa(mapa.id) + ' × ' + rama.corte.factor"></span>
-                                <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + rama.nombre" title="Editar stock" @click="abrirEditarStock(idDeClave(rama.corte.clave))"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(idDeClave(rama.corte.clave)) }, get familiaCuadro() { return idDeClave(mapa.origen.clave) } }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                                  <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                                  <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + rama.nombre" title="Editar stock" @click="abrirEditarStock(idDeClave(rama.corte.clave))"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                                </span>
                               </span>
                             </div>
                             <h3 class="text-sm font-extrabold text-white" x-text="rama.nombre"></h3>
@@ -4058,7 +4128,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="xl:w-56 bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
             <div class="flex items-center justify-between gap-2">
               <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">Origen crudo</span>
-              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pollo Baby" title="Editar stock" @click="abrirEditarStock('pollo_baby')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'pollo_baby' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pollo Baby" title="Editar stock" @click="abrirEditarStock('pollo_baby')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              </span>
             </div>
             <h3 class="text-sm font-extrabold text-white">Pollo Baby</h3>
             <div class="caja-stock">
@@ -4159,7 +4232,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="xl:w-52 bg-[#0a0a0f] border-2 border-[#d4af37] rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
             <div class="flex items-center justify-between gap-2">
               <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
-              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Panceta" title="Editar stock" @click="abrirEditarStock('panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'panceta' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Panceta" title="Editar stock" @click="abrirEditarStock('panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              </span>
             </div>
             <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
             <div class="caja-stock">
@@ -4190,7 +4266,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="xl:w-56 bg-[#0a0a0f] border-2 border-sky-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
             <div class="flex items-center justify-between gap-2">
               <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-200 font-bold text-[10px] uppercase">1 panceta = 6 tiras</span>
-              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Tira de panceta" title="Editar stock" @click="abrirEditarStock('tira_panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'tira_panceta' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Tira de panceta" title="Editar stock" @click="abrirEditarStock('tira_panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              </span>
             </div>
             <div>
               <h3 class="text-sm font-extrabold text-white">Tira de panceta</h3>
@@ -4234,7 +4313,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="xl:w-72 bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3.5 shrink-0 space-y-2.5 shadow-lg">
             <div class="flex items-center justify-between gap-2">
               <span class="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 font-bold text-[10px] uppercase">Corte variable</span>
-              <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pieza de panceta" title="Editar stock" @click="abrirEditarStock('trozo_panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'trozo_panceta' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pieza de panceta" title="Editar stock" @click="abrirEditarStock('trozo_panceta')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              </span>
             </div>
             <h3 class="text-sm font-extrabold text-white">Pieza de panceta</h3>
             <p class="caja-stock-venta text-center" x-show="ventaPlato('trozo_panceta') > 0" x-text="'Venta ' + formatNum(ventaPlato('trozo_panceta'))"></p>
@@ -4340,7 +4422,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
                 <span class="inline-flex items-center gap-1">
                   <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pieza_pescado'))"></strong></span>
-                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pieza de pescado" title="Editar stock" @click="abrirEditarStock('pieza_pescado')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'pieza_pescado' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                    <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                    <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pieza de pescado" title="Editar stock" @click="abrirEditarStock('pieza_pescado')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  </span>
                 </span>
               </div>
               <span class="text-sm font-extrabold text-white block">Pieza de pescado</span>
@@ -4376,7 +4461,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="px-2 py-0.5 rounded bg-[#d4af37] text-[#1a1200] font-extrabold text-[10px] uppercase">Origen Crudo</span>
                 <span class="inline-flex items-center gap-1">
                   <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('pieza_pota'))"></strong></span>
-                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pieza de pota" title="Editar stock" @click="abrirEditarStock('pieza_pota')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'pieza_pota' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                    <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                    <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Pieza de pota" title="Editar stock" @click="abrirEditarStock('pieza_pota')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  </span>
                 </span>
               </div>
               <h3 class="text-sm font-extrabold text-white">Pieza de pota</h3>
@@ -4412,7 +4500,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[10px] uppercase font-bold text-amber-300">Origen Directo</span>
                 <span class="inline-flex items-center gap-1">
                   <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('chicharron_chancho'))"></strong></span>
-                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Chicharrón de chancho" title="Editar stock" @click="abrirEditarStock('chicharron_chancho')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'chicharron_chancho' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                    <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                    <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Chicharrón de chancho" title="Editar stock" @click="abrirEditarStock('chicharron_chancho')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  </span>
                 </span>
               </div>
               <span class="text-sm font-bold text-white block">Chicharrón de chancho crudo</span>
@@ -4443,7 +4534,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="text-[10px] uppercase font-bold text-emerald-300">Origen Directo</span>
                 <span class="inline-flex items-center gap-1">
                   <span class="text-[11px] font-mono text-[#a0a0b8]">Stock hoja: <strong class="text-white" x-text="formatNum(quedanDe('cuy'))"></strong></span>
-                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Cuy" title="Editar stock" @click="abrirEditarStock('cuy')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'cuy' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                    <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                    <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Cuy" title="Editar stock" @click="abrirEditarStock('cuy')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                  </span>
                 </span>
               </div>
               <span class="text-sm font-bold text-white block">Cuy</span>
@@ -4490,7 +4584,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="sm:w-56 bg-[#0a0a0f] border-2 border-emerald-500/70 rounded-xl p-3 shrink-0 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="px-2 py-0.5 rounded bg-emerald-400 text-[#0a0a0f] font-extrabold text-[10px] uppercase">Origen crudo</span>
-                <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Seco de carnero" title="Editar stock" @click="abrirEditarStock('seco_carnero')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'seco_carnero' }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                  <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                  <button type="button" class="btn-lapiz-stock" aria-label="Editar stock de Seco de carnero" title="Editar stock" @click="abrirEditarStock('seco_carnero')"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                </span>
               </div>
               <span class="text-sm font-bold text-white block">Seco de carnero</span>
               <div class="caja-stock">
@@ -4576,7 +4673,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
                     <span class="flex items-center justify-between gap-1">
                       <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
-                      <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + getRow(corteId).nombre" title="Editar stock" @click="abrirEditarStock(corteId)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                      <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(corteId) }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                        <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                        <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + getRow(corteId).nombre" title="Editar stock" @click="abrirEditarStock(corteId)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                      </span>
                     </span>
                     <p class="caja-stock-venta text-center" x-show="ventaPlato(corteId) > 0" x-text="'Venta ' + formatNum(ventaPlato(corteId))"></p>
                     <div class="caja-stock">
@@ -4649,7 +4749,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <div class="bg-[#0a0a0f] border border-[#26263a] rounded-lg px-3 py-2 space-y-1.5">
                   <span class="flex items-center justify-between gap-1">
                     <span class="text-xs font-bold text-white block" x-text="getRow(corteId).nombre"></span>
-                    <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + getRow(corteId).nombre" title="Editar stock" @click="abrirEditarStock(corteId)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                    <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return filaIdDePlatoTransformar(corteId) }, familiaCuadro: '' }" :data-producto-transformar="productoCuadro" tabindex="-1">
+                      <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
+                      <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + getRow(corteId).nombre" title="Editar stock" @click="abrirEditarStock(corteId)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+                    </span>
                   </span>
                   <p class="caja-stock-venta text-center" x-show="ventaPlato(corteId) > 0" x-text="'Venta ' + formatNum(ventaPlato(corteId))"></p>
                   <div class="caja-stock">
@@ -10417,6 +10520,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         saldoRealInfo: null,
         cargandoDatosTabla: false,
         filaResaltadaId: '',
+        filaReveladaTabla: '',
         tabConfig: 'colores',
         filtroColoresTexto: '',
         filtroCategoria: 'todos',
@@ -11672,11 +11776,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             }
           }
           this.activeTab = tab;
-          if (entra || sale) this.cargarKardex();
+          if (tab !== 'tabla') this.filaReveladaTabla = '';
+          const carga = entra || sale ? this.cargarKardex() : null;
           if (tab === 'grafico') this.asegurarChart();
           if (tab === 'platos' && !this.relCuerpoListo) {
             this.$nextTick(() => { this.relCuerpoListo = true; });
           }
+          return carga;
         },
 
         asegurarChart() {
@@ -15374,7 +15480,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               venta += Number(rows[i] && rows[i].ventaCocido) || 0;
             }
           }
-          return [this.busqueda || '', this.ordenHoja || '', this.filtroCategoria || '', this._revHoja || 0, rows.length, venta, this.mostrarPatoFresco ? '1' : '0', this.mostrarPolloFresco ? '1' : '0'].join('\u0001');
+          return [this.busqueda || '', this.ordenHoja || '', this.filtroCategoria || '', this._revHoja || 0, rows.length, venta, this.mostrarPatoFresco ? '1' : '0', this.mostrarPolloFresco ? '1' : '0', this.filaReveladaTabla].join('\u0001');
         },
 
         filasPollo(raiz, troncoDesde, troncoHasta) {
@@ -17588,22 +17694,25 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         async abrirModalAuditoria(row) {
+          if (!row) return;
           this.auditoriaRow = row;
           this.auditoriaResumen = null;
           this.auditoriaMovs = [];
           this.auditoriaFiltroMiembro = 'todos';
           this.auditoriaVerFamilia = false;
-          // Abre con el mismo período de la hoja, para que la apertura sea la columna Saldo ant.
-          const rh = this.rangoPeriodo();
+          // Abre con el período de la sección desde donde se consultó.
+          const periodo = this.periodoVista();
+          const rh = this.rangoVista();
           const fechaPlana = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
-          this.auditoriaFiltroPeriodo = ['hoy', 'ayer', '7dias'].indexOf(this.periodo) !== -1 ? this.periodo : 'hoy';
+          const preset = ['hoy', 'ayer', '7dias'].includes(periodo);
+          this.auditoriaFiltroPeriodo = preset ? periodo : 'hoy';
           this.auditoriaFiltroTipo = 'todos';
           this.auditoriaFiltroClase = 'todos';
           if (!this.showAuditoriaModal) this.sonarVenta('abrir');
           this.auditoriaFechaDesde = this.diaOffset(this.fechaHoy(), -6);
           this.auditoriaFechaHasta = this.fechaHoy();
           // Otro período de días enteros (30 días, mes, rango): se abre como personalizado con esas fechas.
-          if (['hoy', 'ayer', '7dias'].indexOf(this.periodo) === -1 && rh && fechaPlana(rh.desde) && fechaPlana(rh.hasta)) {
+          if (!preset && rh && fechaPlana(rh.desde) && fechaPlana(rh.hasta)) {
             this.auditoriaFiltroPeriodo = 'personalizado';
             this.auditoriaFechaDesde = rh.desde;
             this.auditoriaFechaHasta = rh.hasta;
@@ -18659,6 +18768,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         setOcultarPatoFresco(ocultar) {
+          if (ocultar && this.filaReveladaTabla === 'pato_fresco') this.filaReveladaTabla = '';
           this.mostrarPatoFresco = !ocultar;
           try {
             localStorage.setItem('inventario-tabla-pato-fresco', this.mostrarPatoFresco ? '1' : '0');
@@ -18667,6 +18777,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         setOcultarPolloFresco(ocultar) {
+          if (ocultar && this.filaReveladaTabla === 'pollo_fresco') this.filaReveladaTabla = '';
           this.mostrarPolloFresco = !ocultar;
           try {
             localStorage.setItem('inventario-tabla-pollo-fresco', this.mostrarPolloFresco ? '1' : '0');
@@ -18675,7 +18786,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         filaTablaVisible(row) {
-          if (!row) return true;
+          if (!row || row.id === this.filaReveladaTabla) return true;
           if (!this.mostrarPatoFresco && (row.id === 'pato_fresco' || this.norm(row.nombre) === 'pato fresco')) return false;
           if (!this.mostrarPolloFresco && (row.id === 'pollo_fresco' || this.norm(row.nombre) === 'pollo fresco')) return false;
           return true;
@@ -19097,30 +19208,49 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return corNeg + trans + vtas;
         },
 
-        irAFilaProducto(prodId) {
-          if (!prodId) return;
+        async irAFilaProducto(prodId, familiaId) {
+          if (!prodId && !familiaId) return;
           this.showTransformacionModal = false;
           this.showSaldoRealModal = false;
-          this.irA('tabla');
-          this.limpiarBusqueda();
-          this.filtroCategoria = 'todos';
-          this.expandAllGroups(true);
-          this.filaResaltadaId = prodId;
-          const r = this.getRow(prodId);
-          if (r && r.nombre) {
-            this.toastMessage = '📍 Redirigido a la fila: ' + r.nombre;
+          const carga = this.irA('tabla');
+          this.setFiltroCategoria('todos');
+          if (this.vistaDesfasada()) await carga;
+          if (this.activeTab !== 'tabla' || this.vistaDesfasada()) return;
+
+          const bloqueDe = (id) => {
+            if (!id) return null;
+            this.filaReveladaTabla = id;
+            return this.bloquesHoja().find((bloque) => bloque.filas.some((item) => item.row.id === id));
+          };
+          const propio = bloqueDe(prodId);
+          const id = propio ? prodId : familiaId;
+          const bloque = propio || bloqueDe(familiaId);
+          if (!bloque) {
+            this.filaReveladaTabla = '';
+            this.toastMessage = 'Este producto no tiene una fila visible en Inventario Tabla.';
+            return;
           }
-          setTimeout(() => {
-            const el = document.getElementById('fila-prod-' + prodId);
-            if (el && typeof el.scrollIntoView === 'function') {
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }, 90);
-          setTimeout(() => {
-            if (this.filaResaltadaId === prodId) {
-              this.filaResaltadaId = '';
-            }
-          }, 4200);
+          if (bloque.group) {
+            const grupo = bloque.group;
+            if (!grupo.open) this.toggleGroup(grupo);
+            const arbol = grupo.id === 'pollo' ? this.arbolPollo : this.arbolesGrupo[grupo.id];
+            const abrir = (nodo) => {
+              nodo.open = true;
+              (nodo.children || []).filter((hijo) => !hijo.plato).forEach(abrir);
+            };
+            const raices = arbol ? [arbol] : (this.bosquesGrupo[grupo.id] || []);
+            raices.forEach(abrir);
+            this.tocarHoja();
+          }
+          this.filaResaltadaId = id;
+          this.$nextTick(() => {
+            if (this.activeTab !== 'tabla' || this.filaResaltadaId !== id) return;
+            const fila = document.getElementById('fila-prod-' + id);
+            if (!fila) return;
+            this.enfocarDestinoInventario(fila, fila.querySelector('.btn-ir-transformar'));
+          });
+          clearTimeout(this._resaltadoFilaTimer);
+          this._resaltadoFilaTimer = setTimeout(() => { this.filaResaltadaId = ''; }, 4200);
         },
 
         etiquetaPeriodoSeleccionado() {
@@ -19503,22 +19633,33 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return '';
         },
 
-        irATransformar(row) {
+        enfocarDestinoInventario(elemento, control = elemento) {
+          control?.focus({ preventScroll: true });
+          const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
+          elemento.scrollIntoView({ behavior, block: 'center', inline: 'nearest' });
+        },
+
+        async irATransformar(row, desdeFila = false) {
           if (!row) return;
           const ancla = this.anclaTransformacion(row);
-          if (!ancla) {
+          if (!ancla && !desdeFila) {
             this.abrirModalTransformacion(row);
             return;
           }
           this.showTransformacionModal = false;
-          this.irA('transformar');
-          this.toastMessage = 'Transformar: ' + (row.nombre || '');
-          setTimeout(() => {
-            const el = document.getElementById(ancla);
-            if (el && typeof el.scrollIntoView === 'function') {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          }, 80);
+          const carga = this.irA('transformar');
+          if (this.vistaDesfasada()) await carga;
+          this.$nextTick(() => {
+            if (this.activeTab !== 'transformar' || this.vistaDesfasada()) return;
+            const selector = '[data-producto-transformar="' + CSS.escape(row.id) + '"]';
+            const cuadros = Array.from(document.querySelectorAll(selector)).filter((cuadro) => cuadro.getClientRects().length);
+            const familiar = ancla ? document.getElementById(ancla) : null;
+            const preferido = this.filaPachamanca(row) ? document.getElementById('trans-pachamanca') : familiar;
+            const cuadro = cuadros.find((elemento) => preferido?.contains(elemento)) || cuadros[0];
+            const destino = cuadro || (familiar?.getClientRects().length ? familiar : null);
+            if (destino) this.enfocarDestinoInventario(destino, cuadro);
+            else this.abrirModalTransformacion(row);
+          });
         },
 
         abrirModalTransformacion(row) {
@@ -20518,7 +20659,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return Math.max(0, this.redondear3(total));
         },
 
-        aplicarVariacionIngreso(ctx, cantidad, correccion) {
+        aplicarVariacionIngreso(ctx, cantidad, correccion, comoVenta) {
           if (!cantidad && !correccion) return false;
           const { row, clave, tipo: tipoFinal, corte, destino, motivo } = ctx;
           if (this.productoBloqueado(row.id)) return this.avisoTransformar(row.nombre + ' está bloqueado.');
@@ -20548,10 +20689,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           const ajuste = destino ? this.redondear3(-cantidad - (correccion || 0)) : (correccion || 0);
           if (ajuste) {
-            const campo = this.campoTipo('correccion', tipoFinal);
-            row[campo] = this.redondear3(this.valorTipo(row, 'correccion', tipoFinal) + ajuste);
-            agregar('regulacion', ajuste, destino ? 'Separado · ' + destino.nombre + ' · ' + this.marcaCorte(corte)
-              : 'Ajuste de stock ' + tipoFinal + (corte ? ' · ' + this.marcaCorte(corte) : ''));
+            // Bajar el cuadro por debajo del ingreso de hoy no es una corrección: esa cantidad salió
+            // y tiene que verse en el modal de ventas. Una corrección no dice qué stock se fue.
+            if (comoVenta && ajuste < 0 && !destino) {
+              const n = this.redondear3(-ajuste);
+              const campo = this.campoTipo('venta', tipoFinal);
+              row[campo] = this.redondear3(this.valorTipo(row, 'venta', tipoFinal) + n);
+              agregar('egreso', n, 'Venta manual · baja de stock');
+            } else {
+              const campo = this.campoTipo('correccion', tipoFinal);
+              row[campo] = this.redondear3(this.valorTipo(row, 'correccion', tipoFinal) + ajuste);
+              agregar('regulacion', ajuste, destino ? 'Separado · ' + destino.nombre + ' · ' + this.marcaCorte(corte)
+                : 'Ajuste de stock ' + tipoFinal + (corte ? ' · ' + this.marcaCorte(corte) : ''));
+            }
           }
           row[tipoFinal] = this.calcSaldoTipo(row, tipoFinal);
           this.anotarMovs(movimientos);
@@ -20593,7 +20743,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const ingreso = this.ingresoDirectoPeriodo(id, tipo, corte, sectorId);
           const cambio = diferencia >= 0 ? diferencia : -Math.min(ingreso, -diferencia);
           const correccion = this.redondear3(diferencia - cambio);
-          const guardado = this.aplicarVariacionIngreso(ctx, cambio, correccion);
+          const bajaDeStock = correccion < -0.0004 && !sectorId && !corte;
+          const guardado = this.aplicarVariacionIngreso(ctx, cambio, correccion, bajaDeStock);
           el.dataset.valorAlEnfocar = guardado || !diferencia ? String(this.redondear3(escrito)) : String(actual);
           delete el.dataset.ceroAntesDeEditar;
           this.ajustarCajaDigitos(el);

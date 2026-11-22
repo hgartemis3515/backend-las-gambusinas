@@ -130,14 +130,18 @@ test('subir stock 127 a 129 crea ingreso 2 que se refleja en columna Ingreso', (
     recargar(); expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(2); expect(app.stockCuadro('filete', 'crudo')).toBe(129);
 });
 
-test('bajar stock bajo base elimina ingreso y aplica solo el residual como correccion local', () => {
+test('bajar stock bajo base elimina ingreso y la resta sale en ventas, no como correccion', () => {
     const { app, guardados, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }]); app.registrarIngresoDirecto('filete', 'crudo', input('2'));
     expect(app.fijarStockConIngreso('filete', 'crudo', input('125'))).toBe(true);
     expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0); expect(app.stockCuadro('filete', 'crudo')).toBe(125);
-    expect(app.getRow('filete').ingreso).toBe(127); expect(app.getRow('filete').correccion).toBe(-2);
+    expect(app.getRow('filete').ingreso).toBe(127); expect(app.getRow('filete').correccion).toBe(0); expect(app.getRow('filete').venta).toBe(2);
     expect(guardados.slice(2).filter((m) => m.clase === 'ingreso').reduce((s, m) => s + m.cantidad, 0)).toBe(-2);
-    expect(guardados.slice(2).filter((m) => m.clase === 'regulacion').reduce((s, m) => s + m.cantidad, 0)).toBe(-2);
+    expect(guardados.slice(2).filter((m) => m.clase === 'regulacion')).toEqual([]);
+    expect(guardados.slice(2).find((m) => m.clase === 'egreso')).toMatchObject({ cantidad: 2, motivo: 'Venta manual · baja de stock' });
     recargar(); expect(app.stockCuadro('filete', 'crudo')).toBe(125); expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0);
+    expect(app.getRow('filete').correccion).toBe(0); expect(app.getRow('filete').venta).toBe(2);
+    app.abrirVentaFila(app.filaReal('filete'));
+    expect(app.ventaInfo.lineas.filter((l) => l.manual).reduce((s, l) => s + l.cantidad, 0)).toBe(2);
 });
 
 test('al cambiar periodo el ingreso corresponde a ese periodo y al regresar se reconstruye', () => {
