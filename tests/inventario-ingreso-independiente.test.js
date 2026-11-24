@@ -249,6 +249,63 @@ test.each([
     expect(app.saldoPorcionesArroz(destino)).toBe(0);
 });
 
+describe('arroz blanco y verde se llenan en kg en Transformar', () => {
+    const preparar = (iniciales = [{ rubro: 'arroz', cantidad: 8 }]) => {
+        const e = escenario(iniciales);
+        e.app.encolarMovimientos.mockImplementation((movs) => e.guardados.push(...plain(movs).map((m) => ({ ...m, fecha: m.fechaFija || fechaIngreso }))));
+        return e;
+    };
+
+    test.each([['arrozBlanco', 8], ['arrozVerde', 6]])('Transformar %s: 1 kg son %i porciones y gasta 1 kg de crudo', (campo, factor) => {
+        const { app, recargar } = preparar();
+        const d = app.destinosArroz().find((x) => x.campo === campo);
+        expect(app.fijarIngresoArrozKg(campo, '1')).toBe(true);
+        recargar();
+        expect(app.kgDeArroz(d, app.ingresoTransformaArroz(d))).toBe(1);
+        expect(app.ingresoTransformaArroz(d)).toBe(factor);
+        expect(app.textoPorcionesArroz(d, app.ingresoTransformaArroz(d))).toBe(factor + ' p');
+        expect(app.stockCuadro('arroz', 'crudo')).toBe(7);
+        expect(app.fijarIngresoArrozKg(campo, '1')).toBe(false);
+        expect(app.fijarIngresoArrozKg(campo, '0')).toBe(true);
+        recargar();
+        expect(app.stockCuadro('arroz', 'crudo')).toBe(8);
+        expect(app.saldoPorcionesArroz(d)).toBe(0);
+    });
+
+    test('el stock anterior y el ingreso independiente se escriben en kg y se guardan en porciones', () => {
+        const { app, guardados, recargar } = preparar();
+        const verde = app.destinosArroz().find((x) => x.campo === 'arrozVerde');
+        expect(app.fijarStockAnteriorArrozKg(verde, '0.5')).toBe(true);
+        recargar();
+        expect(app.stockAnteriorArroz(verde)).toBe(3);
+        expect(app.kgDeArroz(verde, app.stockAnteriorArroz(verde))).toBe(0.5);
+        expect(app.fijarStockAnteriorArrozKg(verde, '0.5')).toBe(false);
+        const el = input('2');
+        expect(app.registrarIngresoArrozKg(verde, el)).toBe(true);
+        expect(el.value).toBe('2');
+        recargar();
+        expect(app.ingresoDirectoPeriodo('arroz_verde', 'cocido')).toBe(12);
+        expect(guardados[guardados.length - 1]).toMatchObject({ rubro: 'arroz-verde', cantidad: 12, motivo: 'Ingreso independiente cocido' });
+        expect(app.stockCuadro('arroz', 'crudo')).toBe(8);
+        expect(app.registrarIngresoArrozKg(verde, input('0'))).toBe(true);
+        recargar();
+        expect(app.ingresoDirectoPeriodo('arroz_verde', 'cocido')).toBe(0);
+    });
+
+    test('el HTML muestra kg arriba y porciones abajo, y kg en el stock del arroz crudo', () => {
+        const texto = html.replace(/\r\n/g, '\n');
+        const ini = texto.indexOf('MAPA SEMÁNTICO HORIZONTAL: ARROZ CRUDO');
+        const bloque = texto.slice(ini, texto.indexOf('1. MAPA SEMÁNTICO HORIZONTAL — FAMILIA POLLO FRESCO', ini));
+        const formula = bloque.slice(bloque.indexOf('class="arroz-formula"'), bloque.indexOf('class="caja-stock" x-show="!esArrozPorcion(d)"'));
+        expect(formula).not.toContain('<span class="arroz-unidad">p</span>');
+        expect(formula.match(/<span class="arroz-unidad">kg<\/span>/g)).toHaveLength(5);
+        expect(formula.match(/textoPorcionesArroz\(/g).length).toBeGreaterThanOrEqual(5);
+        expect(formula).toContain('fijarIngresoArrozKg(d.campo, $event.target.value)');
+        expect(formula).toContain('fijarStockAnteriorArrozKg(d, $event.target.value)');
+        expect(bloque).toMatch(/aria-label="Stock actual de arroz crudo en kg"[^>]*>\s*<span class="arroz-unidad caja-stock-unidad">kg<\/span>/);
+    });
+});
+
 test('reescribir cinco porciones corrige 4.998 sin volver a consumir arroz crudo', () => {
     const { app, guardados, recargar } = escenario([
         { rubro: 'arroz', cantidad: 8 },
