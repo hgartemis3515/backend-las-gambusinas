@@ -399,13 +399,26 @@ test('el reporte resta el origen de un pase antiguo de crudo a cocido', () => {
     ]);
 });
 
-test('un saldo insuficiente se muestra como No hay stock y el detalle identifica el faltante', () => {
+test('Queda y su detalle muestran el mismo faltante de una venta manual', () => {
     const app = crearApp();
     pintar(app, [mov('cuy', 'egreso', 1, hora('08:00'), 'Venta manual')]);
     const cuy = app.filaReal('cuy');
-    expect(app.textoQuedaCelda(cuy)).toBe('No hay stock');
+    expect(app.textoQuedaCelda(cuy)).toBe('No hay stock (1)');
     app.abrirModalProcedimientoSaldoReal(cuy);
     expect(app.saldoRealInfo.faltantes).toMatchObject([{ cantidad: 1 }]);
+});
+
+test.each([
+    [0, 9, 'No hay stock (9)'],
+    [4, 9, 'No hay stock (5)'],
+    [9, 9, 'No hay stock'],
+    [10, 9, 1]
+])('Queda con %i Delicias disponibles y %i vendidas muestra %s', (stock, cantidad, esperado) => {
+    const app = crearApp();
+    const movimientos = stock ? [mov('delicias', 'ingreso', stock, hora('08:00'))] : [];
+    const ventas = [{ rubro: 'delicias', cantidad, fecha: hora('13:00'), nombre: 'Delicias', detalle: [] }];
+    pintar(app, movimientos, ventas);
+    expect(app.textoQuedaCelda(app.filaReal('delicias'))).toBe(esperado);
 });
 
 test('el reporte de venta agrupa platos y abre las comandas con el mismo total y el stock utilizado', () => {

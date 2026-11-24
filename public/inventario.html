@@ -17145,7 +17145,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         textoQuedaCelda(row, tipo) {
           const total = this.cifraGrupo(row, 'queda', tipo);
-          return total > 0 ? this.formatNum(total) : 'No hay stock';
+          if (total > 0) return this.formatNum(total);
+          const faltante = -this.faltanteCelda(row, tipo);
+          return faltante > 0 ? 'No hay stock (' + this.formatNum(faltante) + ')' : 'No hay stock';
         },
 
         faltantesStock(row) {
