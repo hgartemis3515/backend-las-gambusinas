@@ -3333,60 +3333,60 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <span class="flex items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
                     <span>1 crudo → <span x-text="config[d.factorKey] || 1"></span> <span x-text="esArrozPorcion(d) ? 'p' : 'kg'"></span></span>
                     <span x-show="!esArrozPorcion(d)">Se usaron <strong class="text-white font-mono" x-text="formatNum(arrozHacia(d))"></strong> de arroz crudo</span>
-                    <span x-show="esArrozPorcion(d)">Se llena en kg; debajo, las porciones. Ingreso agrega kg independientes</span>
+                    <span x-show="esArrozPorcion(d)" x-text="arrozEnKg ? 'Se llena en kg; debajo, las porciones. Ingreso agrega kg independientes' : 'Transformar usa arroz crudo; Ingreso agrega porciones independientes'"></span>
                   </span>
                   <div class="control-ingreso-stock" x-show="esArrozPorcion(d)" x-data="{ ingresoVisible: false }">
                     <button type="button" class="ingreso-chip" x-show="!ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                     <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
                       <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
-                      <div class="caja-stock-step"><input type="number" min="0" step="any" class="ingreso-num" :aria-label="'Ingreso independiente en kg de ' + d.nombre" :value="kgDeArroz(d, ingresoDirectoPeriodo(d.id, tipoArrozDestino(d)))" @input="ajustarCajaDigitos($el)" @change="registrarIngresoArrozKg(d, $event.target)"><span class="arroz-unidad caja-stock-unidad">kg</span></div>
-                      <p class="arroz-kg text-center mt-1" x-text="textoPorcionesArroz(d, ingresoDirectoPeriodo(d.id, tipoArrozDestino(d)))"></p>
+                      <div class="caja-stock-step"><input type="number" min="0" step="any" class="ingreso-num" :aria-label="'Ingreso independiente en ' + (arrozEnKg ? 'kg' : 'porciones') + ' de ' + d.nombre" :value="valorCuadroArroz(d, ingresoDirectoPeriodo(d.id, tipoArrozDestino(d)))" @input="ajustarCajaDigitos($el)" @change="registrarIngresoArrozCuadro(d, $event.target)"><span class="arroz-unidad caja-stock-unidad" x-text="unidadCuadroArroz()"></span></div>
+                      <p class="arroz-kg text-center mt-1" x-text="textoBajoCuadroArroz(d, ingresoDirectoPeriodo(d.id, tipoArrozDestino(d)))"></p>
                     </div>
                   </div>
                   <div class="arroz-formula" x-show="esArrozPorcion(d)">
                     <label class="arroz-campo">
                       <span class="arroz-etiq">Stock</span>
                       <span class="arroz-caja">
-                        <input type="number" min="0" step="any" :aria-label="'Stock anterior en kg de ' + d.nombre" :value="kgDeArroz(d, stockAnteriorArroz(d))" @focus="vaciarSiCero($event)" @change="fijarStockAnteriorArrozKg(d, $event.target.value)">
-                        <span class="arroz-unidad">kg</span>
+                        <input type="number" min="0" step="any" :aria-label="'Stock anterior en ' + (arrozEnKg ? 'kg' : 'porciones') + ' de ' + d.nombre" :value="valorCuadroArroz(d, stockAnteriorArroz(d))" @focus="vaciarSiCero($event)" @change="fijarStockAnteriorArrozCuadro(d, $event.target.value)">
+                        <span class="arroz-unidad" x-text="unidadCuadroArroz()"></span>
                       </span>
-                      <span class="arroz-kg" x-text="textoPorcionesArroz(d, stockAnteriorArroz(d))"></span>
+                      <span class="arroz-kg" x-text="textoBajoCuadroArroz(d, stockAnteriorArroz(d))"></span>
                     </label>
                     <span class="arroz-op" aria-hidden="true">+</span>
                     <label class="arroz-campo">
                       <span class="arroz-etiq">Transformar</span>
                       <span class="arroz-caja arroz-caja-ing">
-                        <input type="number" min="0" step="any" :aria-label="'Transformar kg de arroz crudo en ' + d.nombre" :value="kgDeArroz(d, ingresoTransformaArroz(d))" @focus="vaciarSiCero($event)" @change="fijarIngresoArrozKg(d.campo, $event.target.value)">
-                        <span class="arroz-unidad">kg</span>
+                        <input type="number" min="0" step="any" :aria-label="arrozEnKg ? 'Transformar kg de arroz crudo en ' + d.nombre : 'Transformar arroz crudo en porciones de ' + d.nombre" :value="valorCuadroArroz(d, ingresoTransformaArroz(d))" @focus="vaciarSiCero($event)" @change="fijarIngresoArrozCuadro(d.campo, $event.target.value)">
+                        <span class="arroz-unidad" x-text="unidadCuadroArroz()"></span>
                       </span>
-                      <span class="arroz-kg arroz-kg-ing" x-text="textoPorcionesArroz(d, ingresoTransformaArroz(d))"></span>
+                      <span class="arroz-kg arroz-kg-ing" x-text="textoBajoCuadroArroz(d, ingresoTransformaArroz(d))"></span>
                     </label>
                     <span class="arroz-op" aria-hidden="true">=</span>
                     <div class="arroz-campo">
                       <span class="arroz-etiq">Total</span>
                       <span class="arroz-caja">
-                        <span class="arroz-fijo" x-text="formatNum(kgDeArroz(d, totalPorcionesArroz(d)))"></span>
-                        <span class="arroz-unidad">kg</span>
+                        <span class="arroz-fijo" x-text="formatNum(valorCuadroArroz(d, totalPorcionesArroz(d)))"></span>
+                        <span class="arroz-unidad" x-text="unidadCuadroArroz()"></span>
                       </span>
-                      <span class="arroz-kg" x-text="textoPorcionesArroz(d, totalPorcionesArroz(d))"></span>
+                      <span class="arroz-kg" x-text="textoBajoCuadroArroz(d, totalPorcionesArroz(d))"></span>
                     </div>
                     <span class="arroz-op" aria-hidden="true">−</span>
                     <div class="arroz-campo">
                       <span class="arroz-etiq">Descarga</span>
                       <span class="arroz-caja arroz-caja-venta">
-                        <span class="arroz-fijo" x-text="formatNum(kgDeArroz(d, ventaPorcionesArroz(d)))"></span>
-                        <span class="arroz-unidad">kg</span>
+                        <span class="arroz-fijo" x-text="formatNum(valorCuadroArroz(d, ventaPorcionesArroz(d)))"></span>
+                        <span class="arroz-unidad" x-text="unidadCuadroArroz()"></span>
                       </span>
-                      <span class="arroz-kg arroz-kg-venta" x-text="textoPorcionesArroz(d, ventaPorcionesArroz(d))"></span>
+                      <span class="arroz-kg arroz-kg-venta" x-text="textoBajoCuadroArroz(d, ventaPorcionesArroz(d))"></span>
                     </div>
                     <span class="arroz-op" aria-hidden="true">=</span>
                     <div class="arroz-campo">
                       <span class="arroz-etiq">Saldo</span>
                       <span class="arroz-caja arroz-caja-saldo">
-                        <span class="arroz-fijo" x-text="formatNum(kgDeArroz(d, saldoPorcionesArroz(d)))"></span>
-                        <span class="arroz-unidad">kg</span>
+                        <span class="arroz-fijo" x-text="formatNum(valorCuadroArroz(d, saldoPorcionesArroz(d)))"></span>
+                        <span class="arroz-unidad" x-text="unidadCuadroArroz()"></span>
                       </span>
-                      <span class="arroz-kg" x-text="textoPorcionesArroz(d, saldoPorcionesArroz(d))"></span>
+                      <span class="arroz-kg" x-text="textoBajoCuadroArroz(d, saldoPorcionesArroz(d))"></span>
                       <span class="arroz-kg" x-show="ajustePorcionesArroz(d)" x-text="'Ajuste ' + (ajustePorcionesArroz(d) > 0 ? '+' : '−') + textoPorcionesArroz(d, Math.abs(ajustePorcionesArroz(d)))"></span>
                     </div>
                   </div>
@@ -8328,6 +8328,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <input type="checkbox" class="accent-[#d4af37] w-4 h-4 mt-0.5" :checked="!mostrarIngresosTransformar" @change="setOcultarIngresosTransformar($event.target.checked)">
               <span>Ocultar ingresos de Transformar</span>
             </label>
+            <label class="flex items-start gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4 mt-0.5" :checked="arrozEnKg" @change="setArrozEnKg($event.target.checked)" data-testid="config-arroz-kg">
+              <span>De porciones a kg
+                <span class="block text-[11px] text-[#a0a0b8] font-normal">Marcado: arroz blanco y arroz verde se llenan en kg y las porciones van abajo. Sin marcar: se llenan en porciones, como antes.</span>
+              </span>
+            </label>
           </div>
         </div>
 
@@ -10606,6 +10612,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         mostrarPolloFresco: false,
         mostrarEncabezadoMapa: false,
         mostrarIngresosTransformar: true,
+        // Transformar de arroz blanco y verde: true se llena en kg, false en porciones (como antes).
+        arrozEnKg: true,
         compactView: false,
         soundEnabled: true,
         busqueda: '',
@@ -18936,6 +18944,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.mostrarPolloFresco = ver('inventario-tabla-pollo-fresco');
             this.mostrarEncabezadoMapa = ver('inventario-transformar-encabezado-mapa');
             this.mostrarIngresosTransformar = localStorage.getItem('inventario-transformar-ingresos') !== '0';
+            this.arrozEnKg = localStorage.getItem('inventario-transformar-arroz-kg') !== '0';
+          } catch (e) {}
+        },
+
+        setArrozEnKg(enKg) {
+          this.arrozEnKg = !!enKg;
+          try {
+            localStorage.setItem('inventario-transformar-arroz-kg', this.arrozEnKg ? '1' : '0');
           } catch (e) {}
         },
 
@@ -22338,6 +22354,32 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           this.ajustarCajaDigitos(el);
           return guardado;
+        },
+
+        // Cuadros de arroz blanco y verde según Configuración → Tabla → "De porciones a kg".
+        // Con kg: el número grande es kg y abajo van las porciones. Sin kg: al revés, como antes.
+        unidadCuadroArroz() {
+          return this.arrozEnKg ? 'kg' : 'p';
+        },
+
+        valorCuadroArroz(d, porciones) {
+          return this.arrozEnKg ? this.kgDeArroz(d, porciones) : this.redondear3(Number(porciones) || 0);
+        },
+
+        textoBajoCuadroArroz(d, porciones) {
+          return this.arrozEnKg ? this.textoPorcionesArroz(d, porciones) : this.textoKgArroz(d, porciones);
+        },
+
+        fijarStockAnteriorArrozCuadro(d, valor) {
+          return this.arrozEnKg ? this.fijarStockAnteriorArrozKg(d, valor) : this.fijarStockAnteriorArroz(d, valor);
+        },
+
+        fijarIngresoArrozCuadro(campo, valor) {
+          return this.arrozEnKg ? this.fijarIngresoArrozKg(campo, valor) : this.fijarIngresoArrozPorciones(campo, valor);
+        },
+
+        registrarIngresoArrozCuadro(d, el) {
+          return this.arrozEnKg ? this.registrarIngresoArrozKg(d, el) : this.registrarIngresoDirecto(d.id, this.tipoArrozDestino(d), el);
         },
 
         fijarStockAnteriorArroz(d, valor) {

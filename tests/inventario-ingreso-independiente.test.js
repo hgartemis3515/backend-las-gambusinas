@@ -298,11 +298,53 @@ describe('arroz blanco y verde se llenan en kg en Transformar', () => {
         const bloque = texto.slice(ini, texto.indexOf('1. MAPA SEMÁNTICO HORIZONTAL — FAMILIA POLLO FRESCO', ini));
         const formula = bloque.slice(bloque.indexOf('class="arroz-formula"'), bloque.indexOf('class="caja-stock" x-show="!esArrozPorcion(d)"'));
         expect(formula).not.toContain('<span class="arroz-unidad">p</span>');
-        expect(formula.match(/<span class="arroz-unidad">kg<\/span>/g)).toHaveLength(5);
-        expect(formula.match(/textoPorcionesArroz\(/g).length).toBeGreaterThanOrEqual(5);
-        expect(formula).toContain('fijarIngresoArrozKg(d.campo, $event.target.value)');
-        expect(formula).toContain('fijarStockAnteriorArrozKg(d, $event.target.value)');
+        expect(formula.match(/<span class="arroz-unidad" x-text="unidadCuadroArroz\(\)"><\/span>/g)).toHaveLength(5);
+        expect(formula.match(/textoBajoCuadroArroz\(/g)).toHaveLength(5);
+        expect(formula).toContain('fijarIngresoArrozCuadro(d.campo, $event.target.value)');
+        expect(formula).toContain('fijarStockAnteriorArrozCuadro(d, $event.target.value)');
+        expect(bloque).toContain('registrarIngresoArrozCuadro(d, $event.target)');
         expect(bloque).toMatch(/aria-label="Stock actual de arroz crudo en kg"[^>]*>\s*<span class="arroz-unidad caja-stock-unidad">kg<\/span>/);
+        const config = texto.slice(texto.indexOf('<h3 class="sec-title text-sm">Cuadros de Transformar</h3>'));
+        expect(config.slice(0, config.indexOf('</div>'))).toMatch(/:checked="arrozEnKg" @change="setArrozEnKg\(\$event\.target\.checked\)"[\s\S]*De porciones a kg/);
+    });
+
+    test('"De porciones a kg" sin marcar vuelve a llenar en porciones, como antes', () => {
+        const { app, recargar } = preparar();
+        const blanco = app.destinosArroz().find((x) => x.campo === 'arrozBlanco');
+        expect(app.arrozEnKg).toBe(true);
+        expect(app.unidadCuadroArroz()).toBe('kg');
+        app.setArrozEnKg(false);
+        expect(app.unidadCuadroArroz()).toBe('p');
+        expect(app.fijarIngresoArrozCuadro('arrozBlanco', '4')).toBe(true);
+        recargar();
+        expect(app.ingresoTransformaArroz(blanco)).toBe(4);
+        expect(app.valorCuadroArroz(blanco, app.ingresoTransformaArroz(blanco))).toBe(4);
+        expect(app.textoBajoCuadroArroz(blanco, 4)).toBe('0.5 kg');
+        expect(app.stockCuadro('arroz', 'crudo')).toBe(7.5);
+        expect(app.registrarIngresoArrozCuadro(blanco, input('3'))).toBe(true);
+        recargar();
+        expect(app.ingresoDirectoPeriodo('arroz_blanco', 'cocido')).toBe(3);
+        app.setArrozEnKg(true);
+        expect(app.valorCuadroArroz(blanco, app.ingresoTransformaArroz(blanco))).toBe(0.5);
+        expect(app.textoBajoCuadroArroz(blanco, 4)).toBe('4 p');
+        expect(app.fijarIngresoArrozCuadro('arrozBlanco', '1')).toBe(true);
+        recargar();
+        expect(app.ingresoTransformaArroz(blanco)).toBe(8);
+        expect(app.stockCuadro('arroz', 'crudo')).toBe(7);
+    });
+
+    test('la casilla se guarda en el equipo', () => {
+        const guardado = {};
+        const storage = { getItem: (k) => (k in guardado ? guardado[k] : null), setItem: (k, v) => { guardado[k] = String(v); }, removeItem: (k) => { delete guardado[k]; } };
+        const crear = () => vm.runInNewContext('(' + code.trim() + ')', { window: {}, localStorage: storage, sessionStorage: storage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0 })();
+        const app = crear();
+        app.cargarVistaTablaLocal();
+        expect(app.arrozEnKg).toBe(true);
+        app.setArrozEnKg(false);
+        expect(guardado['inventario-transformar-arroz-kg']).toBe('0');
+        const otra = crear();
+        otra.cargarVistaTablaLocal();
+        expect(otra.arrozEnKg).toBe(false);
     });
 });
 
