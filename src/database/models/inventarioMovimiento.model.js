@@ -17,6 +17,7 @@ const inventarioMovimientoSchema = new mongoose.Schema({
     fecha: { type: Date, required: true, default: Date.now }
 }, { collection: 'inventario_movimientos' });
 
+inventarioMovimientoSchema.index({ fecha: -1 });
 inventarioMovimientoSchema.index({ plato: 1, tipoProducto: 1, fecha: -1 });
 inventarioMovimientoSchema.index({ rubro: 1, tipoProducto: 1, fecha: -1 });
 inventarioMovimientoSchema.index({ reviertePase: 1 }, { unique: true, sparse: true });

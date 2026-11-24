@@ -1,6 +1,7 @@
 'use strict';
 
 const { matchComandasEstadisticas } = require('./estadisticasComandas');
+const { boundsDiaOperativo } = require('./diaOperativoRestaurante');
 const { armarContadorPlatos, fichaDePlato } = require('./contadorPlatosReporte');
 const { claveDe } = require('./inventarioRubros');
 const { semilla, consumoDeFila, leerGuardados } = require('./inventarioMapas');
@@ -678,29 +679,52 @@ function lineasDeComanda(comanda) {
     return lineas;
 }
 
-/**
- * Egresos de venta hasta `hasta`, partidos por día operativo.
- * No se guardan: el kardex los suma y, si la comanda se anula, desaparecen.
- */
-async function egresosVentaHasta(hasta) {
-    try {
-        const Comanda = require('../database/models/comanda.model');
-        const Plato = require('../database/models/plato.model');
-        const Corte = require('../database/models/inventarioCorte.model');
-        const corte = await Corte.findOne({ clave: 'inventario' }).lean();
-        const desde = corte && corte.desde ? new Date(corte.desde) : new Date(0);
-        if (desde > hasta) return { movs: [], ventas: [] };
-        const [comandas, catalogo] = await Promise.all([
-            Comanda.find(matchComandasEstadisticas(desde, hasta))
-                .select('platos cantidades createdAt numeroComandaDia')
-                .populate('platos.plato', 'nombre nombreCocina categoria complementos complementosUnidosAlPlato precio')
-                .lean(),
-            Plato.find({ isActive: { $ne: false } })
-                .select('nombre nombreCocina categoria categorias grupoSos complementos complementosUnidosAlPlato')
-                .lean()
-        ]);
-        const movs = [];
-        const ventas = [];
+const CAMPOS_PLATO = 'nombre nombreCocina categoria categorias grupoSos complementos complementosUnidosAlPlato';
+const CAMPOS_COMANDA = 'platos.plato platos.nombre platos.cantidad platos.subtotal platos.eliminado platos.anulado platos.complementosSeleccionados cantidades createdAt numeroComandaDia';
+
+let cacheHistoriaVentas = null;
+
+function invalidarCacheVentas() {
+    cacheHistoriaVentas = null;
+}
+
+async function ventasEntre(desde, hasta) {
+    if (desde > hasta) return [];
+    const Comanda = require('../database/models/comanda.model');
+    const Plato = require('../database/models/plato.model');
+    const [comandas, catalogo] = await Promise.all([
+        Comanda.find(matchComandasEstadisticas(desde, hasta)).select(CAMPOS_COMANDA).lean(),
+        Plato.find({ isActive: { $ne: false } }).select(CAMPOS_PLATO).lean()
+    ]);
+    const porId = new Map();
+    (catalogo || []).forEach((p) => { if (p && p._id != null) porId.set(String(p._id), p); });
+    const faltan = [];
+    const vistos = new Set();
+    (comandas || []).forEach((c) => {
+        (c.platos || []).forEach((p) => {
+            if (!p || p.plato == null || typeof p.plato === 'object') return;
+            const id = String(p.plato);
+            if (porId.has(id) || vistos.has(id)) return;
+            vistos.add(id);
+            faltan.push(p.plato);
+        });
+    });
+    if (faltan.length) {
+        const extra = await Plato.find({ _id: { $in: faltan } }).select(CAMPOS_PLATO).lean();
+        (extra || []).forEach((p) => {
+            if (!p || p._id == null) return;
+            porId.set(String(p._id), p);
+            catalogo.push(p);
+        });
+    }
+    (comandas || []).forEach((c) => {
+        (c.platos || []).forEach((p) => {
+            if (!p || p.plato == null || typeof p.plato === 'object') return;
+            const ref = porId.get(String(p.plato));
+            if (ref) p.plato = ref;
+        });
+    });
+    const ventas = [];
         let mapasVenta = semilla();
         try {
             mapasVenta = await leerGuardados();
@@ -754,7 +778,75 @@ async function egresosVentaHasta(hasta) {
                 });
             });
         }
-        return { movs, ventas };
+    return ventas;
+}
+
+async function firmaHistoriaVentas(desde, inicio) {
+    const Comanda = require('../database/models/comanda.model');
+    const fin = new Date(inicio.getTime() - 1);
+    const [marca, bajas] = await Promise.all([
+        Comanda.findOne(matchComandasEstadisticas(desde, fin)).sort({ updatedAt: -1 }).select('updatedAt').lean(),
+        Comanda.countDocuments({
+            createdAt: { $gte: desde, $lt: inicio },
+            $or: [
+                { eliminada: true },
+                { fechaEliminacion: { $ne: null } },
+                { status: { $in: ['cancelado', 'cancelada'] } }
+            ]
+        })
+    ]);
+    const marcaMs = marca && marca.updatedAt ? new Date(marca.updatedAt).getTime() : 0;
+    return marcaMs + ':' + bajas;
+}
+
+/**
+ * Egresos de venta hasta `hasta`, partidos por día operativo.
+ * No se guardan: el kardex los suma y, si la comanda se anula, desaparecen.
+ * Lo anterior a hoy se reutiliza; el día de hoy se vuelve a leer.
+ */
+async function egresosVentaHasta(hasta) {
+    try {
+        const Corte = require('../database/models/inventarioCorte.model');
+        const corte = await Corte.findOne({ clave: 'inventario' }).lean();
+        const desde = corte && corte.desde ? new Date(corte.desde) : new Date(0);
+        if (desde > hasta) return { movs: [], ventas: [] };
+        const inicio = boundsDiaOperativo(new Date()).inicio;
+        if (!(desde < inicio && hasta >= inicio)) {
+            return { movs: [], ventas: await ventasEntre(desde, hasta) };
+        }
+        const finHistoria = new Date(inicio.getTime() - 1);
+        const clave = desde.getTime() + ':' + inicio.getTime();
+        const firmaPromise = firmaHistoriaVentas(desde, inicio);
+        const hoyPromise = ventasEntre(inicio, hasta);
+        let guardado = cacheHistoriaVentas && cacheHistoriaVentas.clave === clave ? cacheHistoriaVentas : null;
+        if (!guardado) {
+            const promesa = ventasEntre(desde, finHistoria);
+            guardado = { clave, firma: '', promesa };
+            cacheHistoriaVentas = guardado;
+            promesa.then((ventas) => {
+                if (cacheHistoriaVentas === guardado) guardado.ventas = ventas;
+            }).catch(() => {
+                if (cacheHistoriaVentas === guardado) cacheHistoriaVentas = null;
+            });
+        }
+        const firma = await firmaPromise;
+        if (guardado.firma && guardado.firma !== firma) {
+            const promesa = ventasEntre(desde, finHistoria);
+            guardado = { clave, firma, promesa };
+            cacheHistoriaVentas = guardado;
+            promesa.then((ventas) => {
+                if (cacheHistoriaVentas === guardado) guardado.ventas = ventas;
+            }).catch(() => {
+                if (cacheHistoriaVentas === guardado) cacheHistoriaVentas = null;
+            });
+        } else if (!guardado.firma) {
+            guardado.firma = firma;
+        }
+        const [anteriores, hoy] = await Promise.all([
+            guardado.ventas || guardado.promesa,
+            hoyPromise
+        ]);
+        return { movs: [], ventas: (anteriores || []).concat(hoy) };
     } catch (error) {
         logger.warn('No se pudo cruzar ventas de reportes con inventario', { error: error.message });
         return { movs: [], ventas: [] };
@@ -773,5 +865,6 @@ module.exports = {
     indiceBebidas,
     nombreDeRubro,
     unidadesHumitaPachamanca,
-    egresosVentaHasta
+    egresosVentaHasta,
+    invalidarCacheVentas
 };

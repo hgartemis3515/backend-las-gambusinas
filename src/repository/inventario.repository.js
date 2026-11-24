@@ -8,11 +8,52 @@ const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventario
 const { sanearGuardado } = require('../../public/assets/js/inventarioRelaciones');
 const MapaSemantico = require('../database/models/inventarioMapa.model');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD, ampliarTramoAlDia } = require('../utils/diaOperativoRestaurante');
-const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
+const { egresosVentaHasta, invalidarCacheVentas } = require('../utils/inventarioSalidaVentas');
 const { semillaCocido, validarCocidoConfig, esMateria, perfilRubro } = require('../utils/inventarioCascadaVenta');
 const Rubro = require('../database/models/inventarioRubro.model');
 const Reporte = require('../database/models/inventarioReporte.model');
 const logger = require('../utils/logger');
+
+const SELECT_LIBRO = 'rubro nombre tipoProducto clase cantidad fecha motivo paseTipo reviertePase';
+let cacheMovAntes = null;
+
+function invalidarMovimientosAnteriores(fecha) {
+    if (!cacheMovAntes) return;
+    const t = fecha ? new Date(fecha).getTime() : NaN;
+    if (!Number.isFinite(t) || t < cacheMovAntes.inicioMs) cacheMovAntes = null;
+}
+
+async function movimientosAntesDeHoy(inicio) {
+    const inicioMs = inicio.getTime();
+    if (cacheMovAntes && cacheMovAntes.inicioMs === inicioMs && cacheMovAntes.lista) return cacheMovAntes.lista;
+    if (cacheMovAntes && cacheMovAntes.inicioMs === inicioMs && cacheMovAntes.promesa) return cacheMovAntes.promesa;
+    const promesa = Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lt: inicio } }).select(SELECT_LIBRO).lean();
+    cacheMovAntes = { inicioMs, promesa };
+    try {
+        const lista = await promesa;
+        if (cacheMovAntes && cacheMovAntes.promesa === promesa) cacheMovAntes = { inicioMs, lista };
+        return lista;
+    } catch (error) {
+        if (cacheMovAntes && cacheMovAntes.promesa === promesa) cacheMovAntes = null;
+        throw error;
+    }
+}
+
+async function movimientosLibro(hasta) {
+    const inicio = boundsDiaOperativo(new Date()).inicio;
+    if (hasta < inicio) {
+        const antes = await movimientosAntesDeHoy(inicio);
+        return antes.filter((m) => new Date(m.fecha) <= hasta);
+    }
+    const [antes, recientes] = await Promise.all([
+        movimientosAntesDeHoy(inicio),
+        Movimiento.find({
+            rubro: { $nin: [null, ''] },
+            fecha: { $gte: inicio, $lte: hasta }
+        }).select(SELECT_LIBRO).lean()
+    ]);
+    return antes.concat(recientes);
+}
 
 function rango(desde, hasta, ciclo) {
     const iniStr = String(desde || '').trim();
@@ -225,6 +266,7 @@ async function crearMovimiento(data, usuarioId) {
         usuario: usuarioId && mongoose.Types.ObjectId.isValid(usuarioId) ? usuarioId : null,
         fecha: paseTipo ? new Date() : fechaMovimiento(data.fecha)
     });
+    invalidarMovimientosAnteriores(doc.fecha);
     if (paseTipo) {
         avisarAlertas();
         return doc.toObject();
@@ -296,9 +338,7 @@ function porClave(lista) {
 async function filasCartaEn(desde, hasta) {
     const mapas = await leerGuardados().catch(() => []);
     const [guardados, ventasPack, umbrales, opciones] = await Promise.all([
-        Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
-            .select('rubro nombre tipoProducto clase cantidad fecha motivo paseTipo reviertePase')
-            .lean(),
+        movimientosLibro(hasta),
         egresosVentaHasta(hasta),
         umbralesRubro(),
         opcionesCocido()
@@ -356,7 +396,6 @@ async function cerrarDiaSiToca(fecha) {
 
 async function kardexCarta(desdeStr, hastaStr, ciclo) {
     const operativo = String(ciclo) === '04';
-    if (operativo) await cerrarDiaSiToca(diaAnterior(ymdOperativo()));
     const pedido = (desdeStr || hastaStr)
         ? rango(desdeStr, hastaStr || desdeStr, ciclo)
         : hoy();
@@ -365,6 +404,11 @@ async function kardexCarta(desdeStr, hastaStr, ciclo) {
         filasCartaEn(desde, hasta),
         MapaSemantico.findOne({ clave: claveDescuadresOmitidos(desde, hasta) }).select('descuadresOmitidos').lean()
     ]);
+    const ayer = operativo ? diaAnterior(ymdOperativo()) : '';
+    const mismoDia = desdeStr && desdeStr === (hastaStr || desdeStr) ? String(desdeStr) : '';
+    if (ayer && mismoDia !== ayer) {
+        cerrarDiaSiToca(ayer).catch((error) => logger.error('Inventario', { error: error.message }));
+    }
     const data = { desde, hasta, filas, carta: await cartaConMapas(), ventas, cocidoOpciones, descuadresOmitidos: doc?.descuadresOmitidos || [] };
     if (operativo && desdeStr && desdeStr === (hastaStr || desdeStr)) {
         const fecha = String(desdeStr);
@@ -465,6 +509,7 @@ async function guardarRelaciones(body) {
         { $set: { relaciones: guardado.manuales, quitadas: guardado.quitadas } },
         { upsert: true, new: true }
     );
+    invalidarCacheVentas();
     return guardado;
 }
 
@@ -578,6 +623,7 @@ async function guardarMapas(lista) {
         { $set: { mapas } },
         { upsert: true, new: true }
     );
+    invalidarCacheVentas();
     return mapas;
 }
 
@@ -757,6 +803,7 @@ async function eliminarVentaManual({ lote, ids }) {
     const docs = await Movimiento.find(filtro)
         .select('nombre rubro tipoProducto clase cantidad motivo lote fecha')
         .lean();
+    docs.forEach((d) => invalidarMovimientosAnteriores(d.fecha));
     const anulados = [];
     let sectorRestaurado = '';
     for (const doc of docs) {
@@ -821,5 +868,6 @@ module.exports = {
     eliminarHoy,
     eliminarVentaManual,
     ponerEnCero,
-    avisarAlertas
+    avisarAlertas,
+    invalidarMovimientosAnteriores
 };

@@ -29,7 +29,8 @@ function modeloEnMemoria(docs) {
     jest.spyOn(Rubro, 'find').mockImplementation(() => cadena([]));
     jest.spyOn(Movimiento, 'find').mockImplementation(({ clase, rubro: clave, fecha }) => cadena(docs.filter((m) => (
         (!clase || m.clase === clase) && (typeof clave !== 'string' || m.rubro === clave) &&
-        (!fecha?.$gte || m.fecha >= fecha.$gte) && (!fecha?.$lte || m.fecha <= fecha.$lte)
+        (!fecha?.$gte || m.fecha >= fecha.$gte) && (!fecha?.$lte || m.fecha <= fecha.$lte) &&
+        (!fecha?.$gt || m.fecha > fecha.$gt) && (!fecha?.$lt || m.fecha < fecha.$lt)
     ))));
     jest.spyOn(Movimiento, 'findById').mockImplementation((id) => cadena(docs.find((m) => String(m._id) === String(id))));
     jest.spyOn(Movimiento, 'exists').mockImplementation(async ({ reviertePase }) => docs.some((m) => String(m.reviertePase) === String(reviertePase)));
@@ -44,7 +45,10 @@ function modeloEnMemoria(docs) {
     });
 }
 
-beforeEach(() => jest.useFakeTimers({ now: hora('12:00') }));
+beforeEach(() => {
+    inventario.invalidarMovimientosAnteriores();
+    jest.useFakeTimers({ now: hora('12:00') });
+});
 afterEach(() => {
     jest.clearAllTimers();
     jest.useRealTimers();
