@@ -1283,12 +1283,35 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .arroz-caja input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .arroz-unidad { font-size: 13px; font-weight: 800; color: #d4af37; }
     .caja-stock-unidad { padding-right: 0.4rem; flex: none; }
-    /* En kg los números traen decimales (0.625): cada cuadro queda del ancho de porciones y la letra se achica. */
-    .arroz-formula-kg .arroz-campo { width: 3.4rem; min-width: 3.4rem; max-width: 3.4rem; }
-    .arroz-formula-kg .arroz-caja { max-width: 100%; padding: 2px 3px; gap: 1px; overflow: hidden; }
-    main .arroz-formula-kg .arroz-caja input[type="number"] { min-width: 0 !important; max-width: 2.5rem !important; font-size: 14px !important; padding: 2px 0 !important; }
-    .arroz-formula-kg .arroz-fijo { font-size: 14px; min-width: 0; }
-    .arroz-formula-kg .arroz-unidad { font-size: 10px; }
+    /* Reparte el espacio de la fórmula entre los números sin ensanchar la tarjeta. */
+    .arroz-formula-kg {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(calc(3.4rem + 4.8px), 1fr) auto) minmax(calc(3.4rem + 4.8px), 1fr);
+      gap: 3px;
+      align-items: start;
+    }
+    .arroz-formula-kg .arroz-campo { min-width: 0; contain: inline-size; }
+    .arroz-formula-kg .arroz-caja {
+      box-sizing: border-box;
+      width: 100%;
+      flex-direction: column;
+      gap: 0;
+      padding: 3px 0;
+    }
+    main .arroz-formula-kg .arroz-caja input[type="number"],
+    .arroz-formula-kg .arroz-fijo {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      padding: 0 !important;
+      font-size: 18px !important;
+      line-height: 1.25;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+    .arroz-formula-kg .arroz-fijo { overflow-x: auto; white-space: nowrap; }
+    .arroz-formula-kg .arroz-unidad { font-size: 12px; line-height: 1.1; }
+    .arroz-formula-kg .arroz-op { align-self: center; padding-bottom: 0; }
     .arroz-caja-ing .arroz-unidad { color: #34d399; }
     .arroz-caja-venta .arroz-unidad, .arroz-kg-venta { color: #fb7185; }
     .arroz-fijo { font-weight: 800; font-size: 20px; color: #fff; min-width: 2.2rem; text-align: center; font-variant-numeric: tabular-nums; }
