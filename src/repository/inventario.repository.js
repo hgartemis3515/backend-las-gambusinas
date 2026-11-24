@@ -310,7 +310,7 @@ async function opcionesCocido() {
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
         const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada'];
-        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'caldo-pollo', 'seco-cordero', 'pachamanca-pollo-pecho', 'tamal-chancho', 'tamal-pollo', 'pollada'];
+        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'caldo-pollo', 'seco-cordero', 'pachamanca-pollo', 'pachamanca-pollo-pecho', 'tamal-chancho', 'tamal-pollo', 'pollada'];
         if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
             if (!esMateria(d.clave) && !reservaClave) reservaClave = 'pechuga-pollo';

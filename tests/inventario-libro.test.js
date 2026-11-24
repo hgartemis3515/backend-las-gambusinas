@@ -82,6 +82,25 @@ test('la fórmula de cada fila llega exactamente a Queda', () => {
     expect(f.saldoInicial + f.ingresoBruto - f.egreso - f.venta + f.cubierta - f.transformacion + f.regulacion + f.ajuste).toBe(f.sinTope);
 });
 
+test('la descarga a personal, beata, evento y rio lindo no entra al ingreso', () => {
+    const ymd = '2026-11-24';
+    const movs = [
+        mov('octavo-pollo', 'ingreso', 10, hora(ymd, '08:00'), 'Ingreso inicial · pecho'),
+        mov('octavo-pollo', 'ingreso', 4, hora(ymd, '08:30'), 'Ingreso independiente crudo · pecho'),
+        mov('octavo-pollo', 'ingreso', 26, hora(ymd, '09:00'), 'Ingreso independiente crudo · Sector Personal · pecho'),
+        mov('octavo-pollo', 'regulacion', -26, hora(ymd, '09:00'), 'Separado · Personal · pecho'),
+        mov('octavo-pollo', 'ingreso', 20, hora(ymd, '10:00'), 'Ingreso independiente crudo · Sector Beata · pierna'),
+        mov('octavo-pollo', 'regulacion', -20, hora(ymd, '10:00'), 'Separado · Beata · pierna'),
+        mov('octavo-pollo', 'ingreso', 30, hora(ymd, '11:00'), 'Ingreso independiente crudo · Sector Evento · pecho'),
+        mov('octavo-pollo', 'regulacion', -30, hora(ymd, '11:00'), 'Separado · Evento · pecho'),
+        mov('octavo-pollo', 'ingreso', 50, hora(ymd, '12:00'), 'Ingreso independiente crudo · Sector Rio Lindo · pierna'),
+        mov('octavo-pollo', 'regulacion', -50, hora(ymd, '12:00'), 'Separado · Rio Lindo · pierna')
+    ];
+    const f = fila(dia(ymd, movs), 'octavo-pollo');
+    expect(f).toMatchObject({ ingresoBruto: 14, regulacion: 0, queda: 14, sinTope: 14 });
+    expect(f.saldoInicial + f.ingresoBruto - f.egreso - f.venta + f.cubierta - f.transformacion + f.regulacion + f.ajuste).toBe(f.sinTope);
+});
+
 test('en un rango de varios días la fórmula también cierra, con el faltante como ajuste', () => {
     const movs = [mov('trucha', 'ingreso', 2, hora('2026-11-10', '09:00')), mov('trucha', 'ingreso', 5, hora('2026-11-11', '09:00'))];
     const ventas = [venta('trucha', 4, hora('2026-11-10', '12:00'))];

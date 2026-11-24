@@ -68,6 +68,12 @@ function esPaseTransformacion(motivo) {
     return m.indexOf('Pasa a ') === 0 && !esPaseEntreTipos(m);
 }
 
+// Beata, Personal, Evento y Rio Lindo son descarga. El cuadro anota el ingreso
+// y lo separa en el mismo momento: no es mercadería que entró.
+function esDescargaSector(motivo) {
+    return /·\s*Sector\s+(?:Beata|Personal|Evento|Eventos|Rio Lindo)\b/i.test(String(motivo || ''));
+}
+
 const otroTipo = (tipo) => tipo === 'cocido' ? 'crudo' : 'cocido';
 
 // Los pases nuevos se guardan en la entrada. Los antiguos guardaban entrada y salida por separado.
@@ -345,6 +351,10 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
         }
         c.mov += n;
         if (!enVentana) return;
+        if (esDescargaSector(m.motivo)) {
+            c.w.regulacion += n;
+            return;
+        }
         c.w.ingresos += n;
         if (esPaseTransformacion(m.motivo)) c.w.pase -= n;
     };
@@ -503,4 +513,4 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
     return { filas, ventas: salida };
 }
 
-module.exports = { armarLibro, esApertura, esConteo, esPaseTransformacion, indexarPases, otroTipo };
+module.exports = { armarLibro, esApertura, esConteo, esPaseTransformacion, esDescargaSector, indexarPases, otroTipo };

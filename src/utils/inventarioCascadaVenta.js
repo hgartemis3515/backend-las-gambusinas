@@ -89,7 +89,7 @@ function perfilRubro(clave, opcion) {
     if (c === 'carnero') tieneCocido = true;
     if (c === 'menu' || c === 'menu-pecho' || c === 'menu-pierna') tieneCocido = false;
     if (c === 'arroz-pollo' || c === 'pollo-olla' || c === 'caldo-pollo') tieneCocido = true;
-    if (c === 'seco-cordero' || c === 'pachamanca-pollo-pecho') tieneCocido = true;
+    if (c === 'seco-cordero' || c === 'pachamanca-pollo-pecho' || c === 'pachamanca-pollo') tieneCocido = true;
     if (c === 'pollada') {
         tieneCocido = true;
         soloCocido = false;

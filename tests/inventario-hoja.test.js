@@ -225,6 +225,21 @@ test('un día sin datos deja la fila en 0 en vez de repetir el período anterior
     expect(app.saldoRealColumna(app.filaReal('cuy'))).toBe(0);
 });
 
+test('Pierna no junta el cocido de pachamanca dentro del crudo', () => {
+    const app = crearApp();
+    pintar(app, [
+        mov('pachamanca-pollo', 'ingreso', 30, horaAyer('09:00'), 'Ingreso inicial', 'crudo'),
+        mov('pachamanca-pollo', 'ingreso', 33, horaAyer('09:00'), 'Ingreso inicial', 'cocido')
+    ]);
+    const pierna = app.filaReal('pierna');
+    const pacha = app.filaReal('pollo_pachamanca');
+    expect(pacha).toMatchObject({ saldoAnterior: 30, saldoAnteriorCocido: 33, tieneCocido: true });
+    expect(pierna.tieneCocido).toBeFalsy();
+    const fila = app.documentoImpresionHoja().match(/<tr class="fila[^"]*">(?:(?!<\/tr>).)*>Pierna de Pollo<(?:(?!<\/tr>).)*<\/tr>/)[0];
+    expect(fila).not.toMatch(/Cocido/);
+    expect(fila).toMatch(/<span class="v">63<\/span>/);
+});
+
 test('Pierna suma la apertura visible y su ingreso sin volver a contar el pase a Pollada', () => {
     const app = crearApp();
     pintar(app, [
@@ -916,7 +931,7 @@ describe('Procedimiento saldo real de Octavo de pollo', () => {
         expect(JSON.stringify(fila.cortesOctavo)).toBe(inicial);
         expect(app.octavosVisibles()).toEqual(stock);
         app.abrirDesgloseGrupo(fila, 'ingresoTotal');
-        expect(app.desgloseGrupo.filas.find((f) => f.id === fila.id).cortes.map((c) => c.texto)).toContain('Sin separar 176');
+        expect(app.desgloseGrupo.filas.find((f) => f.id === fila.id).cortes.map((c) => c.texto)).toEqual(['Pierna 146', 'Pecho 60']);
     });
 
     const textos = (lista) => lista.map((c) => c.texto);
@@ -931,15 +946,14 @@ describe('Procedimiento saldo real de Octavo de pollo', () => {
         const info = app.construirProcedimientoSaldoReal(row);
         expect(textos(info.pasos[0].cortes)).toEqual(['Pierna 60', 'Pecho 30']);
         const saldoQueda = info.quedaSaldoReal;
-        const esperado = ['Pierna 60', 'Pecho 30'];
-        if (saldoQueda > 90) esperado.push('Sin separar ' + app.formatNum(saldoQueda - 90));
+        const esperado = ['Pierna 60', 'Pecho ' + (saldoQueda > 90 ? app.formatNum(30 + saldoQueda - 90) : '30')];
         if (saldoQueda < 90) esperado.push('Salió sin corte −' + app.formatNum(90 - saldoQueda));
         expect(textos(info.cortesSueltas)).toEqual(esperado);
     });
 
     test('lo que las marcas no explican se dice aparte', () => {
         const app = crearApp();
-        expect(textos(app.cortesDeSaldoOctavo({ pierna: 60, pecho: 30 }, 100))).toEqual(['Pierna 60', 'Pecho 30', 'Sin separar 10']);
+        expect(textos(app.cortesDeSaldoOctavo({ pierna: 60, pecho: 30 }, 100))).toEqual(['Pierna 60', 'Pecho 40']);
         expect(textos(app.cortesDeSaldoOctavo({ pierna: 60, pecho: 30 }, 80))).toEqual(['Pierna 60', 'Pecho 30', 'Salió sin corte −10']);
     });
 

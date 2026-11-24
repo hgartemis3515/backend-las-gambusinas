@@ -8,10 +8,10 @@ const TZ = 'America/Lima';
 const RETENCION_DIAS = 7;
 const FORMATO = 'gambusinas-archivo-caja';
 const VERSION = 1;
-const HORA_LUNES = 4;
 
 const COLECCIONES = [
-    { clave: 'comandas', fecha: 'createdAt', etiqueta: 'Comandas' },
+    // El inventario calcula las ventas históricas a partir de esta colección.
+    { clave: 'comandas', fecha: 'createdAt', etiqueta: 'Comandas', soloExportar: true },
     { clave: 'historialComandas', fecha: 'createdAt', etiqueta: 'Historial de comandas' },
     { clave: 'pedidos', fecha: 'createdAt', etiqueta: 'Pedidos' },
     { clave: 'ticketsAprobacion', fecha: 'createdAt', etiqueta: 'Tickets de aprobación' },
@@ -26,17 +26,18 @@ const COLECCIONES = [
 ];
 
 const NUNCA_BORRA = [
+    'comandas de MongoDB y data/comandas.json',
     'platos',
     'categorías y complementos',
     'cocina (zonas, vistas, pantallas, perfiles)',
     'usuarios y roles',
     'mesas y áreas',
     'configuración y personalización',
+    'todo el inventario',
 ];
 
 /** Copias en data/ que crecen con la operación. El resto de esa carpeta no se toca. */
 const ARCHIVOS_JSON_PURGA = [
-    { clave: 'comandas', archivo: 'comandas.json', fecha: 'createdAt' },
     { clave: 'bouchers', archivo: 'boucher.json', fecha: 'createdAt' },
     { clave: 'auditoria', archivo: 'auditoria.json', fecha: 'timestamp' },
     { clave: 'clientes', archivo: 'clientes.json', soloIds: true },
@@ -46,20 +47,6 @@ const RESERVAS_CERRADAS = ['rechazada', 'completada', 'cancelada'];
 
 function corteAntiguedad(ahora = new Date(), dias = RETENCION_DIAS) {
     return moment(ahora).tz(TZ).subtract(dias, 'days').toDate();
-}
-
-function lunesDeSemana(ahora = new Date()) {
-    return moment(ahora).tz(TZ).startOf('isoWeek').format('YYYY-MM-DD');
-}
-
-/** Lunes a las 04:00 Lima, o al encender si ese lunes ya pasó y no corrió. */
-function debeExportarSemanal(ahora = new Date(), ultimoLunesYmd = null) {
-    const lima = moment(ahora).tz(TZ);
-    const umbral = lima.clone().startOf('isoWeek').hour(HORA_LUNES).minute(0).second(0).millisecond(0);
-    if (lima.isBefore(umbral)) return false;
-    const clave = lima.clone().startOf('isoWeek').format('YYYY-MM-DD');
-    if (!ultimoLunesYmd) return true;
-    return String(ultimoLunesYmd) < clave;
 }
 
 function fechaDe(doc, campo) {
@@ -176,14 +163,11 @@ module.exports = {
     RETENCION_DIAS,
     FORMATO,
     VERSION,
-    HORA_LUNES,
     COLECCIONES,
     NUNCA_BORRA,
     ARCHIVOS_JSON_PURGA,
     RESERVAS_CERRADAS,
     corteAntiguedad,
-    lunesDeSemana,
-    debeExportarSemanal,
     fechaDe,
     inicioDia,
     finDia,

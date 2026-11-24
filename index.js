@@ -803,8 +803,6 @@ server.listen(port, '0.0.0.0', async ()=> {
   try {
     const entregaAutomaticaSalioService = require('./src/services/entregaAutomaticaSalioService');
     entregaAutomaticaSalioService.iniciarBarridoEntregaAutomatica();
-    const archivoCajaService = require('./src/services/archivoCaja.service');
-    archivoCajaService.iniciarArchivoCajaSemanal();
     const noticiasImagenesTemporales = require('./src/services/noticiasImagenesTemporales');
     noticiasImagenesTemporales.iniciarBarridoImagenesNoticia();
   } catch (error) {

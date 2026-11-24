@@ -284,6 +284,41 @@ test('plato por corte puede revertir cocido sin consumir octavo ni crudo', () =>
     expect(app.stockOctavoPlato('arroz_con_pollo', 'pechugas', 'cocido')).toBe(0); expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(5); expect(app.stockCuadro('arroz_con_pollo', 'crudo')).toBe(0);
 });
 
+test('la descarga de personal, beata, evento y rio lindo no entra en el ingreso', () => {
+    const { app, recargar } = escenario([{ rubro: 'octavo-pollo', cantidad: 10, motivo: 'Ingreso inicial · pecho' }]);
+    expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('26'), 'pechugas', 'personal')).toBe(true);
+    expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('20'), 'piernas', 'beata')).toBe(true);
+    expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('30'), 'pechugas', 'eventos')).toBe(true);
+    expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('50'), 'piernas', 'rio-lindo')).toBe(true);
+    expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('4'), 'pechugas')).toBe(true);
+    const libro = recargar();
+    const fila = libro.filas.find((f) => f.rubro === 'octavo-pollo' && f.tipoProducto === 'crudo');
+    expect(fila).toMatchObject({ ingresoBruto: 14, regulacion: 0, queda: 14, sinTope: 14 });
+    expect(fila.saldoInicial + fila.ingresoBruto - fila.egreso - fila.venta + fila.cubierta - fila.transformacion + fila.regulacion + fila.ajuste).toBe(fila.sinTope);
+    const octavo = app.filaReal('octavo_pollo');
+    expect(app.ingresoAnotadoTipo(octavo, 'crudo')).toBe(14);
+    expect(app.cifraIngresoTabla(octavo, 'ingreso')).toBe(14);
+    expect(app.cifraIngresoTabla(octavo, 'ingresoTotal')).toBe(14);
+    expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas', 'personal')).toBe(26);
+    expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'piernas', 'beata')).toBe(20);
+    expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'pechugas', 'eventos')).toBe(30);
+    expect(app.ingresoDirectoPeriodo('octavo_pollo', 'crudo', 'piernas', 'rio-lindo')).toBe(50);
+    expect(app.octavosEnDestino('personal', 'pechugas')).toBe(26);
+    expect(app.octavosEnDestino('beata', 'piernas')).toBe(20);
+    expect(app.octavosStockCorte('pechugas')).toBe(14);
+    expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(14);
+    const origen = app.origenIngresoDe(octavo);
+    expect(origen.anotado).toBe(14);
+    expect(origen.lineas.some((l) => /Sector/.test(l.texto))).toBe(false);
+    expect(app.ingresoMarcadoOctavo(octavo, 'pechugas')).toBe(14);
+    expect(app.ingresoMarcadoOctavo(octavo, 'piernas')).toBe(0);
+    expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('0'), 'pechugas', 'personal')).toBe(true);
+    recargar();
+    expect(app.ingresoAnotadoTipo(app.filaReal('octavo_pollo'), 'crudo')).toBe(14);
+    expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(14);
+    expect(app.octavosEnDestino('personal', 'pechugas')).toBe(0);
+});
+
 test('sectores editan total propio sin consumir libre ni afectar otro sector o ventas', () => {
     const { app, guardados, recargar } = escenario([{ rubro: 'octavo-pollo', cantidad: 5, motivo: 'Ingreso inicial · pecho' }]);
     app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('1'), 'pechugas', 'beata'); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('3'), 'pechugas', 'beata'); app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('2'), 'pechugas', 'personal');

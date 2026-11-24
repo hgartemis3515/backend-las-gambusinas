@@ -32,7 +32,7 @@ router.get('/archivo-caja', (req, res) => {
 
 router.post('/archivo-caja/exportar', async (req, res) => {
     try {
-        if (req.body && req.body.confirmar !== true) {
+        if (req.body?.confirmar !== true) {
             return res.status(400).json({ success: false, error: 'Confirme la exportación' });
         }
         const data = await archivo.exportarYPurgar({ motivo: 'manual' });

@@ -261,6 +261,80 @@ test('el ajuste historico se fecha al inicio del dia seleccionado incluso con ra
     expect(app.filaReal('filete').saldoAnterior).toBe(7);
 });
 
+test('editar stock de octavo deja los 30 como pecho y no como sin separar', async () => {
+    const { app, recargar } = escenario([
+        mov('octavo-pollo', 24, ayer, 'crudo', 'Ingreso · pecho'),
+        mov('octavo-pollo', 6, ayer, 'crudo', 'Ingreso inicial')
+    ]);
+    const textos = (columna, total) => app.cortesDeFilaOctavo('octavo_pollo', app.filaReal('octavo_pollo'), columna, total).map((c) => c.texto);
+    const row = () => app.filaReal('octavo_pollo');
+    expect(textos('ingresoTotal', app.calcIngresoTotal(row()))).toEqual(['Pierna 0', 'Pecho 30']);
+    app.abrirEditarStockFila(row());
+    expect(app.editarStock).toMatchObject({ modo: 'apertura', pecho: 30, pierna: 0 });
+    expect(await app.guardarModalStock()).toBe(true);
+    recargar();
+    expect(app.octavosStockCorte('pechugas')).toBe(30);
+    expect(app.octavosStockCorte('piernas')).toBe(0);
+    expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(30);
+    expect(textos('queda', app.saldoRealColumna(row()))).toEqual(['Pierna 0', 'Pecho 30']);
+    expect(textos('saldoAnterior', app.saldoAnteriorColumna(row()))).toEqual(['Pierna 0', 'Pecho 30']);
+    expect(textos('ingresoTotal', app.calcIngresoTotal(row())).join(' ')).not.toMatch(/Sin separar/);
+});
+
+test('editar stock y saldo anterior de pachamanca no los cambia por otros numeros', async () => {
+    const { app, recargar, guardados } = escenario([mov('pachamanca-pollo', 27, ayer)]);
+    app.filasTransformacionDe = function (row) {
+        if (!row) return [];
+        const clavePadre = this.claveDeFila[row.id];
+        const vistos = new Set();
+        const out = [];
+        this.platosDirectosDe(row.id).forEach((n) => {
+            if (this.esPlatoRepetidoDeLena(n)) return;
+            const hijo = this.filaReal(n.id);
+            if (!hijo || hijo.id === row.id) return;
+            const clave = this.claveDeFila[hijo.id];
+            if (clave && clavePadre && clave === clavePadre) return;
+            if (vistos.has(clave || hijo.id)) return;
+            vistos.add(clave || hijo.id);
+            out.push(hijo);
+        });
+        return out;
+    };
+    app.abrirEditarStockFila(app.filaReal('pierna'));
+    const pacha = () => app.editarStock.lineas.find((l) => l.id === 'pollo_pachamanca');
+    expect(pacha()).toMatchObject({ crudo: 27, cocido: 0, tieneCocido: true });
+    pacha().crudo = 30; pacha().cocido = 33;
+    app.cambiarModoEditarStock('stock');
+    expect(pacha()).toMatchObject({ crudo: 30, cocido: 33 });
+    expect(await app.guardarModalStock()).toBe(true);
+    recargar();
+    const row = app.filaReal('pollo_pachamanca');
+    expect(row).toMatchObject({ saldoAnterior: 30, saldoAnteriorCocido: 33 });
+    expect(app.stockCuadro('pollo_pachamanca', 'crudo')).toBe(30);
+    expect(app.stockCuadro('pollo_pachamanca', 'cocido')).toBe(33);
+    expect(app.cifraGrupo(app.filaReal('pierna'), 'queda', 'crudo')).toBe(30);
+    expect(app.cifraGrupo(app.filaReal('pierna'), 'queda', 'cocido')).toBe(33);
+    expect(guardados.some((m) => m.tipoProducto === 'cocido' && m.cantidad === 33)).toBe(true);
+});
+
+test('pachamanca pierna conserva 30 crudos y 33 cocidos en saldo anterior y queda', async () => {
+    const { app, recargar } = escenario();
+    app.abrirEditarStock('pollo_pachamanca');
+    expect(app.editarStock).toMatchObject({ tieneCocido: true, crudo: 0, cocido: 0 });
+    app.editarStock.crudo = 30;
+    app.editarStock.cocido = 33;
+    expect(await app.guardarModalStock()).toBe(true);
+    recargar();
+    const row = app.filaReal('pollo_pachamanca');
+    expect(row).toMatchObject({ saldoAnterior: 30, saldoAnteriorCocido: 33 });
+    expect(app.stockCuadro('pollo_pachamanca', 'crudo')).toBe(30);
+    expect(app.stockCuadro('pollo_pachamanca', 'cocido')).toBe(33);
+    expect(app.cifraGrupo(row, 'saldoAnterior', 'crudo')).toBe(30);
+    expect(app.cifraGrupo(row, 'saldoAnterior', 'cocido')).toBe(33);
+    expect(app.cifraGrupo(row, 'queda', 'crudo')).toBe(30);
+    expect(app.cifraGrupo(row, 'queda', 'cocido')).toBe(33);
+});
+
 test('texto largo conserva las marcas de corte y el limite del modelo', async () => {
     const { app, guardados } = escenario();
     app.abrirEditarStock('pollo_olla'); app.editarStock.lineas[0].pecho.crudo = 3; app.editarStock.lineas[0].pierna.crudo = 4;

@@ -5,15 +5,12 @@ const {
     FORMATO,
     VERSION,
     RETENCION_DIAS,
-    HORA_LUNES,
     TZ,
     COLECCIONES,
     NUNCA_BORRA,
     ARCHIVOS_JSON_PURGA,
     RESERVAS_CERRADAS,
     corteAntiguedad,
-    lunesDeSemana,
-    debeExportarSemanal,
     nombreSeguro,
     nombreArchivo,
     validarPaquete,
@@ -42,7 +39,6 @@ const MODELOS = {
 };
 
 let cola = Promise.resolve();
-let timer = null;
 
 function enSerie(fn) {
     const run = cola.then(fn, fn);
@@ -117,12 +113,12 @@ async function borrarIds(Model, ids) {
     return n;
 }
 
-async function idsClienteVivos() {
+async function idsClienteVivos(corte) {
     const vivos = new Set();
     const tomar = async (clave, campoFecha) => {
         const Model = MODELOS[clave]();
         const ids = await Model.distinct('cliente', {
-            [campoFecha]: { $gte: corteAntiguedad() },
+            [campoFecha]: { $gte: corte },
             cliente: { $ne: null },
         });
         for (const id of ids) {
@@ -139,27 +135,16 @@ async function recolectar(corte) {
     const colecciones = {};
     const porBorrar = {};
     for (const def of COLECCIONES) {
-        if (def.clave === 'clientes' || def.clave === 'historialComandas') continue;
+        if (def.clave === 'clientes') continue;
         const Model = MODELOS[def.clave]();
         const q = { [def.fecha]: { $lt: corte } };
         if (def.clave === 'reservas') q.estado = { $in: RESERVAS_CERRADAS };
         const docs = await Model.find(q).lean();
         colecciones[def.clave] = docs;
-        porBorrar[def.clave] = docs.map((d) => d._id);
+        porBorrar[def.clave] = def.soloExportar ? [] : docs.map((d) => d._id);
     }
 
-    const Hist = MODELOS.historialComandas();
-    const histPorFecha = await Hist.find({ createdAt: { $lt: corte } }).lean();
-    const idsComanda = (colecciones.comandas || []).map((d) => d._id);
-    const histPorComanda = idsComanda.length
-        ? await Hist.find({ comandaId: { $in: idsComanda } }).lean()
-        : [];
-    const histMap = new Map();
-    for (const d of histPorFecha.concat(histPorComanda)) histMap.set(String(d._id), d);
-    colecciones.historialComandas = [...histMap.values()];
-    porBorrar.historialComandas = colecciones.historialComandas.map((d) => d._id);
-
-    const vivos = await idsClienteVivos();
+    const vivos = await idsClienteVivos(corte);
     const Cliente = MODELOS.clientes();
     const candidatos = await Cliente.find({
         $or: [
@@ -186,10 +171,10 @@ function resumenConteos(colecciones) {
 async function exportarYPurgar({ motivo = 'manual' } = {}) {
     return enSerie(async () => {
         asegurarDir();
-        const corte = corteAntiguedad();
+        const ahora = new Date();
+        const corte = corteAntiguedad(ahora);
         const { colecciones, porBorrar } = await recolectar(corte);
         const conteos = resumenConteos(colecciones);
-        const ahora = new Date();
         const archivo = nombreArchivo(ahora);
         const paquete = {
             formato: FORMATO,
@@ -208,13 +193,16 @@ async function exportarYPurgar({ motivo = 'manual' } = {}) {
         const borrados = {};
         if (conteos.total > 0) {
             for (const def of COLECCIONES) {
+                if (def.soloExportar) {
+                    borrados[def.clave] = 0;
+                    continue;
+                }
                 const Model = MODELOS[def.clave]();
                 borrados[def.clave] = await borrarIds(Model, porBorrar[def.clave] || []);
             }
         }
         const jsonData = recortarArchivosData(corte, porBorrar);
         const estado = guardarEstado({
-            ultimoLunes: motivo === 'lunes' ? lunesDeSemana(ahora) : leerEstado().ultimoLunes || null,
             ultimaExportacion: ahora.toISOString(),
             ultimoArchivo: archivo,
             ultimoMotivo: motivo,
@@ -277,24 +265,6 @@ async function importar(paquete, { desde, hasta } = {}) {
     });
 }
 
-async function revisarLunes() {
-    const estado = leerEstado();
-    if (!debeExportarSemanal(new Date(), estado.ultimoLunes)) return null;
-    return exportarYPurgar({ motivo: 'lunes' });
-}
-
-function iniciarArchivoCajaSemanal() {
-    if (timer) return;
-    const tick = () => {
-        revisarLunes().catch((e) => {
-            logger.error('Archivo de caja semanal falló', { error: e.message });
-        });
-    };
-    timer = setInterval(tick, 10 * 60 * 1000);
-    if (typeof timer.unref === 'function') timer.unref();
-    setTimeout(tick, 8000);
-}
-
 function recortarArchivosData(corte, porBorrar) {
     const resultado = [];
     for (const def of ARCHIVOS_JSON_PURGA) {
@@ -340,11 +310,18 @@ function planPublico() {
     return {
         retencionDias: RETENCION_DIAS,
         zona: TZ,
-        horaLunes: HORA_LUNES,
+        modo: 'manual',
+        disparador: 'Solo al pulsar «Exportar ahora y purgar +7 días» y confirmar.',
         carpeta: 'EXPORTADOS',
         formato: FORMATO,
-        colecciones: COLECCIONES.map((c) => ({ clave: c.clave, etiqueta: c.etiqueta, fecha: c.fecha })),
+        colecciones: COLECCIONES.map(({ clave, etiqueta, fecha, soloExportar }) => ({
+            clave,
+            etiqueta,
+            fecha,
+            purga: !soloExportar,
+        })),
         nuncaBorra: NUNCA_BORRA,
+        comandas: 'Se conservan en MongoDB y data/comandas.json porque inventario.html calcula las ventas con ellas.',
         reservas: 'Solo reservas rechazadas, completadas o canceladas. Las pendientes o activas se quedan.',
         clientes: 'Solo clientes sin comanda, pedido o voucher de los últimos 7 días.',
         jsonData: ARCHIVOS_JSON_PURGA.map((a) => a.archivo),
@@ -361,7 +338,5 @@ module.exports = {
     exportarYPurgar,
     verificar,
     importar,
-    revisarLunes,
-    iniciarArchivoCajaSemanal,
     planPublico,
 };
