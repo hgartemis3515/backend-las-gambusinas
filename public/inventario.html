@@ -3384,7 +3384,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <p class="caja-stock-venta text-center" x-show="ventaPlato(d.id) > 0" x-text="'Venta ' + formatNum(ventaPlato(d.id))"></p>
                   <span class="flex items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
                     <span>1 crudo → <span x-text="config[d.factorKey] || 1"></span> <span x-text="esArrozPorcion(d) ? 'p' : 'kg'"></span></span>
-                    <span x-show="!esArrozPorcion(d)">Se usaron <strong class="text-white font-mono" x-text="formatNum(arrozHacia(d))"></strong> de arroz crudo</span>
+                    <span x-show="!esArrozPorcion(d)">Se usaron <strong class="text-white font-mono" x-text="formatNum(arrozHacia(d)) + ' kg'"></strong> de arroz crudo</span>
                     <span x-show="esArrozPorcion(d)" x-text="arrozEnKg ? 'Se llena en kg; debajo, las porciones. Ingreso agrega kg independientes' : 'Transformar usa arroz crudo; Ingreso agrega porciones independientes'"></span>
                   </span>
                   <div class="control-ingreso-stock" x-show="esArrozPorcion(d)" x-data="{ ingresoVisible: false }">
@@ -3447,12 +3447,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                       <div class="caja-stock-step">
                         <input type="number" min="0" step="any" :aria-label="(esArrozDescarga(d) ? 'Descarga de ' : 'Stock de ') + d.nombre" :value="esArrozDescarga(d) ? kgDescargaArroz(d) : porcionesArroz(d)" @focus="vaciarSiCero($event)" @change="esArrozDescarga(d) ? fijarDescargaArroz(d.campo, $event.target.value) : fijarStockArrozTipo(d.campo, $event.target.value)">
+                        <span class="arroz-unidad caja-stock-unidad" x-show="esArrozDescarga(d)">kg</span>
                       </div>
                       <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ((esArrozDescarga(d) ? 'Descarga de ' : 'Stock de ') + d.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                       <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
                         <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
                         <div class="caja-stock-step">
                           <input type="number" class="ingreso-num" min="0" step="any" :value="ingresoDirectoPeriodo(d.id, tipoArrozDestino(d))" :data-ingreso="['directo', d.id, tipoArrozDestino(d)].join('|')" @change="registrarIngresoDirecto(d.id, tipoArrozDestino(d), $event.target)" :aria-label="'Ingreso: ' + ((esArrozDescarga(d) ? 'Descarga de ' : 'Stock de ') + d.nombre)" @input="ajustarCajaDigitos($el)">
+                          <span class="arroz-unidad caja-stock-unidad" x-show="esArrozDescarga(d)">kg</span>
                         </div>
                       </div>
                     </div>
