@@ -41,7 +41,10 @@ test.each([false, true])('lapiz desde tabla=%s establece saldo anterior y total 
     const { app, guardados, recargar } = escenario([mov('filete', 127, ayer), mov('filete', 1, hoy, 'crudo', 'Ingreso independiente crudo'), mov('pechuga-pollo', 40, ayer)]);
     const row = app.filaReal('filete');
     const otros = plain(app.rows.filter((r) => r.id !== 'filete'));
-    if (tabla) app.abrirEditarStockFila(row); else app.abrirEditarStock('filete');
+    if (tabla) {
+        app.abrirEditarStockFila(row);
+        app.cambiarModoEditarStock('stock');
+    } else app.abrirEditarStock('filete');
     expect(app.editarStock.crudo).toBe(128);
     app.editarStock.crudo = 100;
     expect(app.redondear3(app.stockEditarNuevo() - app.stockEditarAntes())).toBe(-28);
@@ -56,6 +59,19 @@ test.each([false, true])('lapiz desde tabla=%s establece saldo anterior y total 
     recargar();
     expect(row.saldoAnterior).toBe(99);
     expect(app.stockCuadro('filete', 'crudo')).toBe(100);
+});
+
+test('el lápiz de Inventario Tabla abre en Saldo anterior; el de Transformar en Stock restante', () => {
+    const { app } = escenario([mov('filete', 20, ayer), mov('filete', 5, hoy), mov('pechuga-pollo', 40, ayer)]);
+    app.abrirEditarStockFila(app.filaReal('filete'));
+    expect(app.editarStock.modo).toBe('apertura');
+    expect(app.editarStock.crudo).toBe(20);
+    app.abrirEditarStockFila(app.filaReal('pechuga'));
+    expect(app.editarStock.modo).toBe('apertura');
+    app.abrirEditarStockFila(app.filaReal('octavo_pollo'));
+    expect(app.editarStock).toMatchObject({ octavo: true, modo: 'apertura' });
+    app.abrirEditarStock('filete');
+    expect(app.editarStock.modo).toBeUndefined();
 });
 
 test.each([false, true])('edita directamente el saldo anterior desde tabla=%s con ingresos y ventas', async (tabla) => {

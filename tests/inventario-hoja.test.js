@@ -1043,16 +1043,15 @@ describe('productos con grupo en la tabla', () => {
         expect(app.encolarMovimientos.mock.calls[0][0][0]).toMatchObject({ rubro: 'octavo-pollo', cantidad: 8, motivo: 'Ingreso independiente crudo · pierna' });
     });
 
-    test('no guarda un ingreso vacío ni resta más de lo ingresado independientemente', () => {
+    test('no guarda un ingreso sin cambios ni un ingreso negativo', () => {
         const { app, pierna } = preparar();
         app.abrirIngresoGrupo(pierna);
         expect(app.guardarIngresoGrupo()).toBe(false);
         app.ingresoGrupo.lineas[0].cuadros[0].valor = '-3';
         expect(app.guardarIngresoGrupo()).toBe(false);
-        expect(app.ingresoGrupo.error).toMatch(/Puedes quitar hasta 0/);
+        expect(app.ingresoGrupo.error).toMatch(/no puede ser negativo/);
         expect(app.encolarMovimientos).not.toHaveBeenCalled();
     });
-
     test('la lupa de Ingreso separa lo ingresado de lo transformado en todo el grupo', () => {
         const { app, pierna } = preparar();
         app.movimientosPeriodo = app.movimientosPeriodo.filter((m) => new Date(m.fecha) >= new Date(hora('04:00')));

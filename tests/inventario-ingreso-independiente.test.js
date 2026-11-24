@@ -78,7 +78,10 @@ test('el modal de Pecho reduce y quita su ingreso sin reducir el saldo que ya ex
 
     let cuadro = abrir();
     expect(cuadro.ya).toBe(8);
-    cuadro.valor = '-3';
+    // Al abrir, el cuadro muestra lo ya ingresado y no hay cambios.
+    expect(cuadro.valor).toBe('8');
+    expect(app.hayCambiosIngresoGrupo()).toBe(false);
+    cuadro.valor = '5';
     expect(app.stockPrevistoIngresoGrupo()).toBe(app.ingresoGrupo.stockAntes - 3);
     expect(app.guardarIngresoGrupo()).toBe(true);
     recargar();
@@ -86,7 +89,8 @@ test('el modal de Pecho reduce y quita su ingreso sin reducir el saldo que ya ex
 
     cuadro = abrir();
     expect(cuadro.ya).toBe(5);
-    cuadro.valor = -cuadro.ya;
+    expect(cuadro.valor).toBe('5');
+    cuadro.valor = '0';
     expect(app.guardarIngresoGrupo()).toBe(true);
     recargar();
     expect(app.stockCuadro('pechuga', 'crudo')).toBe(20);
@@ -97,16 +101,45 @@ test('el modal de Pecho reduce y quita su ingreso sin reducir el saldo que ya ex
     );
 });
 
+test('30 cocidos de Pecho pachamanca se ven al reabrir el modal y 0 los revierte', () => {
+    const { app, recargar } = escenario([{ rubro: 'pechuga-pollo', cantidad: 20 }]);
+    app.activeTab = 'tabla';
+    const fila = () => app.filaReal('pecho_pachamanca');
+    const abrir = () => {
+        app.abrirIngresoGrupo(app.filaReal('pechuga'));
+        const linea = app.ingresoGrupo.lineas.find((l) => l.id === 'pecho_pachamanca');
+        return linea.cuadros.find((c) => c.tipo === 'cocido');
+    };
+    expect(fila().tieneCocido).toBe(true);
+    const antes = app.calcSaldoTipo(fila(), 'cocido');
+    let cuadro = abrir();
+    expect(cuadro.valor).toBe('0');
+    cuadro.valor = '30';
+    expect(app.guardarIngresoGrupo()).toBe(true);
+    expect(app.calcSaldoTipo(fila(), 'cocido')).toBe(antes + 30);
+    recargar();
+    cuadro = abrir();
+    expect(cuadro.ya).toBe(30);
+    expect(cuadro.valor).toBe('30');
+    expect(app.hayCambiosIngresoGrupo()).toBe(false);
+    cuadro.valor = '0';
+    expect(app.guardarIngresoGrupo()).toBe(true);
+    recargar();
+    expect(app.calcSaldoTipo(fila(), 'cocido')).toBe(antes);
+    expect(abrir().valor).toBe('0');
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(20);
+});
+
 test('los cambios de ingreso en dos productos pueden sumar cero y guardarse igual', () => {
     const { app, guardados } = escenario([{ rubro: 'pechuga-pollo', cantidad: 4, motivo: 'Ingreso independiente crudo' }]);
     app.activeTab = 'tabla';
     app.abrirIngresoGrupo(app.filaReal('pechuga'));
     const [principal, otro] = app.ingresoGrupo.lineas;
-    principal.cuadros[0].valor = '-5';
+    principal.cuadros[0].valor = '-1';
     otro.cuadros[0].valor = '2';
     expect(app.guardarIngresoGrupo()).toBe(false);
     expect(guardados).toHaveLength(1);
-    principal.cuadros[0].valor = '-2';
+    principal.cuadros[0].valor = '2';
     expect(app.totalIngresoGrupo()).toBe(0);
     expect(app.hayCambiosIngresoGrupo()).toBe(true);
     expect(app.guardarIngresoGrupo()).toBe(true);

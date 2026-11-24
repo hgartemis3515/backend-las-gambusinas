@@ -1062,6 +1062,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .btn-acceso-stock:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
     .btn-acceso-stock:disabled { opacity: 0.4; cursor: default; }
     .btn-kardex-transformar { color: #fbbf24; }
+    .btn-acceso-stock.btn-dm-cuadro { width: auto; min-width: 1.55rem; padding: 0 0.3rem; font-size: 10px; font-weight: 800; line-height: 1; letter-spacing: 0.03em; }
     .btn-ir-inventario { color: #4ade80; border-color: #22c55e; }
     .btn-ir-transformar { color: #7dd3fc; border-color: #38bdf8; }
     .acciones-cuadro-stock { display: inline-flex; align-items: center; flex-shrink: 0; gap: 4px; }
@@ -2188,6 +2189,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     @click.stop="abrirModalAuditoria(filaReal(productoCuadro) || filaReal(familiaCuadro))" :aria-label="'Kardex de ' + nombreFila(productoCuadro || familiaCuadro)" title="Kardex">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icono-acceso-kardex"/></svg>
   </button>
+  <button type="button" class="btn-acceso-stock btn-dm-venta btn-dm-cuadro" :disabled="!filaReal(productoCuadro) && !filaReal(familiaCuadro)"
+    @click.stop="abrirVentaManual(filaReal(productoCuadro) || filaReal(familiaCuadro))" :aria-label="'Descarga manual de ' + nombreFila(productoCuadro || familiaCuadro)" title="Descarga manual: resta cocido, luego crudo y luego la reserva">DM</button>
   <button type="button" class="btn-acceso-stock btn-ir-inventario" :disabled="!filaReal(productoCuadro) && !filaReal(familiaCuadro)"
     @click.stop="irAFilaProducto(productoCuadro, familiaCuadro)" :aria-label="'Ir a Inventario Tabla: ' + nombreFila(productoCuadro || familiaCuadro)" title="Ir a Inventario Tabla">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icono-acceso-abajo"/></svg>
@@ -4117,7 +4120,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                   <div class="caja-stock-step">
-                                    <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'cocido')" @change="fijarStockConIngreso(idDeClave(rama.corte.clave), 'cocido', $event.target)">
+                                    <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'cocido')" @change="cuadroPaseCocido(idDeClave(rama.corte.clave), $event.target)">
                                   </div>
                                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + rama.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -9175,7 +9178,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <div class="min-w-0">
             <p class="text-[11px] uppercase tracking-wider font-bold text-emerald-300">Ingresar stock</p>
             <h3 class="text-xl font-extrabold text-white truncate" x-text="ingresoGrupo.nombre"></h3>
-            <p class="text-xs text-[#a0a0b8] mt-0.5">Escribe una cantidad para sumar, o usa el signo menos (−) para reducir el ingreso del período.</p>
+            <p class="text-xs text-[#a0a0b8] mt-0.5">Cada cuadro muestra lo que ya ingresaste en el período. Escribe el ingreso total: súbelo para sumar o pon 0 para quitar lo ingresado.</p>
             <p x-show="ingresoGrupo.diaPasado" class="text-xs text-amber-200 mt-1">Estás viendo un día pasado: se guardará al cierre de ese día.</p>
           </div>
           <button type="button" class="shrink-0 w-8 h-8 rounded-lg text-[#a0a0b8] hover:text-white hover:bg-[#26263a] text-xl leading-none cursor-pointer" @click="cerrarModalGrupo('ingresoGrupo')" aria-label="Cerrar">×</button>
@@ -9202,11 +9205,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <template x-for="c in l.cuadros" :key="c.key">
                   <div>
                     <label class="block text-xs font-bold text-emerald-200"><span x-text="c.etiqueta"></span>
-                      <input type="number" step="any" placeholder="0" class="ingreso-grupo-input ingreso-grupo-input-grande" :aria-label="'Ajustar ingreso ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
+                      <input type="number" min="0" step="any" :placeholder="formatNum(c.ya)" class="ingreso-grupo-input ingreso-grupo-input-grande" :aria-label="'Ingreso ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
                     </label>
                     <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#a0a0b8]">
-                      <span x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '')"></span>
-                      <button type="button" x-show="c.ya > 0" class="rounded px-1.5 py-1 font-semibold text-red-200 hover:bg-red-900 cursor-pointer" :aria-label="'Quitar ingreso ' + c.etiqueta + ' de ' + l.nombre" @click="c.valor = -c.ya; ingresoGrupo.error = ''">Quitar ingreso</button>
+                      <span x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '') + (cantidadIngresoGrupo(c) ? ' · cambio ' + (cantidadIngresoGrupo(c) > 0 ? '+' : '−') + formatNum(Math.abs(cantidadIngresoGrupo(c))) : '')"></span>
+                      <button type="button" x-show="c.ya > 0" class="rounded px-1.5 py-1 font-semibold text-red-200 hover:bg-red-900 cursor-pointer" :aria-label="'Quitar ingreso ' + c.etiqueta + ' de ' + l.nombre" @click="c.valor = '0'; ingresoGrupo.error = ''">Quitar ingreso</button>
                     </div>
                   </div>
                 </template>
@@ -9232,11 +9235,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <template x-for="c in l.cuadros" :key="c.key">
                       <div>
                         <label class="block text-[11px] font-semibold text-emerald-200"><span x-text="c.etiqueta"></span>
-                          <input type="number" step="any" placeholder="0" class="ingreso-grupo-input" :aria-label="'Ajustar ingreso ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
+                          <input type="number" min="0" step="any" :placeholder="formatNum(c.ya)" class="ingreso-grupo-input" :aria-label="'Ingreso ' + c.etiqueta + ' de ' + l.nombre" x-model="c.valor">
                         </label>
                         <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-[10px] text-[#a0a0b8]">
-                          <span x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '')"></span>
-                          <button type="button" x-show="c.ya > 0" class="rounded px-1.5 py-1 font-semibold text-red-200 hover:bg-red-900 cursor-pointer" :aria-label="'Quitar ingreso ' + c.etiqueta + ' de ' + l.nombre" @click="c.valor = -c.ya; ingresoGrupo.error = ''">Quitar ingreso</button>
+                          <span x-text="'Hay ' + formatNum(c.hay) + (c.ya ? ' · ya ingresaste ' + formatNum(c.ya) : '') + (cantidadIngresoGrupo(c) ? ' · cambio ' + (cantidadIngresoGrupo(c) > 0 ? '+' : '−') + formatNum(Math.abs(cantidadIngresoGrupo(c))) : '')"></span>
+                          <button type="button" x-show="c.ya > 0" class="rounded px-1.5 py-1 font-semibold text-red-200 hover:bg-red-900 cursor-pointer" :aria-label="'Quitar ingreso ' + c.etiqueta + ' de ' + l.nombre" @click="c.valor = '0'; ingresoGrupo.error = ''">Quitar ingreso</button>
                         </div>
                       </div>
                     </template>
@@ -17273,17 +17276,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Cada cuadro guarda igual que los ingresos de Transformar, para que ambas pantallas coincidan.
+        // El cuadro abre con lo ya ingresado en el período. Se escribe el ingreso total:
+        // 30 → 40 suma 10; 30 → 0 revierte los 30.
         lineaIngresoGrupo(fila, row) {
           const tipos = this.tiposDe(fila);
-          const cuadro = (tipo, corte, etiqueta) => ({
-            key: fila.id + '|' + tipo + '|' + (corte || ''),
-            tipo,
-            corte,
-            etiqueta,
-            hay: this.hayCuadroIngreso(fila, tipo, corte),
-            ya: this.ingresoDirectoPeriodo(fila.id, tipo, corte),
-            valor: ''
-          });
+          const cuadro = (tipo, corte, etiqueta) => {
+            const ya = this.ingresoDirectoPeriodo(fila.id, tipo, corte);
+            return {
+              key: fila.id + '|' + tipo + '|' + (corte || ''),
+              tipo,
+              corte,
+              etiqueta,
+              hay: this.hayCuadroIngreso(fila, tipo, corte),
+              ya,
+              valor: String(ya)
+            };
+          };
           const cuadros = [];
           if (this.esFilaOctavo(row)) {
             ['piernas', 'pechugas'].forEach((corte) => tipos.forEach((tipo) => {
@@ -17324,13 +17332,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.sonarVenta('abrir');
           if (this.$nextTick) this.$nextTick(() => {
             const campo = typeof document !== 'undefined' && document.querySelector('[data-testid="modal-ingreso-grupo"] input');
-            if (campo) campo.focus({ preventScroll: true });
+            if (campo) {
+              campo.focus({ preventScroll: true });
+              if (typeof campo.select === 'function') campo.select();
+            }
           });
         },
 
+        // Ingreso total escrito en el cuadro. Vacío o inválido deja el que ya había.
+        objetivoIngresoGrupo(cuadro) {
+          if (!cuadro) return 0;
+          const texto = String(cuadro.valor == null ? '' : cuadro.valor).trim();
+          const n = Number(texto);
+          if (texto === '' || !Number.isFinite(n)) return Number(cuadro.ya) || 0;
+          return this.redondear3(n);
+        },
+
+        // Cambio que aplica el cuadro: ingreso escrito menos lo ya ingresado.
         cantidadIngresoGrupo(cuadro) {
-          const n = Number(cuadro && cuadro.valor);
-          return Number.isFinite(n) ? this.redondear3(n) : 0;
+          if (!cuadro) return 0;
+          return this.redondear3(this.objetivoIngresoGrupo(cuadro) - (Number(cuadro.ya) || 0));
         },
 
         hayCambiosIngresoGrupo() {
@@ -17368,24 +17389,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             info.error = 'Escribe al menos una cantidad.';
             return false;
           }
-          for (const { linea, cuadro, cantidad } of cambios) {
-            if (cantidad >= 0) continue;
-            cuadro.ya = this.ingresoDirectoPeriodo(linea.id, cuadro.tipo, cuadro.corte);
-            if (-cantidad > cuadro.ya) {
-              info.error = 'Puedes quitar hasta ' + this.formatNum(cuadro.ya) + ' del ingreso de ' + linea.nombre + ' (' + cuadro.etiqueta + ') en este período.';
+          for (const { linea, cuadro } of cambios) {
+            if (this.objetivoIngresoGrupo(cuadro) < 0) {
+              info.error = 'El ingreso de ' + linea.nombre + ' (' + cuadro.etiqueta + ') no puede ser negativo. Pon 0 para quitar todo lo ingresado.';
               return false;
             }
           }
           info.error = '';
           let pendientes = false;
-          for (const { linea, cuadro, cantidad } of cambios) {
+          for (const { linea, cuadro } of cambios) {
+            // Se compara con lo guardado ahora, no con lo que había al abrir.
+            const objetivo = this.objetivoIngresoGrupo(cuadro);
+            cuadro.ya = this.ingresoDirectoPeriodo(linea.id, cuadro.tipo, cuadro.corte);
+            const cantidad = this.redondear3(objetivo - cuadro.ya);
+            if (!cantidad) {
+              cuadro.valor = String(cuadro.ya);
+              continue;
+            }
             const ctx = this.contextoIngresoDirecto(linea.id, cuadro.tipo, cuadro.corte);
             if (!ctx || !this.aplicarVariacionIngreso(ctx, cantidad, 0)) {
               pendientes = true;
               continue;
             }
-            cuadro.valor = '';
             cuadro.ya = this.ingresoDirectoPeriodo(linea.id, cuadro.tipo, cuadro.corte);
+            cuadro.valor = String(cuadro.ya);
             cuadro.hay = this.hayCuadroIngreso(ctx.row, cuadro.tipo, cuadro.corte);
             linea.hay = this.saldoRealColumna(ctx.row);
           }
@@ -18276,8 +18303,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return linea;
         },
 
+        // En Inventario Tabla el lápiz abre siempre en Saldo anterior. Stock restante queda en el selector.
         abrirEditarStockFila(row) {
           if (!row) return;
+          this.abrirEditarStockFilaBase(row);
+          const f = this.editarStock;
+          if (f && f.abierto && f.desdeTabla && !f.sector) this.cambiarModoEditarStock('apertura');
+        },
+
+        abrirEditarStockFilaBase(row) {
           // Octavo de pollo se edita por pecho y pierna, con sus platos debajo.
           if (this.esFilaOctavo(row)) return this.abrirEditarOctavo(true);
           const hijos = this.filasTransformacionDe(row);

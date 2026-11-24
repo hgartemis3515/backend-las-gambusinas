@@ -242,3 +242,48 @@ describe.each([['pollo_baby', 'pollo-baby'], ['seco_carnero', 'seco-cordero']])(
         expect(app.stockCuadro(id, 'cocido')).toBe(3);
     });
 });
+
+describe.each([['pechuga_pato', 'pechuga-pato'], ['pierna_pato', 'pierna-pato']])('cuadro de cocido de %s en el mapa de pato', (id, rubro) => {
+    const conCocido = () => {
+        const e = escenario([[rubro, 20]]);
+        e.app.aplicarOpcionesCocido([{ clave: 'pechuga-pato', tieneCocido: true }, { clave: 'pierna-pato', tieneCocido: true }]);
+        e.recargar();
+        return e;
+    };
+
+    test('el cuadro cocido del mapa de pato pasa desde crudo', () => {
+        const texto = html.replace(/\r\n/g, '\n');
+        const ini = texto.indexOf('MAPAS DEL EDITOR: PATO FRESCO');
+        const fin = texto.indexOf('<!-- RAMA DE PLATOS', ini);
+        expect(texto.slice(ini, fin)).toContain(`@change="cuadroPaseCocido(idDeClave(rama.corte.clave), $event.target)"`);
+    });
+
+    test('20 crudos y 4 a cocido dejan 16 crudos y 4 cocidos', async () => {
+        const { app, recargar, nuevos } = conCocido();
+        expect(app.tienePaseCocido(id)).toBe(true);
+        const el = input(4);
+        expect(await app.cuadroPaseCocido(id, el)).toBe(true);
+        expect(el.value).toBe('4');
+        expect(app.stockCuadro(id, 'crudo')).toBe(16);
+        expect(nuevos().some((m) => /independiente/.test(m.motivo))).toBe(false);
+        recargar();
+        expect(app.stockCuadro(id, 'crudo')).toBe(16);
+        expect(app.stockCuadro(id, 'cocido')).toBe(4);
+    });
+});
+
+test('los cuadros de Transformar llevan el botón DM junto al Kardex y abren la descarga manual', () => {
+    const texto = html.replace(/\r\n/g, '\n');
+    const ini = texto.indexOf('<template x-ref="accesosCuadroStock">');
+    const plantilla = texto.slice(ini, texto.indexOf('</template>', ini));
+    const kardex = plantilla.indexOf('btn-kardex-transformar');
+    const dm = plantilla.indexOf('btn-dm-cuadro');
+    expect(kardex).toBeGreaterThan(-1);
+    expect(dm).toBeGreaterThan(kardex);
+    expect(dm).toBeLessThan(plantilla.indexOf('btn-ir-inventario'));
+    expect(plantilla).toContain('abrirVentaManual(filaReal(productoCuadro) || filaReal(familiaCuadro))');
+    const { app } = escenario(base);
+    app.abrirVentaManual(app.filaReal('pollo_lena'));
+    expect(app.ventaManualAbierta).toBe(true);
+    expect(app.ventaManualFila.id).toBe('pollo_lena');
+});
