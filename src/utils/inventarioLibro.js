@@ -1,6 +1,6 @@
 'use strict';
 
-const { boundsDiaOperativo } = require('./diaOperativoRestaurante');
+const { boundsDiaOperativo, ymdOperativo } = require('./diaOperativoRestaurante');
 const { clavesGuardables } = require('./inventarioRubros');
 const {
     perfilRubro,
@@ -68,6 +68,74 @@ function esPaseTransformacion(motivo) {
     return m.indexOf('Pasa a ') === 0 && !esPaseEntreTipos(m);
 }
 
+const otroTipo = (tipo) => tipo === 'cocido' ? 'crudo' : 'cocido';
+
+// Los pases nuevos se guardan en la entrada. Los antiguos guardaban entrada y salida por separado.
+function indexarPases(movimientos) {
+    const pases = new Map();
+    const pendientes = new Map();
+    const ingresosCocidos = new Map();
+    const antiguos = [];
+    const unir = (entrada, salida) => {
+        const pase = { entrada, salida };
+        pases.set(entrada, pase);
+        if (salida) pases.set(salida, pase);
+    };
+    for (const m of movimientos) {
+        if (!m || m.clase !== 'ingreso' || !m.rubro || !Number(m.cantidad)) continue;
+        if (m.paseTipo) {
+            unir(m, null);
+            continue;
+        }
+        const motivo = String(m.motivo || '');
+        const fecha = new Date(m.fecha);
+        if (!Number.isFinite(fecha.getTime())) continue;
+        const n = Number(m.cantidad);
+        // La edición antigua de la tabla guardaba primero el cambio cocido y después el crudo.
+        if (m.tipoProducto === 'cocido' && motivo === 'Ingreso cocido') {
+            const key = JSON.stringify([m.rubro, ymdOperativo(fecha), n]);
+            if (!ingresosCocidos.has(key)) ingresosCocidos.set(key, []);
+            ingresosCocidos.get(key).push(m);
+        } else if (m.tipoProducto === 'crudo' && motivo.startsWith('Cocido desde crudo ')) {
+            antiguos.push([m, JSON.stringify([m.rubro, ymdOperativo(fecha), -n])]);
+        } else if (esPaseEntreTipos(motivo)) {
+            const [, lado, tipo, nombre] = /^Pasa (a|de) (crudo|cocido)\b\s*(.*)$/.exec(motivo);
+            if (tipo !== otroTipo(m.tipoProducto) || (lado === 'de' ? n <= 0 : n >= 0)) continue;
+            const destino = lado === 'de' ? m.tipoProducto : tipo;
+            const key = JSON.stringify([m.rubro, ymdOperativo(fecha), destino, Math.abs(n), nombre]);
+            if (!pendientes.has(key)) pendientes.set(key, { a: [], de: [] });
+            pendientes.get(key)[lado].push(m);
+        }
+    }
+    for (const { a, de } of pendientes.values()) {
+        const porFecha = (x, y) => new Date(x.fecha) - new Date(y.fecha);
+        a.sort(porFecha);
+        de.sort(porFecha);
+        let salida = 0;
+        for (const entrada of de) {
+            const anterior = a[salida];
+            if (anterior && new Date(anterior.fecha) <= new Date(entrada.fecha)) unir(entrada, a[salida++]);
+        }
+    }
+    for (const [crudo, key] of antiguos.sort(([a], [b]) => new Date(a.fecha) - new Date(b.fecha))) {
+        const candidatos = ingresosCocidos.get(key) || [];
+        let indice = -1;
+        let distancia = 60_000;
+        candidatos.forEach((m, i) => {
+            const diferencia = new Date(crudo.fecha) - new Date(m.fecha);
+            if (diferencia >= 0 && diferencia < distancia) {
+                indice = i;
+                distancia = diferencia;
+            }
+        });
+        if (indice < 0) continue;
+        const [cocido] = candidatos.splice(indice, 1);
+        if (Number(crudo.cantidad) < 0) unir(cocido, crudo);
+        else unir(crudo, cocido);
+    }
+    return pases;
+}
+
 function ventanaVacia() {
     return {
         inicial: 0,
@@ -121,7 +189,7 @@ function definiciones(movimientos, ventas, extras) {
     return defs;
 }
 
-function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, hasta }) {
+function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desde, hasta }) {
     const desdeMs = new Date(desde).getTime();
     const hastaMs = new Date(hasta).getTime();
     const ops = opciones || {};
@@ -143,6 +211,8 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
     };
 
     const eventos = [];
+    const pases = indexarPases(movimientos);
+    const distribuciones = new Map();
     (movimientos || []).forEach((m) => {
         const t = new Date(m && m.fecha).getTime();
         if (m && m.rubro && Number.isFinite(t)) eventos.push({ t, mov: m });
@@ -279,6 +349,38 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
         if (esPaseTransformacion(m.motivo)) c.w.pase -= n;
     };
 
+    const aplicarPase = ({ entrada, salida }) => {
+        const tipo = entrada.tipoProducto;
+        const destino = cubeta(entrada.rubro, tipo);
+        const origen = cubeta(entrada.rubro, otroTipo(tipo));
+        if (origen === destino) return;
+        const n = Math.abs(Number(entrada.cantidad));
+        const marca = corteDeMotivo((salida && salida.motivo) || entrada.motivo);
+        const saldoOrigen = Math.max(0, saldoDe(origen));
+        const saldoDestino = Math.max(0, saldoDe(destino));
+        origen.mov -= n;
+        destino.mov += n;
+        if (origen.pecho !== undefined) ajustarPecho(origen, saldoOrigen, marca);
+        if (destino.pecho !== undefined) ajustarPecho(destino, saldoDestino, marca);
+        if (!enVentana) return;
+
+        const previo = entrada.reviertePase && distribuciones.get(String(entrada.reviertePase));
+        const disponibleApertura = Math.max(0, origen.w.inicial);
+        const disponibleIngreso = Math.max(0, origen.w.ingresos + Math.max(0, r3(origen.w.pase)));
+        const ingresoPrevio = previo ? Math.min(previo.ingreso, disponibleIngreso) : 0;
+        const ajustePrevio = previo ? previo.ajuste : 0;
+        const apertura = Math.min(r3(n - ingresoPrevio - ajustePrevio), disponibleApertura);
+        const ingreso = Math.min(r3(n - apertura - ajustePrevio), disponibleIngreso);
+        const ajuste = r3(n - apertura - ingreso);
+        origen.w.inicial -= apertura;
+        destino.w.inicial += apertura;
+        origen.w.ingresos -= ingreso;
+        destino.w.ingresos += ingreso;
+        origen.w.ajuste -= ajuste;
+        destino.w.ajuste += ajuste;
+        if (entrada._id) distribuciones.set(String(entrada._id), { ingreso, ajuste });
+    };
+
     const aplicarVenta = (v, t) => {
         const rubro = v.rubro || v.plato;
         const op = ops[rubro] || semillaCocido(rubro);
@@ -329,6 +431,11 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
         if (!enVentana && e.t >= desdeMs) entrarVentana();
         if (e.mov) {
             const m = e.mov;
+            const pase = pases.get(m);
+            if (pase) {
+                if (pase.entrada === m) aplicarPase(pase);
+                continue;
+            }
             const c = cubeta(m.rubro, m.tipoProducto);
             const antes = Math.max(0, saldoDe(c));
             aplicarMovimiento(c, m, Number(m.cantidad) || 0, e.t);
@@ -396,4 +503,4 @@ function armarLibro({ movimientos, ventas, opciones, umbrales, extras, desde, ha
     return { filas, ventas: salida };
 }
 
-module.exports = { armarLibro, esApertura, esConteo, esPaseTransformacion };
+module.exports = { armarLibro, esApertura, esConteo, esPaseTransformacion, indexarPases, otroTipo };

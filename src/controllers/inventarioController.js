@@ -214,6 +214,16 @@ router.post('/inventario/poner-en-cero', adminAuth, checkPermission('ver-inventa
     }
 });
 
+router.post('/inventario/pases/revertir', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
+    try {
+        const movimiento = await inventario.revertirPase(req.body?.id, req.admin?.id);
+        await auditarMovimiento(req, movimiento);
+        res.status(201).json({ success: true, movimiento });
+    } catch (error) {
+        errorHttp(error, res);
+    }
+});
+
 router.post('/inventario/venta-manual/eliminar', adminAuth, checkPermission('ver-inventario'), async (req, res) => {
     try {
         const data = await inventario.eliminarVentaManual(req.body || {});

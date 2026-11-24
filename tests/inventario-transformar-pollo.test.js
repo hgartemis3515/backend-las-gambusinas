@@ -170,8 +170,8 @@ test.each([
     const libro = recargar();
     expect([crudo('pechugas'), crudo('piernas'), cocido('pechugas'), cocido('piernas')]).toEqual([4, 1, 1, 2]);
     expect(libro.filas.filter((f) => f.rubro === rubro).map((f) => [f.tipoProducto, f.queda])).toEqual([['crudo', 5], ['cocido', 3]]);
-    expect(nuevos()).toHaveLength(8);
-    expect(nuevos().every((m) => m.rubro === rubro && / · (pecho|pierna)$/.test(m.motivo))).toBe(true);
+    expect(nuevos()).toHaveLength(4);
+    expect(nuevos().every((m) => m.paseTipo && m.cantidad > 0 && m.rubro === rubro && / · (pecho|pierna)$/.test(m.motivo))).toBe(true);
 });
 
 test('el crudo sin marca sigue disponible al lado de las entradas marcadas de pecho', async () => {

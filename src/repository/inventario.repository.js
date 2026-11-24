@@ -2,14 +2,14 @@ const mongoose = require('mongoose');
 const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
-const { armarLibro } = require('../utils/inventarioLibro');
+const { armarLibro, indexarPases, otroTipo } = require('../utils/inventarioLibro');
 const { claveDe, clavesGuardables, carta } = require('../utils/inventarioRubros');
 const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventarioMapas');
 const { sanearGuardado } = require('../../public/assets/js/inventarioRelaciones');
 const MapaSemantico = require('../database/models/inventarioMapa.model');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD, ampliarTramoAlDia } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta } = require('../utils/inventarioSalidaVentas');
-const { semillaCocido, validarCocidoConfig, esMateria } = require('../utils/inventarioCascadaVenta');
+const { semillaCocido, validarCocidoConfig, esMateria, perfilRubro } = require('../utils/inventarioCascadaVenta');
 const Rubro = require('../database/models/inventarioRubro.model');
 const Reporte = require('../database/models/inventarioReporte.model');
 const logger = require('../utils/logger');
@@ -86,14 +86,30 @@ async function listarMovimientos({ plato, tipo, desde, hasta, ciclo }) {
         const r = ampliarTramoAlDia(r0.desde, r0.hasta);
         filtro.fecha = { $gte: r.desde, $lte: r.hasta };
     }
-    if (tipo === 'crudo' || tipo === 'cocido') filtro.tipoProducto = tipo;
     if (plato && mongoose.Types.ObjectId.isValid(plato)) filtro.plato = plato;
     const docs = await Movimiento.find(filtro)
-        .sort({ fecha: -1 })
+        .sort({ fecha: -1, _id: -1 })
         .limit(20000)
         .populate('usuario', 'name')
         .lean();
-    return docs.map((d) => ({
+    const pases = indexarPases(docs);
+    const ids = docs.filter((d) => pases.get(d)?.entrada === d && !d.reviertePase).map((d) => d._id);
+    const revertidos = new Set(ids.length ? (await Movimiento.distinct('reviertePase', { reviertePase: { $in: ids } })).map(String) : []);
+    const visibles = docs.flatMap((d) => {
+        const entrada = pases.get(d)?.entrada;
+        const identidad = entrada && !entrada.reviertePase ? {
+            paseId: String(entrada._id), paseDestino: entrada.tipoProducto, paseCantidad: entrada.cantidad,
+            paseRevertido: revertidos.has(String(entrada._id))
+        } : {};
+        const mov = { ...d, ...identidad };
+        if (!d.paseTipo) return [mov];
+        const salida = {
+            ...mov, _id: String(d._id) + '-salida', tipoProducto: otroTipo(d.tipoProducto), cantidad: -d.cantidad,
+            motivo: d.motivo.replace(/^Pasa de (?:crudo|cocido)/, 'Pasa a ' + d.tipoProducto)
+        };
+        return [mov, salida];
+    });
+    return visibles.filter((d) => (tipo !== 'crudo' && tipo !== 'cocido') || d.tipoProducto === tipo).map((d) => ({
         _id: d._id,
         plato: d.plato,
         platoId: d.platoId,
@@ -106,6 +122,11 @@ async function listarMovimientos({ plato, tipo, desde, hasta, ciclo }) {
         usuario: d.usuario && d.usuario.name ? d.usuario.name : '',
         rubro: d.rubro || '',
         lote: d.lote || '',
+        paseId: d.paseId,
+        paseDestino: d.paseDestino,
+        paseCantidad: d.paseCantidad,
+        paseRevertido: d.paseRevertido,
+        reviertePase: d.reviertePase,
         fecha: d.fecha
     }));
 }
@@ -177,7 +198,14 @@ async function crearMovimiento(data, usuarioId) {
             throw err;
         }
     }
-    const antes = await alertasActuales();
+    const paseTipo = data.paseTipo === true;
+    if (paseTipo) {
+        if (!rubro || clase !== 'ingreso' || cantidad <= 0 || !motivo.startsWith('Pasa de ' + otroTipo(tipo) + ' ')) {
+            throw Object.assign(new Error('El pase entre crudo y cocido no es válido.'), { statusCode: 400 });
+        }
+        await validarPaseDisponible(rubro.clave, otroTipo(tipo), cantidad, motivo);
+    }
+    const antes = paseTipo ? null : await alertasActuales();
     const lotePedido = String(data.lote || '').trim();
     const lote = clase === 'egreso' && motivo.indexOf('Venta manual') === 0 && /^vm-[a-z0-9]{4,12}-[a-z0-9]{4,12}$/.test(lotePedido)
         ? lotePedido
@@ -192,10 +220,15 @@ async function crearMovimiento(data, usuarioId) {
         cantidad,
         motivo,
         lote,
+        ...(paseTipo ? { paseTipo } : {}),
         comanda: data.comanda && mongoose.Types.ObjectId.isValid(data.comanda) ? data.comanda : null,
         usuario: usuarioId && mongoose.Types.ObjectId.isValid(usuarioId) ? usuarioId : null,
-        fecha: fechaMovimiento(data.fecha)
+        fecha: paseTipo ? new Date() : fechaMovimiento(data.fecha)
     });
+    if (paseTipo) {
+        avisarAlertas();
+        return doc.toObject();
+    }
     const despues = await alertasActuales();
     const cambio = cambioDeAlerta(antes, despues, rubro ? rubro.clave : String(plato._id), tipo);
     if (cambio) emitirAlerta({ alertas: despues, cambio });
@@ -264,7 +297,7 @@ async function filasCartaEn(desde, hasta) {
     const mapas = await leerGuardados().catch(() => []);
     const [guardados, ventasPack, umbrales, opciones] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] }, fecha: { $lte: hasta } })
-            .select('rubro nombre tipoProducto clase cantidad fecha motivo')
+            .select('rubro nombre tipoProducto clase cantidad fecha motivo paseTipo reviertePase')
             .lean(),
         egresosVentaHasta(hasta),
         umbralesRubro(),
@@ -595,7 +628,7 @@ async function alertasRubro() {
     const hasta = new Date();
     const [guardados, ventasPack, umbrales, opciones, mapas] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] } })
-            .select('rubro nombre tipoProducto clase cantidad fecha motivo')
+            .select('rubro nombre tipoProducto clase cantidad fecha motivo paseTipo reviertePase')
             .lean(),
         egresosVentaHasta(hasta),
         umbralesRubro(),
@@ -612,6 +645,54 @@ async function alertasRubro() {
         hasta
     });
     return alertasDeFilas(filas);
+}
+
+async function validarPaseDisponible(clave, tipo, cantidad, motivo) {
+    const hasta = new Date();
+    const { filas, cocidoOpciones } = await filasCartaEn(boundsDiaOperativo(hasta).inicio, hasta);
+    if (!perfilRubro(clave, cocidoOpciones.find((o) => o.clave === clave)).tieneCocido) {
+        throw Object.assign(new Error('Este producto no tiene pases entre crudo y cocido.'), { statusCode: 409 });
+    }
+    const fila = filas.find((f) => f.rubro === clave && f.tipoProducto === tipo);
+    let disponible = fila?.queda || 0;
+    const marca = / · (pecho|pierna)$/i.exec(motivo)?.[1].toLowerCase();
+    if (marca && Number.isFinite(fila?.pechoOctavo)) {
+        disponible = marca === 'pecho' ? fila.pechoOctavo : disponible - fila.pechoOctavo;
+    }
+    if (disponible + 0.0001 < cantidad) {
+        throw Object.assign(new Error('El stock disponible es insuficiente para ese pase.'), { statusCode: 409 });
+    }
+}
+
+async function revertirPase(id, usuarioId) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw Object.assign(new Error('El pase no es válido.'), { statusCode: 400 });
+    }
+    let original = await Movimiento.findById(id).lean();
+    const noReversible = () => Object.assign(new Error('El pase ya se revirtió o no está disponible.'), { statusCode: 409 });
+    if (!original || original.reviertePase || !original.rubro || original.clase !== 'ingreso' || original.fecha > new Date()) throw noReversible();
+    if (!original.paseTipo) {
+        const { inicio, fin } = boundsDiaOperativo(original.fecha);
+        const movs = await Movimiento.find({ rubro: original.rubro, clase: 'ingreso', fecha: { $gte: inicio, $lte: fin } }).lean();
+        const movimiento = movs.find((m) => String(m._id) === String(original._id));
+        original = indexarPases(movs).get(movimiento)?.entrada;
+    }
+    if (!original || original.cantidad <= 0 || await Movimiento.exists({ reviertePase: original._id })) throw noReversible();
+    await validarPaseDisponible(original.rubro, original.tipoProducto, original.cantidad, original.motivo);
+    const marca = / · (?:pecho|pierna)$/i.exec(original.motivo)?.[0] || '';
+    try {
+        const doc = await Movimiento.create({
+            rubro: original.rubro, nombre: original.nombre, clase: 'ingreso', cantidad: original.cantidad,
+            tipoProducto: otroTipo(original.tipoProducto), motivo: 'Pasa de ' + original.tipoProducto + ' ' + original.nombre + marca,
+            paseTipo: true, reviertePase: original._id,
+            usuario: mongoose.Types.ObjectId.isValid(usuarioId) ? usuarioId : null
+        });
+        avisarAlertas();
+        return doc.toObject();
+    } catch (error) {
+        if (error.code === 11000) throw noReversible();
+        throw error;
+    }
 }
 
 let avisoTimer = null;
@@ -727,6 +808,7 @@ module.exports = {
     saldosRubroHoy,
     listarMovimientos,
     crearMovimiento,
+    revertirPase,
     alertasActuales,
     guardarUmbralRubro,
     leerMapas,

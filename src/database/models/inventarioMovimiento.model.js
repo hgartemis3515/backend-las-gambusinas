@@ -10,6 +10,8 @@ const inventarioMovimientoSchema = new mongoose.Schema({
     cantidad: { type: Number, required: true },
     motivo: { type: String, required: true, trim: true, maxlength: 200 },
     lote: { type: String, default: '', trim: true, maxlength: 40 },
+    paseTipo: { type: Boolean },
+    reviertePase: { type: mongoose.Schema.Types.ObjectId },
     comanda: { type: mongoose.Schema.Types.ObjectId, ref: 'Comanda', default: null },
     usuario: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
     fecha: { type: Date, required: true, default: Date.now }
@@ -17,5 +19,6 @@ const inventarioMovimientoSchema = new mongoose.Schema({
 
 inventarioMovimientoSchema.index({ plato: 1, tipoProducto: 1, fecha: -1 });
 inventarioMovimientoSchema.index({ rubro: 1, tipoProducto: 1, fecha: -1 });
+inventarioMovimientoSchema.index({ reviertePase: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('inventario_movimientos', inventarioMovimientoSchema);

@@ -38,6 +38,82 @@ function pintar(app, movimientos, ventas, ymd = '2026-11-11') {
     return libro;
 }
 
+test.each([[10, 0, 10], [0, 10, 10], [1, 10, 4]])('cocinar conserva el origen de las cantidades (%i de apertura, %i de ingreso)', (apertura, ingreso, cocina) => {
+    const app = crearApp();
+    const rubro = 'pachamanca-chancho';
+    const row = app.filaReal('cerdo_pachamanca');
+    expect(app.claveDeFila[row.id]).toBe(rubro);
+    const salieronDeApertura = Math.min(cocina, apertura);
+    const salieronDeIngreso = cocina - salieronDeApertura;
+    pintar(app, [
+        mov(rubro, 'ingreso', apertura, horaAyer('17:00')),
+        mov(rubro, 'ingreso', ingreso, hora('08:00')),
+        mov(rubro, 'ingreso', -cocina, hora('09:00'), 'Pasa a cocido Cerdo pachamanca'),
+        mov(rubro, 'ingreso', cocina, hora('09:00'), 'Pasa de crudo Cerdo pachamanca', 'cocido')
+    ]);
+    expect(row).toMatchObject({
+        saldoAnterior: apertura - salieronDeApertura, saldoAnteriorCocido: salieronDeApertura,
+        ingreso: ingreso - salieronDeIngreso, ingresoCocido: salieronDeIngreso
+    });
+    for (const tipo of ['crudo', 'cocido']) {
+        const suma = app.cifraGrupo(row, 'saldoAnterior', tipo) + app.cifraIngresoTabla(row, 'ingreso', tipo);
+        expect(app.cifraIngresoTabla(row, 'ingresoTotal', tipo)).toBe(suma);
+        expect(app.stockCuadro(row.id, tipo)).toBe(suma);
+    }
+});
+
+test('la lupa de Macerado permite revertir una salida antigua sin metadatos de pase', async () => {
+    const app = crearApp({}, { confirm: () => true });
+    const row = app.filaReal('pollo_pachamanca');
+    const salida = { ...mov('pachamanca-pollo', 'ingreso', -4, hora('16:03'), 'Pasa a cocido Pollo pachamanca pierna'), _id: '507f1f77bcf86cd799439011' };
+    app.movimientosPeriodo = [salida, mov('pachamanca-pollo', 'ingreso', 10, hora('16:03'))];
+    app.api = jest.fn(async () => {});
+    app.cargarKardex = jest.fn(async () => {});
+    app.abrirOrigenIngreso(row, 'crudo');
+    const linea = app.origenIngreso.lineas.find((l) => l.salida);
+    expect(linea).toMatchObject({ paseId: salida._id, paseDestino: 'cocido', paseCantidad: 4 });
+    await app.revertirPaseIngreso(linea);
+    expect(app.api).toHaveBeenCalledWith('/inventario/pases/revertir', { method: 'POST', body: JSON.stringify({ id: salida._id }) });
+});
+
+test('la lupa revierte un pase concreto y recarga el saldo y la lista', async () => {
+    const app = crearApp({}, { confirm: () => true });
+    const rubro = 'pachamanca-pollo';
+    const ingreso = mov(rubro, 'ingreso', 10, hora('08:00'));
+    const base = [mov(rubro, 'ingreso', 1, horaAyer('17:00')), ingreso];
+    const pase = (id, cantidad, fecha) => ({ ...mov(rubro, 'ingreso', cantidad, fecha, 'Pasa de crudo Pollo pachamanca pierna', 'cocido'), _id: id, paseTipo: true });
+    const primero = pase('pase-apertura', 1, hora('09:00'));
+    const elegido = pase('pase-ingreso', 3, hora('10:00'));
+    const documentos = [...base, primero, elegido];
+    const paraLupa = (m, revertido) => ({ ...m, paseId: m._id, paseDestino: m.tipoProducto, paseCantidad: m.cantidad, paseRevertido: revertido });
+    pintar(app, documentos);
+    app.movimientosPeriodo = [ingreso, paraLupa(primero, false), paraLupa(elegido, false)];
+    const row = app.filaReal('pollo_pachamanca');
+    const total = app.cifraIngresoTabla(row, 'ingresoTotal', 'crudo');
+    expect(total).toBe(7);
+    expect(app.cifraGrupo(row, 'saldoAnterior', 'crudo')).toBe(0);
+    expect(app.cifraIngresoTabla(row, 'ingreso', 'crudo')).toBe(7);
+    app.abrirOrigenIngreso(row, 'cocido');
+    expect(app.origenIngreso.lineas.map((l) => l.paseId)).toEqual(['pase-ingreso', 'pase-apertura']);
+    app.api = jest.fn(async () => {
+        documentos.push({ ...mov(rubro, 'ingreso', 3, hora('11:00'), 'Pasa de cocido Pollo pachamanca pierna'), paseTipo: true, reviertePase: elegido._id });
+    });
+    app.cargarKardex = async () => {
+        pintar(app, documentos);
+        const reversion = documentos.at(-1);
+        app.movimientosPeriodo = [ingreso, paraLupa(primero, false), paraLupa(elegido, true),
+            { ...paraLupa(elegido, true), tipoProducto: 'crudo', cantidad: -3, motivo: 'Pasa a cocido Pollo pachamanca pierna' },
+            reversion, { ...reversion, tipoProducto: 'cocido', cantidad: -3, motivo: 'Pasa a crudo Pollo pachamanca pierna' }];
+    };
+    await app.revertirPaseIngreso(app.origenIngreso.lineas[0]);
+    expect(app.api).toHaveBeenCalledWith('/inventario/pases/revertir', { method: 'POST', body: '{"id":"pase-ingreso"}' });
+    expect(app.origenIngreso.lineas).toMatchObject([{ paseId: 'pase-apertura' }]);
+    expect(row).toMatchObject({ saldoAnterior: 0, saldoAnteriorCocido: 1, ingreso: 10, ingresoCocido: 0 });
+    app.abrirOrigenIngreso(row, 'crudo');
+    expect(app.origenIngreso.lineas).toMatchObject([{ clase: 'ingreso', cantidad: 10 }]);
+    expect(app.movimientosPeriodo.some((m) => m.reviertePase === elegido._id)).toBe(true);
+});
+
 test('la tabla abre en Personalizado y conserva los órdenes guardados antes de arrastrar', () => {
     const app = crearApp({ 'inventario-orden-personal': '["pierna","pechuga"]' });
     expect(app.ordenHoja).toBe('personalizado');
@@ -640,7 +716,7 @@ test('descuadre: si hay crudo libre, primero se pasa a cocido', async () => {
     const guardados = [mov('pollo-baby', 'ingreso', 5, hora('09:00')), mov('pollo-baby', 'ingreso', 1, hora('09:00'), 'Ingreso cocido', 'cocido')];
     const ventas = [{ rubro: 'pollo-baby', nombre: 'Pollo baby', cantidad: 3, fecha: hora('12:00'), detalle: [] }];
     app.cargarKardex = async () => { pintar(app, guardados, ventas); };
-    app.encolarMovimientos = (movs) => { movs.forEach((m) => guardados.push(mov(m.rubro, m.clase, m.cantidad, hora('20:00'), m.motivo, m.tipoProducto))); };
+    app.encolarMovimientos = (movs) => { movs.forEach((m) => guardados.push({ ...m, fecha: hora('20:00') })); };
     app.anotarHistorial = () => {};
     app.pulseRowTotal = () => {};
     await app.cargarKardex();
