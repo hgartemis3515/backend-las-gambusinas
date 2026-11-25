@@ -239,6 +239,7 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
     // Octavos marcados de cada corte. Las ventas de comanda no dicen el corte y no los bajan.
     const cortes = { pierna: 0, pecho: 0 };
     let cortesIniciales = { pierna: 0, pecho: 0 };
+    const pendientesSectores = {};
 
     // Lo marcado pasa al día siguiente, sin superar lo que de verdad quedó.
     const cerrarCortes = () => {
@@ -441,6 +442,14 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
         if (!enVentana && e.t >= desdeMs) entrarVentana();
         if (e.mov) {
             const m = e.mov;
+            if (m.rubro === CLAVE_OCTAVO && (m.tipoProducto || 'crudo') === 'crudo' && m.clase === 'regulacion') {
+                const separado = /^Separado · (Beata|Personal|Eventos?|R[ií]o Lindo) · (pecho|pierna)$/i.exec(m.motivo || '');
+                if (separado) {
+                    const sector = separado[1].toLowerCase().replace(/eventos$/, 'evento').replace(/^r[ií]o lindo$/, 'rio lindo');
+                    const clave = sector + '|' + separado[2].toLowerCase();
+                    pendientesSectores[clave] = r3((pendientesSectores[clave] || 0) - (Number(m.cantidad) || 0));
+                }
+            }
             const pase = pases.get(m);
             if (pase) {
                 if (pase.entrada === m) aplicarPase(pase);
@@ -475,7 +484,7 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
             const queda = Math.max(0, sinTope);
             const umbral = Number(tipo === 'crudo' ? minimo.crudo : minimo.cocido) || 0;
             const extraOctavo = def.clave === CLAVE_OCTAVO && tipo === 'crudo'
-                ? { cortes: { inicial: cortesDe(cortesIniciales), queda: cortesDe(cortes) } }
+                ? { cortes: { inicial: cortesDe(cortesIniciales), queda: cortesDe(cortes) }, pendientesSectores }
                 : {};
             filas.push({
                 ...extraOctavo,

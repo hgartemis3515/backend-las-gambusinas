@@ -25,7 +25,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
    - El lápiz (guardarModalStock) deja el stock que queda (Saldo real y el cuadro de Transformar) en el número escrito. Ajusta el saldo anterior por la diferencia, así la venta y el ingreso del día no se borran ni se aplican dos veces. En octavo, pecho y pierna son el mismo número del cuadro de Transformar.
    - El saldo de cada día lo calcula el servidor en src/utils/inventarioLibro.js. Ver docs/LOGICA_INVENTARIO.md.
    - Los avisos de la hoja (toastMessage) van fijos abajo a la izquierda y se cierran a los 7 s. No empujan la hoja.
-   - Configuración → Tabla: Saldo y Conteo, Diferencia, Estado y Corrección arrancan ocultos. Queda siempre se ve.
+   - Configuración → Tabla: Saldo y Conteo, Diferencia, Estado y Corrección arrancan ocultos. Queda siempre se ve. En el ingreso del grupo de Filete de pollo, los otros productos y platos arrancan ocultos: solo queda el ingreso del filete.
    - Bloqueo: PUT /api/inventario/bloqueo. Un producto bloqueado no se transforma ni se vende en manual; la reserva resta el tope del pase. Un plato bloqueado no sale en la carta del mozo (filtrarCartaBloqueada).
 -->
 <!DOCTYPE html>
@@ -1294,6 +1294,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     }
     .caja-stock-step input::-webkit-outer-spin-button,
     .caja-stock-step input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .origen-stock-flujo .caja-stock-origen { width: calc(2.6rem + 10px); min-height: 0; }
+    main .origen-stock-flujo .caja-stock-origen > input[type="number"] {
+      field-sizing: fixed;
+      width: 100% !important;
+      min-width: 0 !important;
+      padding-inline: 0.15rem !important;
+      font-size: clamp(9px, calc(58px / var(--digitos, 1)), 20px) !important;
+      line-height: 1.875rem;
+    }
     .arroz-formula { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 6px; margin-top: 6px; overflow-x: auto; }
     .arroz-campo { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 3.4rem; flex: 0 0 auto; }
     .arroz-destinos { display: flex; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
@@ -3525,8 +3534,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <div class="caja-stock">
                     <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                     <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                      <div class="caja-stock-step">
-                        <input type="number" min="0" step="any" aria-label="Stock actual de pollo fresco" :value="stockCuadro('pollo_fresco', 'crudo')" @change="fijarStockConIngreso('pollo_fresco', 'crudo', $event.target)">
+                      <div class="caja-stock-step caja-stock-origen">
+                        <input type="number" min="0" step="any" aria-label="Stock actual de pollo fresco" :value="stockCuadro('pollo_fresco', 'crudo')" :style="'--digitos:' + digitosDe(stockCuadro('pollo_fresco', 'crudo'))" @change="fijarStockConIngreso('pollo_fresco', 'crudo', $event.target)">
                       </div>
                       <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de pollo fresco'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                       <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3542,9 +3551,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   <div class="origen-transformacion text-[11px]">
                     <div class="origen-transformar-control flex items-center">
                       <p class="origen-transformar-titulo caja-stock-etiq">Transformar</p>
-                      <div class="origen-transformar-campo">
+                      <div class="origen-transformar-campo caja-stock-step caja-stock-origen">
                         <span class="origen-stock-flecha" aria-hidden="true">→</span>
-                        <input type="number" min="0" step="any" aria-label="Pollos frescos pasados a piezas" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="frescosHoy()" :style="'--digitos:' + digitosDe(frescosHoy())" @input="ajustarCajaDigitos($el)" @change="setPollosFrescosConvertir($event.target.value)">
+                        <input type="number" min="0" step="any" aria-label="Pollos frescos pasados a piezas" :value="frescosHoy()" :style="'--digitos:' + digitosDe(frescosHoy())" @change="setPollosFrescosConvertir($event.target.value)">
                       </div>
                     </div>
                     <div class="origen-transformar-rendimiento space-y-1.5">
@@ -4162,8 +4171,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="caja-stock">
                       <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                       <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                        <div class="caja-stock-step">
-                          <input type="number" min="0" step="any" :aria-label="'Stock actual de ' + mapa.origen.nombre" :value="stockCuadro(idDeClave(mapa.origen.clave), 'crudo')" @change="fijarStockConIngreso(idDeClave(mapa.origen.clave), 'crudo', $event.target)">
+                        <div class="caja-stock-step" :class="{ 'caja-stock-origen': mapa.id === 'pato-fresco' }">
+                          <input type="number" min="0" step="any" :aria-label="'Stock actual de ' + mapa.origen.nombre" :value="stockCuadro(idDeClave(mapa.origen.clave), 'crudo')" :style="mapa.id === 'pato-fresco' ? '--digitos:' + digitosDe(stockCuadro(idDeClave(mapa.origen.clave), 'crudo')) : ''" @change="fijarStockConIngreso(idDeClave(mapa.origen.clave), 'crudo', $event.target)">
                         </div>
                         <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock actual de ' + mapa.origen.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                         <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4179,9 +4188,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <div class="origen-transformacion space-y-1.5 pt-2 border-t border-[#26263a] text-[11px]" x-show="mapa.tipo !== 'directo' && cortesDeOrigen(mapa).length">
                       <div class="origen-transformar-control flex items-center justify-end">
                         <p class="origen-transformar-titulo caja-stock-etiq">Transformar</p>
-                        <div class="origen-transformar-campo">
+                        <div class="origen-transformar-campo" :class="{ 'caja-stock-step caja-stock-origen': mapa.id === 'pato-fresco' }">
                           <span class="origen-stock-flecha" aria-hidden="true">→</span>
-                          <input type="number" min="0" step="any" :aria-label="'Unidades de ' + mapa.origen.nombre + ' pasadas a cortes'" class="paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded" :value="origenMapa(mapa.id)" :style="'--digitos:' + digitosDe(origenMapa(mapa.id))" @input="ajustarCajaDigitos($el)" @change="fijarOrigenMapa(mapa, $event.target.value)">
+                          <input type="number" min="0" step="any" :aria-label="'Unidades de ' + mapa.origen.nombre + ' pasadas a cortes'" :class="mapa.id === 'pato-fresco' ? '' : 'paso-num text-center num-mono text-white bg-[#14141f] border border-[#26263a] rounded'" :value="origenMapa(mapa.id)" :style="'--digitos:' + digitosDe(origenMapa(mapa.id))" @input="ajustarCajaDigitos($el)" @change="fijarOrigenMapa(mapa, $event.target.value)">
                         </div>
                       </div>
                       <div class="origen-transformar-rendimiento space-y-1.5">
@@ -4222,16 +4231,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <p class="caja-stock-venta text-center" x-show="ventaPlato(idDeClave(rama.corte.clave)) > 0" x-text="'Venta ' + formatNum(ventaPlato(idDeClave(rama.corte.clave)))"></p>
                             <div class="caja-stock">
                               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
-                              <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                <div class="tf-bloque" x-data="{ ft: formulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave), monto: null }" x-effect="ft = formulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave)">
-                                  <div class="tf-formula">
-                                    <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
-                                    <span class="tf-op" aria-hidden="true">+</span>
-                                    <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar ' + mapa.origen.nombre + ' en ' + rama.nombre" :data-formula="'mapa|' + mapa.id + '|' + rama.corte.clave" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="cuadroFormulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave, $event.target).finally(() => { monto = null; })"></label>
-                                    <span class="tf-op" aria-hidden="true">=</span>
-                                    <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
+                              <div class="control-ingreso-stock" x-data="{ ingresoVisible: false, stockCrudoDirecto: mapa.id === 'pato-fresco' && ['pechuga-pato', 'pierna-pato'].includes(rama.corte.clave) }" @keydown.escape.stop="ingresoVisible = false">
+                                <template x-if="stockCrudoDirecto">
+                                  <div class="caja-stock-step">
+                                    <input type="number" min="0" step="any" :aria-label="'Stock actual crudo de ' + rama.nombre" :value="stockCuadro(idDeClave(rama.corte.clave), 'crudo')" @change="fijarStockConIngreso(idDeClave(rama.corte.clave), 'crudo', $event.target)">
                                   </div>
-                                </div>
+                                </template>
+                                <template x-if="!stockCrudoDirecto">
+                                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave), monto: null }" x-effect="ft = formulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave)">
+                                    <div class="tf-formula">
+                                      <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
+                                      <span class="tf-op" aria-hidden="true">+</span>
+                                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar ' + mapa.origen.nombre + ' en ' + rama.nombre" :data-formula="'mapa|' + mapa.id + '|' + rama.corte.clave" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="cuadroFormulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave, $event.target).finally(() => { monto = null; })"></label>
+                                      <span class="tf-op" aria-hidden="true">=</span>
+                                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
+                                    </div>
+                                  </div>
+                                </template>
                                 <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock crudo de ' + rama.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                 <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
                                   <div class="ingreso-panel-cabecera"><span>Ingreso</span><button type="button" @click="ingresoVisible = false">Cerrar</button></div>
@@ -8504,6 +8520,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <input type="checkbox" class="accent-[#d4af37] w-4 h-4" :checked="!mostrarPolloFresco" @change="setOcultarPolloFresco($event.target.checked)">
               <span>Ocultar fila Pollo fresco</span>
             </label>
+            <label class="flex items-start gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4 mt-0.5" :checked="!mostrarOtrosFileteIngreso" @change="setOcultarOtrosFileteIngreso($event.target.checked)" data-testid="config-ocultar-otros-filete">
+              <span>Ocultar otros productos y platos del grupo de Filete de pollo
+                <span class="block text-[11px] text-[#a0a0b8] font-normal">Marcado: en el modal de ingreso del filete de pollo solo queda el ingreso del filete.</span>
+              </span>
+            </label>
           </div>
           <div class="bg-[#14141f] border border-[#26263a] rounded-xl p-4 space-y-3 max-w-xl">
             <h3 class="sec-title text-sm">Cuadros de Transformar</h3>
@@ -9440,7 +9462,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             </section>
           </template>
 
-          <section x-show="ingresoGrupo.lineas.length > 1">
+          <section x-show="verOtrosIngresoGrupo()">
             <p class="text-xs font-extrabold uppercase tracking-wide text-[#a0a0b8] mb-2">Otros productos y platos del grupo</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <template x-for="(l, i) in ingresoGrupo.lineas.filter((x) => !x.principal)" :key="'ing-plato-' + l.id">
@@ -10837,6 +10859,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         mostrarTransformacion: false,
         mostrarPatoFresco: false,
         mostrarPolloFresco: false,
+        // false: el ingreso del filete de pollo no muestra los otros productos y platos del grupo.
+        mostrarOtrosFileteIngreso: false,
         mostrarEncabezadoMapa: false,
         mostrarIngresosTransformar: true,
         // Transformar de arroz blanco y verde: true se llena en kg, false en porciones (como antes).
@@ -14357,6 +14381,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           v.crudo = Number(crudo.queda) || 0;
           v.cocido = Number(cocido.queda) || 0;
           v.cortesOctavo = crudo.cortes || null;
+          v.pendientesSectoresOctavo = crudo.pendientesSectores || null;
           v.repartoPlatoOctavo = Number.isFinite(crudo.pechoOctavo) ? {
             crudo: { pecho: crudo.pechoOctavo, saldo: Number(crudo.sinTope) || 0 },
             cocido: { pecho: Number(cocido.pechoOctavo) || 0, saldo: Number(cocido.sinTope) || 0 }
@@ -17815,6 +17840,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(Math.max(0, this.calcSaldoTipo(fila, tipo)));
         },
 
+        // En Filete de pollo, la opción de Configuración → Tabla deja solo el ingreso del filete.
+        verOtrosIngresoGrupo() {
+          const grupo = this.ingresoGrupo;
+          if (!grupo || !grupo.lineas.some((l) => !l.principal)) return false;
+          if (grupo.id === 'filete' && !this.mostrarOtrosFileteIngreso) return false;
+          return true;
+        },
+
         abrirIngresoGrupo(row) {
           if (!row || !this.tieneGrupo(row)) return;
           const origen = this.origenIngresoDe(row);
@@ -19278,7 +19311,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const n = Math.min(8, Math.max(1, texto.length || 1));
           if (!el || !el.style) return;
           el.style.setProperty('--digitos', String(n));
-          if (el.closest && el.closest('.caja-stock-step')) {
+          const caja = el.closest?.('.caja-stock-step');
+          if (caja && !caja.classList?.contains('caja-stock-origen')) {
             el.style.setProperty('width', 'calc(' + n + 'ch + 1.15rem)', 'important');
           }
         },
@@ -19418,6 +19452,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.mostrarTransformacion = ver('inventario-tabla-transformacion');
             this.mostrarPatoFresco = ver('inventario-tabla-pato-fresco');
             this.mostrarPolloFresco = ver('inventario-tabla-pollo-fresco');
+            this.mostrarOtrosFileteIngreso = ver('inventario-tabla-filete-otros-ingreso');
             this.mostrarEncabezadoMapa = ver('inventario-transformar-encabezado-mapa');
             this.mostrarIngresosTransformar = localStorage.getItem('inventario-transformar-ingresos') !== '0';
             this.arrozEnKg = localStorage.getItem('inventario-transformar-arroz-kg') !== '0';
@@ -19496,6 +19531,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             localStorage.setItem('inventario-tabla-pollo-fresco', this.mostrarPolloFresco ? '1' : '0');
           } catch (e) {}
           this.tocarHoja();
+        },
+
+        setOcultarOtrosFileteIngreso(ocultar) {
+          this.mostrarOtrosFileteIngreso = !ocultar;
+          try {
+            localStorage.setItem('inventario-tabla-filete-otros-ingreso', this.mostrarOtrosFileteIngreso ? '1' : '0');
+          } catch (e) {}
         },
 
         filaTablaVisible(row) {
@@ -20748,6 +20790,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const lista = movs || [];
           for (const m of lista) {
             const fila = this.filaPorClave(m.rubro);
+            const pendientes = fila?.pendientesSectoresOctavo;
+            if (pendientes && m.clase === 'regulacion' && (m.tipoProducto || 'crudo') === 'crudo'
+              && String(m.motivo || '').startsWith('Separado · ')) {
+              const sector = this.norm(this.sectorDeMotivo(m.motivo));
+              const corteSector = / · (pecho|pierna)$/i.exec(m.motivo)?.[1].toLowerCase();
+              if (sector && corteSector) {
+                const claveSector = sector + '|' + corteSector;
+                fila.pendientesSectoresOctavo = { ...pendientes,
+                  [claveSector]: this.redondear3((pendientes[claveSector] || 0) - (Number(m.cantidad) || 0)) };
+              }
+            }
             const quedaOctavo = fila?.cortesOctavo?.queda;
             const corte = quedaOctavo && (this.motivoEsCorte(m.motivo, 'piernas') ? 'pierna'
               : (this.motivoEsCorte(m.motivo, 'pechugas') ? 'pecho' : ''));
@@ -21990,6 +22043,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         octavosSeparadosDestino(id, corte) {
+          const pendientes = this.filaReal('octavo_pollo')?.pendientesSectoresOctavo;
+          if (pendientes) {
+            const dest = this.destinosOctavoExtra().find((d) => d.id === id);
+            return Math.max(0, pendientes[this.norm(dest?.nombre) + '|' + this.marcaCorte(corte)] || 0);
+          }
           const neto = this.sumaOctavoSector(id, corte, (m) => m.clase === 'regulacion' && String(m.motivo || '').indexOf('Separado · ') === 0);
           return Math.max(0, this.redondear3(-neto));
         },

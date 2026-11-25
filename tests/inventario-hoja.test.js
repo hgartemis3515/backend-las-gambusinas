@@ -1181,6 +1181,37 @@ describe('descarga manual de octavos en el modal de ventas', () => {
 });
 
 describe('Procedimiento saldo real de Octavo de pollo', () => {
+    test.each([['beata', 'Beata'], ['personal', 'Personal'], ['eventos', 'Evento'], ['rio-lindo', 'Rio Lindo']])(
+        'los pendientes de %s cruzan el día y se registran al descargar', (id, nombre) => {
+            const app = crearApp();
+            const clave = 'octavo-pollo';
+            const movimientos = [
+                mov(clave, 'ingreso', 10, horaAyer('09:00'), 'Ingreso · pecho'),
+                mov(clave, 'regulacion', -3, horaAyer('10:00'), `Separado · ${nombre} · pecho`),
+                mov(clave, 'ingreso', 2, horaAyer('10:03'), `Ingreso independiente crudo · Sector ${nombre} · pierna`),
+                mov(clave, 'regulacion', -2, horaAyer('10:03'), `Separado · ${nombre} · pierna`)
+            ];
+            app.productoBloqueado = () => false;
+            app.pulseRowTotal = () => {};
+            app.encolarMovimientos = (lista) => movimientos.push(...lista.map((m) => ({ ...m, fecha: hora('12:00') })));
+            pintar(app, movimientos);
+            app.movimientosPeriodo = [];
+            expect(app.octavosEnDestino(id, 'pechugas')).toBe(3);
+            expect(app.octavosEnDestino(id, 'piernas')).toBe(2);
+            expect(app.ingresoTotalColumna(app.filaReal('octavo_pollo'))).toBe(7);
+            expect(app.descargarSectorOctavo({ id, nombre })).toBe(true);
+            expect(app.octavosSeparadosSector(id)).toBe(0);
+            pintar(app, movimientos);
+            app.movimientosPeriodo = movimientos.slice(4);
+            expect(app.octavosSeparadosSector(id)).toBe(0);
+            expect(app.ingresoTotalColumna(app.filaReal('octavo_pollo'))).toBe(7);
+            app.reporteDiaVista = { movimientos: app.movimientosPeriodo };
+            expect(app.lineasSectoresReporte().map((l) => l.cantidad)).toEqual([3, 2]);
+            pintar(app, movimientos, [], '2026-11-12');
+            expect(app.octavosSeparadosSector(id)).toBe(0);
+        }
+    );
+
     test('Ingreso total descuenta 60 octavos de cada corte enviados a Beata', () => {
         const app = crearApp();
         app.rangoPeriodo = () => ({ desde: '2026-11-11', hasta: '2026-11-11' });
@@ -1402,6 +1433,24 @@ describe('productos con grupo en la tabla', () => {
         expect(origen.anotado).toBe(20);
         app.abrirIngresoGrupo(pierna);
         expect(app.ingresoGrupo.transformaciones).toMatchObject([{ cantidad: 3 }]);
+    });
+
+    test('el ingreso de filete de pollo oculta los otros productos del grupo y los demás grupos no', () => {
+        const app = crearApp();
+        pintar(app, []);
+        const filete = app.filaReal('filete');
+        expect(app.mostrarOtrosFileteIngreso).toBe(false);
+        app.abrirIngresoGrupo(filete);
+        expect(app.ingresoGrupo.lineas.some((l) => l.principal && l.id === 'filete')).toBe(true);
+        expect(app.ingresoGrupo.lineas.some((l) => !l.principal)).toBe(true);
+        expect(app.verOtrosIngresoGrupo()).toBe(false);
+        app.setOcultarOtrosFileteIngreso(false);
+        expect(app.mostrarOtrosFileteIngreso).toBe(true);
+        expect(app.verOtrosIngresoGrupo()).toBe(true);
+        app.setOcultarOtrosFileteIngreso(true);
+        expect(app.verOtrosIngresoGrupo()).toBe(false);
+        app.abrirIngresoGrupo(app.filaReal('pierna'));
+        expect(app.verOtrosIngresoGrupo()).toBe(true);
     });
 });
 
