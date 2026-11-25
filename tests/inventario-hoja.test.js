@@ -114,6 +114,191 @@ test('la lupa revierte un pase concreto y recarga el saldo y la lista', async ()
     expect(app.movimientosPeriodo.some((m) => m.reviertePase === elegido._id)).toBe(true);
 });
 
+test.each([
+    ['pechuga', 'pecho_pachamanca', ''],
+    ['pierna', 'pollo_pachamanca', ''],
+    ['octavo_pollo', 'arroz_con_pollo', ' · pecho']
+])('la lupa de %s muestra el pase a su plato y solo la cocción que quedó', (id, idPlato, marca) => {
+    const app = crearApp();
+    const row = app.filaReal(id);
+    const plato = app.filaReal(idPlato);
+    const rubro = app.claveDeFila[idPlato];
+    const movs = [
+        mov(app.claveDeFila[id], 'ingreso', -2, hora('09:20'), 'Pasa a ' + plato.nombre + marca),
+        mov(rubro, 'ingreso', 2, hora('09:20'), 'Sale de ' + row.nombre + marca)
+    ];
+    const pase = (tipo, cantidad, horaPase, corte = marca) => {
+        const desde = tipo === 'cocido' ? 'crudo' : 'cocido';
+        movs.push(mov(rubro, 'ingreso', cantidad, horaPase, 'Pasa de ' + desde + ' ' + plato.nombre + corte, tipo));
+        movs.push(mov(rubro, 'ingreso', -cantidad, horaPase, 'Pasa a ' + tipo + ' ' + plato.nombre + corte, desde));
+    };
+    const mostrar = () => {
+        app.movimientosPeriodo = movs.slice();
+        app.abrirOrigenIngreso(row, 'crudo');
+        return app.origenIngreso.lineas.filter((l) => l.coccion);
+    };
+    const texto = plato.nombre + (marca ? ' (pecho)' : '') + ' pasó de crudo a cocido';
+    pase('cocido', 2, hora('09:25'));
+    if (marca) pase('cocido', 3, hora('09:26'), ' · pierna');
+    const coccion = mostrar().find((l) => l.texto === texto);
+    expect(coccion).toMatchObject({ cantidad: 2 });
+    if (id === 'pierna') {
+        expect(app.origenIngreso.lineas).toContainEqual(expect.objectContaining({ salida: true, cantidad: -2 }));
+    } else {
+        expect(coccion.recorrido).toMatchObject([{ cantidad: 2 }, { texto, cantidad: 2 }]);
+        expect(app.origenIngreso.lineas.some((l) => l.salida)).toBe(false);
+    }
+    expect(app.origenIngreso.total).toBe(0);
+    pase('crudo', 1, hora('09:30'));
+    expect(mostrar().find((l) => l.texto === texto)).toMatchObject({ cantidad: 1 });
+    pase('crudo', 1, hora('09:35'));
+    expect(mostrar().map((l) => l.cantidad)).toEqual(marca ? [3] : []);
+    expect(app.origenIngreso.lineas).toContainEqual(expect.objectContaining({ salida: true, cantidad: -2 }));
+});
+
+test('la lupa del grupo conserva otros pases cuando uno se revierte por su identificador', () => {
+    const app = crearApp();
+    const pecho = app.filaReal('pechuga');
+    const plato = app.filaReal('pecho_pachamanca');
+    const rubro = app.claveDeFila[plato.id];
+    app.movimientosPeriodo = [
+        { ...mov(rubro, 'ingreso', 2, hora('09:20'), 'Pasa de crudo ' + plato.nombre, 'cocido'),
+            paseId: 'primero', paseDestino: 'cocido', paseRevertido: true },
+        { ...mov(rubro, 'ingreso', 2, hora('09:25'), 'Pasa de cocido ' + plato.nombre), reviertePase: 'primero' },
+        { ...mov(rubro, 'ingreso', 1, hora('09:30'), 'Ingreso cocido', 'cocido'), paseId: 'historico', paseDestino: 'cocido' }
+    ];
+    app.abrirOrigenIngreso(pecho, 'crudo');
+    expect(app.origenIngreso.lineas).toMatchObject([{ coccion: true, cantidad: 1 }]);
+});
+
+test('la lupa de Pecho resume el resultado y deja los pasos relacionados en orden de transformación', () => {
+    const app = crearApp();
+    const pecho = app.filaReal('pechuga');
+    const plato = app.filaReal('pecho_pachamanca');
+    const origen = app.claveDeFila[pecho.id];
+    const destino = app.claveDeFila[plato.id];
+    const movs = [
+        mov(origen, 'ingreso', 2, hora('09:19'), 'Sale de Pollo fresco'),
+        mov(origen, 'ingreso', -2, hora('09:20'), 'Pasa a Filete de pollo'),
+        mov(origen, 'ingreso', 2, hora('09:21'), 'Pasa a Filete de pollo'),
+        mov(origen, 'ingreso', -2, hora('09:22'), 'Pasa a ' + plato.nombre),
+        mov(destino, 'ingreso', 2, hora('09:22'), 'Sale de ' + pecho.nombre),
+        mov(destino, 'ingreso', 1, hora('09:23'), 'Pasa de crudo ' + plato.nombre, 'cocido'),
+        mov(destino, 'ingreso', 1, hora('09:24'), 'Pasa de cocido ' + plato.nombre, 'crudo'),
+        mov(destino, 'ingreso', 2, hora('09:25'), 'Pasa de crudo ' + plato.nombre, 'cocido')
+    ];
+    const abrir = () => {
+        app.movimientosPeriodo = movs.slice().reverse();
+        app.abrirOrigenIngreso(pecho, 'crudo');
+        return app.origenIngreso.lineas;
+    };
+    const linea = abrir();
+    expect(linea).toMatchObject([{ cantidad: 2, coccion: true, texto: 'Pecho pachamanca pasó de crudo a cocido' }]);
+    expect(linea[0].recorrido).toMatchObject([
+        { cantidad: 2, entrada: true, texto: 'Se transformó desde Pollo fresco' },
+        { cantidad: 2, texto: expect.stringContaining('Pecho pachamanca') },
+        { cantidad: 2, texto: 'Pecho pachamanca pasó de crudo a cocido' }
+    ]);
+    movs.push(mov(destino, 'ingreso', 1, hora('09:26'), 'Pasa de cocido ' + plato.nombre, 'crudo'));
+    const parte = abrir();
+    expect(parte.find((l) => l.coccion)).toMatchObject({ cantidad: 1 });
+    expect(parte.find((l) => l.coccion).recorrido.map((p) => p.cantidad)).toEqual([1, 1, 1]);
+    expect(parte.find((l) => !l.coccion)).toMatchObject({ cantidad: expect.any(Number), texto: expect.stringContaining('Pecho pachamanca') });
+});
+
+test('la lupa de Octavo conserva el origen de cada corte y no descuenta el cocido de otro corte', () => {
+    const app = crearApp();
+    const octavo = app.filaReal('octavo_pollo');
+    const caldo = app.filaReal('caldo_pollo');
+    const rubro = app.claveDeFila[octavo.id];
+    const destino = app.claveDeFila[caldo.id];
+    app.movimientosPeriodo = [
+        mov(app.claveDeFila.pechuga, 'ingreso', -1, hora('08:00'), 'Pasa a ' + octavo.nombre),
+        mov(rubro, 'ingreso', 2, hora('08:00'), 'Sale de Pecho de Pollo'),
+        mov(app.claveDeFila.pierna, 'ingreso', -1, hora('08:01'), 'Pasa a ' + octavo.nombre),
+        mov(rubro, 'ingreso', 2, hora('08:01'), 'Sale de Pierna de Pollo'),
+        mov(rubro, 'ingreso', -2, hora('08:02'), 'Pasa a ' + caldo.nombre + ' · pecho'),
+        mov(destino, 'ingreso', 2, hora('08:02'), 'Sale de ' + octavo.nombre + ' · pecho'),
+        mov(rubro, 'ingreso', -2, hora('08:03'), 'Pasa a ' + caldo.nombre + ' · pierna'),
+        mov(destino, 'ingreso', 2, hora('08:03'), 'Sale de ' + octavo.nombre + ' · pierna'),
+        mov(destino, 'ingreso', 2, hora('08:04'), 'Pasa de crudo ' + caldo.nombre + ' · pecho', 'cocido'),
+        mov(destino, 'ingreso', 2, hora('08:05'), 'Pasa de crudo ' + caldo.nombre + ' · pierna', 'cocido'),
+        mov(destino, 'ingreso', 1, hora('08:06'), 'Pasa de cocido ' + caldo.nombre + ' · pierna')
+    ].reverse();
+    app.abrirOrigenIngreso(octavo, 'crudo');
+    const pasoPecho = app.origenIngreso.lineas.find((l) => l.coccion && l.texto.includes('(pecho)'));
+    const pasoPierna = app.origenIngreso.lineas.find((l) => l.coccion && l.texto.includes('(pierna)'));
+    expect(pasoPecho).toMatchObject({ cantidad: 2, recorrido: [
+        { texto: 'Se transformó desde Pecho de Pollo', cantidad: 2 },
+        { cantidad: 2 },
+        { cantidad: 2 }
+    ] });
+    expect(pasoPierna).toMatchObject({ cantidad: 1, recorrido: [
+        { texto: 'Se transformó desde Pierna de Pollo', cantidad: 1 },
+        { cantidad: 1 },
+        { cantidad: 1 }
+    ] });
+});
+
+test('la lupa deja separado un pase sin la entrada registrada en el destino', () => {
+    const app = crearApp();
+    const pecho = app.filaReal('pechuga');
+    const plato = app.filaReal('pecho_pachamanca');
+    const rubro = app.claveDeFila[pecho.id];
+    app.movimientosPeriodo = [
+        mov(rubro, 'ingreso', 2, hora('09:19'), 'Sale de Pollo fresco'),
+        mov(rubro, 'ingreso', -2, hora('09:20'), 'Pasa a ' + plato.nombre),
+        mov(app.claveDeFila[plato.id], 'ingreso', 2, hora('09:21'), 'Pasa de crudo ' + plato.nombre, 'cocido')
+    ];
+    app.abrirOrigenIngreso(pecho, 'crudo');
+    expect(app.origenIngreso.lineas).toHaveLength(3);
+    expect(app.origenIngreso.lineas.every((l) => !l.recorrido)).toBe(true);
+    expect(app.origenIngreso.lineas.map((l) => app.cantidadOrigenIngreso(l))).toEqual(['2', '2', '+2']);
+});
+
+test('el recorrido de Pecho respeta que una pieza se transforma en dos octavos', () => {
+    const app = crearApp();
+    const pecho = app.filaReal('pechuga');
+    const octavo = app.filaReal('octavo_pollo');
+    const caldo = app.filaReal('caldo_pollo');
+    const clavePecho = app.claveDeFila[pecho.id];
+    const claveOctavo = app.claveDeFila[octavo.id];
+    const claveCaldo = app.claveDeFila[caldo.id];
+    app.movimientosPeriodo = [
+        mov(clavePecho, 'ingreso', 2, hora('08:00'), 'Sale de Pollo fresco'),
+        mov(clavePecho, 'ingreso', -1, hora('08:01'), 'Pasa a ' + octavo.nombre),
+        mov(claveOctavo, 'ingreso', 2, hora('08:01'), 'Sale de Pecho de Pollo'),
+        mov(claveOctavo, 'ingreso', -2, hora('08:02'), 'Pasa a ' + caldo.nombre + ' · pecho'),
+        mov(claveCaldo, 'ingreso', 2, hora('08:02'), 'Sale de ' + octavo.nombre + ' · pecho'),
+        mov(claveCaldo, 'ingreso', 2, hora('08:03'), 'Pasa de crudo ' + caldo.nombre + ' · pecho', 'cocido')
+    ];
+    app.abrirOrigenIngreso(pecho, 'crudo');
+    expect(app.origenIngreso.lineas).toHaveLength(2);
+    expect(app.origenIngreso.lineas.find((l) => l.entrada)).toMatchObject({ cantidad: 1 });
+    const coccion = app.origenIngreso.lineas.find((l) => l.coccion);
+    expect(coccion.cantidad).toBe(2);
+    expect(coccion.recorrido.map((l) => l.cantidad)).toEqual([1, 2, 2, 2]);
+});
+
+test('el recorrido de Octavo enlaza una separación de Beata y conserva el ingreso directo a Personal aparte', () => {
+    const app = crearApp();
+    const octavo = app.filaReal('octavo_pollo');
+    const rubro = app.claveDeFila[octavo.id];
+    app.movimientosPeriodo = [
+        mov(rubro, 'ingreso', 4, hora('08:00'), 'Sale de Pecho de Pollo'),
+        mov(rubro, 'regulacion', -2, hora('08:01'), 'Separado · Beata · pecho'),
+        mov(rubro, 'ingreso', 1, hora('08:02'), 'Ingreso independiente crudo · Sector Personal · pecho'),
+        mov(rubro, 'regulacion', -1, hora('08:02'), 'Separado · Personal · pecho')
+    ];
+    app.abrirOrigenIngreso(octavo, 'crudo');
+    const { lineas } = app.origenIngreso;
+    expect(lineas.find((l) => l.entrada)).toMatchObject({ texto: 'Se transformó desde Pecho de Pollo', cantidad: 2 });
+    expect(lineas.find((l) => l.sector === 'Personal')).toMatchObject({ clase: 'ingreso', cantidad: 1 });
+    const beata = lineas.find((l) => l.recorrido);
+    expect(beata).toMatchObject({ texto: 'Se transformó 2 octavos de pecho a Beata', cantidad: 2 });
+    expect(beata.recorrido.map((l) => l.cantidad)).toEqual([2, 2]);
+});
+
 test('la tabla abre en Personalizado y conserva los órdenes guardados antes de arrastrar', () => {
     const app = crearApp({ 'inventario-orden-personal': '["pierna","pechuga"]' });
     expect(app.ordenHoja).toBe('personalizado');

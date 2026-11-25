@@ -2065,6 +2065,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .rep-kpi-ven { border-color: rgba(159, 18, 57, 0.65); }
     .ori-caja-t { background: rgba(67, 20, 7, 0.55); border-color: rgba(194, 65, 12, 0.6); }
     .ori-caja-i { background: rgba(2, 44, 34, 0.45); border-color: rgba(6, 95, 70, 0.6); }
+    .ori-texto-movimiento { flex: 1 1 11rem; min-width: 0; }
+    .ori-recorrido {
+      width: min(calc(100% - 2rem), 36rem);
+      max-height: calc(100% - 2rem);
+      margin: auto;
+      padding: 0;
+      border: 2px solid #d4af37;
+      border-radius: 1rem;
+      background: #14141f;
+      color: white;
+    }
+    .ori-recorrido::backdrop { background: rgba(0, 0, 0, 0.7); }
+    .ori-recorrido button:focus-visible, .ori-ver-recorrido:focus-visible { outline: 2px solid #d4af37; outline-offset: 2px; }
     .btn-dm-venta {
       background-color: #4ade80 !important;
       color: #111111 !important;
@@ -2896,7 +2909,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <span class="btn-ingreso-grupo-mas" aria-hidden="true">+</span>
                                 </button>
                               </template>
-                              <button type="button" class="btn-lupa-ingreso lupa-cuadro w-6 h-6 rounded-md inline-flex items-center justify-center cursor-pointer shrink-0" :aria-label="'Ver la transformación del ingreso ' + tipo + ' de ' + row.nombre" title="Ver los ingresos y las salidas por transformación de esta fila" @click="abrirOrigenIngreso(row, tipo)">
+                              <button type="button" class="btn-lupa-ingreso lupa-cuadro w-6 h-6 rounded-md inline-flex items-center justify-center cursor-pointer shrink-0" :aria-label="'Ver la transformación del ingreso ' + tipo + ' de ' + row.nombre" title="Ver los ingresos y el detalle de las transformaciones" @click="abrirOrigenIngreso(row, tipo)">
                                 <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
                               </button>
                             </div>
@@ -9274,7 +9287,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
   </template>
 
   <template x-if="origenIngreso">
-    <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-4" @click.self="origenIngreso = null" @keydown.escape.window="origenIngreso = null" role="dialog" aria-modal="true" aria-label="Transformación del ingreso">
+    <div class="fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-4" @click.self="origenIngreso = null" @keydown.escape.window="if (!$refs.dialogoRecorridoIngreso?.open) origenIngreso = null" role="dialog" aria-modal="true" aria-label="Transformación del ingreso">
       <div class="w-full max-w-xl bg-[#14141f] border-2 border-[#d4af37] p-6 max-h-[90vh] overflow-y-auto rounded-2xl">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div>
@@ -9287,14 +9300,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <p x-show="!origenIngreso.lineas.length" class="text-base text-[#a0a0b8] py-3">Este cuadro no tiene transformación ni ingreso anotado en el período.</p>
         <div class="space-y-2">
           <template x-for="(linea, i) in origenIngreso.lineas" :key="'ori-ing-' + i">
-            <div class="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" :class="linea.clase === 'transformacion' ? 'ori-caja-t' : 'ori-caja-i'">
-              <div class="min-w-0">
+            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border px-4 py-3" :class="linea.clase === 'transformacion' ? 'ori-caja-t' : 'ori-caja-i'">
+              <div class="ori-texto-movimiento">
                 <p class="text-xs uppercase font-bold" :class="linea.clase === 'transformacion' ? 'text-orange-300' : 'text-emerald-300'" x-text="linea.clase === 'transformacion' ? 'Transformación' : 'Ingreso'"></p>
                 <p class="text-lg font-bold text-white leading-snug" x-text="linea.texto"></p>
                 <p class="text-sm text-[#a0a0b8]" x-text="linea.hora + (linea.veces > 1 ? (' · ' + linea.veces + ' veces') : '')"></p>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <p class="text-2xl font-mono font-extrabold" :class="linea.cantidad < 0 ? 'text-rose-200' : 'text-emerald-300'" x-text="(linea.cantidad > 0 ? '+' : '−') + formatNum(Math.abs(linea.cantidad))"></p>
+              <div class="ml-auto flex items-center gap-2 shrink-0">
+                <p class="text-2xl font-mono font-extrabold" :class="linea.clase === 'transformacion' && !linea.entrada ? 'text-orange-300' : (linea.cantidad < 0 ? 'text-rose-200' : 'text-emerald-300')" x-text="cantidadOrigenIngreso(linea)"></p>
+                <button type="button" class="btn-lupa-ingreso ori-ver-recorrido h-9 w-9 rounded-md inline-flex items-center justify-center cursor-pointer" x-show="linea.recorrido?.length" title="Ver transformación" aria-label="Ver transformación" aria-haspopup="dialog" aria-controls="recorrido-ingreso" @click="abrirRecorridoIngreso(linea)">
+                  <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
+                </button>
                 <button type="button" class="btn-lupa-ingreso h-7 px-2 gap-1 text-xs font-bold rounded-md inline-flex items-center justify-center cursor-pointer disabled:opacity-40" x-show="linea.paseId" :disabled="!!paseRevirtiendo" title="Revertir transformación" aria-label="Revertir transformación" @click="revertirPaseIngreso(linea)">
                   <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10a5 5 0 0 1 0 10h-3"/></svg>
                   Revertir
@@ -9306,6 +9322,30 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       </div>
     </div>
   </template>
+
+  <dialog id="recorrido-ingreso" class="ori-recorrido" x-ref="dialogoRecorridoIngreso" aria-labelledby="recorrido-ingreso-titulo"
+    @click.self="$el.close()" @keydown.escape.stop @cancel.prevent="$el.close()" @close="if (!$el.open) recorridoIngreso = []">
+    <div class="p-4 sm:p-6">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <h3 id="recorrido-ingreso-titulo" class="text-2xl font-extrabold">Ver transformación</h3>
+          <p class="text-sm text-[#c8c8dc] mt-1">Recorrido reconstruido con los movimientos del período.</p>
+        </div>
+        <button type="button" class="w-9 h-9 shrink-0 rounded-md text-[#a0a0b8] hover:text-white text-2xl leading-none cursor-pointer" @click="$refs.dialogoRecorridoIngreso.close()" aria-label="Cerrar recorrido" autofocus>×</button>
+      </div>
+      <ol class="space-y-2" aria-label="Pasos de la transformación">
+        <template x-for="(paso, i) in recorridoIngreso" :key="'recorrido-ingreso-' + i">
+          <li class="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" :class="paso.entrada ? 'ori-caja-i' : 'ori-caja-t'">
+            <div class="min-w-0">
+              <p class="text-lg font-bold text-white leading-snug" x-text="paso.texto"></p>
+              <p class="text-sm text-[#a0a0b8]" x-show="paso.hora" x-text="paso.hora"></p>
+            </div>
+            <p class="shrink-0 text-right font-mono font-extrabold" :class="paso.entrada ? 'text-emerald-300' : 'text-orange-300'"><span class="text-2xl" x-text="(paso.entrada ? '+' : '') + formatNum(Math.abs(paso.cantidad))"></span><span x-show="paso.unidad" class="block text-xs" x-text="paso.unidad"></span></p>
+          </li>
+        </template>
+      </ol>
+    </div>
+  </dialog>
 
   <!-- Lupa de un cuadro de grupo: cuánto aporta cada producto o plato -->
   <template x-if="desgloseGrupo">
@@ -11882,6 +11922,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         })(),
         reporteOcultos: (() => { try { const v = JSON.parse(localStorage.getItem('inventario-reporte-ocultos') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } })(),
         origenIngreso: null,
+        recorridoIngreso: [],
         paseRevirtiendo: '',
         ventaAbierta: false,
         modalComandaVer: false,
@@ -13234,7 +13275,242 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return ok;
         },
 
-        // Qué se ingresó y qué se transformó. En un producto con platos cubre todo el grupo.
+        // Resumen por plato y corte para la lupa de los tres cortes de pollo.
+        coccionesIngresoDe(row) {
+          const platos = new Map(this.miembrosGrupo(row).map((plato) => [this.claveDeFila[plato.id], plato]));
+          const cocciones = new Map();
+          for (const m of this.movimientosPeriodo || []) {
+            if (!m || m.clase !== 'ingreso' || m.paseRevertido || m.reviertePase || !(Number(m.cantidad) > 0)) continue;
+            const plato = platos.get(m.rubro);
+            if (!plato) continue;
+            const motivo = String(m.motivo || '');
+            const tipo = m.tipoProducto;
+            const desde = /^Pasa de (crudo|cocido) /.exec(motivo)?.[1];
+            // Contar la entrada del pase: la API también entrega una salida por la misma cantidad.
+            const esEntrada = m.paseId ? tipo === m.paseDestino : !!desde && tipo !== desde;
+            if (!esEntrada || (tipo !== 'crudo' && tipo !== 'cocido')) continue;
+            const corte = this.esPlatoOctavo(plato) ? / · (pecho|pierna)$/i.exec(motivo)?.[1].toLowerCase() || '' : '';
+            const clave = m.rubro + '|' + corte;
+            let linea = cocciones.get(clave);
+            if (!linea) {
+              linea = { clase: 'transformacion', coccion: true, cantidad: 0, fecha: 0,
+                texto: plato.nombre + (corte ? ' (' + corte + ')' : '') + ' pasó de crudo a cocido' };
+              cocciones.set(clave, linea);
+            }
+            linea.cantidad += (tipo === 'cocido' ? 1 : -1) * Number(m.cantidad);
+            linea.fecha = Math.max(linea.fecha, new Date(m.fecha).getTime() || 0);
+          }
+          return Array.from(cocciones.values()).map((linea) => ({ ...linea, cantidad: this.redondear3(linea.cantidad) }))
+            .filter((linea) => linea.cantidad > 0);
+        },
+
+        // Las parejas guardadas sin ID solo se enlazan cuando hay una coincidencia de producto, cantidad y hora.
+        recorridoTransformacionesIngreso(row, grupos, cocciones, sectores) {
+          const claveDe = (fila) => this.claveDeFila[fila.id];
+          const raiz = claveDe(row);
+          const octavo = this.filaReal('octavo_pollo');
+          const claveOctavo = octavo && claveDe(octavo);
+          const destinos = this.miembrosGrupo(row).map((fila) => ({ origen: row, fila, factor: 1 }));
+          if (row.id === 'pechuga') {
+            const filete = this.filaReal('filete');
+            if (filete) destinos.push({ origen: row, fila: filete, factor: Number(this.config.factorFiletesPorPechuga) || 1 });
+            if (octavo) {
+              destinos.push({ origen: row, fila: octavo, factor: this.factorOctavosPorPieza() });
+              for (const fila of this.miembrosGrupo(octavo)) destinos.push({ origen: octavo, fila, factor: 1 });
+            }
+          }
+          const corteDe = (clave, motivo) => {
+            if (clave === claveOctavo) return this.motivoEsCorte(motivo, 'pecho') ? 'pecho'
+              : (this.motivoEsCorte(motivo, 'pierna') ? 'pierna' : '');
+            return / · (pecho|pierna)$/i.exec(motivo)?.[1].toLowerCase() || '';
+          };
+          const conceptoDe = (motivo) => this.norm(motivo.split(' · ')[0]);
+          const filas = new Map([[raiz, row], ...destinos.map(({ fila }) => [claveDe(fila), fila])]);
+          const lotes = new Map();
+          const entradas = new Map();
+          const acciones = [];
+          const r3 = (valor) => this.redondear3(valor);
+          const pasoDe = (mov, datos) => ({ orden: mov.orden, fecha: mov.fecha, cantidad: mov.cantidad, ...datos });
+          const guardarNeto = (clave, mov) => {
+            if (!lotes.has(clave)) lotes.set(clave, []);
+            const lista = lotes.get(clave);
+            if (mov.cantidad > 0) {
+              lista.push(mov);
+              return;
+            }
+            let resta = -mov.cantidad;
+            while (resta > 0 && lista.length) {
+              const ultimo = lista[lista.length - 1];
+              const toma = Math.min(resta, ultimo.cantidad);
+              ultimo.cantidad = r3(ultimo.cantidad - toma);
+              resta = r3(resta - toma);
+              if (!ultimo.cantidad) lista.pop();
+            }
+          };
+          const movimientos = (this.movimientosPeriodo || []).flatMap((m, orden) => {
+            if (!m || !filas.has(m.rubro) || m.clase !== 'ingreso' || m.paseRevertido || m.reviertePase) return [];
+            const motivo = String(m.motivo || '');
+            const fecha = new Date(m.fecha).getTime();
+            const cantidad = Number(m.cantidad) || 0;
+            if (!fecha || !cantidad || this.esMotivoApertura(motivo) || this.esIngresoDescargaSector(motivo)) return [];
+            return [{ ...m, orden, fecha, cantidad, motivo, tipoProducto: m.tipoProducto || 'crudo' }];
+          }).sort((a, b) => a.fecha - b.fecha || a.orden - b.orden);
+          for (const m of movimientos) {
+            const motivo = m.motivo;
+            const texto = this.textoOrigenIngreso(motivo);
+            const corte = corteDe(m.rubro, motivo);
+            const fuenteTipo = /^Pasa de (crudo|cocido) /.exec(motivo)?.[1];
+            const entradaPase = m.paseId ? m.tipoProducto === m.paseDestino : fuenteTipo && fuenteTipo !== m.tipoProducto;
+            if (entradaPase && m.rubro !== raiz && m.cantidad > 0) {
+              const id = m.rubro + '|' + corte;
+              guardarNeto('coccion|' + id, pasoDe(m, { accion: 'coccion', id, rubro: m.rubro, corte,
+                cantidad: m.tipoProducto === 'cocido' ? m.cantidad : -m.cantidad }));
+              continue;
+            }
+            if (m.paseId || this.esPaseEntreTipos(motivo)) continue;
+            if (m.rubro === raiz && /^(?:Sale|Viene) de /.test(motivo)) {
+              const grupo = ['transformacion', raiz, m.tipoProducto, motivo, ''].join('|');
+              guardarNeto('raiz|' + grupo, pasoDe(m, { accion: 'entrada', rubro: raiz, corte, texto, grupo }));
+            } else if (this.claseOrigenIngreso(motivo) === 'ingreso') {
+              guardarNeto(['directo', m.rubro, m.tipoProducto, motivo].join('|'), pasoDe(m, { accion: 'directo', rubro: m.rubro, corte, tipo: m.tipoProducto }));
+            }
+
+            let esTransferencia = false;
+            for (const { origen, fila: destino, factor } of destinos) {
+              const de = claveDe(origen);
+              const a = claveDe(destino);
+              const concepto = conceptoDe(motivo);
+              const sale = m.rubro === de && concepto === this.norm(this.motivoHacia(destino.id));
+              const llega = m.rubro === a && (concepto === this.norm(this.motivoDesde(origen.id))
+                || concepto === this.norm(this.motivoHacia(destino.id)));
+              if (m.tipoProducto !== 'crudo' || (!sale && !llega)) continue;
+              esTransferencia = true;
+              const id = de + '>' + a;
+              const grupo = sale && de === raiz ? ['transformacion', raiz, m.tipoProducto, motivo, ''].join('|') : '';
+              guardarNeto([sale ? 'sale' : 'llega', id, corte].join('|'), pasoDe(m, { accion: sale ? 'sale' : 'llega', id, rubro: m.rubro, de, a, factor, corte, texto, grupo,
+                cantidad: sale ? -m.cantidad : m.cantidad }));
+            }
+            if (!esTransferencia && this.esSalidaIngreso(motivo, filas.get(m.rubro).nombre, m.nombre)) {
+              guardarNeto(['salida', m.rubro, m.tipoProducto, motivo].join('|'), pasoDe(m, { accion: 'salida', rubro: m.rubro, corte,
+                tipo: m.tipoProducto, cantidad: -m.cantidad }));
+            }
+          }
+          const pendientes = Array.from(lotes.values()).flat();
+          const parejas = new Set();
+          const pareja = (sale, llega) => (!sale.corte || !llega.corte || sale.corte === llega.corte)
+            && r3(sale.cantidad * sale.factor) === r3(llega.cantidad) && llega.fecha >= sale.fecha && llega.fecha - sale.fecha <= 30000;
+          for (const { origen, fila } of destinos) {
+            const id = claveDe(origen) + '>' + claveDe(fila);
+            const llegadas = pendientes.filter((ev) => ev.id === id && ev.accion === 'llega');
+            const salidas = pendientes.filter((ev) => ev.id === id && ev.accion === 'sale');
+            for (const sale of salidas) {
+              const candidatas = llegadas.filter((llega) => pareja(sale, llega));
+              const llega = candidatas.length === 1 ? candidatas[0] : null;
+              if (!llega || salidas.filter((s) => pareja(s, llega)).length !== 1) continue;
+              parejas.add(sale);
+              parejas.add(llega);
+              acciones.push({ ...sale, accion: 'pase', corte: llega.corte || sale.corte, fecha: llega.fecha });
+            }
+          }
+          for (const ev of pendientes) {
+            if (parejas.has(ev)) continue;
+            const accion = ev.accion === 'llega' ? 'directo' : (ev.accion === 'sale' ? 'salida' : ev.accion);
+            acciones.push({ ...ev, accion });
+          }
+          // Solo se atribuye al origen una separación inequívoca. Los ingresos directos del sector quedan visibles.
+          for (const linea of sectores) {
+            if (!linea.salida || linea.cantidad >= 0 || sectores.some((otra) => otra.sector === linea.sector
+              && otra.corte === linea.corte && otra.clase === 'ingreso')) continue;
+            const separaciones = (this.movimientosPeriodo || []).filter((m) => m && m.rubro === raiz && m.clase === 'regulacion'
+              && Number(m.cantidad) < 0 && String(m.motivo || '').startsWith('Separado · ')
+              && this.sectorDeMotivo(m.motivo) === this.sectorDeMotivo(linea.sector) && corteDe(raiz, m.motivo) === linea.corte);
+            const separacion = separaciones.length === 1 ? separaciones[0] : null;
+            if (separacion && Number(separacion.cantidad) === linea.cantidad) {
+              acciones.push({ accion: 'sector', rubro: raiz, corte: linea.corte, linea, cantidad: -linea.cantidad,
+                texto: linea.texto, fecha: new Date(separacion.fecha).getTime(), orden: Infinity });
+            }
+          }
+          acciones.sort((a, b) => a.fecha - b.fecha || a.orden - b.orden);
+
+          const cubeta = (rubro, corte, tipo = 'crudo') => [rubro, corte, tipo].join('|');
+          const guardar = (clave, lote) => {
+            if (!entradas.has(clave)) entradas.set(clave, []);
+            entradas.get(clave).push(lote);
+          };
+          const tomar = (clave, cantidad) => {
+            const encontrados = [];
+            for (const lote of entradas.get(clave) || []) {
+              if (cantidad <= 0) break;
+              if (!lote.cantidad) continue;
+              const toma = Math.min(cantidad, lote.cantidad);
+              const proporcion = toma / lote.cantidad;
+              const pasos = lote.pasos.map((paso) => ({ ...paso, cantidad: r3(paso.cantidad * proporcion),
+                cantidadVista: paso.cantidadVista == null ? null : r3(paso.cantidadVista * proporcion) }));
+              encontrados.push({ cantidad: toma, pasos });
+              lote.cantidad = r3(lote.cantidad - toma);
+              lote.pasos.forEach((paso, i) => {
+                paso.cantidad = r3(paso.cantidad - pasos[i].cantidad);
+                if (paso.cantidadVista != null) paso.cantidadVista = r3(paso.cantidadVista - pasos[i].cantidadVista);
+              });
+              cantidad = r3(cantidad - toma);
+            }
+            if (cantidad > 0) encontrados.push({ cantidad, pasos: [] });
+            return encontrados;
+          };
+          for (const ev of acciones) {
+            const entrada = cubeta(ev.rubro, ev.corte, ev.tipo);
+            if (ev.accion === 'entrada' || ev.accion === 'directo') {
+              const pasos = ev.accion === 'entrada' ? [{ ...ev, entrada: true }] : [];
+              guardar(entrada, { cantidad: ev.cantidad, pasos });
+            } else if (ev.accion === 'salida') {
+              tomar(entrada, ev.cantidad);
+            } else if (ev.accion === 'pase') {
+              const corteOrigen = ev.de === claveOctavo ? ev.corte : '';
+              for (const { cantidad, pasos } of tomar(cubeta(ev.de, corteOrigen), ev.cantidad)) {
+                const convertido = r3(cantidad * ev.factor);
+                const unidad = ev.factor === 1 ? '' : (ev.a === claveOctavo ? 'octavos' : 'filetes');
+                guardar(cubeta(ev.a, ev.corte), { cantidad: convertido, pasos: pasos.concat({ ...ev, cantidad, cantidadVista: convertido, unidad }) });
+              }
+            } else if (ev.accion === 'coccion') {
+              const fila = filas.get(ev.rubro);
+              const texto = fila.nombre + (ev.corte ? ' (' + ev.corte + ')' : '') + ' pasó de crudo a cocido';
+              for (const { cantidad, pasos } of tomar(entrada, ev.cantidad)) {
+                guardar(cubeta(ev.rubro, ev.corte, 'cocido'), { cantidad, pasos: pasos.concat({ ...ev, texto, cantidad }) });
+              }
+            } else if (ev.accion === 'sector') {
+              for (const { cantidad, pasos } of tomar(entrada, ev.cantidad)) {
+                const texto = this.textoTransformacionSectorOctavo(cantidad, ev.corte, ev.linea.sector);
+                guardar(cubeta(ev.rubro, ev.corte, 'sector'), { cantidad, pasos: pasos.concat({ ...ev, cantidad, texto }) });
+              }
+            }
+          }
+
+          const finales = [];
+          for (const { cantidad, pasos } of Array.from(entradas.values()).flat()) {
+            if (!cantidad || pasos.length < 2 || !pasos.some((p) => p.grupo && grupos.has(p.grupo))) continue;
+            for (const paso of pasos) {
+              const original = grupos.get(paso.grupo);
+              if (original) {
+                original.cantidad = original.salida ? Math.min(0, r3(original.cantidad + paso.cantidad))
+                  : Math.max(0, r3(original.cantidad - paso.cantidad));
+              }
+              const coccion = paso.accion === 'coccion' && cocciones.find((l) => l.texto === paso.texto);
+              if (coccion) coccion.cantidad = Math.max(0, r3(coccion.cantidad - paso.cantidad));
+              if (paso.accion === 'sector') {
+                const linea = paso.linea;
+                linea.cantidad = Math.min(0, r3(linea.cantidad + paso.cantidad));
+                if (linea.cantidad) linea.texto = this.textoTransformacionSectorOctavo(-linea.cantidad, linea.corte, linea.sector);
+              }
+            }
+            const fin = pasos[pasos.length - 1];
+            finales.push({ clase: 'transformacion', coccion: fin.accion === 'coccion', cantidad, texto: fin.texto, fecha: fin.fecha,
+              recorrido: pasos.map((p) => ({ texto: p.texto, cantidad: p.cantidadVista ?? p.cantidad, hora: this.horaVenta(p.fecha),
+                entrada: !!p.entrada, unidad: p.unidad || '' })) });
+          }
+          return finales;
+        },
+
+        // El editor agrupa movimientos; la lupa del corte muestra los movimientos propios y la cocción de sus platos.
         origenIngresoDe(row, tipo, soloFila = false) {
           const soloTipo = tipo && row.tieneCocido && !row.soloCocido ? (tipo === 'cocido' ? 'cocido' : 'crudo') : '';
           const filaDe = {};
@@ -13280,7 +13556,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             let g = grupos.get(key);
             if (!g) {
               const texto = this.textoOrigenIngreso(motivo);
-              g = { clase, salida, texto: fila.id === row.id ? texto : (fila.nombre + ': ' + texto), cantidad: 0, veces: 0, fecha: 0,
+              g = { clase, salida, entrada: !salida && /^(?:Sale|Viene) de /.test(motivo),
+                texto: fila.id === row.id ? texto : (fila.nombre + ': ' + texto), cantidad: 0, veces: 0, fecha: 0,
                 rubro: m.rubro, paseId, paseDestino: m.paseDestino || (paseHistorico ? (salida ? tipoHistorico[2] : tp) : ''),
                 paseCantidad: m.paseCantidad || (paseHistorico ? Math.abs(n) : 0) };
               grupos.set(key, g);
@@ -13290,17 +13567,22 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (Number.isFinite(t) && t >= g.fecha) g.fecha = t;
           });
           const sectores = this.esFilaOctavo(row) && soloTipo !== 'cocido' ? this.lineasIngresoSectoresOctavo() : [];
-          const lineas = Array.from(grupos.values()).concat(sectores).filter((g) => g.cantidad).sort((a, b) => b.fecha - a.fecha).map(({ fecha, ...g }) => ({
+          const cocciones = soloFila && (this.esFilaOctavo(row) || row.id === 'pechuga' || row.id === 'pierna') ? this.coccionesIngresoDe(row) : [];
+          const suma = (clase) => this.redondear3(Array.from(grupos.values()).reduce((a, l) => a + (l.clase === clase && !l.salida ? l.cantidad : 0), 0));
+          const ingresos = suma('ingreso');
+          const transformado = suma('transformacion');
+          const recorridos = soloFila && (row.id === 'pechuga' || this.esFilaOctavo(row))
+            ? this.recorridoTransformacionesIngreso(row, grupos, cocciones, sectores) : [];
+          const lineas = Array.from(grupos.values()).concat(sectores, cocciones, recorridos).filter((g) => g.cantidad).sort((a, b) => b.fecha - a.fecha).map(({ fecha, ...g }) => ({
             ...g, hora: fecha ? this.horaVenta(fecha) : ''
           }));
-          const suma = (clase) => this.redondear3(lineas.reduce((a, l) => a + (l.clase === clase && !l.salida && !l.sector ? l.cantidad : 0), 0));
           return {
             nombre: row.nombre,
             etiqueta: tipo ? this.etiquetaTipo(tipo === 'cocido' ? 'cocido' : 'crudo', row) : 'Total',
             unidad: row.unidad || 'unid',
-            total: this.redondear3(suma('ingreso') + suma('transformacion')),
-            transformado: suma('transformacion'),
-            anotado: suma('ingreso'),
+            total: this.redondear3(ingresos + transformado),
+            transformado,
+            anotado: ingresos,
             lineas: lineas
           };
         },
@@ -13308,6 +13590,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         abrirOrigenIngreso(row, tipo) {
           if (!row) return;
           this.origenIngreso = { ...this.origenIngresoDe(row, tipo, true), id: row.id, tipo };
+        },
+
+        cantidadOrigenIngreso(linea) {
+          const cantidad = this.formatNum(Math.abs(linea.cantidad));
+          if (linea.clase === 'transformacion') return (linea.entrada ? '+' : '') + cantidad;
+          return (linea.cantidad < 0 ? '−' : '+') + cantidad;
+        },
+
+        abrirRecorridoIngreso(linea) {
+          const dialogo = this.$refs.dialogoRecorridoIngreso;
+          if (!linea.recorrido?.length || dialogo.open) return;
+          this.recorridoIngreso = linea.recorrido;
+          this.$nextTick(() => { if (!dialogo.open) dialogo.showModal(); });
         },
 
         async revertirPaseIngreso(linea) {
@@ -13898,7 +14193,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.movimientosPeriodo = slot.movimientos || [];
           this.movimientosTurno = slot.turno || [];
           this.movimientosOctavoDia = slot.octavo;
-          this._octavoDiaIncompleto = !!slot.octavoIncompleto;
           this.aplicarOpcionesCocido(this.cocidoOpciones);
           this.aplicarKardex(slot.filas || [], this.movimientosPeriodo, this.ventasPeriodo);
         },
@@ -13925,13 +14219,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if ((this._escriturasPendientes || 0) > 0) { this.programarRecargaKardex(); return; }
             this.movimientosPeriodo = movs.movimientos || [];
             this.movimientosOctavoDia = null;
-            this._octavoDiaIncompleto = false;
             await this.cargarMovimientosTurno(r);
             await this.cargarMovimientosOctavoDia(r);
             if (!sigue()) { this._kardexOtraVez = true; return; }
             if (this.activeTab === 'grafico') this.cargarDatosGrafico();
-            await this.asegurarRepartoOctavo();
-            if (!sigue()) { this._kardexOtraVez = true; return; }
             this._cacheKardex[vista] = {
               q: q,
               filas: k.filas || [],
@@ -13939,8 +14230,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               ventas: this.ventasPeriodo,
               cocido: this.cocidoOpciones,
               turno: this.movimientosTurno,
-              octavo: this.movimientosOctavoDia,
-              octavoIncompleto: !!this._octavoDiaIncompleto
+              octavo: this.movimientosOctavoDia
             };
             this._kardexVista = vista;
           } catch (e) {
@@ -18413,8 +18703,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const m = this.movSaldoDirecto(row, 'crudo', delta, marca(corte));
             if (m) movs.push(m);
           };
-          apertura(this.redondear3(pecho - this.octavosStockCorte('pechugas')), 'pecho');
-          apertura(this.redondear3(pierna - this.octavosStockCorte('piernas')), 'pierna');
+          const actual = this.octavosVisibles();
+          apertura(this.redondear3(pecho - actual.pecho), 'pecho');
+          apertura(this.redondear3(pierna - actual.pierna), 'pierna');
           const total = this.redondear3(pecho + pierna);
           const ventas = this.redondear3(this.valorTipo(row, 'venta', 'crudo') + this.valorTipo(row, 'transformacion', 'crudo') - this.valorTipo(row, 'cubierta', 'crudo'));
           const ingresoTotal = this.calcIngresoTotalTipo(row, 'crudo');
@@ -18732,13 +19023,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           } else if (!event.shiftKey && (event.target === ultimo || !campos.includes(event.target))) {
             event.preventDefault(); primero.focus();
           }
-        },
-
-        // Diferencia exacta contra lo marcado de ese corte. No se suma la producción de la pieza:
-        // eso inflaba el ingreso y el «sin separar» borraba el 30 y el 100 al recargar.
-        deltaOctavoCorteEditar(corte, objetivo) {
-          const marca = Math.max(0, Math.round(this.octavosTagNeto(corte)));
-          return Math.round(Number(objetivo) || 0) - marca;
         },
 
         movimientosSaldoCortes(row, tipo, pecho, pierna, motivo) {
@@ -20464,6 +20748,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const lista = movs || [];
           for (const m of lista) {
             const fila = this.filaPorClave(m.rubro);
+            const quedaOctavo = fila?.cortesOctavo?.queda;
+            const corte = quedaOctavo && (this.motivoEsCorte(m.motivo, 'piernas') ? 'pierna'
+              : (this.motivoEsCorte(m.motivo, 'pechugas') ? 'pecho' : ''));
+            if (corte && (m.tipoProducto || 'crudo') === 'crudo' && !this.esNotaRepartoOctavo(m.motivo)
+              && ['ingreso', 'regulacion', 'egreso'].includes(m.clase)) {
+              const delta = (m.clase === 'egreso' ? -1 : 1) * (Number(m.cantidad) || 0);
+              fila.cortesOctavo = { ...fila.cortesOctavo, queda: { ...quedaOctavo, [corte]: this.redondear3((Number(quedaOctavo[corte]) || 0) + delta) } };
+            }
             const reparto = fila && fila.repartoPlatoOctavo && fila.repartoPlatoOctavo[m.tipoProducto || 'crudo'];
             if (!reparto) continue;
             const antes = Math.max(0, reparto.saldo);
@@ -20732,15 +21024,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(this.marcaCorte(corte) === 'pecho' ? pecho : total - pecho);
         },
 
-        // Día, Noche y cajas son el mismo día operativo. Hoy también.
-        periodoEsHoy() {
-          const p = String(this.periodoVista() || '');
-          if (p === 'hoy' || p === 'dia' || p === 'noche' || p.indexOf('caja-') === 0) return true;
-          return !!(window.TurnosDiaNoche && window.TurnosDiaNoche.esSegmento(p));
-        },
-
-        // La Noche empieza en el cierre. El 30 y el 100 quedan a las 04:00, dentro del saldo,
-        // y no aparecen en los movimientos del tramo. Se leen desde el inicio del día.
+        // Los destinos de sector pueden tener separaciones pendientes desde el inicio del día.
         listaOctavoCortes() {
           return Array.isArray(this.movimientosOctavoDia) ? this.movimientosOctavoDia : (this.movimientosPeriodo || []);
         },
@@ -20755,15 +21039,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const data = await this.api('/inventario/movimientos?' + this.queryRango({ desde: new Date(inicio).toISOString(), hasta: rango.hasta }));
             if (q !== this.queryRango(this.rangoVista())) return;
             this.movimientosOctavoDia = (data && data.movimientos) || [];
-          } catch (e) {
-            this._octavoDiaIncompleto = true;
-          }
-        },
-
-        fechaRepartoOctavo() {
-          const TD = window.TurnosDiaNoche;
-          const ymd = TD && TD.limaYMD ? TD.limaYMD() : this.fechaHoy();
-          return ymd + 'T04:00:01-05:00';
+          } catch (e) { /* La lista del período queda disponible para el detalle de sectores. */ }
         },
 
         // Octavos marcados de pecho o de pierna, con su signo.
@@ -20785,56 +21061,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(neto);
         },
 
-        octavosTagLibre(corte) {
-          return Math.max(0, this.octavosTagNeto(corte));
-        },
-
-        octavosSeparados() {
-          const real = this.stockCuadro('octavo_pollo', 'crudo');
-          const sum = this.octavosTagLibre('pechugas') + this.octavosTagLibre('piernas');
-          return sum > 0.5 && sum + 0.5 >= real * 0.5;
-        },
-
-        // Los cortes muestran la marca guardada, en enteros. No se estiran al stock total:
-        // 30 y 100 sobre 180 se volvían 41.538 y 138.462 y el lápiz los volvía a guardar.
         esNotaRepartoOctavo(motivo) {
           return /^Saldo anterior · (?:pecho|pierna|sin separar)$/.test(String(motivo || ''));
         },
 
-        // Apertura de hoy que el libro ya metió en cortes.inicial. La nota «Saldo anterior · pecho» no entra ahí.
-        aperturaMarcadaHoy(marca) {
-          const clave = this.claveDeFila.octavo_pollo;
-          return this.redondear3((this.listaOctavoCortes() || []).reduce((s, m) => {
-            if (!m || m.rubro !== clave || (m.tipoProducto || 'crudo') !== 'crudo') return s;
-            if (!this.esMotivoApertura(m.motivo) || this.esNotaRepartoOctavo(m.motivo)) return s;
-            if (!this.motivoEsCorte(m.motivo, marca)) return s;
-            const n = Number(m.cantidad) || 0;
-            if (m.clase !== 'egreso' && m.clase !== 'ingreso' && m.clase !== 'regulacion') return s;
-            return s + (m.clase === 'egreso' ? -n : n);
-          }, 0));
-        },
-
-        // Lo que quedó ayer de ese corte y todavía no está en los movimientos de hoy.
-        corteArrastrado(corte) {
-          const row = this.filaReal('octavo_pollo');
-          const ini = row && row.cortesOctavo && row.cortesOctavo.inicial;
-          if (!ini) return 0;
-          const marca = this.marcaCorte(corte);
-          const libro = Number(ini[marca]) || 0;
-          // Un corte negativo no se guarda en el libro. No hay que inventar unidades para compensarlo.
-          return Math.max(0, this.redondear3(libro - Math.max(0, this.aperturaMarcadaHoy(marca))));
-        },
-
+        // El libro ya arrastra el saldo por corte; las antiguas notas de reparto no agregan piezas.
+        // Igual que en el desglose de la tabla, los octavos sin corte explícito se muestran como pecho.
         octavosVisibles() {
-          return {
-            pecho: this.octavosStockCorte('pechugas'),
-            pierna: this.octavosStockCorte('piernas')
-          };
+          const row = this.filaReal('octavo_pollo');
+          if (!row) return { pecho: 0, pierna: 0 };
+          const total = this.calcSaldoTipo(row, 'crudo');
+          const marcaPierna = row.cortesOctavo?.queda?.pierna ?? this.octavosTagNeto('piernas');
+          const pierna = Math.min(total, Math.max(0, Number(marcaPierna) || 0));
+          return { pecho: this.redondear3(total - pierna), pierna };
         },
 
         octavosStockCorte(corte) {
-          const tag = this.octavosTagNeto(corte === 'piernas' || corte === 'pierna' ? 'piernas' : 'pechugas');
-          return Math.max(0, Math.round(this.redondear3(tag + this.corteArrastrado(corte))));
+          return this.octavosVisibles()[this.marcaCorte(corte)];
         },
 
         fijarOctavosStock(corte, valor) {
@@ -21705,6 +21948,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return resumen;
         },
 
+        textoTransformacionSectorOctavo(cantidad, corte, sector) {
+          const unidad = cantidad === 1 ? ' octavo' : ' octavos';
+          return 'Se transformó ' + this.formatNum(cantidad) + unidad + ' de ' + corte + ' a ' + sector;
+        },
+
         lineasIngresoSectoresOctavo() {
           const lineas = [];
           const piezas = (cantidad, corte) => this.formatNum(Math.abs(cantidad)) + (Math.abs(cantidad) === 1 ? ' octavo' : ' octavos') + ' de ' + corte;
@@ -21714,14 +21962,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const sector = grupo.nombre === 'Rio Lindo' ? 'Río Lindo' : grupo.nombre;
             if (salida) {
               const texto = salida > 0
-                ? 'Se transformó ' + piezas(salida, corte) + ' a ' + sector
+                ? this.textoTransformacionSectorOctavo(salida, corte, sector)
                 : (salida === -1 ? 'Regresó ' : 'Regresaron ') + piezas(salida, corte) + ' de ' + sector;
-              lineas.push({ clase: 'transformacion', sector, salida: salida > 0, texto, cantidad: -salida, fecha });
+              lineas.push({ clase: 'transformacion', sector, corte, salida: salida > 0, texto, cantidad: -salida, fecha });
             }
             if (ingreso) {
               const texto = ingreso > 0 ? 'Ingreso directo de ' + piezas(ingreso, corte) + ' a ' + sector
                 : 'Se descontó del ingreso directo a ' + sector + ' ' + piezas(ingreso, corte);
-              lineas.push({ clase: 'ingreso', sector, texto, cantidad: ingreso, fecha: fechaIngreso });
+              lineas.push({ clase: 'ingreso', sector, corte, texto, cantidad: ingreso, fecha: fechaIngreso });
             }
           }
           return lineas;
@@ -21875,56 +22123,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         totalOctavosLibres() {
-          const suma = this.redondear3(this.octavosStockCorte('pechugas') + this.octavosStockCorte('piernas'));
-          if (suma > 0) return suma;
           return this.stockCuadro('octavo_pollo', 'crudo');
         },
-
-        // Al empezar el día el saldo llega junto, sin pecho ni pierna.
-        // Se trae el reparto del día anterior y se anota como saldo anterior, sin cambiar el total.
-        async asegurarRepartoOctavo() {
-          if (!this.periodoEsHoy() || this._repartoOctavo) return;
-          if (this.periodoVista() !== 'hoy' && this._octavoDiaIncompleto) return;
-          const clave = this.claveDeFila.octavo_pollo;
-          const row = this.filaReal('octavo_pollo');
-          if (!clave || !row) return;
-          const lista = this.listaOctavoCortes();
-          if (Math.abs(this.netoOctavoEn(lista, 'pechugas')) + Math.abs(this.netoOctavoEn(lista, 'piernas')) > 0.5) return;
-          if (!(this.stockCuadro('octavo_pollo', 'crudo') > 0)) return;
-          const ya = (lista || []).some((m) => m && m.rubro === clave && String(m.lote || '').indexOf('octavo-reparto-') === 0);
-          if (ya) return;
-          this._repartoOctavo = true;
-          const ayer = this.diaOffset(this.fechaHoy(), -1);
-          let previos = [];
-          try {
-            const data = await this.api('/inventario/movimientos?ciclo=04&desde=' + ayer + '&hasta=' + ayer);
-            previos = data.movimientos || [];
-          } catch (e) {
-            this._repartoOctavo = false;
-            return;
-          }
-          const pecho = Math.max(0, this.netoOctavoEn(previos, 'pechugas'));
-          const pierna = Math.max(0, this.netoOctavoEn(previos, 'piernas'));
-          const real = Math.max(0, this.stockCuadro('octavo_pollo', 'crudo'));
-          const suma = pecho + pierna;
-          const factor = suma > real + 0.5 && suma > 0 ? real / suma : 1;
-          const pechoFinal = Math.round(pecho * factor);
-          const piernaFinal = Math.round(pierna * factor);
-          if (!(pechoFinal + piernaFinal > 0.5)) return;
-          const fecha = this.fechaRepartoOctavo();
-          const lote = 'octavo-reparto-' + ayer;
-          const notas = [
-            { n: pechoFinal, marca: 'pecho' },
-            { n: piernaFinal, marca: 'pierna' },
-            { n: this.redondear3(-(pechoFinal + piernaFinal)), marca: 'sin separar' }
-          ];
-          for (const nota of notas) {
-            if (!nota.n) continue;
-            await this.paso(clave, 'crudo', nota.n, 'Saldo anterior · ' + nota.marca, 'ingreso', row.nombre, fecha, lote);
-          }
-          this._kardexOtraVez = true;
-        },
-
 
         octavosUsadosEnPlatos() {
           const clave = this.claveDeFila.octavo_pollo;

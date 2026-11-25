@@ -181,6 +181,44 @@ test('octavo edita apertura de pecho y pierna sin pasar piezas', async () => {
     expect(app.stockCuadro('pechuga', 'crudo')).toBe(0);
 });
 
+test('el reparto histórico de Octavo no duplica el arrastre al pasar a Transformar', () => {
+    const rubro = 'octavo-pollo';
+    const { app, guardados, recargar } = escenario([
+        mov(rubro, 24, ayer, 'crudo', 'Ingreso · pecho'),
+        mov(rubro, 42, ayer, 'crudo', 'Ingreso · pierna'),
+        mov(rubro, 6, ayer),
+        mov(rubro, 24, apertura, 'crudo', 'Saldo anterior · pecho'),
+        mov(rubro, 42, apertura, 'crudo', 'Saldo anterior · pierna'),
+        mov(rubro, -66, apertura, 'crudo', 'Saldo anterior · sin separar')
+    ]);
+    app.productoBloqueado = () => false;
+    app.encolarMovimientos = (lista) => guardados.push(...lista.map((m) => ({ ...m, fecha: hoy })));
+    const verificar = (pecho, pierna) => {
+        expect(app.octavosVisibles()).toEqual({ pecho, pierna });
+        expect(app.totalOctavosLibres()).toBe(pecho + pierna);
+        expect(app.formulaTransformar('octavo|pechugas')).toMatchObject({ stock: pecho, transformado: 0 });
+        expect(app.formulaTransformar('octavo|piernas')).toMatchObject({ stock: pierna, transformado: 0 });
+    };
+    verificar(30, 42);
+    app.movimientosOctavoDia = app.movimientosPeriodo.slice();
+    verificar(30, 42);
+    expect(app.fijarOctavoDestino('beata', 'piernas', 60)).toBe(false);
+    expect(app.fijarOctavoDestino('beata', 'piernas', 2)).toBe(true);
+    verificar(30, 40);
+    recargar();
+    verificar(30, 40);
+});
+
+test('los cortes de Transformar no superan el saldo tras una salida sin corte', () => {
+    const { app } = escenario([
+        mov('octavo-pollo', 30, ayer, 'crudo', 'Ingreso · pecho'),
+        mov('octavo-pollo', 42, ayer, 'crudo', 'Ingreso · pierna'),
+        { ...mov('octavo-pollo', 32, hoy, 'crudo', 'Venta manual'), clase: 'egreso' }
+    ]);
+    expect(app.octavosVisibles()).toEqual({ pecho: 0, pierna: 40 });
+    expect(app.totalOctavosLibres()).toBe(40);
+});
+
 test('escribir 60 en pecho de octavo queda en 60 y no se parte ni se suma otra vez', async () => {
     const nota = escenario([mov('octavo-pollo', 30, apertura, 'crudo', 'Saldo anterior · pecho')]);
     nota.app.abrirEditarOctavo();
