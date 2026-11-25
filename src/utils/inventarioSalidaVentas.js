@@ -145,6 +145,7 @@ const ALIAS_RUBRO_RELACION = {
     'filete pollo crudo': 'filete',
     'pechuga de pollo': 'pechuga-pollo',
     'pierna de pollo': 'pierna-pollo',
+    'sandwich': 'sandwiches',
     'carnero crudo': 'seco-cordero',
     'arroz verde': 'arroz-verde',
     'arroz pato': 'arroz-verde',
@@ -210,10 +211,10 @@ function aplicarFactoresRelacion(nombre, lista, relaciones, fila) {
         if (rel.cantidad === '—' || rel.cantidad === '-') return;
         const cant = Number(rel.cantidad);
         if (!(cant > 0)) return;
-        const lado = ladoRelacion(rel);
-        if (lado && !filaEligeCorte(fila, lado)) return;
         const clave = claveDeRubroRelacion(rel.rubro);
         if (!clave || clave === 'humita') return;
+        const lado = clave === 'sandwiches' ? '' : ladoRelacion(rel);
+        if (lado && !filaEligeCorte(fila, lado)) return;
         factorPorRubro[clave] = cant;
     });
     const claves = Object.keys(factorPorRubro);
@@ -469,7 +470,7 @@ function rubrosDeFila(fila, mapas, bebidas) {
     else if (n.includes('milanesa')) add('milanesa');
     else if (n.includes('chaufa') && n.includes('pollo')) add('chaufa-pollo');
     else if (n.includes('saltado') && n.includes('pollo')) add('salt-pollo');
-    else if (n.includes('pan con pollo') || (n.includes('sandwich') && n.includes('pollo'))) add('sandwiches');
+    else if (n.includes('pan con pollo') || n === 'pan pollo' || (n.includes('sandwich') && n.includes('pollo'))) add('sandwiches');
     else if (n.includes('pollada')) add('pollada');
     else if (rubroTamal(n)) add(rubroTamal(n));
     else if (bebidas && bebidas[n]) add(bebidas[n]);

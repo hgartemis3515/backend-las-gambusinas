@@ -6083,12 +6083,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </div>
             </div>
 
-            <!-- CABECERA DEL CUADRO 2: PLATOS QUE DESCUENTAN DE ESTE PRODUCTO -->
+            <!-- CABECERA DEL CUADRO 2: PLATOS VINCULADOS AL PRODUCTO -->
             <div class="px-3.5 py-2.5 border-b border-[#26263a] bg-[#10101a] flex flex-wrap items-center justify-between gap-2 shrink-0">
               <div>
                 <h3 class="font-extrabold text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
                   <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                  <span>2. Platos que descuentan de</span>
+                  <span>2. Platos vinculados a</span>
                   <span class="text-[#d4af37]" x-text="productoRelacionActual().nombreVista"></span>
                 </h3>
                 <p class="text-[11px] text-[#a0a0b8]">
@@ -6146,6 +6146,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         aria-label="Nombre del plato vinculado"
                         class="inline-rel-input font-extrabold text-white text-xs flex-1 min-w-[130px]"
                       />
+                      <span x-show="esRelacionPanConPollo(item)" class="text-[10px] text-emerald-300 shrink-0">Sandwich cocido</span>
                       <span
                         x-show="ultimaRelacionModificadaId === item.id"
                         class="px-1.5 py-0.5 rounded bg-emerald-500 text-[#042f2e] font-extrabold text-[9px] uppercase shrink-0"
@@ -11469,8 +11470,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.cargarOrdenPersonal();
           await Promise.all([
             this.cargarMapas(),
-            this.cargarRelacionesGuardadas(),
-            this.cargarPlatos(),
+            this.cargarRelacionesGuardadas().then(() => this.cargarPlatos()),
             this.refrescarTurnos(false)
           ]);
           await this.cargarKardex();
@@ -11854,7 +11854,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               else if (n.includes('saltado') && n.includes('pollo')) push(p, 'Salt de pollo', 1, 'pechuga');
               else if (n.includes('milanesa') && n.includes('junior')) push(p, 'Milanesa', 1, 'milanesa');
               else if (n.includes('milanesa')) push(p, 'Milanesa', 1, 'milanesa');
-              else if (n.includes('pan con pollo') || (n.includes('sandwich') && n.includes('pollo'))) push(p, 'Sandwich', 1, 'pechuga');
+              else if (this.esPanConPollo(p.nombre)) push(p, 'Sandwich', 1, 'pza');
               else if (n.includes('pollada')) push(p, 'Pollada', 1, 'pollada');
               else if (n.includes('arroz beata') || (n.includes('beata') && n.includes('arroz'))) push(p, 'Arroz Beata', 1, 'beata');
               else if (n.includes('arroz verde') || n.includes('arroz con pato') || n.includes('arroz de pato')) push(p, 'Arroz verde + Pato', 1, 'verde + pato');
@@ -13742,8 +13742,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
         },
 
+        esPanConPollo(nombre) {
+          const n = this.norm(nombre);
+          return n.includes('pan con pollo') || n === 'pan pollo' || (n.includes('sandwich') && n.includes('pollo'));
+        },
+
         lineaEsDePecho(rubro, nombre) {
           const n = this.norm(nombre);
+          if (rubro === 'sandwiches') return this.esPanConPollo(nombre) || n === 'sandwiches' || n === 'sandwich';
           if (rubro === 'pollo-lena') return (n.includes('1/4') || n.includes('cuarto')) && !n.includes('mix');
           if (rubro === 'menu-pecho' || rubro === 'menu' || rubro === 'pechuga-pollo') {
             return n.includes('arroz con pollo') || (n.includes('caldo') && n.includes('pollo')) || n.includes('pollo a la olla') || n.includes('pollo olla');
@@ -13753,7 +13759,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         clavesVentaDe(row) {
           const clave = row && this.claveDeFila[row.id];
-          if (row && row.id === 'pechuga') return ['pechuga-pollo', 'pollo-lena', 'menu-pecho'];
+          if (row && row.id === 'pechuga') return ['pechuga-pollo', 'pollo-lena', 'menu-pecho', 'sandwiches'];
           if (row && row.id === 'filete') {
             return ['filete', 'filete-pollo', 'filete-junior', 'milanesa', 'milanesa-junior', 'chaufa-pollo', 'salt-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada', 'chi-chico', 'fuente-chi'];
           }
@@ -14837,6 +14843,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!row) return [];
           const out = [];
           const vistos = new Set();
+          const vinculadas = this.relacionesDeFila(row);
           const push = (p) => {
             const k = this.norm(p.nombre);
             if (!k || vistos.has(k) || !(Number(p.cantidad) > 0)) return;
@@ -14846,9 +14853,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const conFila = (id, cantidad) => {
             const hijo = this.filaReal(id);
             if (!hijo || hijo.id === row.id || !this.claveDeFila[hijo.id]) return;
-            const origen = hijo.id === 'pierna_lena'
-              ? 'Solo cocido de Pierna a la leña. No baja Pierna de Pollo'
-              : ('Plato con stock propio. Gasta su cocido, su crudo y después ' + row.nombre);
+            if (hijo.id === 'sandwich' && vinculadas.some((rel) => this.esRelacionPanConPollo(rel))) return;
+            let origen = 'Plato con stock propio. Gasta su cocido, su crudo y después ' + row.nombre;
+            if (hijo.id === 'pierna_lena') origen = 'Solo cocido de Pierna a la leña. No baja Pierna de Pollo';
+            if (hijo.id === 'sandwich') origen = 'Sandwich cocido';
             push({ key: 'fila:' + hijo.id, nombre: hijo.nombre, cantidad: cantidad, filaId: hijo.id, origen: origen });
           };
           this.platosDirectosDe(row.id).forEach((n) => {
@@ -14856,8 +14864,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             conFila(n.id, this.factorUsoPlato(row.id, n.id));
           });
           if (row.id === 'carnero') this.platosDelCarnero().forEach((p) => conFila(p.id, this.factorUsoPlato('carnero', p.id)));
-          this.relacionesDeFila(row).forEach((rel) => {
-            push({ key: 'rel:' + rel.id, nombre: rel.plato, cantidad: Number(rel.cantidad), filaId: '', origen: rel.complemento || 'Relación de platos' });
+          vinculadas.forEach((rel) => {
+            const sandwich = this.esRelacionPanConPollo(rel);
+            push({ key: 'rel:' + rel.id, nombre: rel.plato, cantidad: Number(rel.cantidad), filaId: sandwich ? 'sandwich' : '', origen: sandwich ? 'Sandwich cocido' : (rel.complemento || 'Relación de platos') });
           });
           this.platosDeclaradosEnTabla(row).forEach((p) => {
             push({ key: 'tabla:' + this.norm(p.nombre), nombre: p.nombre, cantidad: Number(p.cantidad), filaId: '', origen: p.complemento || 'Inventario Tabla' });
@@ -14881,6 +14890,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const claveH = hijo && this.claveDeFila[hijo.id];
           if (!hijo || !claveH) return this.repartirVentaManual(clave, row, this.redondear3(n * p.cantidad));
           if (claveH === 'pierna-lena') return [{ rubro: claveH, tipo: 'cocido', cantidad: n, nombre: hijo.nombre }];
+          if (claveH === 'sandwiches') return this.repartirVentaManual(claveH, hijo, this.redondear3(n * p.cantidad));
           const partes = [];
           let falta = n;
           (hijo.tieneCocido ? ['cocido', 'crudo'] : ['crudo']).forEach((t) => {
@@ -23385,7 +23395,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             menu: ['Menú', 'Menu'],
             menu_pecho: ['Menú pecho', 'Menu pecho'],
             menu_pierna: ['Menú pierna', 'Menu pierna'],
-            sandwich: ['Sandwich', 'Sándwich'],
+            sandwich: ['Sandwich', 'Sandwiches'],
             pollada: ['Pollada'],
             salt_pollo: ['Salt de pollo', 'Lomo saltado de pollo'],
             chaufa_pollo: ['Chaufa de pollo'],
@@ -23531,6 +23541,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         platosDeclaradosEnTabla(row) {
           if (!row) return [];
+          if (row.id === 'sandwich') return [{ nombre: 'Pan con Pollo', cantidad: 1, complemento: 'Sandwich cocido' }];
           const out = [];
           const push = (nombre, cantidad, complemento) => {
             const limpio = String(nombre || '').trim();
@@ -23539,7 +23550,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             out.push({ nombre: limpio, cantidad: cant > 0 ? cant : 1, complemento: complemento || '' });
           };
           this.platosDirectosDe(row.id).forEach((n) => {
-            if (this.esPlatoRepetidoDeLena(n)) return;
+            if (n.id === 'sandwich' || this.esPlatoRepetidoDeLena(n)) return;
             push(n.nombre, this.factorUsoPlato(row.id, n.id));
           });
           const listas = {
@@ -23618,6 +23629,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return map;
         },
 
+        esRelacionPanConPollo(rel) {
+          return this.esPanConPollo(rel?.plato) && this.filaDeRubroRelacion(rel.rubro)?.id === 'sandwich';
+        },
+
         relacionesDeFila(rowOrProd) {
           if (!rowOrProd) return [];
           const id = rowOrProd.id;
@@ -23640,8 +23655,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               list.push(arr[j]);
             }
           }
-          this._cacheRelFila.set(id, { rev, list });
-          return list;
+          if (id === 'pechuga') {
+            list.push(...this.relacionesDeFila(this.filaReal('sandwich')).filter((rel) => this.esPanConPollo(rel.plato)));
+          }
+          const tienePanConPollo = (id === 'pechuga' || id === 'sandwich') && list.some((rel) => this.esRelacionPanConPollo(rel));
+          const visibles = tienePanConPollo
+            ? list.filter((rel) => this.norm(rel.plato) !== 'sandwich' || rel.complemento !== 'En Inventario Tabla')
+            : list;
+          this._cacheRelFila.set(id, { rev, list: visibles });
+          return visibles;
         },
 
         abrirModalProductosYPlatos() {
@@ -24828,6 +24850,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           }
           let rubro = rubroTrim;
           if (lower === 'pecho de pollo' || lower === 'pechuga de pollo' || lower === 'pecho') rubro = 'Pechuga de Pollo';
+          if (rubro === 'Pechuga de Pollo' && this.esPanConPollo(this.nuevaRelacion.plato)) rubro = 'Sandwich';
           if (lower === 'pierna de pollo' || lower === 'pierna') rubro = 'Pierna de Pollo';
           if (lower.includes('papa frita') || lower.includes('papas fritas') || lower === 'papas') rubro = 'Papas';
           if (lower === 'gaseosa' || lower === 'gaseosas') rubro = 'Gaseosas';

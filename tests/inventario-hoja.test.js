@@ -4,6 +4,8 @@ const vm = require('vm');
 const { armarLibro } = require('../src/utils/inventarioLibro');
 const { perfilRubro, esStockGeneral, normalizarVenta, semillaCocido } = require('../src/utils/inventarioCascadaVenta');
 const { boundsDiaOperativo } = require('../src/utils/diaOperativoRestaurante');
+const { partirSalida } = require('../src/utils/inventarioSalidaVentas');
+const InventarioRelaciones = require('../public/assets/js/inventarioRelaciones');
 
 const html = fs.readFileSync(path.join(__dirname, '../public/inventario.html'), 'utf8');
 const factoryCode = html.slice(html.indexOf('function inventarioApp()'), html.lastIndexOf('</script>'));
@@ -753,6 +755,47 @@ test('Venta Comandas de pierna muestra las siete ventas del modal sin descontarl
     expect(app.ventaInfo.propia).toBe(0);
     pintar(app, []);
     expect(app.ventaComandasCocido(pierna)).toBe(0);
+});
+
+test('Pecho muestra Pan con Pollo en ventas y permite editar su consumo de Sandwich cocido', async () => {
+    const plato = 'Pan con Pollo';
+    const app = crearApp({}, { InventarioRelaciones });
+    let guardado = { manuales: [
+        { id: 2, rubro: 'Sandwich', plato, cantidad: 1, complemento: 'Pecho de Pollo' },
+        { id: 3, rubro: 'Pecho de Pollo', plato: 'Sandwich', cantidad: 1, complemento: 'En Inventario Tabla' }
+    ], quitadas: [] };
+    app.playUiSound = () => {};
+    app.api = jest.fn(async (url, req) => {
+        if (url === '/platos') return [{ id: 1, nombre: plato }, { id: 2, nombre: plato }];
+        if (req?.method === 'PUT') guardado = JSON.parse(req.body);
+        return guardado;
+    });
+    await app.cargarRelacionesGuardadas();
+    await app.cargarPlatos();
+    app.seleccionarProductoRelacion('pechuga');
+    const rel = app.relacionesDeProductoActual().filter((r) => [plato, 'Sandwich'].includes(r.plato));
+    expect(rel).toEqual([expect.objectContaining({ plato, rubro: 'Sandwich', cantidad: 1 })]);
+    app.cambiarConsumoRelacionInline(rel[0].id, 0.5);
+    expect(guardado.manuales).toContainEqual(expect.objectContaining({ plato, rubro: 'Sandwich', cantidad: 0.5 }));
+    await app.cargarRelacionesGuardadas();
+    await app.cargarPlatos();
+    const pecho = app.filaReal('pechuga');
+    app.ventaManualFila = pecho;
+    app.ventaManualPlatos = 4;
+    app.ventaManualPlatoKey = app.platosVentaManual(pecho).find((p) => p.nombre === plato).key;
+    expect(app.partesVentaManualPlato()).toEqual([expect.objectContaining({ rubro: 'sandwiches', tipo: 'cocido', cantidad: 2 })]);
+
+    const { porRubro, detalle } = partirSalida([{ nombre: plato, cantidad: 4 }], 'Comanda 18', null, { relaciones: guardado.manuales });
+    expect(porRubro).toEqual({ sandwiches: 2 });
+    pintar(app, [
+        mov('pechuga-pollo', 'ingreso', 10, hora('09:00')),
+        mov('sandwiches', 'ingreso', 6, hora('09:00'), 'Ingreso independiente cocido', 'cocido')
+    ], [{ rubro: 'sandwiches', nombre: 'Sandwiches', cantidad: porRubro.sandwiches, detalle: detalle.sandwiches, fecha: hora('12:00') }]);
+    expect(app.ventaComandasCocido(pecho)).toBe(2);
+    app.abrirVentaFila(pecho);
+    expect(app.ventaInfo).toMatchObject({ total: 2, propia: 0, lineas: [expect.objectContaining({ nombre: plato, platos: 4, cantidad: 2, comanda: 'Comanda 18' })] });
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(10);
+    expect(app.stockCuadro('sandwich', 'cocido')).toBe(4);
 });
 
 test('Venta Comandas usa el total de la lupa para Octavo, sus platos y productos individuales', () => {
