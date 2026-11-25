@@ -13020,6 +13020,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         ingresosFinalesReporte(movimientos, nombreDe, esOctavo) {
           const series = new Map();
+          const pasesEntrada = new Map();
+          const pasesSalida = new Map();
+          const sumarPase = (mapa, id, n) => mapa.set(id, this.redondear3((mapa.get(id) || 0) + n));
           const ordenados = movimientos.slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
           ordenados.forEach((m, orden) => {
             const clave = m.rubro;
@@ -13028,6 +13031,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!clave || m.clase !== 'ingreso' || !cantidad || this.esMotivoApertura(motivo) || this.esIngresoDescargaSector(motivo)) return;
             const [concepto, ...marcas] = motivo.split(/\s*·\s*/);
             const tipo = m.tipoProducto === 'cocido' ? 'cocido' : 'crudo';
+            // Un pase crudo ↔ cocido no es mercadería nueva. Si se deshace, tampoco.
+            const pasaDe = /^Pasa de (crudo|cocido)\b/.exec(concepto);
+            const pasaA = /^Pasa a (crudo|cocido)\b/.exec(concepto);
+            if (pasaDe || pasaA) {
+              const origenTipo = (pasaDe || pasaA)[1];
+              const haciaCocido = pasaDe ? origenTipo === 'crudo' : origenTipo === 'cocido';
+              const cortePase = esOctavo(clave) ? (this.motivoEsCorte(motivo, 'pierna') ? 'Pierna'
+                : (this.motivoEsCorte(motivo, 'pecho') ? 'Pecho' : '')) : '';
+              const idPase = [clave, cortePase, haciaCocido ? 'cocido' : 'crudo'].join('\n');
+              const n = Math.abs(cantidad);
+              if (pasaDe && cantidad > 0) sumarPase(pasesEntrada, idPase, n);
+              else if (pasaA) sumarPase(pasesSalida, idPase, n);
+              return;
+            }
             const sale = this.esSalidaIngreso(motivo, nombreDe(clave), m.nombre);
             const destinoAntiguo = !sale && concepto.startsWith('Pasa a ');
             const corte = esOctavo(clave) ? (this.motivoEsCorte(motivo, 'pierna') ? 'Pierna'
@@ -13067,6 +13084,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (cantidad > 0) serie.eventos.push({ ...evento, cantidad });
           });
           const acumulados = new Map();
+          const salidasSinIngreso = [];
           const eventos = Array.from(series.values()).flatMap((s) => {
             // Una reducción manual también puede corregir un ingreso guardado con otro motivo.
             let pendiente = s.pendiente;
@@ -13095,6 +13113,60 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               salida = this.redondear3(salida - toma);
               if (!salida) break;
             }
+            // La transformación salió antes de que el ingreso quedara anotado. El destino ya la cuenta.
+            if (salida > 0 && !evento.manual) salidasSinIngreso.push({ clave: evento.clave, corte: evento.corte, cantidad: salida });
+          });
+          // Lo que entró y luego se transformó cuenta una sola vez, en el producto final.
+          salidasSinIngreso.forEach((pendiente) => {
+            const manuales = [];
+            acumulados.forEach((lista) => lista.forEach((l) => {
+              if (l.clave === pendiente.clave && l.manual && l.cantidad > 0) manuales.push(l);
+            }));
+            const preferidas = pendiente.corte
+              ? manuales.filter((l) => l.corte === pendiente.corte).concat(manuales.filter((l) => !l.corte))
+              : manuales;
+            let resta = pendiente.cantidad;
+            for (const linea of preferidas) {
+              if (resta <= 0) break;
+              const toma = Math.min(resta, linea.cantidad);
+              linea.cantidad = this.redondear3(linea.cantidad - toma);
+              resta = this.redondear3(resta - toma);
+            }
+          });
+          // El neto del día solo cambia el tipo de un ingreso que sí entró hoy.
+          const netoPase = new Map();
+          new Set([...pasesEntrada.keys(), ...pasesSalida.keys()]).forEach((idPase) => {
+            const [claveP, corteP, dir] = idPase.split('\n');
+            const qty = Math.max(pasesEntrada.get(idPase) || 0, pasesSalida.get(idPase) || 0);
+            const base = claveP + '\n' + corteP;
+            const signo = dir === 'cocido' ? qty : -qty;
+            netoPase.set(base, this.redondear3((netoPase.get(base) || 0) + signo));
+          });
+          const moverTipoReporte = (claveP, corteP, desde, hacia, cantidad, detalle) => {
+            const origen = acumulados.get(claveP + '|' + desde) || [];
+            const preferidas = corteP
+              ? origen.filter((l) => l.corte === corteP).concat(origen.filter((l) => !l.corte))
+              : origen;
+            let resta = cantidad;
+            for (const linea of preferidas) {
+              if (resta <= 0) break;
+              const toma = Math.min(resta, linea.cantidad);
+              linea.cantidad = this.redondear3(linea.cantidad - toma);
+              resta = this.redondear3(resta - toma);
+            }
+            const movido = this.redondear3(cantidad - resta);
+            if (movido <= 0) return;
+            const cubeta = claveP + '|' + hacia;
+            if (!acumulados.has(cubeta)) acumulados.set(cubeta, []);
+            acumulados.get(cubeta).push({
+              clave: claveP, cubeta, tipo: hacia, corte: corteP, detalle, sale: false, manual: false,
+              orden: 0, fecha: 0, cantidad: movido
+            });
+          };
+          netoPase.forEach((neto, base) => {
+            const [claveP, corteP] = base.split('\n');
+            if (neto > 0) moverTipoReporte(claveP, corteP, 'crudo', 'cocido', neto, 'Desde crudo');
+            else if (neto < 0) moverTipoReporte(claveP, corteP, 'cocido', 'crudo', -neto, 'Desde cocido');
           });
           return Array.from(acumulados.values()).flat().filter((l) => l.cantidad > 0);
         },
@@ -13617,6 +13689,47 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return finales;
         },
 
+        // Un pase de ida y su vuelta se anulan. Queda solo el neto, en la lupa y en el reporte.
+        compactarPasesTipo(grupos) {
+          const cubetas = new Map();
+          for (const g of grupos.values()) {
+            if (!g.paseLado) continue;
+            const clave = g.rubro + '|' + (g.paseCorte || '');
+            if (!cubetas.has(clave)) cubetas.set(clave, []);
+            cubetas.get(clave).push(g);
+          }
+          const haciaCocido = (g) => (g.paseLado === 'de' && g.paseOrigen === 'crudo')
+            || (g.paseLado === 'a' && g.paseOrigen === 'cocido');
+          const recortar = (lineas, total) => {
+            let resta = total;
+            for (const linea of lineas) {
+              if (resta <= 0) break;
+              const tiene = Math.abs(linea.cantidad);
+              const toma = Math.min(resta, tiene);
+              const signo = linea.cantidad < 0 ? -1 : 1;
+              linea.cantidad = this.redondear3(signo * (tiene - toma));
+              if (linea.paseId && linea.paseCantidad && Math.abs(linea.cantidad) + 0.0001 < linea.paseCantidad) linea.paseId = '';
+              resta = this.redondear3(resta - toma);
+            }
+          };
+          for (const lineas of cubetas.values()) {
+            const entradas = lineas.filter((g) => g.paseLado === 'de' && g.cantidad);
+            for (const salida of lineas) {
+              if (salida.paseLado !== 'a' || !salida.cantidad) continue;
+              if (entradas.some((e) => haciaCocido(e) === haciaCocido(salida))) salida.cantidad = 0;
+            }
+            const vivas = lineas.filter((g) => g.cantidad);
+            const aCocido = vivas.filter(haciaCocido);
+            const aCrudo = vivas.filter((g) => !haciaCocido(g));
+            const suma = (ls) => this.redondear3(ls.reduce((a, g) => a + Math.abs(g.cantidad), 0));
+            const cancel = Math.min(suma(aCocido), suma(aCrudo));
+            if (cancel > 0) {
+              recortar(aCocido, cancel);
+              recortar(aCrudo, cancel);
+            }
+          }
+        },
+
         // El editor agrupa movimientos; la lupa del corte muestra los movimientos propios y la cocción de sus platos.
         origenIngresoDe(row, tipo, soloFila = false) {
           const soloTipo = tipo && row.tieneCocido && !row.soloCocido ? (tipo === 'cocido' ? 'cocido' : 'crudo') : '';
@@ -13661,19 +13774,23 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const clase = m.paseId ? 'transformacion' : this.claseOrigenIngreso(motivo);
             const key = clase + '|' + m.rubro + '|' + tp + '|' + motivo + '|' + paseId;
             const t = new Date(m.fecha).getTime();
+            const pasaTipo = /^Pasa (a|de) (crudo|cocido)\b/.exec(motivo.split(' · ')[0]);
             let g = grupos.get(key);
             if (!g) {
               const texto = this.textoOrigenIngreso(motivo);
               g = { clase, salida, entrada: !salida && /^(?:Sale|Viene) de /.test(motivo),
                 texto: fila.id === row.id ? texto : (fila.nombre + ': ' + texto), cantidad: 0, veces: 0, fecha: 0,
                 rubro: m.rubro, paseId, paseDestino: m.paseDestino || (paseHistorico ? (salida ? tipoHistorico[2] : tp) : ''),
-                paseCantidad: m.paseCantidad || (paseHistorico ? Math.abs(n) : 0) };
+                paseCantidad: m.paseCantidad || (paseHistorico ? Math.abs(n) : 0),
+                paseLado: pasaTipo ? pasaTipo[1] : '', paseOrigen: pasaTipo ? pasaTipo[2] : '',
+                paseCorte: (/ · (pecho|pierna)$/i.exec(motivo)?.[1] || '').toLowerCase() };
               grupos.set(key, g);
             }
             g.cantidad = this.redondear3(g.cantidad + n);
             g.veces += 1;
             if (Number.isFinite(t) && t >= g.fecha) g.fecha = t;
           });
+          this.compactarPasesTipo(grupos);
           const sectores = this.esFilaOctavo(row) && soloTipo !== 'cocido' ? this.lineasIngresoSectoresOctavo() : [];
           const cocciones = soloFila && (this.esFilaOctavo(row) || row.id === 'pechuga' || row.id === 'pierna') ? this.coccionesIngresoDe(row) : [];
           const suma = (clase) => this.redondear3(Array.from(grupos.values()).reduce((a, l) => a + (l.clase === clase && !l.salida ? l.cantidad : 0), 0));
@@ -17490,14 +17607,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return clave === 'helados' || clave === 'delicias' || clave === 'yuca' || clave === 'cuy' || clave === 'bisteck' || clave === 'lomo-fino' || clave === 'carne-guiso' || clave === 'seco-res' || clave === 'humita' || clave === 'trucha' || clave === 'filete-trucha' || clave === 'pieza-pescado' || clave === 'filete' || clave.indexOf('frugos') === 0 || clave.indexOf('pizza') === 0 || clave.indexOf('gaseosa-') === 0 || clave.indexOf('licor-') === 0 || clave.indexOf('agua-') === 0;
         },
 
+        // La fila Arroz con pollo es el plato de octavo. La venta de ese nombre sale de Arroz verde + pato.
+        emergenciaDeArrozConPollo(row) {
+          if (!row) return false;
+          return row.id === 'arroz_con_pollo' || this.claveDeFila[row.id] === 'arroz-pollo';
+        },
+
         // Emergencia: se restó más de lo que había. Se ve en este día; mañana abre en 0.
         emergenciaTipo(row, tipo) {
-          if (!row || this.esFilaPapas(row)) return false;
+          if (!row || this.esFilaPapas(row) || this.emergenciaDeArrozConPollo(row)) return false;
           return this.quedaSinTopeTipo(row, tipo) < -0.0004;
         },
 
         emergenciaFila(row) {
-          if (!row || this.esFilaPapas(row)) return false;
+          if (!row || this.esFilaPapas(row) || this.emergenciaDeArrozConPollo(row)) return false;
           return this.tiposDe(row).some((tipo) => this.emergenciaTipo(row, tipo));
         },
 
@@ -17559,7 +17682,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               const base = { id: row.id, nombre: row.nombre, tipo, etiqueta: this.etiquetaTipo(tipo, row) };
               const firma = (clase, ...cifras) => [this.claveDeFila[row.id], tipo, clase, ...cifras.map((v) => this.redondear3(v))].join('|');
               const sinTope = this.quedaSinTopeTipo(row, tipo);
-              if (sinTope < -0.0004) {
+              if (sinTope < -0.0004 && !this.emergenciaDeArrozConPollo(row)) {
                 const falta = this.redondear3(-sinTope);
                 const crudoLibre = this.crudoLibreParaCocido(row, tipo);
                 out.push(Object.assign({}, base, {
@@ -17811,6 +17934,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         emergenciaCelda(row, tipo) {
+          if (this.emergenciaDeArrozConPollo(row)) return false;
           return this.faltanteCelda(row, tipo) < -0.0004;
         },
 

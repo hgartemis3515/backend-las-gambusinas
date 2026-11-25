@@ -644,6 +644,83 @@ test('el reporte cuenta el producto final con su tipo y corte, y descarta pases 
     expect(filas.map((f) => f.clave)).toHaveLength(3);
 });
 
+test('un pase o un ingreso revertido no entra al reporte ni a la lupa', () => {
+    const app = crearApp();
+    const pato = app.claveDeFila.pechuga_pato;
+    const baby = app.claveDeFila.pollo_baby;
+    const pecho = app.claveDeFila.pechuga;
+    const pacha = app.claveDeFila.pecho_pachamanca;
+    const sandwich = app.claveDeFila.sandwich;
+    const ida = (rubro, nombre, n, fecha) => [
+        mov(rubro, 'ingreso', n, fecha, 'Pasa de crudo ' + nombre, 'cocido'),
+        mov(rubro, 'ingreso', -n, fecha, 'Pasa a cocido ' + nombre)
+    ];
+    const vuelta = (rubro, nombre, n, fecha) => [
+        mov(rubro, 'ingreso', n, fecha, 'Pasa de cocido ' + nombre),
+        mov(rubro, 'ingreso', -n, fecha, 'Pasa a crudo ' + nombre, 'cocido')
+    ];
+    const movimientos = [
+        mov(pato, 'ingreso', 2, hora('08:00'), 'Sale de Pato fresco'),
+        mov(pato, 'ingreso', -2, hora('08:05'), 'Sale de Pato fresco'),
+        ...ida(pato, 'Pecho de Pato', 1, hora('08:10')),
+        ...vuelta(pato, 'Pecho de Pato', 1, hora('08:11')),
+        mov(baby, 'ingreso', 10, hora('09:00'), 'Ingreso crudo'),
+        mov(baby, 'ingreso', -10, hora('09:01'), 'Ingreso crudo'),
+        ...ida(baby, 'Pollo Baby', 1, hora('09:02')),
+        ...vuelta(baby, 'Pollo Baby', 1, hora('09:03')),
+        mov(pecho, 'ingreso', -2, hora('10:00'), 'Pasa a Pecho pachamanca'),
+        mov(pacha, 'ingreso', 2, hora('10:00'), 'Sale de Pecho de Pollo'),
+        ...ida(pacha, 'Pecho pachamanca', 2, hora('10:01')),
+        ...vuelta(pacha, 'Pecho pachamanca', 2, hora('10:02')),
+        mov(pecho, 'ingreso', 2, hora('10:03'), 'Pasa a Pecho pachamanca'),
+        mov(pacha, 'ingreso', -2, hora('10:03'), 'Sale de Pecho de Pollo'),
+        mov(pecho, 'ingreso', 5, hora('11:00'), 'Ingreso independiente crudo'),
+        mov(pecho, 'ingreso', -5, hora('11:01'), 'Pasa a Sandwich'),
+        mov(sandwich, 'ingreso', 5, hora('11:01'), 'Sale de Pecho de Pollo', 'cocido'),
+        mov(pecho, 'ingreso', 3, hora('11:02'), 'Pasa a Sandwich'),
+        mov(sandwich, 'ingreso', -3, hora('11:02'), 'Sale de Pecho de Pollo', 'cocido'),
+        mov(pecho, 'ingreso', -5, hora('11:03'), 'Ingreso independiente crudo'),
+        mov(pecho, 'ingreso', 2, hora('11:04'), 'Ingreso independiente crudo'),
+        ...ida(sandwich, 'Sandwich', 2, hora('11:11')),
+        ...vuelta(sandwich, 'Sandwich', 2, hora('11:12')),
+        mov(sandwich, 'ingreso', 2, hora('11:20'), 'Ingreso independiente cocido', 'cocido'),
+        mov('pollada', 'ingreso', 4, hora('12:00'), 'Sale de Pierna de Pollo'),
+        ...ida('pollada', 'Pollada', 3, hora('12:10')),
+        ...vuelta('pollada', 'Pollada', 1, hora('12:11'))
+    ];
+    app.reporteDiaVista = app.vistaReporteHoja({}, movimientos.slice().reverse());
+    const filas = app.filasReporteIngreso();
+    expect(filas.find((f) => f.clave === pato)).toBeUndefined();
+    expect(filas.find((f) => f.clave === baby)).toBeUndefined();
+    const grupo = filas.find((f) => f.clave === pecho);
+    expect(grupo.ingreso).toBe(4);
+    expect(grupo.lineas).toEqual(expect.arrayContaining([
+        expect.objectContaining({ clave: sandwich, tipo: 'Cocido', detalle: 'Desde Pecho de Pollo', cantidad: 2 }),
+        expect.objectContaining({ clave: sandwich, tipo: 'Cocido', detalle: 'Ingreso directo', cantidad: 2 })
+    ]));
+    expect(grupo.lineas.some((l) => l.clave === pecho)).toBe(false);
+    expect(grupo.lineas.some((l) => l.clave === pacha || /Desde cocido/.test(l.detalle))).toBe(false);
+    const pollada = filas.flatMap((f) => f.lineas).filter((l) => l.clave === 'pollada');
+    expect(pollada.reduce((a, l) => a + l.cantidad, 0)).toBe(4);
+    expect(pollada).toEqual(expect.arrayContaining([
+        expect.objectContaining({ tipo: 'Crudo', detalle: 'Desde Pierna de Pollo', cantidad: 2 }),
+        expect.objectContaining({ tipo: 'Cocido', detalle: 'Desde crudo', cantidad: 2 })
+    ]));
+
+    app.movimientosPeriodo = movimientos;
+    app.abrirOrigenIngreso(app.filaReal('pechuga_pato'), 'crudo');
+    expect(app.origenIngreso.lineas).toEqual([]);
+    app.abrirOrigenIngreso(app.filaReal('pollo_baby'), 'crudo');
+    expect(app.origenIngreso.lineas).toEqual([]);
+    app.abrirOrigenIngreso(app.filaReal('pecho_pachamanca'), 'crudo');
+    expect(app.origenIngreso.lineas).toEqual([]);
+    app.aplicarOpcionesCocido([{ clave: 'pollada', tieneCocido: true }]);
+    app.abrirOrigenIngreso(app.filaReal('pollada'), 'cocido');
+    expect(app.origenIngreso.lineas).toEqual([
+        expect.objectContaining({ cantidad: 2, texto: expect.stringMatching(/Pasa de crudo/) })
+    ]);
+});
+
 test('un pase de tira de panceta a pieza queda fuera de Ingreso y aparece una vez en el detalle y el reporte', () => {
     const app = crearApp();
     const movimientos = [
@@ -970,6 +1047,20 @@ test('editar apertura de un día pasado usa el inicio de ese día', () => {
     expect(app.notaEditarStock()).toContain('Saldo anterior');
     app.periodo = 'hoy';
     expect(app.fechaCierreVista()).toBeUndefined();
+});
+
+test('Arroz con pollo no entra a Emergencia: esa venta sale de Arroz verde + pato', () => {
+    const app = crearApp();
+    pintar(app, [
+        mov('arroz-pollo', 'egreso', 1, hora('12:00'), 'Venta'),
+        mov('arroz-verde', 'egreso', 1, hora('12:00'), 'Venta', 'cocido')
+    ]);
+    expect(app.emergenciaFila(app.filaReal('arroz_con_pollo'))).toBe(false);
+    expect(app.filasEmergencia().some((row) => row.id === 'arroz_con_pollo')).toBe(false);
+    expect(app.filasEmergencia().map((row) => row.id)).toContain('arroz_verde');
+    const descuadre = app.filasDescuadre().filter((item) => item.clase === 'emergencia').map((item) => item.id);
+    expect(descuadre).not.toContain('arroz_con_pollo');
+    expect(descuadre).toContain('arroz_verde');
 });
 
 test('descuadre: dice qué pasó y cómo resolverlo, sin falsas alarmas', async () => {
