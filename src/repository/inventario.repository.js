@@ -197,9 +197,9 @@ async function alertasActuales() {
 }
 
 async function crearMovimiento(data, usuarioId) {
-    const tipo = data.tipoProducto;
+    const tipoPedido = data.tipoProducto;
     const clase = data.clase;
-    if (tipo !== 'crudo' && tipo !== 'cocido') {
+    if (tipoPedido !== 'crudo' && tipoPedido !== 'cocido') {
         const err = new Error('El tipo es crudo o cocido');
         err.statusCode = 400;
         throw err;
@@ -239,6 +239,9 @@ async function crearMovimiento(data, usuarioId) {
             throw err;
         }
     }
+    const sandwich = rubro?.clave === 'sandwiches';
+    const tipo = sandwich ? 'cocido' : tipoPedido;
+    if (sandwich && motivo === 'Ingreso independiente crudo') motivo = 'Ingreso independiente cocido';
     const paseTipo = data.paseTipo === true;
     if (paseTipo) {
         if (!rubro || clase !== 'ingreso' || cantidad <= 0 || !motivo.startsWith('Pasa de ' + otroTipo(tipo) + ' ')) {
@@ -323,6 +326,10 @@ async function opcionesCocido() {
         if (d.clave === 'pollo-lena' || d.clave === 'caldo-pollo') reservaClave = '';
         if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
         if (d.clave === 'panceta' || d.clave === 'tira-panceta' || d.clave === 'trozo-panceta') tieneCocido = false;
+        if (d.clave === 'sandwiches') {
+            tieneCocido = false;
+            reservaClave = '';
+        }
         if (d.clave === 'menu' || d.clave === 'menu-pecho' || d.clave === 'menu-pierna') tieneCocido = false;
         return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
     });
@@ -759,7 +766,8 @@ async function ponerEnCero(usuarioId) {
     const usuario = usuarioId && mongoose.Types.ObjectId.isValid(usuarioId) ? usuarioId : null;
     const docs = [];
     clavesGuardables().forEach((d) => {
-        ['crudo', 'cocido'].forEach((tipo) => {
+        const tipos = d.clave === 'sandwiches' ? ['cocido'] : ['crudo', 'cocido'];
+        tipos.forEach((tipo) => {
             docs.push({
                 plato: null,
                 platoId: 0,

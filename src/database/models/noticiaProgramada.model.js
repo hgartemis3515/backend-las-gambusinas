@@ -13,6 +13,7 @@ const noticiaProgramadaSchema = new mongoose.Schema({
     intentos: { type: Number, default: 0 },
     enviandoDesde: { type: Date, default: null },
     enviadaAt: { type: Date, default: null },
+    muestraHasta: { type: Date, default: null },
     noticiaId: { type: String, default: '' },
     error: { type: String, default: '' },
     titulo: { type: String, default: '', maxlength: 120, trim: true },

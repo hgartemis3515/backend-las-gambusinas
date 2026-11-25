@@ -70,7 +70,25 @@ test.each([['pechugas', 'pechuga'], ['piernas', 'pierna']])('cada plato de %s re
     for (const ad of platos) expect(await app.cuadroHijo(padre, ad.id, 'crudo', input(1))).toBe(true);
     recargar();
     expect(app.stockCuadro(padre, 'crudo')).toBe(10 - platos.length);
-    platos.forEach((ad) => expect(app.stockCuadro(ad.id, 'crudo')).toBe(1));
+    platos.forEach((ad) => {
+        const tipo = app.filaReal(ad.id).soloCocido ? 'cocido' : 'crudo';
+        expect(app.stockCuadro(ad.id, tipo)).toBe(1);
+    });
+});
+
+test('transformar Pecho de Pollo en Sandwich alimenta la única caja de cocido', async () => {
+    const { app, recargar, nuevos } = escenario([['pechuga-pollo', 10], ['sandwiches', 2, 'Sale de Pecho de Pollo']]);
+    const clave = 'hijo|pechuga|sandwich';
+    expect(app.formulaTransformar(clave)).toMatchObject({ stock: 0, transformado: 2 });
+    expect(await app.formulaTransformar(clave).fijar(1)).toBe(true);
+    expect(nuevos()).toEqual(expect.arrayContaining([
+        expect.objectContaining({ rubro: 'sandwiches', tipoProducto: 'cocido', cantidad: 1 })
+    ]));
+    recargar();
+    expect(app.formulaTransformar(clave)).toMatchObject({ stock: 0, transformado: 3 });
+    expect(app.stockCuadro('sandwich', 'crudo')).toBe(0);
+    expect(app.stockCuadro('sandwich', 'cocido')).toBe(3);
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(9);
 });
 
 test('bajar el cuadro devuelve la pieza a su origen', async () => {

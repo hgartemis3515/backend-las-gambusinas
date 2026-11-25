@@ -17,6 +17,25 @@ function fila(libro, rubro, tipo = 'crudo') {
     return libro.filas.find((f) => f.rubro === rubro && f.tipoProducto === tipo);
 }
 
+test('Sandwich arrastra el stock al cocido y descuenta ahí las comandas y ventas manuales', () => {
+    const rubro = 'sandwiches';
+    const movs = [
+        mov(rubro, 'inventario', 0, hora('2026-11-10', '09:00'), 'Puesta en cero'),
+        mov(rubro, 'inventario', 0, hora('2026-11-10', '09:00'), 'Puesta en cero', 'cocido'),
+        mov(rubro, 'ingreso', 6, hora('2026-11-10', '10:00')),
+        mov(rubro, 'ingreso', 4, hora('2026-11-10', '10:01'), 'Ingreso cocido', 'cocido'),
+        { ...mov(rubro, 'ingreso', 2, hora('2026-11-10', '11:00'), 'Pasa de crudo Sandwich', 'cocido'), paseTipo: true },
+        mov(rubro, 'ingreso', 5, hora('2026-11-11', '10:00'), 'Ingreso independiente cocido', 'cocido'),
+        mov(rubro, 'egreso', 2, hora('2026-11-11', '14:00'), 'Venta manual', 'cocido')
+    ];
+    const libro = dia('2026-11-11', movs, [venta(rubro, 3, hora('2026-11-11', '13:00'))], {
+        opciones: { [rubro]: { tieneCocido: true, reservaClave: 'pechuga-pollo' } }
+    });
+    expect(fila(libro, rubro)).toMatchObject({ saldoInicial: 0, ingresoBruto: 0, venta: 0, queda: 0 });
+    expect(fila(libro, rubro, 'cocido')).toMatchObject({ saldoInicial: 10, ingresoBruto: 5, venta: 3, egreso: 2, queda: 10 });
+    expect(libro.ventas).toEqual([expect.objectContaining({ rubro, tipoProducto: 'cocido', cantidad: 3 })]);
+});
+
 test('el saldo anterior de hoy es lo que quedó ayer', () => {
     const movs = [mov('bisteck', 'ingreso', 10, hora('2026-11-10', '10:00'))];
     const ventas = [venta('bisteck', 3, hora('2026-11-10', '13:00'))];

@@ -186,11 +186,11 @@ function prepararTemporal(body, autor) {
     };
 }
 
-async function crearNoticia(body, autor) {
+async function crearNoticia(body, autor, cuando = new Date(), idForzado = null) {
     const campos = armarCuerpo(body);
-    const doc = await Noticia.create({
+    const datos = {
         ...campos,
-        fechaOperativa: ymdOperativo(),
+        fechaOperativa: ymdOperativo(cuando),
         autor: {
             id: String(autor?.id || ''),
             nombre: String(autor?.nombre || ''),
@@ -198,8 +198,24 @@ async function crearNoticia(body, autor) {
         },
         vigente: true,
         ...destinoDe(body),
-    });
+    };
+    if (idForzado && idNoticia(idForzado)) datos._id = idForzado;
+    const doc = await Noticia.create(datos);
+    const guardada = await Noticia.findById(doc._id).select('_id').lean();
+    if (!guardada) {
+        const err = new Error('La noticia no quedó guardada');
+        err.status = 500;
+        throw err;
+    }
     return noticiaPublica(doc.toObject());
+}
+
+async function reponerNoticia(id, body, autor, cuando = new Date()) {
+    if (id && idNoticia(id)) {
+        const ya = await Noticia.findById(id).lean();
+        if (ya) return noticiaPublica(ya);
+    }
+    return crearNoticia(body, autor, cuando, id);
 }
 
 async function actualizarNoticia(id, body) {
@@ -304,6 +320,35 @@ async function programarNoticia(body, autor) {
     return programadaPublica(doc.toObject());
 }
 
+function avisoEnPantalla(doc, ahora = new Date()) {
+    const fin = new Date(doc.muestraHasta).getTime();
+    const queda = Math.max(1, Math.ceil((fin - ahora.getTime()) / 1000));
+    const salirBase = Number(doc.segundosSalirMozos);
+    const salir = Math.min(queda, Math.max(0, Number.isFinite(salirBase) ? Math.round(salirBase) : 6));
+    return {
+        _id: doc.noticiaId || String(doc._id),
+        titulo: doc.titulo || '',
+        cuerpoHtml: doc.cuerpoHtml || '',
+        segundosEnPantalla: queda,
+        segundosSalirMozos: salir,
+        destinos: doc.destinos?.length ? doc.destinos : ['cocina', 'mozos'],
+        cocinaAlcance: doc.cocinaAlcance || 'todas',
+        pantallas: doc.pantallas || [],
+        cocinaCocineroIds: doc.payload?.cocinaCocineroIds || [],
+        mozosAlcance: doc.mozosAlcance || 'todos',
+        mozoIds: doc.mozoIds || [],
+        temporal: true,
+    };
+}
+
+async function listarEnPantalla(ahora = new Date()) {
+    const docs = await NoticiaProgramada.find({
+        estado: 'enviada',
+        muestraHasta: { $gt: ahora },
+    }).sort({ muestraHasta: 1 }).limit(8).lean();
+    return docs.map((doc) => avisoEnPantalla(doc, ahora));
+}
+
 async function listarProgramadas() {
     const docs = await NoticiaProgramada.find({ estado: { $in: ['pendiente', 'error'] } })
         .sort({ programadaPara: 1 })
@@ -405,11 +450,13 @@ module.exports = {
     listarArchivo,
     prepararTemporal,
     crearNoticia,
+    reponerNoticia,
     actualizarNoticia,
     idsMozosActivosHoy,
     retirarNoticia,
     reenviarNoticia,
     programarNoticia,
+    listarEnPantalla,
     listarProgramadas,
     cancelarProgramada,
     reintentarProgramada,

@@ -15,7 +15,7 @@ const SEMILLA = {
     menu: { tieneCocido: false, reservaClave: '' },
     'menu-pecho': { tieneCocido: false, reservaClave: '' },
     'menu-pierna': { tieneCocido: false, reservaClave: '' },
-    sandwiches: { tieneCocido: true, reservaClave: 'pechuga-pollo' },
+    sandwiches: { tieneCocido: false, reservaClave: '' },
     'pollo-lena': { tieneCocido: true, reservaClave: '' },
     'pierna-lena': { tieneCocido: true, reservaClave: '' },
     'pachamanca-pollo': { tieneCocido: true, reservaClave: 'pierna-pollo' },
@@ -74,7 +74,7 @@ function perfilRubro(clave, opcion) {
     let soloCocido = false;
     if (c === 'pierna-lena' || c === 'pollo-baby') tieneCocido = true;
     if (c === 'panceta') tieneCocido = false;
-    if (c === 'tira-panceta' || c === 'trozo-panceta' || c === 'tamal-chancho' || c === 'tamal-pollo') {
+    if (c === 'tira-panceta' || c === 'trozo-panceta' || c === 'tamal-chancho' || c === 'tamal-pollo' || c === 'sandwiches') {
         tieneCocido = false;
         soloCocido = true;
     }
@@ -156,7 +156,7 @@ function arrozPorcionCocida(rubro) {
 }
 
 function tipoProductoDe(rubro, tipo) {
-    if (arrozPorcionCocida(rubro)) return 'cocido';
+    if (arrozPorcionCocida(rubro) || rubro === 'sandwiches') return 'cocido';
     return tipo === 'cocido' ? 'cocido' : 'crudo';
 }
 
@@ -331,13 +331,11 @@ function normalizarVenta(v) {
     let rubro = v && (v.rubro || v.plato);
     if (!rubro || rubro === 'milanesa-junior' || rubro === 'milanesa_junior' || v.codigo === 'T643') return null;
     let n = Number(v.cantidad) || 0;
-    let tipo = v.tipoProducto === 'crudo' ? 'crudo' : 'cocido';
+    let tipo = tipoProductoDe(rubro, v.tipoProducto === 'crudo' ? 'crudo' : 'cocido');
     if (rubro === 'filete-pollo' || rubro === 'filete_pollo') {
         rubro = 'filete';
         tipo = 'crudo';
         if (v.platos != null && !(Number(v.factor) > 0)) n = Number(v.platos);
-    } else if (rubro === 'arroz-blanco' || rubro === 'arroz-verde') {
-        tipo = 'cocido';
     } else if (rubro === 'filete-junior' || rubro === 'filete_junior') {
         rubro = 'filete';
         tipo = 'crudo';
@@ -358,7 +356,7 @@ function normalizarVenta(v) {
 
 function validarCocidoConfig(clave, config) {
     const body = config || {};
-    if (esMateria(clave)) return { valido: true, tieneCocido: false, reservaClave: '' };
+    if (esMateria(clave) || clave === 'sandwiches') return { valido: true, tieneCocido: false, reservaClave: '' };
     if (clave === 'panceta' || clave === 'tira-panceta' || clave === 'trozo-panceta') {
         return { valido: true, tieneCocido: false, reservaClave: '' };
     }

@@ -224,6 +224,33 @@ router.post('/noticias/temporal', adminAuth, puedePublicar, (req, res) => {
     }
 });
 
+router.get('/noticias/en-pantalla', requireJwt, async (req, res) => {
+    try {
+        res.set('Cache-Control', 'no-store');
+        let avisos = await repo.listarEnPantalla();
+        const app = req.usuario?.app;
+        const id = String(req.usuario?.id || req.usuario?._id || '');
+        avisos = avisos.filter((n) => {
+            const dest = n.destinos?.length ? n.destinos : ['cocina', 'mozos'];
+            if (app === 'cocina') {
+                const vista = String(req.query.destino || '');
+                const esCaja = dest.includes('caja') || n.cocinaAlcance === 'caja';
+                const esCocina = dest.includes('cocina') && n.cocinaAlcance !== 'caja';
+                if (vista === 'caja') return esCaja;
+                if (vista === 'cocina') return esCocina;
+                return esCaja || esCocina;
+            }
+            if (!dest.includes('mozos')) return false;
+            if ((n.mozosAlcance || 'todos') === 'algunos') return (n.mozoIds || []).map(String).includes(id);
+            return true;
+        });
+        res.json({ avisos });
+    } catch (error) {
+        logger.error('Error avisos en pantalla', { error: error.message });
+        res.status(500).json({ error: 'No se pudieron leer los avisos' });
+    }
+});
+
 router.get('/noticias/programadas', adminAuth, puedePublicar, async (req, res) => {
     try {
         res.set('Cache-Control', 'no-store');

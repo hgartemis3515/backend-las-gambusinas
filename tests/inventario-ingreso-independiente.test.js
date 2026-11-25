@@ -34,6 +34,20 @@ function escenario(iniciales = []) {
     recargar(); return { app, guardados, recargar };
 }
 
+test('el ingreso único de Sandwich permite ajustar lo ingresado antes como crudo', () => {
+    const { app, guardados, recargar } = escenario([
+        { rubro: 'sandwiches', cantidad: 3, motivo: 'Ingreso independiente crudo' },
+        { rubro: 'sandwiches', cantidad: 2, motivo: 'Ingreso independiente cocido', tipoProducto: 'cocido' }
+    ]);
+    expect(app.ingresoDirectoPeriodo('sandwich', 'cocido')).toBe(5);
+    expect(app.registrarIngresoDirecto('sandwich', 'cocido', input('7'))).toBe(true);
+    expect(guardados[2]).toMatchObject({ rubro: 'sandwiches', tipoProducto: 'cocido', cantidad: 2, motivo: 'Ingreso independiente cocido' });
+    recargar();
+    expect(app.ingresoDirectoPeriodo('sandwich', 'cocido')).toBe(7);
+    expect(app.stockCuadro('sandwich', 'cocido')).toBe(7);
+    expect(app.stockCuadro('sandwich', 'crudo')).toBe(0);
+});
+
 test('base 127 no se precarga como ingreso; entrada 1 permanece visible y en la tabla tras recargar', () => {
     const { app, guardados, recargar } = escenario([{ rubro: 'filete', cantidad: 127 }, { rubro: 'pechuga-pollo', cantidad: 40 }]);
     const otros = plain(app.rows.filter((r) => r.id !== 'filete'));

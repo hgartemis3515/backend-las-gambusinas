@@ -109,7 +109,7 @@ test('el cuarto y el mix de pecho no pasan a pecho de pollo', () => {
 
 test('estas filas nacen con cuadro de cocido', () => {
     [
-        'sandwiches', 'pollo-lena', 'pierna-lena', 'pollo-baby', 'pachamanca-pollo',
+        'pollo-lena', 'pierna-lena', 'pollo-baby', 'pachamanca-pollo',
         'pachamanca-chancho', 'pachamanca-res', 'pachamanca-cordero', 'carnero'
     ].forEach((clave) => {
         expect(semillaCocido(clave).tieneCocido).toBe(true);
@@ -118,6 +118,7 @@ test('estas filas nacen con cuadro de cocido', () => {
     expect(semillaCocido('menu').tieneCocido).toBe(false);
     expect(semillaCocido('menu-pecho').tieneCocido).toBe(false);
     expect(semillaCocido('menu-pierna').tieneCocido).toBe(false);
+    expect(semillaCocido('sandwiches')).toEqual({ tieneCocido: false, reservaClave: '' });
 });
 
 test('la pieza de panceta solo gasta cocido', () => {

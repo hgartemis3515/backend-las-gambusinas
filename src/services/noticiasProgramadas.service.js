@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const Noticia = require('../database/models/noticia.model');
 const NoticiaProgramada = require('../database/models/noticiaProgramada.model');
 const { imagenesDeHtml } = require('../utils/sanitizarHtmlNoticia');
 const logger = require('../utils/logger');
@@ -78,6 +79,38 @@ async function recuperarAtascadas() {
     );
 }
 
+/** Si el envío quedó marcado pero la noticia no está en el archivo, la cocina la pierde al reiniciar. */
+async function repararEnviadasSinAviso() {
+    const limite = new Date(Date.now() - 36 * 60 * 60 * 1000);
+    const docs = await NoticiaProgramada.find({
+        estado: 'enviada',
+        enviadaAt: { $gte: limite },
+    }).sort({ enviadaAt: -1 }).limit(20);
+
+    const repo = require('../repository/noticias.repository');
+    const { emitirNoticia } = require('../controllers/noticiasController');
+    for (const doc of docs) {
+        const id = String(doc.noticiaId || '');
+        if (/^[a-f\d]{24}$/i.test(id)) {
+            const existe = await Noticia.findById(id).select('_id').lean();
+            if (existe) continue;
+        }
+        const body = cuerpoDe(doc);
+        const cuando = doc.enviadaAt || doc.programadaPara || new Date();
+        const noticia = await repo.reponerNoticia(id, body, doc.autor || {}, cuando);
+        const segundos = Math.min(120, Math.max(5, Number(doc.segundosEnPantalla) || Number(body.segundosCocina) || 15));
+        const muestraHasta = doc.muestraHasta && new Date(doc.muestraHasta).getTime() > Date.now()
+            ? doc.muestraHasta
+            : new Date(Date.now() + segundos * 1000);
+        await NoticiaProgramada.updateOne(
+            { _id: doc._id },
+            { $set: { noticiaId: String(noticia._id), muestraHasta } },
+        );
+        emitirNoticia('creada', noticia, body);
+        logger.warn('Aviso programado recuperado: no estaba en el archivo', { id: String(doc._id) });
+    }
+}
+
 async function dispararUna() {
     const doc = await NoticiaProgramada.findOneAndUpdate(
         { estado: 'pendiente', programadaPara: { $lte: new Date() }, intentos: { $lt: 3 } },
@@ -95,7 +128,7 @@ async function dispararUna() {
             noticia = avisoDe(doc, body);
         } else {
             body.cuerpoHtml = renovarImagenes(body.cuerpoHtml);
-            noticia = await repo.crearNoticia(body, doc.autor || {});
+            noticia = await repo.crearNoticia(body, doc.autor || {}, new Date());
             await NoticiaProgramada.updateOne(
                 { _id: doc._id },
                 { $set: { noticiaId: String(noticia._id), cuerpoHtml: body.cuerpoHtml } },
@@ -109,9 +142,11 @@ async function dispararUna() {
             segundosSalirMozos: noticia.segundosSalirMozos ?? body.segundosSalirMozos,
         }, doc.autor || {});
         emitirAvisoTemporal(aviso);
+        const segundos = Math.min(120, Math.max(5, Number(aviso.segundosEnPantalla) || 15));
+        const enviadaAt = new Date();
         await NoticiaProgramada.updateOne(
             { _id: doc._id },
-            { $set: { estado: 'enviada', enviadaAt: new Date(), error: '' } },
+            { $set: { estado: 'enviada', enviadaAt, muestraHasta: new Date(enviadaAt.getTime() + segundos * 1000), error: '' } },
         );
         logger.info('Noticia programada enviada', { id: String(doc._id), cuando: doc.programadaPara });
     } catch (error) {
@@ -126,6 +161,7 @@ async function dispararUna() {
 }
 
 async function barrerProgramadas() {
+    await repararEnviadasSinAviso();
     await recuperarAtascadas();
     for (let i = 0; i < 10; i += 1) {
         const hubo = await dispararUna();
