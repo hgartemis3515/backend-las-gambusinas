@@ -205,12 +205,12 @@ test('cada fila cuadra sola y el grupo va aparte', () => {
     const pierna = app.filaReal('pierna');
     expect(app.saldoAnteriorColumna(pierna)).toBe(10);
     expect(app.valorTipo(pierna, 'ingreso', 'crudo')).toBe(5);
-    expect(app.ingresoTotalColumna(pierna)).toBe(15);
+    expect(app.ingresoTotalColumna(pierna)).toBe(12);
     expect(app.saldoRealColumna(pierna)).toBe(12);
     expect(app.stockCuadro('pierna', 'crudo')).toBe(12);
     expect(app.tieneGrupo(pierna)).toBe(true);
     expect(app.saldoAnteriorGrupo(pierna)).toBe(14);
-    expect(app.ingresoTotalGrupo(pierna)).toBe(22);
+    expect(app.ingresoTotalGrupo(pierna)).toBe(19);
     expect(app.quedaGrupo(pierna)).toBe(17);
     expect(app.ventaColumna(pierna)).toBe(0);
     expect(app.ventaGrupo(pierna)).toBe(2);
@@ -240,7 +240,7 @@ test('Pierna no junta el cocido de pachamanca dentro del crudo', () => {
     expect(fila).toMatch(/<span class="v">63<\/span>/);
 });
 
-test('Pierna suma la apertura visible y su ingreso sin volver a contar el pase a Pollada', () => {
+test('el grupo de Pierna cuenta el pase a Pollada una sola vez', () => {
     const app = crearApp();
     pintar(app, [
         mov('pachamanca-pollo', 'ingreso', 53, horaAyer('09:00')),
@@ -254,6 +254,7 @@ test('Pierna suma la apertura visible y su ingreso sin volver a contar el pase a
     const pollada = app.filaReal('pollada');
     expect(app.cifraGrupo(pierna, 'saldoAnterior')).toBe(97);
     expect(app.cifraIngresoTabla(pierna, 'ingreso')).toBe(40);
+    expect(app.ingresoTotalColumna(pierna)).toBe(0);
     expect(app.cifraIngresoTabla(pierna, 'ingresoTotal')).toBe(137);
     expect(app.cifraIngresoTabla(pierna, 'ingresoTotal', 'crudo')).toBe(137);
     expect(app.cifraIngresoTabla(pollada, 'ingresoTotal')).toBe(52);
@@ -261,11 +262,87 @@ test('Pierna suma la apertura visible y su ingreso sin volver a contar el pase a
     expect(app.stockCuadro('pollada', 'crudo')).toBe(52);
     app.abrirOrigenIngreso(pierna, 'crudo');
     expect(app.origenIngreso).toMatchObject({ total: 40, anotado: 40, transformado: 0 });
+    expect(app.origenIngreso.lineas).toContainEqual(expect.objectContaining({ salida: true, texto: 'Pasa a Pollada', cantidad: -40 }));
     app.abrirDesgloseGrupo(pierna, 'ingresoTotal');
-    expect(app.desgloseGrupo.total).toBe(177);
-    expect(app.desgloseGrupo.ayuda).toContain('97 de saldo anterior + 40 de ingreso = 137');
+    expect(app.desgloseGrupo.total).toBe(137);
+    expect(app.desgloseGrupo.filas[0]).toMatchObject({ id: 'pierna', total: 0 });
     const filaImpresa = app.documentoImpresionHoja().match(/<tr class="fila[^"]*">(?:(?!<\/tr>).)*>Pierna de Pollo<(?:(?!<\/tr>).)*<\/tr>/)[0];
-    expect([...filaImpresa.matchAll(/<span class="v">(\d+)<\/span>/g)].map((m) => Number(m[1]))).toEqual([97, 40, 137]);
+    expect([...filaImpresa.matchAll(/<span class="v">(\d+)<\/span>/g)]
+        .map((m) => m[1])).toEqual(['97', '40', '137']);
+});
+
+test.each([
+    ['pechuga', 'pollo_lena', 'pecho'],
+    ['pierna', 'pierna_lena', 'pierna']
+])('%s queda en cero al pasar a Octavo y su grupo conserva los 30 crudos y 21 cocidos a la leña', (id, idLena, corte) => {
+    const app = crearApp();
+    const origen = app.filaReal(id);
+    const lena = app.filaReal(idLena);
+    const octavo = app.filaReal('octavo_pollo');
+    pintar(app, [
+        mov(app.claveDeFila[id], 'ingreso', 30, hora('09:00'), 'Ingreso independiente crudo'),
+        mov(app.claveDeFila[idLena], 'ingreso', 30, hora('09:00'), 'Ingreso independiente crudo'),
+        mov(app.claveDeFila[idLena], 'ingreso', 21, hora('09:00'), 'Ingreso independiente cocido', 'cocido'),
+        mov(app.claveDeFila[id], 'ingreso', -30, hora('10:00'), 'Pasa a Octavo de pollo'),
+        mov(app.claveDeFila[octavo.id], 'ingreso', 60, hora('10:00'), 'Sale de ' + origen.nombre + ' · ' + corte)
+    ]);
+    expect(app.ingresoTotalColumna(origen)).toBe(0);
+    expect(app.cifraIngresoTabla(origen, 'ingresoTotal')).toBe(51);
+    expect(app.cifraIngresoTabla(origen, 'ingresoTotal', 'crudo')).toBe(30);
+    expect(app.cifraIngresoTabla(origen, 'ingresoTotal', 'cocido')).toBe(21);
+    expect(app.cifraIngresoTabla(octavo, 'ingresoTotal')).toBe(60);
+    app.abrirDesgloseGrupo(origen, 'ingresoTotal');
+    expect(app.desgloseGrupo.total).toBe(51);
+    expect(app.desgloseGrupo.filas.find((f) => f.id === id)).toMatchObject({ total: 0 });
+    expect(app.desgloseGrupo.filas.find((f) => f.id === lena.id)).toMatchObject({ crudo: 30, cocido: 21, total: 51 });
+});
+
+test('Pecho devuelve al origen únicamente lo revertido y conserva las ventas como salida posterior', () => {
+    const app = crearApp();
+    const pecho = app.filaReal('pechuga');
+    const lena = app.filaReal('pollo_lena');
+    const clavePecho = app.claveDeFila[pecho.id];
+    const claveLena = app.claveDeFila[lena.id];
+    const movimientos = [
+        mov(clavePecho, 'ingreso', 30, hora('09:00'), 'Ingreso independiente crudo'),
+        mov(clavePecho, 'ingreso', -30, hora('10:00'), 'Pasa a Pecho a la Leña'),
+        mov(claveLena, 'ingreso', 30, hora('10:00'), 'Sale de Pecho de Pollo')
+    ];
+    pintar(app, movimientos);
+    expect(app.ingresoTotalColumna(pecho)).toBe(0);
+    expect(app.cifraIngresoTabla(pecho, 'ingresoTotal')).toBe(30);
+    expect(app.cifraIngresoTabla(lena, 'ingresoTotal', 'crudo')).toBe(30);
+    app.abrirOrigenIngreso(pecho, 'crudo');
+    expect(app.origenIngreso.lineas).toContainEqual(expect.objectContaining({ salida: true, cantidad: -30 }));
+
+    movimientos.push(
+        mov(clavePecho, 'ingreso', 6, hora('11:00'), 'Pasa a Pecho a la Leña'),
+        mov(claveLena, 'ingreso', -6, hora('11:00'), 'Sale de Pecho de Pollo'),
+        mov(clavePecho, 'egreso', 2, hora('12:00'), 'Venta manual')
+    );
+    pintar(app, movimientos);
+    expect(app.ingresoTotalColumna(pecho)).toBe(6);
+    expect(app.cifraIngresoTabla(pecho, 'ingresoTotal')).toBe(30);
+    expect(app.cifraIngresoTabla(lena, 'ingresoTotal', 'crudo')).toBe(24);
+    expect(app.construirProcedimientoSaldoReal(pecho)).toMatchObject({
+        ingresoTotal: 6, transformacion: 24, ventas: 2, quedaSaldoReal: 4, cuadra: true
+    });
+});
+
+test('la conversión de arroz descuenta kilos del origen y conserva las porciones en su destino', () => {
+    const app = crearApp();
+    const arroz = app.filaReal('arroz');
+    const blanco = app.filaReal('arroz_blanco');
+    const crudo = app.claveDeFila[arroz.id];
+    const cocido = app.claveDeFila[blanco.id];
+    pintar(app, [
+        mov(crudo, 'ingreso', 2, horaAyer('09:00')),
+        mov(crudo, 'ingreso', -0.625, hora('11:00'), 'Pasa a Arroz blanco'),
+        mov(cocido, 'ingreso', 5, hora('11:00'), 'Sale de Arroz crudo', 'cocido')
+    ]);
+    expect(app.cifraIngresoTabla(arroz, 'ingresoTotal')).toBe(1.375);
+    expect(app.cifraIngresoTabla(blanco, 'ingresoTotal')).toBe(5);
+    expect(app.construirProcedimientoSaldoReal(arroz)).toMatchObject({ ingresoTotal: 1.375, quedaSaldoReal: 1.375, cuadra: true });
 });
 
 test('la impresión respeta las columnas, los indicadores y las filas ocultas de la configuración', () => {
@@ -846,6 +923,17 @@ describe('descarga manual de octavos en el modal de ventas', () => {
             mov(-3, 'Separado · ' + nombre + ' · pierna', { clase: 'regulacion' })
         ];
         pintar(app, movimientos, []);
+        const octavo = app.filaReal('octavo_pollo');
+        const sectorVisible = nombre === 'Rio Lindo' ? 'Río Lindo' : nombre;
+        const comprobarIngreso = (total, pecho) => {
+            expect(app.cifraIngresoTabla(octavo, 'ingresoTotal')).toBe(total);
+            expect(app.origenIngresoDe(octavo).lineas).toEqual(expect.arrayContaining([
+                expect.objectContaining({ clase: 'transformacion', cantidad: -pecho, texto: `Se transformó ${pecho} octavos de pecho a ${sectorVisible}` }),
+                expect.objectContaining({ clase: 'transformacion', cantidad: -3, texto: `Se transformó 3 octavos de pierna a ${sectorVisible}` })
+            ]));
+            expect(app.construirProcedimientoSaldoReal(octavo)).toMatchObject({ ingresoTotal: total, saldoTeorico: total, cuadra: true });
+        };
+        comprobarIngreso(10, 2);
         app.api = jest.fn(async (_url, { body }) => {
             const datos = JSON.parse(body);
             movimientos.push({ ...datos, fecha: hora('11:00'), _id: datos.motivo });
@@ -860,6 +948,7 @@ describe('descarga manual de octavos en el modal de ventas', () => {
         expect(app.$refs.modalDescargaSector.close).toHaveBeenCalledTimes(1);
         expect(app.octavosEnDestino(id, 'pechugas')).toBe(0);
         expect(app.octavosEnDestino(id, 'piernas')).toBe(0);
+        comprobarIngreso(10, 2);
         await app._colaTransformar;
         expect(app.api).toHaveBeenCalledTimes(4);
 
@@ -874,6 +963,7 @@ describe('descarga manual de octavos en el modal de ventas', () => {
         expect(app.octavosEnDestino(id, 'pechugas')).toBe(0);
         expect(app.octavosEnDestino(id, 'piernas')).toBe(0);
         expect(libro.filas.find((r) => r.rubro === 'octavo-pollo')).toMatchObject({ queda: 10 });
+        comprobarIngreso(10, 2);
         app.abrirVenta(fila, { ventas: [], movimientos });
         const [linea] = app.ventaInfo.lineas;
         expect(linea.motivo).toBe(nombre + (nota ? ' · Motivo: ' + nota : ''));
@@ -901,10 +991,60 @@ describe('descarga manual de octavos en el modal de ventas', () => {
         expect(app.octavosEnDestino(id, 'pechugas')).toBe(3);
         expect(app.octavosEnDestino(id, 'piernas')).toBe(3);
         expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(9);
+        comprobarIngreso(9, 3);
     });
 });
 
 describe('Procedimiento saldo real de Octavo de pollo', () => {
+    test('Ingreso total descuenta 60 octavos de cada corte enviados a Beata', () => {
+        const app = crearApp();
+        app.rangoPeriodo = () => ({ desde: '2026-11-11', hasta: '2026-11-11' });
+        const rubro = 'octavo-pollo';
+        const movimientos = [
+            mov(rubro, 'ingreso', 24, horaAyer('17:00'), 'Ingreso · pecho'),
+            mov(rubro, 'ingreso', 42, horaAyer('17:00'), 'Ingreso · pierna'),
+            mov(rubro, 'ingreso', 6, horaAyer('17:00'), 'Ingreso'),
+            mov(rubro, 'ingreso', 60, hora('09:00'), 'Sale de Pecho de Pollo · pecho'),
+            mov(rubro, 'ingreso', 60, hora('09:00'), 'Sale de Pierna de Pollo · pierna'),
+            mov(rubro, 'regulacion', -60, hora('10:00'), 'Separado · Beata · pecho'),
+            mov(rubro, 'regulacion', -60, hora('10:00'), 'Separado · Beata · pierna'),
+            mov(rubro, 'ingreso', 26, hora('11:00'), 'Ingreso independiente crudo · Sector Personal · pierna'),
+            mov(rubro, 'regulacion', -26, hora('11:00'), 'Separado · Personal · pierna')
+        ];
+        pintar(app, movimientos);
+        app.movimientosPeriodo = movimientos.slice(3);
+        const octavo = app.filaReal('octavo_pollo');
+        expect(app.cifraIngresoTabla(octavo, 'ingresoTotal')).toBe(72);
+        app.abrirDesgloseGrupo(octavo, 'ingresoTotal');
+        expect(app.desgloseGrupo.total).toBe(72);
+        expect(app.desgloseGrupo.filas[0].cortes.map((c) => c.texto)).toEqual(['Pierna 42', 'Pecho 30']);
+        expect(app.origenIngresoDe(octavo).lineas).toEqual(expect.arrayContaining([
+            expect.objectContaining({ texto: 'Se transformó 60 octavos de pecho a Beata', cantidad: -60 }),
+            expect.objectContaining({ texto: 'Se transformó 60 octavos de pierna a Beata', cantidad: -60 }),
+            expect.objectContaining({ texto: 'Ingreso directo de 26 octavos de pierna a Personal', cantidad: 26 })
+        ]));
+    });
+
+    test('descargar una separación anterior mantiene el disponible y devolverla lo suma', () => {
+        const app = crearApp();
+        const rubro = 'octavo-pollo';
+        const movimientos = [
+            mov(rubro, 'ingreso', 30, horaAyer('16:00'), 'Ingreso · pecho'),
+            mov(rubro, 'regulacion', -20, horaAyer('17:00'), 'Separado · Río Lindo · pecho'),
+            mov(rubro, 'regulacion', 12, hora('10:00'), 'Separado · Río Lindo · pecho'),
+            mov(rubro, 'egreso', 12, hora('10:00'), 'Venta manual · Río Lindo · pecho'),
+            mov(rubro, 'regulacion', 8, hora('11:00'), 'Separado · Río Lindo · pecho')
+        ];
+        pintar(app, movimientos);
+        app.movimientosPeriodo = movimientos.slice(2);
+        const octavo = app.filaReal('octavo_pollo');
+        expect(app.cifraIngresoTabla(octavo, 'ingresoTotal')).toBe(18);
+        expect(app.origenIngresoDe(octavo).lineas).toEqual([
+            expect.objectContaining({ texto: 'Regresaron 8 octavos de pecho de Río Lindo', cantidad: 8 })
+        ]);
+        expect(app.construirProcedimientoSaldoReal(octavo)).toMatchObject({ ingresoTotal: 18, saldoTeorico: 18, cuadra: true });
+    });
+
     test('la lupa de Saldo anterior muestra el reparto guardado sin cambiar el saldo ni cortes de otros cuadros', () => {
         const app = crearApp();
         app.rangoPeriodo = () => ({ desde: '2026-11-11', hasta: '2026-11-12' });
@@ -931,7 +1071,7 @@ describe('Procedimiento saldo real de Octavo de pollo', () => {
         expect(JSON.stringify(fila.cortesOctavo)).toBe(inicial);
         expect(app.octavosVisibles()).toEqual(stock);
         app.abrirDesgloseGrupo(fila, 'ingresoTotal');
-        expect(app.desgloseGrupo.filas.find((f) => f.id === fila.id).cortes.map((c) => c.texto)).toEqual(['Pierna 146', 'Pecho 60']);
+        expect(app.desgloseGrupo.filas.find((f) => f.id === fila.id).cortes.map((c) => c.texto)).toEqual(['Pierna 146', 'Pecho 59']);
     });
 
     const textos = (lista) => lista.map((c) => c.texto);
@@ -992,11 +1132,13 @@ describe('productos con grupo en la tabla', () => {
         return { app, pierna: app.filaReal('pierna') };
     };
 
-    test('cada cuadro muestra el total del grupo y la lupa suma lo mismo', () => {
+    test('la lupa suma el grupo y distingue el ingreso total de la fila', () => {
         const { app, pierna } = preparar();
         expect(app.cifraGrupo(pierna, 'saldoAnterior')).toBe(14);
         expect(app.cifraGrupo(pierna, 'ingreso')).toBe(23);
-        expect(app.cifraGrupo(pierna, 'ingresoTotal')).toBe(37);
+        expect(app.cifraGrupo(pierna, 'ingresoTotal')).toBe(34);
+        expect(app.cifraIngresoTabla(pierna, 'ingresoTotal')).toBe(34);
+        expect(app.ingresoTotalColumna(pierna)).toBe(27);
         expect(app.cifraGrupo(pierna, 'transformacion')).toBe(3);
         expect(app.cifraGrupo(pierna, 'queda')).toBe(34);
         ['saldoAnterior', 'ingresoTotal', 'queda'].forEach((columna) => {

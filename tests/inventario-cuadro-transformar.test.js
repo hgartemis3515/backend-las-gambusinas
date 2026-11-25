@@ -4,8 +4,7 @@ const vm = require('vm');
 const { armarLibro } = require('../src/utils/inventarioLibro');
 const { boundsDiaOperativo } = require('../src/utils/diaOperativoRestaurante');
 
-// Cuadro «Stock + Transformar = Total» de Transformar: Transformar es lo transformado en el
-// período desde el origen, Total es el stock real y Stock lo que había sin esa transformación.
+// El cuadro reparte el saldo disponible entre Stock y las unidades transformadas que quedan.
 const html = fs.readFileSync(path.join(__dirname, '../public/inventario.html'), 'utf8');
 const code = html.slice(html.indexOf('function inventarioApp()'), html.lastIndexOf('</script>'));
 const plain = (v) => JSON.parse(JSON.stringify(v));
@@ -61,7 +60,6 @@ function escenario(iniciales) {
 }
 
 const octavoBase = [['pierna', 40], ['octavo_pollo', 30, 'Ingreso independiente crudo · pierna']];
-const cuenta = (f) => f.stock + f.transformado;
 
 describe('Octavo de pollo', () => {
     test('30 de stock + 60 transformados = 90, y queda así en el período', async () => {
@@ -78,7 +76,7 @@ describe('Octavo de pollo', () => {
         expect(formula('octavo|pechugas')).toEqual({ stock: 0, transformado: 0 });
     });
 
-    test('lo escrito es el total del período: de 60 a 70 pasa 10 más y a 0 devuelve todo', async () => {
+    test('sin salidas, de 60 a 70 transforma 10 más y a 0 devuelve todo', async () => {
         const { app, recargar, formula, nuevos } = escenario(octavoBase);
         await app.cuadroFormulaTransformar('octavo|piernas', input(60));
         recargar();
@@ -104,6 +102,65 @@ describe('Octavo de pollo', () => {
         expect(formula('octavo|piernas')).toEqual({ stock: 10, transformado: 60 });
     });
 
+    test.each(['beata', 'rio-lindo', 'eventos', 'personal'])('separar en %s reduce los dos sumandos por corte', async (sector) => {
+        const { app, recargar, formula } = escenario([
+            ['pechuga', 40], ['pierna', 40],
+            ['octavo_pollo', 30, 'Ingreso independiente crudo · pecho'],
+            ['octavo_pollo', 42, 'Ingreso independiente crudo · pierna']
+        ]);
+        await app.cuadroFormulaTransformar('octavo|pechugas', input(60));
+        await app.cuadroFormulaTransformar('octavo|piernas', input(60));
+        expect(formula('octavo|pechugas')).toEqual({ stock: 30, transformado: 60 });
+        expect(formula('octavo|piernas')).toEqual({ stock: 42, transformado: 60 });
+
+        expect(app.fijarOctavoDestino(sector, 'pechugas', 60)).toBe(true);
+        expect(app.fijarOctavoDestino(sector, 'piernas', 60)).toBe(true);
+        expect(formula('octavo|pechugas')).toEqual({ stock: 0, transformado: 30 });
+        expect(formula('octavo|piernas')).toEqual({ stock: 0, transformado: 42 });
+        recargar();
+        expect(formula('octavo|pechugas')).toEqual({ stock: 0, transformado: 30 });
+        expect(formula('octavo|piernas')).toEqual({ stock: 0, transformado: 42 });
+
+        expect(app.fijarOctavoDestino(sector, 'pechugas', 0)).toBe(true);
+        recargar();
+        expect(formula('octavo|pechugas')).toEqual({ stock: 30, transformado: 60 });
+        expect(formula('octavo|piernas')).toEqual({ stock: 0, transformado: 42 });
+    });
+
+    test('editar tras separar ajusta solo la diferencia respecto al saldo transformado visible', async () => {
+        const { app, recargar, formula } = escenario(octavoBase);
+        await app.cuadroFormulaTransformar('octavo|piernas', input(60));
+        app.fijarOctavoDestino('beata', 'piernas', 60);
+        recargar();
+
+        const el = input(40);
+        expect(await app.cuadroFormulaTransformar('octavo|piernas', el)).toBe(true);
+        expect(el.value).toBe('40');
+        recargar();
+        expect(formula('octavo|piernas')).toEqual({ stock: 0, transformado: 40 });
+        expect(app.stockCuadro('pierna', 'crudo')).toBe(5);
+
+        expect(await app.cuadroFormulaTransformar('octavo|piernas', input(30))).toBe(true);
+        recargar();
+        expect(formula('octavo|piernas')).toEqual({ stock: 0, transformado: 30 });
+        expect(app.stockCuadro('pierna', 'crudo')).toBe(10);
+        expect(app.octavosEnDestino('beata', 'piernas')).toBe(60);
+    });
+
+    test('devuelve un saldo impar de octavos sin devolver lo que ya salió al sector', async () => {
+        const { app, recargar, formula } = escenario(octavoBase);
+        await app.cuadroFormulaTransformar('octavo|piernas', input(60));
+        app.fijarOctavoDestino('beata', 'piernas', 61);
+        recargar();
+        expect(formula('octavo|piernas')).toEqual({ stock: 0, transformado: 29 });
+
+        expect(await app.cuadroFormulaTransformar('octavo|piernas', input(0))).toBe(true);
+        recargar();
+        expect(formula('octavo|piernas')).toEqual({ stock: 0, transformado: 0 });
+        expect(app.stockCuadro('pierna', 'crudo')).toBe(24.5);
+        expect(app.octavosEnDestino('beata', 'piernas')).toBe(61);
+    });
+
     test('sin piernas no pasa nada y la caja vuelve a lo transformado', async () => {
         const { app, formula, nuevos } = escenario([['pierna', 2]]);
         const el = input(60);
@@ -122,8 +179,7 @@ describe('Octavo de pollo', () => {
         expect(await app.cuadroFormulaTransformar('platoOctavo|arroz_con_pollo|piernas|cocido', input(3))).toBe(true);
         recargar();
         expect(formula('platoOctavo|arroz_con_pollo|piernas|cocido')).toEqual({ stock: 0, transformado: 3 });
-        // Lo que pasó a cocido salió del crudo: 4 transformados, quedan 1.
-        expect(cuenta(app.formulaTransformar('platoOctavo|arroz_con_pollo|piernas|crudo'))).toBe(1);
+        expect(formula('platoOctavo|arroz_con_pollo|piernas|crudo')).toEqual({ stock: 0, transformado: 1 });
         expect(formula('platoOctavo|arroz_con_pollo|pechugas|crudo')).toEqual({ stock: 0, transformado: 0 });
     });
 });
@@ -185,6 +241,19 @@ describe('Platos y piezas que salen de otra', () => {
         expect(formula('tira')).toEqual({ stock: 0, transformado: 12 });
     });
 
+    test('usar tiras descuenta su ingreso total cocido de inmediato y al recargar', () => {
+        const { app, recargar } = escenario([['tira_panceta', 6, 'Ingreso independiente cocido', 'cocido']]);
+        const tira = app.filaReal('tira_panceta');
+        const ingreso = () => app.cifraIngresoTabla(tira, 'ingresoTotal', 'cocido');
+        expect(ingreso()).toBe(6);
+        expect(app.fijarTirasUsadas(2)).toBe(true);
+        expect(ingreso()).toBe(4);
+        expect(app.stockCuadro(tira.id, 'cocido')).toBe(4);
+        recargar();
+        expect(ingreso()).toBe(4);
+        expect(app.stockCuadro(tira.id, 'cocido')).toBe(4);
+    });
+
     test('una caja vacía no guarda nada', async () => {
         const { app, nuevos } = escenario([['pechuga', 10]]);
         await app.cuadroFormulaTransformar('hijo|pechuga|pollo_lena', input(2));
@@ -232,6 +301,37 @@ describe('Teclado calculadora', () => {
         expect(app.totalTecladoTransformar()).toBe(8);
     });
 
+    test('el teclado ajusta un lote de 6 tiras cuando quedan 5 y conserva la tira usada', async () => {
+        const { app, recargar, formula } = escenario([['panceta', 3]]);
+        await app.cuadroFormulaTransformar('tira', input(6));
+        app.fijarTirasUsadas(1);
+        recargar();
+        expect(formula('tira')).toEqual({ stock: 0, transformado: 5 });
+        expect(await app.cuadroFormulaTransformar('tira', input(0))).toBe(false);
+        expect(app.stockCuadro('panceta', 'crudo')).toBe(2);
+
+        conTeclado(app);
+        const el = campo({ formula: 'tira' }, 5, (c) => app.cuadroFormulaTransformar('tira', c));
+        el.step = '6';
+        abrir(app, el);
+        app.pulsarTeclaTransformar('+', { detail: 0 });
+        expect(app.totalTecladoTransformar()).toBe(11);
+        app.aplicarTecladoTransformar();
+        expect(await el.promesa).toBe(true);
+        recargar();
+        expect(formula('tira')).toEqual({ stock: 0, transformado: 11 });
+        expect(app.stockCuadro('panceta', 'crudo')).toBe(1);
+
+        abrir(app, el);
+        app.pulsarTeclaTransformar('−', { detail: 0 });
+        app.aplicarTecladoTransformar();
+        expect(await el.promesa).toBe(true);
+        recargar();
+        expect(formula('tira')).toEqual({ stock: 0, transformado: 5 });
+        expect(app.stockCuadro('panceta', 'crudo')).toBe(2);
+        expect(app.tirasUsadasHoy()).toBe(1);
+    });
+
     test('en Ingreso: lo escrito es el ingreso del período y Stock lo que había sin él', () => {
         const { app, recargar } = escenario(octavoBase);
         conTeclado(app);
@@ -270,7 +370,7 @@ describe('HTML', () => {
         bloques.forEach((b) => {
             expect(b).toMatch(/>Stock<\/span>[\s\S]*>\+<\/span>[\s\S]*>Transformar<\/span>/);
             expect(b).toMatch(/min="0" :value="ft\.transformado"/);
-            expect(b).toMatch(/@change="monto = null; cuadroFormulaTransformar\(/);
+            expect(b).toMatch(/@change="cuadroFormulaTransformar\([^\n]+\)\.finally\(\(\) => \{ monto = null; \}\)"/);
             expect(b).not.toMatch(/kg|porciones/);
         });
         expect(transformar).toContain('fijarIngresoArrozCuadro(d.campo, $event.target.value)');

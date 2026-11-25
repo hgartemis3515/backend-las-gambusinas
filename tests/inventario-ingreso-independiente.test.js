@@ -390,6 +390,7 @@ test('la descarga de personal, beata, evento y rio lindo no entra en el ingreso'
     expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('30'), 'pechugas', 'eventos')).toBe(true);
     expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('50'), 'piernas', 'rio-lindo')).toBe(true);
     expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('4'), 'pechugas')).toBe(true);
+    expect(app.cifraIngresoTabla(app.filaReal('octavo_pollo'), 'ingresoTotal')).toBe(14);
     const libro = recargar();
     const fila = libro.filas.find((f) => f.rubro === 'octavo-pollo' && f.tipoProducto === 'crudo');
     expect(fila).toMatchObject({ ingresoBruto: 14, regulacion: 0, queda: 14, sinTope: 14 });
@@ -408,7 +409,10 @@ test('la descarga de personal, beata, evento y rio lindo no entra en el ingreso'
     expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(14);
     const origen = app.origenIngresoDe(octavo);
     expect(origen.anotado).toBe(14);
-    expect(origen.lineas.some((l) => /Sector/.test(l.texto))).toBe(false);
+    expect(origen.lineas.filter((l) => l.sector).map((l) => l.texto)).toEqual(expect.arrayContaining([
+        'Ingreso directo de 26 octavos de pecho a Personal', 'Ingreso directo de 20 octavos de pierna a Beata',
+        'Ingreso directo de 30 octavos de pecho a Evento', 'Ingreso directo de 50 octavos de pierna a Río Lindo'
+    ]));
     expect(app.ingresoMarcadoOctavo(octavo, 'pechugas')).toBe(14);
     expect(app.ingresoMarcadoOctavo(octavo, 'piernas')).toBe(0);
     expect(app.registrarIngresoDirecto('octavo_pollo', 'crudo', input('0'), 'pechugas', 'personal')).toBe(true);
