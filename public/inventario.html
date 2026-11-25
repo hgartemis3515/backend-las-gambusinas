@@ -1756,6 +1756,17 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       transform: scale(1.08);
       box-shadow: 0 0 14px rgba(20, 184, 166, 0.65);
     }
+    main table.tabla-hoja td .btn-lupa-saldo-real.saldo-anterior-alarma {
+      border-color: #fecaca !important;
+      background: #dc2626 !important;
+      color: #fff !important;
+      -webkit-text-fill-color: #fff !important;
+    }
+    main table.tabla-hoja td .btn-lupa-saldo-real.saldo-anterior-alarma:hover {
+      background: #b91c1c !important;
+      border-color: #fff !important;
+      color: #fff !important;
+    }
 
     /* ===================================================================== */
     /* UI SKELETON LOADER (SHIMMER EN TABLA Y DATOS)                         */
@@ -3152,6 +3163,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           type="button"
                           @click.stop="tieneGrupo(row) ? abrirDesgloseGrupo(row, 'queda') : abrirModalProcedimientoSaldoReal(row)"
                           class="btn-lupa-saldo-real w-7 h-7 rounded-lg inline-flex items-center justify-center cursor-pointer shrink-0"
+                          :class="emergenciaCelda(row) ? 'saldo-anterior-alarma' : ''"
                           :aria-label="'Ver procedimiento de Saldo Real de ' + row.nombre"
                           :title="tieneGrupo(row) ? ('Cuánto queda en cada producto o plato de ' + row.nombre) : ('Ver todo el procedimiento de sumas y restas para llegar al Saldo Real de ' + row.nombre + ' en el período seleccionado')"
                         >
