@@ -3,9 +3,10 @@
 const moment = require('moment-timezone');
 const Comanda = require('../database/models/comanda.model');
 const Noticia = require('../database/models/noticia.model');
+const NoticiaProgramada = require('../database/models/noticiaProgramada.model');
 const { matchComandasEstadisticas } = require('../utils/estadisticasComandas');
 const { ymdOperativo, boundsDiaOperativo, TZ } = require('../utils/diaOperativoRestaurante');
-const { sanitizarHtmlNoticia, imagenesDeHtml, envolverEmojis } = require('../utils/sanitizarHtmlNoticia');
+const { sanitizarHtmlNoticia, imagenesDeHtml, envolverEmojis, textoPlanoNoticia } = require('../utils/sanitizarHtmlNoticia');
 
 let cacheTop = null;
 
@@ -221,6 +222,138 @@ async function idsMozosActivosHoy(now = new Date()) {
     return ids.filter(Boolean).map(String);
 }
 
+function idNoticia(id) {
+    return /^[a-f\d]{24}$/i.test(String(id || ''));
+}
+
+function parseProgramadaPara(valor) {
+    const s = String(valor || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) {
+        const err = new Error('Elige el día y la hora');
+        err.status = 400;
+        throw err;
+    }
+    const cuando = moment.tz(s, 'YYYY-MM-DDTHH:mm', true, TZ);
+    if (!cuando.isValid()) {
+        const err = new Error('La hora no es válida');
+        err.status = 400;
+        throw err;
+    }
+    if (cuando.valueOf() < Date.now() + 20 * 1000) {
+        const err = new Error('Elige una hora que todavía no haya pasado');
+        err.status = 400;
+        throw err;
+    }
+    if (cuando.diff(moment.tz(TZ), 'days', true) > 60) {
+        const err = new Error('Solo se puede programar hasta 60 días');
+        err.status = 400;
+        throw err;
+    }
+    return cuando.toDate();
+}
+
+function programadaPublica(doc) {
+    const destinos = doc.destinos?.length ? doc.destinos : [];
+    const nombres = [];
+    if (destinos.includes('cocina')) nombres.push('Cocina');
+    if (destinos.includes('caja')) nombres.push('Caja');
+    if (destinos.includes('mozos')) nombres.push('Mozos');
+    return {
+        _id: doc._id,
+        programadaPara: doc.programadaPara,
+        estado: doc.estado,
+        titulo: doc.titulo || '',
+        extracto: textoPlanoNoticia(doc.cuerpoHtml).slice(0, 180),
+        destinosTexto: nombres.join(' · ') || 'Aviso',
+        error: doc.error || '',
+        autorNombre: doc.autor?.nombre || '',
+    };
+}
+
+async function programarNoticia(body, autor) {
+    const programadaPara = parseProgramadaPara(body?.programadaPara);
+    const campos = armarCuerpo(body);
+    if (!campos.titulo && !textoPlanoNoticia(campos.cuerpoHtml) && !campos.imagenes.length) {
+        const err = new Error('Escribe el mensaje antes de programarlo');
+        err.status = 400;
+        throw err;
+    }
+    const destino = destinoDe(body);
+    const doc = await NoticiaProgramada.create({
+        programadaPara,
+        estado: 'pendiente',
+        titulo: campos.titulo,
+        cuerpoHtml: campos.cuerpoHtml,
+        autor: {
+            id: String(autor?.id || ''),
+            nombre: String(autor?.nombre || ''),
+            rol: String(autor?.rol || ''),
+        },
+        payload: {
+            destinatario: body.destinatario || 'ambos',
+            cocinaDestino: body.cocinaDestino || 'todas',
+            pantallas: destino.pantallas,
+            cocinaCocineroIds: destino.cocinaCocineroIds,
+            segundosCocina: destino.segundosEnPantalla,
+            segundosSalirMozos: destino.segundosSalirMozos,
+            mozosModo: body.mozosModo === 'seleccion' ? 'seleccion' : 'todos',
+            mozoIds: destino.mozoIds,
+        },
+        ...destino,
+    });
+    return programadaPublica(doc.toObject());
+}
+
+async function listarProgramadas() {
+    const docs = await NoticiaProgramada.find({ estado: { $in: ['pendiente', 'error'] } })
+        .sort({ programadaPara: 1 })
+        .limit(50)
+        .lean();
+    return docs.map(programadaPublica);
+}
+
+async function cancelarProgramada(id) {
+    if (!idNoticia(id)) {
+        const err = new Error('Ese mensaje ya se envió o no existe');
+        err.status = 404;
+        throw err;
+    }
+    const doc = await NoticiaProgramada.findOneAndUpdate(
+        { _id: id, estado: { $in: ['pendiente', 'error'] } },
+        { $set: { estado: 'cancelada' } },
+        { new: true },
+    ).lean();
+    if (!doc) {
+        const err = new Error('Ese mensaje ya se envió o no existe');
+        err.status = 404;
+        throw err;
+    }
+    return programadaPublica(doc);
+}
+
+async function reintentarProgramada(id) {
+    if (!idNoticia(id)) {
+        const err = new Error('Ese mensaje ya se envió o no existe');
+        err.status = 404;
+        throw err;
+    }
+    const doc = await NoticiaProgramada.findOne({ _id: id, estado: 'error' });
+    if (!doc) {
+        const err = new Error('Ese mensaje ya se envió o no existe');
+        err.status = 404;
+        throw err;
+    }
+    doc.estado = 'pendiente';
+    doc.intentos = 0;
+    doc.error = '';
+    doc.enviandoDesde = null;
+    if (!doc.programadaPara || doc.programadaPara.getTime() < Date.now()) {
+        doc.programadaPara = new Date();
+    }
+    await doc.save();
+    return programadaPublica(doc.toObject());
+}
+
 async function retirarNoticia(id) {
     const doc = await Noticia.findByIdAndDelete(id).lean();
     if (!doc) {
@@ -241,4 +374,9 @@ module.exports = {
     actualizarNoticia,
     idsMozosActivosHoy,
     retirarNoticia,
+    programarNoticia,
+    listarProgramadas,
+    cancelarProgramada,
+    reintentarProgramada,
+    parseProgramadaPara,
 };

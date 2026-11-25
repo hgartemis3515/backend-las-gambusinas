@@ -24,7 +24,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
    - El + del cuadro de pollo fresco suma y convierte ese mismo delta. El + chico del factor solo convierte.
    - El lápiz (guardarModalStock) deja el stock que queda (Saldo real y el cuadro de Transformar) en el número escrito. Ajusta el saldo anterior por la diferencia, así la venta y el ingreso del día no se borran ni se aplican dos veces. En octavo, pecho y pierna son el mismo número del cuadro de Transformar.
    - El saldo de cada día lo calcula el servidor en src/utils/inventarioLibro.js. Ver docs/LOGICA_INVENTARIO.md.
-   - Los avisos de la hoja (toastMessage) van fijos abajo a la izquierda y se cierran a los 7 s. No empujan la hoja.
+   - Los avisos de la hoja (toastMessage) van fijos abajo a la izquierda y se cierran a los 7 s. No empujan la hoja. La flecha de abajo a la derecha mueve la ventana de la página y no la tabla.
    - Configuración → Tabla: Saldo y Conteo, Diferencia, Estado y Corrección arrancan ocultos. Queda siempre se ve. En el ingreso del grupo de Filete de pollo, los otros productos y platos arrancan ocultos: solo queda el ingreso del filete.
    - Bloqueo: PUT /api/inventario/bloqueo. Un producto bloqueado no se transforma ni se vende en manual; la reserva resta el tope del pase. Un plato bloqueado no sale en la carta del mozo (filtrarCartaBloqueada).
 -->
@@ -531,6 +531,35 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .tabla-scroll-fija thead th {
       position: sticky;
       z-index: 25;
+    }
+    /* Flecha fija de la página principal (Inventario Tabla), abajo a la derecha. */
+    .btn-scroll-pagina {
+      position: fixed;
+      z-index: 60;
+      right: 1rem;
+      bottom: 1rem;
+      width: 2.75rem;
+      height: 2.75rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 2px solid #d4af37;
+      background: #14141f;
+      color: #d4af37;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+      transition: background-color 160ms, color 160ms, transform 160ms;
+    }
+    .btn-scroll-pagina:hover,
+    .btn-scroll-pagina:focus-visible {
+      background: #d4af37;
+      color: #1a1200;
+      outline: none;
+    }
+    .btn-scroll-pagina:active { transform: scale(0.96); }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-scroll-pagina { transition: none; }
     }
 
     main .paso-num {
@@ -2474,6 +2503,26 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       <span class="font-medium text-white leading-snug" x-text="toastMessage"></span>
       <button type="button" @click="toastMessage = ''" class="shrink-0 text-xs text-[#a0a0b8] hover:text-white px-2 py-1" aria-label="Cerrar aviso">Cerrar</button>
     </div>
+
+    <button
+      type="button"
+      x-show="activeTab === 'tabla' && puedeScrollPagina"
+      x-cloak
+      class="no-print btn-scroll-pagina"
+      data-testid="btn-scroll-pagina"
+      @click="alternarScrollPagina()"
+      @scroll.window="medirScrollPagina()"
+      @resize.window="medirScrollPagina()"
+      :aria-label="paginaScrolleada ? 'Subir al inicio de la página' : 'Bajar al final de la página'"
+      :title="paginaScrolleada ? 'Subir en la página' : 'Bajar en la página'"
+    >
+      <svg x-show="!paginaScrolleada" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <use href="#icono-acceso-abajo"></use>
+      </svg>
+      <svg x-show="paginaScrolleada" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <use href="#icono-acceso-arriba"></use>
+      </svg>
+    </button>
 
     <!-- =================================================================== -->
     <!-- PESTAÑA 1: INVENTARIO TABLA (REDISEÑO MODERNO DEL 27 DE OCTUBRE)    -->
@@ -10850,6 +10899,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           complemento: ''
         },
         sidebarOpen: false,
+        paginaScrolleada: false,
+        puedeScrollPagina: false,
         pageTitle: 'Inventario',
         mostrarSaldoYConteo: false,
         mostrarDiferencia: false,
@@ -11404,6 +11455,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (this.toastMessage === msg) this.toastMessage = '';
             }, 7000);
           });
+          this.$watch('cargandoDatosTabla', () => this.$nextTick(() => this.vigilarScrollPagina()));
+          this.$watch('activeTab', () => this.$nextTick(() => this.medirScrollPagina()));
           this.cargarBloqueoLocal();
           this.restaurarEjemploDespiece(true);
           this.vaciarNumeros();
@@ -11425,6 +11478,34 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           this.despieceAplicado = this.fotoTransformacion();
           this._turnosTimer = setInterval(() => this.refrescarTurnos(true), 45000);
           this.initSocket();
+          this.vigilarScrollPagina();
+        },
+
+        // La flecha mueve la ventana de la página. No lee ni mueve la tabla.
+        medirScrollPagina() {
+          if (typeof document === 'undefined') return;
+          const doc = document.scrollingElement || document.documentElement;
+          const enPagina = this.activeTab === 'tabla' && !this.vistaDesfasada();
+          const pos = window.scrollY || doc.scrollTop || 0;
+          this.puedeScrollPagina = enPagina && (doc.scrollHeight - doc.clientHeight > 48);
+          this.paginaScrolleada = pos > 48;
+        },
+
+        alternarScrollPagina() {
+          if (typeof document === 'undefined') return;
+          const doc = document.scrollingElement || document.documentElement;
+          const suave = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+          const arriba = (window.scrollY || doc.scrollTop || 0) > 48;
+          window.scrollTo({ top: arriba ? 0 : doc.scrollHeight, behavior: suave });
+        },
+
+        vigilarScrollPagina() {
+          this.medirScrollPagina();
+          if (typeof document === 'undefined' || typeof ResizeObserver === 'undefined' || this._obsScrollPagina) return;
+          const doc = document.scrollingElement || document.documentElement;
+          this._obsScrollPagina = new ResizeObserver(() => this.medirScrollPagina());
+          this._obsScrollPagina.observe(doc);
+          if (document.body) this._obsScrollPagina.observe(document.body);
         },
 
         token() {

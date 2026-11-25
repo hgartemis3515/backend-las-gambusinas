@@ -805,6 +805,8 @@ server.listen(port, '0.0.0.0', async ()=> {
     entregaAutomaticaSalioService.iniciarBarridoEntregaAutomatica();
     const noticiasImagenesTemporales = require('./src/services/noticiasImagenesTemporales');
     noticiasImagenesTemporales.iniciarBarridoImagenesNoticia();
+    const noticiasProgramadas = require('./src/services/noticiasProgramadas.service');
+    noticiasProgramadas.iniciarBarridoNoticiasProgramadas();
   } catch (error) {
     logger.error('Error al iniciar barrido de entrega automática', { error: error.message });
   }

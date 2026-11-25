@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
 const Noticia = require('../database/models/noticia.model');
+const NoticiaProgramada = require('../database/models/noticiaProgramada.model');
+const { imagenesDeHtml } = require('../utils/sanitizarHtmlNoticia');
 
 const DIR = path.join(__dirname, '..', '..', 'uploads', 'noticias');
 const UNA_HORA_MS = 60 * 60 * 1000;
@@ -37,6 +39,12 @@ async function barrerImagenesNoticia() {
         if (!stat.isFile() || edadMs(nombre, stat.mtimeMs) < UNA_HORA_MS) continue;
         caducadas.push(`/uploads/noticias/${nombre}`);
     }
+    if (!caducadas.length) return { borradas: 0 };
+
+    const protegidas = await urlsEnProgramadas();
+    const vigentes = caducadas.filter((url) => !protegidas.has(url));
+    caducadas.length = 0;
+    vigentes.forEach((url) => caducadas.push(url));
     if (!caducadas.length) return { borradas: 0 };
 
     const docs = await Noticia.find({
@@ -73,6 +81,20 @@ async function barrerImagenesNoticia() {
     }
     if (borradas) logger.info('Fotos de noticia eliminadas al cumplirse 1 hora', { borradas });
     return { borradas };
+}
+
+async function urlsEnProgramadas() {
+    try {
+        const docs = await NoticiaProgramada.find({
+            estado: { $in: ['pendiente', 'enviando', 'error'] },
+        }).select('cuerpoHtml').lean();
+        const set = new Set();
+        docs.forEach((doc) => imagenesDeHtml(doc.cuerpoHtml).forEach((url) => set.add(url)));
+        return set;
+    } catch (error) {
+        logger.warn('No se leyeron fotos de noticias programadas', { error: error.message });
+        return new Set();
+    }
 }
 
 function iniciarBarridoImagenesNoticia() {

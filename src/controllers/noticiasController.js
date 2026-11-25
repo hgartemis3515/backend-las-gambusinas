@@ -125,6 +125,10 @@ function emitirNoticia(accion = 'creada', noticia = null, body = {}) {
     emitirDirigido('noticia-publicada', payload, payload);
 }
 
+function emitirAvisoTemporal(aviso) {
+    emitirDirigido('noticia-temporal', aviso, aviso);
+}
+
 function autorDe(req) {
     return { id: req.admin?.id, nombre: req.admin?.name, rol: req.admin?.rol };
 }
@@ -220,6 +224,41 @@ router.post('/noticias/temporal', adminAuth, puedePublicar, (req, res) => {
     }
 });
 
+router.get('/noticias/programadas', adminAuth, puedePublicar, async (req, res) => {
+    try {
+        res.set('Cache-Control', 'no-store');
+        res.json({ programadas: await repo.listarProgramadas() });
+    } catch (error) {
+        logger.error('Error al listar noticias programadas', { error: error.message });
+        res.status(500).json({ error: 'No se pudo leer lo programado' });
+    }
+});
+
+router.post('/noticias/programadas', adminAuth, puedePublicar, async (req, res) => {
+    try {
+        const item = await repo.programarNoticia(req.body, autorDe(req));
+        res.status(201).json(item);
+    } catch (error) {
+        res.status(error.status || 500).json({ error: error.message || 'No se pudo programar' });
+    }
+});
+
+router.delete('/noticias/programadas/:id', adminAuth, puedePublicar, async (req, res) => {
+    try {
+        res.json(await repo.cancelarProgramada(req.params.id));
+    } catch (error) {
+        res.status(error.status || 500).json({ error: error.message || 'No se pudo cancelar' });
+    }
+});
+
+router.patch('/noticias/programadas/:id/reintentar', adminAuth, puedePublicar, async (req, res) => {
+    try {
+        res.json(await repo.reintentarProgramada(req.params.id));
+    } catch (error) {
+        res.status(error.status || 500).json({ error: error.message || 'No se pudo reintentar' });
+    }
+});
+
 router.post('/noticias', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.crearNoticia(req.body, autorDe(req));
@@ -252,3 +291,5 @@ router.patch('/noticias/:id/retirar', adminAuth, puedePublicar, async (req, res)
 
 module.exports = router;
 module.exports.invalidarTopSemana = repo.invalidarTopSemana;
+module.exports.emitirNoticia = emitirNoticia;
+module.exports.emitirAvisoTemporal = emitirAvisoTemporal;

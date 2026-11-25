@@ -452,6 +452,18 @@
     -webkit-appearance: none;
     margin: 0;
   }
+  .programar-cuando {
+    color-scheme: dark;
+    width: 100%;
+    background: #12121a;
+    border: 2px solid #d4af37;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-weight: 800;
+    font-size: 15px;
+  }
+  .programar-cuando:focus { outline: 2px solid #d4af37; outline-offset: 2px; }
 </style>
 </head>
 <body class="bg-[#0a0a0f] text-white font-sans antialiased min-h-screen" x-data="noticiasApp()" x-init="init()" x-cloak>
@@ -495,14 +507,35 @@
 
         <div class="flex flex-col sm:flex-row gap-3 mb-4">
           <div class="flex-1 flex flex-col gap-1">
-            <button type="button" id="btn-publicar"
-              class="btn-touch w-full bg-[#d4af37] text-[#0a0a0f] px-6 py-3.5 rounded-xl text-sm font-extrabold disabled:opacity-50 inline-flex items-center justify-center gap-2.5 hover:brightness-110 active:scale-[0.98] transition shadow-lg shadow-[#d4af37]/25 cursor-pointer"
-              :disabled="guardando"
-              @click="publicar()">
-              <span x-show="guardando" class="w-4 h-4 border-2 border-[#0a0a0f] border-t-transparent rounded-full animate-spin"></span>
-              <span class="text-base" x-show="!guardando">💾</span>
-              <span x-text="guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Publicar ahora')"></span>
-            </button>
+            <div class="flex items-stretch gap-2">
+              <button type="button" id="btn-publicar"
+                class="btn-touch flex-1 bg-[#d4af37] text-[#0a0a0f] px-6 py-3.5 rounded-xl text-sm font-extrabold disabled:opacity-50 inline-flex items-center justify-center gap-2.5 hover:brightness-110 active:scale-[0.98] transition shadow-lg shadow-[#d4af37]/25 cursor-pointer"
+                :disabled="guardando"
+                @click="publicar()">
+                <span x-show="guardando" class="w-4 h-4 border-2 border-[#0a0a0f] border-t-transparent rounded-full animate-spin"></span>
+                <span class="text-base" x-show="!guardando">💾</span>
+                <span x-text="guardando ? 'Guardando…' : (editandoId ? 'Guardar cambios' : 'Publicar ahora')"></span>
+              </button>
+              <button type="button"
+                class="btn-touch shrink-0 px-3 rounded-xl border-2 border-[#d4af37] bg-[#12121a] text-[#d4af37] hover:bg-[#d4af37]/15 disabled:opacity-50 cursor-pointer flex flex-col items-center justify-center gap-1"
+                :disabled="guardando"
+                @click="abrirProgramar()"
+                title="Programar hora"
+                aria-label="Programar hora">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/></svg>
+                <span class="text-[10px] font-extrabold uppercase text-center">Programar<br>hora</span>
+              </button>
+              <button type="button"
+                x-show="programadas.length"
+                x-cloak
+                class="btn-touch shrink-0 px-3 rounded-xl border-2 border-white/20 bg-[#12121a] text-white hover:bg-[#d4af37]/15 cursor-pointer flex flex-col items-center justify-center gap-1"
+                @click="abrirProgramadas()"
+                title="Mensajes programados"
+                aria-label="Mensajes programados">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                <span class="text-[10px] font-extrabold text-[#d4af37]" x-text="programadas.length"></span>
+              </button>
+            </div>
             <span class="text-[11px] text-white/70 text-center font-medium">Guarda en el archivo del día. Queda visible.</span>
           </div>
           <div class="flex-1 flex flex-col gap-1">
@@ -879,6 +912,69 @@
     </div>
 
   </main>
+</div>
+
+<!-- Programar hora -->
+<div x-show="modalProgramar" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" @click.self="!programando && (modalProgramar = false)" @keydown.escape.window="modalProgramar && !programando && (modalProgramar = false)">
+  <div class="bg-[#1a1a28] border-2 border-[rgba(212,175,55,0.45)] rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]" @click.stop>
+    <div class="px-6 py-4 border-b border-[rgba(212,175,55,0.2)] flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-extrabold text-white">Programar hora</h2>
+        <p class="text-xs text-white/80 mt-0.5">El aviso se publica solo a esa hora, aunque esta pantalla esté cerrada. Hora de Lima.</p>
+      </div>
+      <button type="button" class="btn-touch text-white/80 hover:text-white text-sm font-bold cursor-pointer shrink-0" @click="modalProgramar = false" :disabled="programando">✕</button>
+    </div>
+    <div class="px-6 py-4 space-y-4 overflow-y-auto">
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold border-2 border-[rgba(212,175,55,0.3)] text-white hover:border-[#d4af37] cursor-pointer" @click="fijarProgramar(30)">En 30 min</button>
+        <button type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold border-2 border-[rgba(212,175,55,0.3)] text-white hover:border-[#d4af37] cursor-pointer" @click="fijarProgramar(60)">En 1 hora</button>
+        <button type="button" class="px-3.5 py-2 rounded-xl text-xs font-bold border-2 border-[rgba(212,175,55,0.3)] text-white hover:border-[#d4af37] cursor-pointer" @click="fijarProgramar(1440)">Mañana</button>
+      </div>
+      <label class="block text-xs uppercase tracking-wider text-white font-bold" for="programar-cuando">Día y hora</label>
+      <input id="programar-cuando" type="datetime-local" class="programar-cuando" x-model="programarCuando">
+      <p class="text-sm text-[#d4af37] font-bold" x-show="programarCuando" x-text="'Se transmite el ' + etiquetaProgramar()"></p>
+      <p class="text-[11px] text-white/70">Queda en el archivo del día en que se envía y aparece en las pantallas elegidas, igual que Publicar ahora.</p>
+    </div>
+    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.2)] flex justify-end gap-3">
+      <button type="button" class="btn-touch px-5 py-2.5 border border-white/30 rounded-xl text-sm font-bold text-white hover:bg-white/10 cursor-pointer" @click="modalProgramar = false" :disabled="programando">Cancelar</button>
+      <button type="button" class="btn-touch px-6 py-2.5 bg-[#d4af37] text-[#0a0a0f] rounded-xl text-sm font-black hover:brightness-110 disabled:opacity-60 cursor-pointer" @click="programarMensaje()" :disabled="programando || !programarCuando">Programar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mensajes programados -->
+<div x-show="modalProgramadas" x-cloak class="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" @click.self="cerrarProgramadas()" @keydown.escape.window="modalProgramadas && cerrarProgramadas()">
+  <div class="bg-[#1a1a28] border-2 border-[rgba(212,175,55,0.45)] rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh]" @click.stop>
+    <div class="px-6 py-4 border-b border-[rgba(212,175,55,0.2)] flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-extrabold text-white">Mensajes programados</h2>
+        <p class="text-xs text-white/80 mt-0.5">Se envían solos a la hora indicada. Hora de Lima.</p>
+      </div>
+      <button type="button" class="btn-touch text-white/80 hover:text-white text-sm font-bold cursor-pointer shrink-0" @click="cerrarProgramadas()">✕</button>
+    </div>
+    <div class="px-6 py-4 space-y-4 overflow-y-auto">
+      <template x-for="p in programadas" :key="p._id">
+        <div class="rounded-xl border border-[rgba(212,175,55,0.28)] bg-[#12121a] p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-extrabold text-white truncate" x-text="p.titulo || 'Sin título'"></p>
+              <p class="text-[11px] text-white/70 mt-1" x-show="p.extracto" x-text="p.extracto"></p>
+            </div>
+            <span class="chip shrink-0" :class="p.estado === 'error' ? 'bg-red-600 text-white border border-[#ff6b6b]' : 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/40'" x-text="p.estado === 'error' ? 'Error' : 'Pendiente'"></span>
+          </div>
+          <p class="text-sm text-[#d4af37] font-bold mt-2" x-text="textoCuando(p.programadaPara)"></p>
+          <p class="text-[11px] text-white/70 mt-1" x-text="p.destinosTexto + (p.autorNombre ? ' · ' + p.autorNombre : '')"></p>
+          <p class="text-[11px] text-[#ff6b6b] font-bold mt-1" x-show="p.estado === 'error'" x-text="p.error || 'No se pudo enviar'"></p>
+          <div class="flex flex-wrap gap-2 mt-3">
+            <button type="button" x-show="p.estado === 'error'" class="px-3 py-2 rounded-lg border border-[#d4af37] text-[#d4af37] text-xs font-bold cursor-pointer" @click="reintentarProgramada(p)">Reintentar</button>
+            <button type="button" x-show="confirmProgramadaId !== String(p._id)" class="px-3 py-2 rounded-lg border border-white/30 text-white text-xs font-bold cursor-pointer" @click="confirmProgramadaId = String(p._id)">Quitar</button>
+            <button type="button" x-show="confirmProgramadaId === String(p._id)" class="px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-bold cursor-pointer" @click="cancelarProgramada(p)">Confirmar</button>
+          </div>
+        </div>
+      </template>
+      <p x-show="!programadas.length" class="text-white/70 text-sm">No hay mensajes programados.</p>
+    </div>
+  </div>
 </div>
 
 <!-- Modal Recorte de Imagen Centrado y Completo -->
@@ -1412,6 +1508,12 @@ function noticiasApp() {
     borradorRecuperado: false,
     confirmRetirarId: null,
     modalRecorte: false,
+    modalProgramar: false,
+    modalProgramadas: false,
+    programarCuando: '',
+    programadas: [],
+    confirmProgramadaId: null,
+    programando: false,
     recorte: { url: '', ratio: 'libre', subiendo: false, error: '' },
     emojiAbierto: false,
     emojis: EMOJIS,
@@ -1709,8 +1811,9 @@ function noticiasApp() {
       this.prepararAnimacion();
       this.montarEditor();
       this.restaurarBorrador();
-      await Promise.all([this.cargar(), this.cargarTop(), this.cargarHoy(), this.cargarDestinos()]);
+      await Promise.all([this.cargar(), this.cargarTop(), this.cargarHoy(), this.cargarDestinos(), this.cargarProgramadas(true)]);
       this.escucharMozosActivos();
+      this._progTimer = setInterval(() => this.cargarProgramadas(true), 20000);
       this.entrada();
     },
 
@@ -2444,6 +2547,183 @@ function noticiasApp() {
         this.top = data.platos || [];
         this.topRango = data.desde && data.hasta ? data.desde.slice(5) + ' → ' + data.hasta.slice(5) : '';
       } catch (_) {}
+    },
+    partesLima(date) {
+      const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Lima',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      });
+      const bag = {};
+      fmt.formatToParts(date).forEach((p) => { bag[p.type] = p.value; });
+      return {
+        y: Number(bag.year),
+        mo: Number(bag.month),
+        d: Number(bag.day),
+        h: bag.hour === '24' ? 0 : Number(bag.hour),
+        mi: Number(bag.minute),
+      };
+    },
+    limaStamp(ms) {
+      const p = this.partesLima(new Date(ms));
+      const pad = (n) => String(n).padStart(2, '0');
+      return p.y + '-' + pad(p.mo) + '-' + pad(p.d) + 'T' + pad(p.h) + ':' + pad(p.mi);
+    },
+    instanteLima(valor) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(valor || ''));
+      if (!m) return NaN;
+      const utcGuess = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+      const shown = this.partesLima(new Date(utcGuess));
+      const shownUtc = Date.UTC(shown.y, shown.mo - 1, shown.d, shown.h, shown.mi);
+      return utcGuess - (shownUtc - utcGuess);
+    },
+    textoCuando(valor) {
+      const d = valor instanceof Date ? valor : new Date(valor);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleString('es-PE', {
+        timeZone: 'America/Lima',
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    },
+    etiquetaProgramar() {
+      const t = this.instanteLima(this.programarCuando);
+      if (!Number.isFinite(t)) return '';
+      return this.textoCuando(new Date(t));
+    },
+    fijarProgramar(minutos) {
+      this.programarCuando = this.limaStamp(Date.now() + minutos * 60000);
+    },
+    abrirProgramar() {
+      if (this.guardando) return;
+      if (!this.destinoValido()) {
+        this.mostrarToast(this.estado || 'Revisa el destino', 'error');
+        return;
+      }
+      if (!String(this.titulo || '').trim() && !this.tieneContenido) {
+        this.mostrarToast('Escribe el mensaje antes de programarlo', 'error');
+        return;
+      }
+      this.programarCuando = this.limaStamp(Date.now() + 60 * 60 * 1000);
+      this.modalProgramar = true;
+    },
+    cerrarProgramadas() {
+      this.modalProgramadas = false;
+      this.confirmProgramadaId = null;
+    },
+    async abrirProgramadas() {
+      await this.cargarProgramadas(true);
+      this.modalProgramadas = true;
+    },
+    async cargarProgramadas(silencioso) {
+      const marca = (this._marcaProg || 0) + 1;
+      this._marcaProg = marca;
+      try {
+        const res = await fetch('/api/noticias/programadas', { headers: this.headers(false), cache: 'no-store' });
+        if (this._marcaProg !== marca) return;
+        if (!res.ok) {
+          if (!silencioso) this.mostrarToast('No se pudo leer lo programado', 'error');
+          return;
+        }
+        const data = await leerJson(res);
+        if (this._marcaProg !== marca) return;
+        const antes = new Set(this.programadas.filter((p) => p.estado === 'pendiente').map((p) => String(p._id)));
+        const lista = data.programadas || [];
+        const ahora = new Set(lista.filter((p) => p.estado === 'pendiente').map((p) => String(p._id)));
+        const salio = [...antes].some((id) => !ahora.has(id));
+        this.programadas = lista;
+        if (!lista.some((p) => String(p._id) === this.confirmProgramadaId)) this.confirmProgramadaId = null;
+        if (salio) await Promise.all([this.cargar(), this.cargarHoy()]);
+      } catch (_) {
+        if (!silencioso) this.mostrarToast('No se pudo leer lo programado', 'error');
+      }
+    },
+    async programarMensaje() {
+      if (this.programando || this.guardando) return;
+      if (!this.destinoValido()) {
+        this.mostrarToast(this.estado || 'Revisa el destino', 'error');
+        return;
+      }
+      if (!String(this.titulo || '').trim() && !this.tieneContenido) {
+        this.mostrarToast('Escribe el mensaje antes de programarlo', 'error');
+        return;
+      }
+      const instante = this.instanteLima(this.programarCuando);
+      if (!Number.isFinite(instante) || instante < Date.now() + 20000) {
+        this.mostrarToast('Elige una hora que todavía no haya pasado', 'error');
+        return;
+      }
+      this.programando = true;
+      this.avisoCarga = 'Programando el aviso…';
+      this.guardando = true;
+      const payload = {
+        titulo: this.titulo,
+        cuerpoHtml: htmlParaGuardar(this.quill),
+        programadaPara: this.programarCuando,
+        ...this.payloadDestino(),
+      };
+      try {
+        const res = await fetch('/api/noticias/programadas', {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify(payload),
+        });
+        const data = await leerJson(res);
+        if (!res.ok) {
+          this.mostrarToast(data.error || 'No se pudo programar', 'error');
+          return;
+        }
+        const cuando = this.textoCuando(data.programadaPara);
+        this.modalProgramar = false;
+        this.nueva();
+        await this.cargarProgramadas(true);
+        this.mostrarToast(cuando ? ('Programado para ' + cuando) : 'Mensaje programado');
+      } catch (_) {
+        this.mostrarToast('Sin conexión con el servidor', 'error');
+      } finally {
+        this.programando = false;
+        this.guardando = false;
+        this.avisoCarga = '';
+      }
+    },
+    async cancelarProgramada(p) {
+      try {
+        const res = await fetch('/api/noticias/programadas/' + p._id, { method: 'DELETE', headers: this.headers() });
+        const data = await leerJson(res);
+        if (!res.ok) {
+          this.mostrarToast(data.error || 'No se pudo quitar', 'error');
+          return;
+        }
+        this.programadas = this.programadas.filter((x) => String(x._id) !== String(p._id));
+        this.confirmProgramadaId = null;
+        this.mostrarToast('Programación quitada');
+        if (!this.programadas.length) this.cerrarProgramadas();
+      } catch (_) {
+        this.mostrarToast('Sin conexión con el servidor', 'error');
+      }
+    },
+    async reintentarProgramada(p) {
+      try {
+        const res = await fetch('/api/noticias/programadas/' + p._id + '/reintentar', { method: 'PATCH', headers: this.headers() });
+        const data = await leerJson(res);
+        if (!res.ok) {
+          this.mostrarToast(data.error || 'No se pudo reintentar', 'error');
+          return;
+        }
+        const i = this.programadas.findIndex((x) => String(x._id) === String(p._id));
+        if (i >= 0) this.programadas.splice(i, 1, data);
+        this.mostrarToast('Volvió a la cola. Se envía solo.');
+      } catch (_) {
+        this.mostrarToast('Sin conexión con el servidor', 'error');
+      }
     },
     async publicar() {
       if (this.guardando) return;
