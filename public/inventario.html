@@ -1035,7 +1035,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       border-color: rgba(52, 211, 153, 0.75);
     }
     .teclado-transformar .teclado-transformar-pantalla.con-formula.es-ingreso .teclado-transformar-valor { border-color: #a8873a; }
-    .teclado-formula-hoy { margin: -0.4rem 0 0.7rem; font-size: 0.72rem; color: #a0a0b8; text-align: center; }
     .teclado-transformar-teclas {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1550,9 +1549,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     #panel-transformar .cuadro-grupal-semantico .octavo-cortes {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
-    /* Con Stock + Transformar = Total, pecho y pierna van uno debajo del otro para que quepa la cuenta. */
+    /* Pecho y pierna lado a lado si la tarjeta es ancha (Caldo ocupa toda la fila); si no, uno debajo del otro. */
     #panel-transformar .cuadro-grupal-semantico .octavo-cortes.octavo-cortes-formula {
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
     }
     #panel-transformar .octavo-modelo .octavo-cortes .caja-stock-step {
       width: 100%;
@@ -3568,15 +3567,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div class="caja-stock">
                         <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                         <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                          <div class="tf-bloque" x-data="{ ft: formulaTransformar('pollo|pechuga'), monto: 0 }" x-effect="ft = formulaTransformar('pollo|pechuga')">
-                            <div class="tf-formula">
-                              <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
-                              <span class="tf-op" aria-hidden="true">+</span>
-                              <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Pechos que salen del pollo fresco" :data-formula="'pollo|pechuga'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('pollo|pechuga', $event.target)"></label>
-                              <span class="tf-op" aria-hidden="true">=</span>
-                              <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
-                            </div>
-                            <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
+                          <div class="caja-stock-step">
+                            <input type="number" min="0" step="any" aria-label="Stock actual de pecho de pollo" :value="stockCuadro('pechuga', 'crudo')" @change="fijarStockConIngreso('pechuga', 'crudo', $event.target)">
                           </div>
                           <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de pecho de pollo'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                           <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3610,15 +3602,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="caja-stock">
                               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                               <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                <div class="tf-bloque" x-data="{ ft: formulaTransformar('filete'), monto: 0 }" x-effect="ft = formulaTransformar('filete')">
+                                <div class="tf-bloque" x-data="{ ft: formulaTransformar('filete'), monto: null }" x-effect="ft = formulaTransformar('filete')">
                                   <div class="tf-formula">
                                     <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                     <span class="tf-op" aria-hidden="true">+</span>
-                                    <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Filetes que salen del pecho de pollo" :data-formula="'filete'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('filete', $event.target)"></label>
+                                    <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Filetes que salen del pecho de pollo" :data-formula="'filete'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('filete', $event.target)"></label>
                                     <span class="tf-op" aria-hidden="true">=</span>
-                                    <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                    <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                   </div>
-                                  <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                 </div>
                                 <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de filete de pollo'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                 <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3748,15 +3739,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <div class="caja-stock">
                                 <p class="caja-stock-etiq" x-text="'Stock actual (' + etiquetaTipo('crudo', ad.id) + '):'"></p>
                                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('hijo|pechuga|' + ad.id), monto: 0 }" x-effect="ft = formulaTransformar('hijo|pechuga|' + ad.id)">
+                                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('hijo|pechuga|' + ad.id), monto: null }" x-effect="ft = formulaTransformar('hijo|pechuga|' + ad.id)">
                                     <div class="tf-formula">
                                       <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                       <span class="tf-op" aria-hidden="true">+</span>
-                                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar pecho de pollo en ' + ad.nombre" :data-formula="'hijo|pechuga|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('hijo|pechuga|' + ad.id, $event.target)"></label>
+                                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar pecho de pollo en ' + ad.nombre" :data-formula="'hijo|pechuga|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('hijo|pechuga|' + ad.id, $event.target)"></label>
                                       <span class="tf-op" aria-hidden="true">=</span>
-                                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                     </div>
-                                    <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                   </div>
                                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3773,15 +3763,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <div class="caja-stock caja-stock-cocido">
                                   <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                                   <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                    <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|' + ad.id), monto: 0 }" x-effect="ft = formulaTransformar('cocido|' + ad.id)">
+                                    <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|' + ad.id), monto: null }" x-effect="ft = formulaTransformar('cocido|' + ad.id)">
                                       <div class="tf-formula" :class="ft.stock <= 0 ? 'stock-cero-alarma' : ''">
                                         <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                         <span class="tf-op" aria-hidden="true">+</span>
-                                        <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + ad.nombre" :data-formula="'cocido|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('cocido|' + ad.id, $event.target)"></label>
+                                        <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + ad.nombre" :data-formula="'cocido|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('cocido|' + ad.id, $event.target)"></label>
                                         <span class="tf-op" aria-hidden="true">=</span>
-                                        <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                        <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                       </div>
-                                      <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                     </div>
                                     <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                     <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3821,15 +3810,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                       <div class="caja-stock">
                         <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                         <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                          <div class="tf-bloque" x-data="{ ft: formulaTransformar('pollo|pierna'), monto: 0 }" x-effect="ft = formulaTransformar('pollo|pierna')">
-                            <div class="tf-formula">
-                              <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
-                              <span class="tf-op" aria-hidden="true">+</span>
-                              <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Piernas que salen del pollo fresco" :data-formula="'pollo|pierna'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('pollo|pierna', $event.target)"></label>
-                              <span class="tf-op" aria-hidden="true">=</span>
-                              <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
-                            </div>
-                            <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
+                          <div class="caja-stock-step">
+                            <input type="number" min="0" step="any" aria-label="Stock actual de pierna de pollo" :value="stockCuadro('pierna', 'crudo')" @change="fijarStockConIngreso('pierna', 'crudo', $event.target)">
                           </div>
                           <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock actual de pierna de pollo'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                           <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3872,15 +3854,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <div class="caja-stock">
                                 <p class="caja-stock-etiq" x-text="'Stock actual (' + etiquetaTipo('crudo', ad.id) + '):'"></p>
                                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('hijo|pierna|' + ad.id), monto: 0 }" x-effect="ft = formulaTransformar('hijo|pierna|' + ad.id)">
+                                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('hijo|pierna|' + ad.id), monto: null }" x-effect="ft = formulaTransformar('hijo|pierna|' + ad.id)">
                                     <div class="tf-formula">
                                       <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                       <span class="tf-op" aria-hidden="true">+</span>
-                                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar pierna de pollo en ' + ad.nombre" :data-formula="'hijo|pierna|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('hijo|pierna|' + ad.id, $event.target)"></label>
+                                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar pierna de pollo en ' + ad.nombre" :data-formula="'hijo|pierna|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('hijo|pierna|' + ad.id, $event.target)"></label>
                                       <span class="tf-op" aria-hidden="true">=</span>
-                                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                     </div>
-                                    <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                   </div>
                                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', ad.id).toLowerCase() + ' de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3897,15 +3878,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 <div class="caja-stock caja-stock-cocido">
                                   <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                                   <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                    <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|' + ad.id), monto: 0 }" x-effect="ft = formulaTransformar('cocido|' + ad.id)">
+                                    <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|' + ad.id), monto: null }" x-effect="ft = formulaTransformar('cocido|' + ad.id)">
                                       <div class="tf-formula" :class="ft.stock <= 0 ? 'stock-cero-alarma' : ''">
                                         <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                         <span class="tf-op" aria-hidden="true">+</span>
-                                        <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + ad.nombre" :data-formula="'cocido|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('cocido|' + ad.id, $event.target)"></label>
+                                        <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + ad.nombre" :data-formula="'cocido|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('cocido|' + ad.id, $event.target)"></label>
                                         <span class="tf-op" aria-hidden="true">=</span>
-                                        <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                        <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                       </div>
-                                      <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                     </div>
                                     <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + ad.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                     <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3951,15 +3931,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-col items-stretch">
                           <p class="caja-stock-corte text-sky-300">Pecho</p>
                           <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                            <div class="tf-bloque" x-data="{ ft: formulaTransformar('octavo|pechugas'), monto: 0 }" x-effect="ft = formulaTransformar('octavo|pechugas')">
+                            <div class="tf-bloque" x-data="{ ft: formulaTransformar('octavo|pechugas'), monto: null }" x-effect="ft = formulaTransformar('octavo|pechugas')">
                               <div class="tf-formula">
                                 <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                 <span class="tf-op" aria-hidden="true">+</span>
-                                <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Octavos que salen del pecho" :data-formula="'octavo|pechugas'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('octavo|pechugas', $event.target)"></label>
+                                <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Octavos que salen del pecho" :data-formula="'octavo|pechugas'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('octavo|pechugas', $event.target)"></label>
                                 <span class="tf-op" aria-hidden="true">=</span>
-                                <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                               </div>
-                              <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                             </div>
                             <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock de octavos desde pecho'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                             <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -3973,15 +3952,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <div class="flex flex-col items-stretch">
                           <p class="caja-stock-corte text-emerald-300">Pierna</p>
                           <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                            <div class="tf-bloque" x-data="{ ft: formulaTransformar('octavo|piernas'), monto: 0 }" x-effect="ft = formulaTransformar('octavo|piernas')">
+                            <div class="tf-bloque" x-data="{ ft: formulaTransformar('octavo|piernas'), monto: null }" x-effect="ft = formulaTransformar('octavo|piernas')">
                               <div class="tf-formula">
                                 <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                 <span class="tf-op" aria-hidden="true">+</span>
-                                <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Octavos que salen de la pierna" :data-formula="'octavo|piernas'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('octavo|piernas', $event.target)"></label>
+                                <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Octavos que salen de la pierna" :data-formula="'octavo|piernas'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('octavo|piernas', $event.target)"></label>
                                 <span class="tf-op" aria-hidden="true">=</span>
-                                <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                               </div>
-                              <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                             </div>
                             <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Stock de octavos desde pierna'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                             <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4026,15 +4004,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                     <div class="caja-stock">
                                       <p class="caja-stock-etiq">Crudo</p>
                                       <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                        <div class="tf-bloque" x-data="{ ft: formulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|crudo'), monto: 0 }" x-effect="ft = formulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|crudo')">
+                                        <div class="tf-bloque" x-data="{ ft: formulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|crudo'), monto: null }" x-effect="ft = formulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|crudo')">
                                           <div class="tf-formula">
                                             <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                             <span class="tf-op" aria-hidden="true">+</span>
-                                            <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar octavo de ' + (corte === 'piernas' ? 'pierna' : 'pecho') + ' en ' + plato.nombre + ' crudo'" :data-formula="'platoOctavo|' + plato.id + '|' + corte + '|crudo'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|crudo', $event.target)"></label>
+                                            <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar octavo de ' + (corte === 'piernas' ? 'pierna' : 'pecho') + ' en ' + plato.nombre + ' crudo'" :data-formula="'platoOctavo|' + plato.id + '|' + corte + '|crudo'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|crudo', $event.target)"></label>
                                             <span class="tf-op" aria-hidden="true">=</span>
-                                            <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                            <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                           </div>
-                                          <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                         </div>
                                         <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock crudo ' + corte + ' de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                         <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4051,15 +4028,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                       <div class="caja-stock caja-stock-cocido">
                                         <p class="caja-stock-etiq">Cocido</p>
                                         <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                          <div class="tf-bloque" x-data="{ ft: formulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|cocido'), monto: 0 }" x-effect="ft = formulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|cocido')">
+                                          <div class="tf-bloque" x-data="{ ft: formulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|cocido'), monto: null }" x-effect="ft = formulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|cocido')">
                                             <div class="tf-formula">
                                               <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                               <span class="tf-op" aria-hidden="true">+</span>
-                                              <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + (corte === 'piernas' ? 'pierna' : 'pecho') + ' en ' + plato.nombre" :data-formula="'platoOctavo|' + plato.id + '|' + corte + '|cocido'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|cocido', $event.target)"></label>
+                                              <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + (corte === 'piernas' ? 'pierna' : 'pecho') + ' en ' + plato.nombre" :data-formula="'platoOctavo|' + plato.id + '|' + corte + '|cocido'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('platoOctavo|' + plato.id + '|' + corte + '|cocido', $event.target)"></label>
                                               <span class="tf-op" aria-hidden="true">=</span>
-                                              <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                              <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                             </div>
-                                            <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                           </div>
                                           <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido ' + corte + ' de ' + plato.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                           <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4235,15 +4211,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                             <div class="caja-stock">
                               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                               <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                <div class="tf-bloque" x-data="{ ft: formulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave), monto: 0 }" x-effect="ft = formulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave)">
+                                <div class="tf-bloque" x-data="{ ft: formulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave), monto: null }" x-effect="ft = formulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave)">
                                   <div class="tf-formula">
                                     <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                     <span class="tf-op" aria-hidden="true">+</span>
-                                    <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar ' + mapa.origen.nombre + ' en ' + rama.nombre" :data-formula="'mapa|' + mapa.id + '|' + rama.corte.clave" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave, $event.target)"></label>
+                                    <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar ' + mapa.origen.nombre + ' en ' + rama.nombre" :data-formula="'mapa|' + mapa.id + '|' + rama.corte.clave" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('mapa|' + mapa.id + '|' + rama.corte.clave, $event.target)"></label>
                                     <span class="tf-op" aria-hidden="true">=</span>
-                                    <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                    <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                   </div>
-                                  <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                 </div>
                                 <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock crudo de ' + rama.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                 <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4260,15 +4235,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <div class="caja-stock caja-stock-cocido">
                                 <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|' + idDeClave(rama.corte.clave)), monto: 0 }" x-effect="ft = formulaTransformar('cocido|' + idDeClave(rama.corte.clave))">
+                                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|' + idDeClave(rama.corte.clave)), monto: null }" x-effect="ft = formulaTransformar('cocido|' + idDeClave(rama.corte.clave))">
                                     <div class="tf-formula">
                                       <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                       <span class="tf-op" aria-hidden="true">+</span>
-                                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + rama.nombre" :data-formula="'cocido|' + idDeClave(rama.corte.clave)" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('cocido|' + idDeClave(rama.corte.clave), $event.target)"></label>
+                                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + rama.nombre" :data-formula="'cocido|' + idDeClave(rama.corte.clave)" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('cocido|' + idDeClave(rama.corte.clave), $event.target)"></label>
                                       <span class="tf-op" aria-hidden="true">=</span>
-                                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                                     </div>
-                                    <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                                   </div>
                                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + rama.nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4406,15 +4380,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             <div class="caja-stock caja-stock-cocido">
               <p class="caja-stock-etiq">Stock actual (Cocido):</p>
               <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|pollo_baby'), monto: 0 }" x-effect="ft = formulaTransformar('cocido|pollo_baby')">
+                <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|pollo_baby'), monto: null }" x-effect="ft = formulaTransformar('cocido|pollo_baby')">
                   <div class="tf-formula">
                     <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                     <span class="tf-op" aria-hidden="true">+</span>
-                    <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Transformar Pollo Baby crudo en cocido" :data-formula="'cocido|pollo_baby'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('cocido|pollo_baby', $event.target)"></label>
+                    <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Transformar Pollo Baby crudo en cocido" :data-formula="'cocido|pollo_baby'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('cocido|pollo_baby', $event.target)"></label>
                     <span class="tf-op" aria-hidden="true">=</span>
-                    <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                    <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                   </div>
-                  <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                 </div>
                 <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Pasar Pollo Baby de crudo a cocido'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                 <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4533,15 +4506,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="flex items-center justify-between">
                 
                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('tira'), monto: 0 }" x-effect="ft = formulaTransformar('tira')">
+                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('tira'), monto: null }" x-effect="ft = formulaTransformar('tira')">
                     <div class="tf-formula">
                       <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                       <span class="tf-op" aria-hidden="true">+</span>
-                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Tiras que salen de la panceta (1 panceta = 6 tiras)" :data-formula="'tira'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('tira', $event.target)"></label>
+                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Tiras que salen de la panceta (1 panceta = 6 tiras)" :data-formula="'tira'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('tira', $event.target)"></label>
                       <span class="tf-op" aria-hidden="true">=</span>
-                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                     </div>
-                    <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                   </div>
                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Pancetas que pasaron a tiras'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -4875,15 +4847,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="caja-stock caja-stock-cocido">
                 <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
-                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|seco_carnero'), monto: 0 }" x-effect="ft = formulaTransformar('cocido|seco_carnero')">
+                  <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|seco_carnero'), monto: null }" x-effect="ft = formulaTransformar('cocido|seco_carnero')">
                     <div class="tf-formula">
                       <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                       <span class="tf-op" aria-hidden="true">+</span>
-                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Transformar Seco de carnero crudo en cocido" :data-formula="'cocido|seco_carnero'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('cocido|seco_carnero', $event.target)"></label>
+                      <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Transformar Seco de carnero crudo en cocido" :data-formula="'cocido|seco_carnero'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('cocido|seco_carnero', $event.target)"></label>
                       <span class="tf-op" aria-hidden="true">=</span>
-                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                      <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                     </div>
-                    <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                   </div>
                   <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: Pasar Seco de carnero de crudo a cocido'" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
                   <div class="ingreso-panel" x-show="ingresoVisible" x-cloak>
@@ -5026,15 +4997,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         <input type="number" min="0" step="any" :aria-label="'Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'crudo')" @change="cuadroPachamanca(corteId, 'crudo', $event.target)">
                       </div>
                       <template x-if="corteId === 'pollo_pachamanca'">
-                        <div class="tf-bloque" x-data="{ ft: formulaTransformar('hijo|pierna|pollo_pachamanca'), monto: 0 }" x-effect="ft = formulaTransformar('hijo|pierna|pollo_pachamanca')">
+                        <div class="tf-bloque" x-data="{ ft: formulaTransformar('hijo|pierna|pollo_pachamanca'), monto: null }" x-effect="ft = formulaTransformar('hijo|pierna|pollo_pachamanca')">
                           <div class="tf-formula">
                             <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                             <span class="tf-op" aria-hidden="true">+</span>
-                            <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Transformar pierna de pollo en Pollo pachamanca" :data-formula="'hijo|pierna|pollo_pachamanca'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('hijo|pierna|pollo_pachamanca', $event.target)"></label>
+                            <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Transformar pierna de pollo en Pollo pachamanca" :data-formula="'hijo|pierna|pollo_pachamanca'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('hijo|pierna|pollo_pachamanca', $event.target)"></label>
                             <span class="tf-op" aria-hidden="true">=</span>
-                            <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                            <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                           </div>
-                          <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                         </div>
                       </template>
                       <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock ' + etiquetaTipo('crudo', corteId).toLowerCase() + ' de ' + getRow(corteId).nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
@@ -5056,15 +5026,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <input type="number" min="0" step="any" :aria-label="'Stock cocido de ' + getRow(corteId).nombre" :value="stockCuadro(corteId, 'cocido')" @change="cuadroPachamanca(corteId, 'cocido', $event.target)">
                         </div>
                         <template x-if="corteId === 'pollo_pachamanca'">
-                          <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|pollo_pachamanca'), monto: 0 }" x-effect="ft = formulaTransformar('cocido|pollo_pachamanca')">
+                          <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|pollo_pachamanca'), monto: null }" x-effect="ft = formulaTransformar('cocido|pollo_pachamanca')">
                             <div class="tf-formula">
                               <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                               <span class="tf-op" aria-hidden="true">+</span>
-                              <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" value="0" :min="-ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Transformar Pollo pachamanca crudo en cocido" :data-formula="'cocido|pollo_pachamanca'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = 0; cuadroFormulaTransformar('cocido|pollo_pachamanca', $event.target)"></label>
+                              <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" aria-label="Transformar Pollo pachamanca crudo en cocido" :data-formula="'cocido|pollo_pachamanca'" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="monto = null; cuadroFormulaTransformar('cocido|pollo_pachamanca', $event.target)"></label>
                               <span class="tf-op" aria-hidden="true">=</span>
-                              <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + monto))"></span></div>
+                              <div class="tf-campo"><span class="tf-etiq">Total</span><span class="tf-num" x-text="formatNum(redondear3(ft.stock + (monto === null ? ft.transformado : monto)))"></span></div>
                             </div>
-                            <p class="tf-hoy" x-show="ft.transformado > 0" x-text="'Transformado ' + etiquetaTurnoCuadro() + ': ' + formatNum(ft.transformado)"></p>
                           </div>
                         </template>
                         <button type="button" class="ingreso-chip" x-show="!ingresoVisible" :aria-label="'Abrir ingreso: ' + ('Stock cocido de ' + getRow(corteId).nombre)" :aria-expanded="ingresoVisible" @click="ingresoVisible = true; $nextTick(() => { const campo = $el.parentElement.querySelector('.ingreso-panel input'); campo.focus(); })"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Ingreso</button>
@@ -7908,10 +7877,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           <span class="teclado-formula-etiq">Total</span>
           <span class="teclado-formula-num teclado-formula-total" x-text="formatNum(totalTecladoTransformar())"></span>
         </div>
-      </div>
-      <p class="teclado-formula-hoy" x-show="tecladoTransformar.formula && tecladoTransformar.formula.ya > 0"
-        x-text="tecladoTransformar.formula ? (tecladoTransformar.formula.tipo === 'Ingreso' ? 'Ya ingresado ' : 'Ya transformado ') + etiquetaTurnoCuadro() + ': ' + formatNum(tecladoTransformar.formula.ya) + '. Con − se quita.' : ''"></p>
-      <div class="teclado-transformar-teclas">
+      </div>      <div class="teclado-transformar-teclas">
         <template x-for="tecla in ['7', '8', '9', '−', '4', '5', '6', '+', '1', '2', '3', '⌫', '0', ',']" :key="tecla">
           <button type="button" x-text="tecla" :disabled="tecla === ',' && !tecladoTransformar.decimales"
             :class="{ 'teclado-transformar-operacion': ['−', '+', '⌫', ','].includes(tecla) }"
@@ -22376,7 +22342,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const formula = this.formulaTeclado(el);
           this.tecladoTransformar = {
             etiqueta: el.getAttribute('aria-label') || el.labels?.[0]?.textContent.trim() || el.title || 'Editar cantidad',
-            cantidad: formula ? '0' : (el.value || el.dataset.ceroAntesDeEditar || ''),
+            cantidad: el.value || el.dataset.ceroAntesDeEditar || '',
             decimales: el.step !== '1',
             error: '',
             formula
@@ -22390,19 +22356,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // El teclado de un cuadro Transformar o Ingreso muestra Stock + monto = Total.
         // El monto es lo que se escribe: en Transformar es la transformación y en Ingreso es el ingreso.
         // Los demás campos (stock actual, conteos) abren el teclado como siempre, sin cuenta.
-        // Stock es el stock real; el monto es lo que se suma ahora (con − se quita, hasta lo que entró en el período).
-        // absoluto: el campo guarda el total del período (Ingreso y el arroz), así que al aplicar se le suma lo de hoy.
+        // Stock es lo que había sin lo de este período; lo escrito es lo transformado (o ingresado) en el período.
         formulaTeclado(el) {
           const datos = (el && el.dataset) || {};
           if (datos.formula) {
             const f = this.formulaTransformar(datos.formula);
-            if (!f.fijar) return null;
-            const absoluto = datos.formula.indexOf('arroz|') === 0;
-            return { tipo: 'Transformar', stock: f.stock, ya: f.transformado, min: -f.transformado || 0, absoluto };
+            return f.fijar ? { tipo: 'Transformar', stock: f.stock } : null;
           }
           if (datos.ingreso) {
             const f = this.formulaIngreso(datos.ingreso);
-            return f ? { tipo: 'Ingreso', stock: f.stock, ya: f.ya, min: -f.ya || 0, absoluto: true } : null;
+            return f ? { tipo: 'Ingreso', stock: f.stock } : null;
           }
           return null;
         },
@@ -22424,9 +22387,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!campo) return;
           const entrada = this.$refs.valorTecladoTransformar;
           const valor = entrada.value;
-          const formula = this.tecladoTransformar.formula;
-          const min = formula ? formula.min : (campo.min === '' ? -Infinity : Number(campo.min));
-          const max = formula ? Infinity : (campo.max === '' ? Infinity : Number(campo.max));
+          const min = campo.min === '' ? -Infinity : Number(campo.min);
+          const max = campo.max === '' ? Infinity : Number(campo.max);
           let inicio = entrada.selectionStart;
           let fin = entrada.selectionEnd;
           let nuevo;
@@ -22458,24 +22420,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (!el || !el.isConnected) return this.cerrarTecladoTransformar();
           const texto = this.tecladoTransformar.cantidad.trim().replace(',', '.');
           const valor = Number(texto);
-          const formula = this.tecladoTransformar.formula;
-          if (formula) {
-            if (!/^-?(?:\d+\.?\d*|\.\d+)$/.test(texto) || !Number.isFinite(valor) || (el.step === '1' && !Number.isInteger(valor))) {
-              this.tecladoTransformar.error = 'Ingresa una cantidad válida.';
-              return;
-            }
-            if (!valor) return this.cerrarTecladoTransformar();
-            if (valor < formula.min - 0.0001) {
-              this.tecladoTransformar.error = 'Solo puedes quitar hasta ' + this.formatNum(formula.ya)
-                + (formula.tipo === 'Ingreso' ? ', lo ingresado' : ', lo transformado') + ' en el período.';
-              return;
-            }
-            this.cerrarTecladoTransformar();
-            el.value = String(formula.absoluto ? this.redondear3(formula.ya + valor) : valor);
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            return;
-          }
           const actual = el.value || el.dataset.ceroAntesDeEditar;
           if (texto !== '' && Number(actual) === valor) return this.cerrarTecladoTransformar();
           if (!/^-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(texto) || !Number.isFinite(valor)
@@ -22655,12 +22599,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // ===== Cuadro Stock + Transformar = Total (el modelo del arroz blanco en un solo cuadro) =====
-        // Va en lugar del cuadro de stock de cada producto que sale de otro. Stock es el stock real del
-        // producto, el mismo número que mostraba el cuadro de antes. Transformar es lo que se pasa ahora
-        // desde el origen, con el mismo pase de siempre (resta el origen y suma aquí), y el Total muestra
-        // cómo queda. Al guardar, el Stock sube y Transformar vuelve a 0. Un número negativo devuelve al
-        // origen, sin pasar de lo transformado en el período. El Ingreso independiente sigue en su icono:
-        // ingresar no es transformar.
+        // Va en lugar del cuadro de stock de cada producto que sale de otro. Transformar es lo transformado
+        // en el período desde el origen (arranca en 0 cada período), con el mismo pase de siempre: resta el
+        // origen y suma aquí. Total es el stock real y Stock lo que había sin esa transformación:
+        // 3 + 5 = 8. El Ingreso independiente sigue en su icono: ingresar no es transformar.
         indiceFormulaTransformar() {
           const lista = this.movimientosPeriodo || [];
           const cache = this._idxFormulaTransformar;
@@ -22696,7 +22638,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return this.redondear3(entra - sale);
         },
 
-        // clave: 'pollo|pechuga', 'filete', 'hijo|<padre>|<plato>', 'octavo|<corte>', 'platoOctavo|<plato>|<corte>|<tipo>',
+        // clave: 'filete', 'hijo|<padre>|<plato>', 'octavo|<corte>', 'platoOctavo|<plato>|<corte>|<tipo>',
         // 'cocido|<producto>', 'tira', 'mapa|<mapa>|<clave del corte>', 'arroz|<campo>'.
         // stock: stock real del cuadro. transformado: lo que pasó en el período (tope para devolver).
         formulaTransformar(clave) {
@@ -22707,21 +22649,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             return row && this.claveDeFila[row.id] ? row : null;
           };
           const igual = (motivo) => (m) => m === motivo;
-          const cuadro = (stock, t, fijar, paso, entero) => ({
-            stock: Math.max(0, this.redondear3(stock)),
-            transformado: Math.max(0, this.redondear3(t)),
-            fijar, paso: paso || 'any', entero: !!entero
-          });
+          // actual: stock real. Total = stock real; Stock = lo que había sin lo transformado en el período.
+          const cuadro = (actual, t, fijar, paso, entero) => {
+            const transformado = Math.max(0, this.redondear3(t));
+            return { stock: this.redondear3(Math.max(0, this.redondear3(actual)) - transformado), transformado, fijar, paso: paso || 'any', entero: !!entero };
+          };
 
-          if (tipoCuadro === 'pollo') {
-            const row = fila(a);
-            if (!row) return vacio;
-            const t = this.sumaFormulaTransformar(row.id, 'crudo', igual(this.motivoDesde('pollo_fresco')));
-            const factor = Number(row.id === 'pierna' ? this.config.factorPiernasPorFresco : this.config.factorPechugasPorFresco) || 2;
-            // Es el mismo Transformar del pollo fresco: cada pollo da su pecho y su pierna.
-            return cuadro(this.stockCuadro(row.id, 'crudo'), t,
-              (delta) => this.setPollosFrescosConvertir(this.redondear3(this.frescosHoy() + delta / factor)), '1', true);
-          }
           if (tipoCuadro === 'filete') {
             const row = fila('filete');
             if (!row) return vacio;
@@ -22797,18 +22730,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return vacio;
         },
 
-        // Lo mismo para un cuadro de Ingreso: Stock es el stock real y lo que se escribe es el ingreso.
-        // ya: lo ingresado en el período (el cuadro de Ingreso guarda ese total).
+        // Lo mismo para un cuadro de Ingreso: lo que se escribe es el ingreso del período (el cuadro guarda
+        // ese total) y Stock es lo que había sin él. ya: lo ingresado en el período.
         // clave: 'directo|<producto>|<tipo>|<corte>|<sector>' o 'arroz|<campo>'.
         formulaIngreso(clave) {
           const [tipoCuadro, id, tipo, corte, sector] = String(clave || '').split('|');
           if (tipoCuadro === 'arroz') {
             const d = this.destinosArroz().find((x) => x.campo === id);
             if (!d || !this.esArrozPorcion(d)) return null;
-            return {
-              stock: Math.max(0, this.valorCuadroArroz(d, this.saldoPorcionesArroz(d))),
-              ya: this.valorCuadroArroz(d, this.ingresoDirectoPeriodo(d.id, this.tipoArrozDestino(d)))
-            };
+            const ya = this.valorCuadroArroz(d, this.ingresoDirectoPeriodo(d.id, this.tipoArrozDestino(d)));
+            return { stock: this.redondear3(Math.max(0, this.valorCuadroArroz(d, this.saldoPorcionesArroz(d))) - ya), ya };
           }
           // Beata, Personal, Evento y Rio Lindo apartan octavos: no es stock que entra.
           if (tipoCuadro !== 'directo' || sector) return null;
@@ -22817,37 +22748,24 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           // El mismo stock que usa el cuadro de stock con ingreso (fijarStockConIngreso).
           const stock = !corte ? this.stockCuadro(ctx.row.id, ctx.tipo)
             : (ctx.row.id === 'octavo_pollo' ? this.octavosStockCorte(corte) : this.stockOctavoPlato(id, corte, ctx.tipo));
-          return { stock: Math.max(0, this.redondear3(stock)), ya: this.ingresoDirectoPeriodo(id, tipo, corte || undefined) };
+          const ya = this.ingresoDirectoPeriodo(id, tipo, corte || undefined);
+          return { stock: this.redondear3(Math.max(0, this.redondear3(stock)) - ya), ya };
         },
 
-        // Lo escrito es lo que se pasa ahora. Negativo devuelve, sin pasar de lo transformado en el período.
+        // Lo escrito es el total transformado del período (como en el arroz): se pasa solo la diferencia.
+        // Subir pasa más desde el origen; bajar le devuelve. En un período nuevo arranca en 0.
         fijarFormulaTransformar(clave, valor) {
           const f = this.formulaTransformar(clave);
           if (!f.fijar) return false;
           const n = Number(valor) || 0;
-          const monto = f.entero ? Math.round(n) : this.redondear3(n);
-          if (!monto) return false;
-          if (monto < 0 && -monto > f.transformado + 0.0001) {
-            return this.avisoTransformar('Aviso ámbar: solo se puede devolver lo transformado en el período (' + this.formatNum(f.transformado) + ').');
-          }
-          return f.fijar(monto);
+          const objetivo = Math.max(0, f.entero ? Math.round(n) : this.redondear3(n));
+          const delta = this.redondear3(objetivo - f.transformado);
+          if (!delta) return false;
+          return f.fijar(delta);
         },
 
-        // Guarda lo escrito y deja Transformar en 0: el Stock ya muestra lo que entró.
-        async cuadroFormulaTransformar(clave, el) {
-          const texto = String((el && el.value) || '').trim().replace(',', '.');
-          const n = Number(texto);
-          let hecho = false;
-          if (texto !== '' && Number.isFinite(n)) hecho = (await this.fijarFormulaTransformar(clave, n)) === true;
-          if (el) {
-            el.value = '0';
-            if (el.dataset) {
-              el.dataset.valorAlEnfocar = '0';
-              delete el.dataset.ceroAntesDeEditar;
-            }
-            this.ajustarCajaDigitos(el);
-          }
-          return hecho;
+        cuadroFormulaTransformar(clave, el) {
+          return this.aplicarCuadroTransformar(el, () => this.formulaTransformar(clave).transformado, (v) => this.fijarFormulaTransformar(clave, v));
         },
 
         fijarStockAnteriorArroz(d, valor) {

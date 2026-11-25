@@ -201,14 +201,13 @@ test('el icono de Ingreso sigue siendo independiente: no resta la pieza', () => 
     expect(app.stockCuadro('pechuga', 'crudo')).toBe(10);
 });
 
-test('en el mapa de pollo solo Pollo fresco guarda su stock a mano; Pecho y Pierna usan Stock + Transformar = Total', () => {
+test('en el mapa de pollo solo Pollo fresco, Pecho y Pierna guardan su stock sin origen que restar', () => {
     const texto = html.replace(/\r\n/g, '\n');
     const ini = texto.indexOf('1. MAPA SEMÁNTICO HORIZONTAL — FAMILIA POLLO FRESCO');
     const fin = texto.indexOf('MAPAS DEL EDITOR: PATO FRESCO', ini);
     const usos = texto.slice(ini, fin).match(/@change="fijarStockConIngreso\([^"]+"/g);
-    expect(usos.map((u) => u.match(/\('([a-z_]+)'/)[1])).toEqual(['pollo_fresco']);
-    expect(texto.slice(ini, fin)).toContain("cuadroFormulaTransformar('pollo|pechuga', $event.target)");
-    expect(texto.slice(ini, fin)).toContain("cuadroFormulaTransformar('pollo|pierna', $event.target)");
+    expect(usos.map((u) => u.match(/\('([a-z_]+)'/)[1])).toEqual(['pollo_fresco', 'pechuga', 'pierna']);
+    expect(texto.slice(ini, fin)).not.toContain("formulaTransformar('pollo|");
 });
 
 describe.each([['pollo_baby', 'pollo-baby'], ['seco_carnero', 'seco-cordero']])('cuadro de cocido de %s', (id, rubro) => {
