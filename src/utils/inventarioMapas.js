@@ -1,5 +1,7 @@
 'use strict';
 
+const { esRubroRetirado } = require('./inventarioRubros');
+
 const TIPOS = new Set(['despiece', 'directo', 'manual']);
 
 const SEMILLA = [
@@ -278,7 +280,7 @@ function clavesExtra(mapas) {
     const out = [];
     const vistos = new Set();
     const push = (clave, nombre) => {
-        if (!clave || !nombre || vistos.has(clave)) return;
+        if (!clave || !nombre || vistos.has(clave) || esRubroRetirado(clave)) return;
         vistos.add(clave);
         out.push({ clave, nombre });
     };

@@ -3,7 +3,7 @@ const Plato = require('../database/models/plato.model');
 const Movimiento = require('../database/models/inventarioMovimiento.model');
 const { armarKardex, alertasDeFilas, cambioDeAlerta } = require('../utils/inventarioKardex');
 const { armarLibro, indexarPases, otroTipo } = require('../utils/inventarioLibro');
-const { claveDe, clavesGuardables, carta } = require('../utils/inventarioRubros');
+const { claveDe, clavesGuardables, esRubroRetirado, carta } = require('../utils/inventarioRubros');
 const { sanearLista, clavesExtra, leerGuardados } = require('../utils/inventarioMapas');
 const { sanearGuardado } = require('../../public/assets/js/inventarioRelaciones');
 const MapaSemantico = require('../database/models/inventarioMapa.model');
@@ -197,6 +197,9 @@ async function alertasActuales() {
 }
 
 async function crearMovimiento(data, usuarioId) {
+    if (esRubroRetirado(data.rubro)) {
+        throw Object.assign(new Error('Arroz Chaufa Chancho usa el stock de Pieza de panceta.'), { statusCode: 400 });
+    }
     const tipoPedido = data.tipoProducto;
     const clase = data.clase;
     if (tipoPedido !== 'crudo' && tipoPedido !== 'cocido') {

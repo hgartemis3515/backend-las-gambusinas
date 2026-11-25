@@ -951,10 +951,10 @@ test('el modal de ventas muestra un plato una vez, con de dónde salió', () => 
 
 test('un plato que gasta dos productos cuenta una vez como plato', () => {
     const app = crearApp();
-    const d = (cantidad) => [{ nombre: 'Arroz Chaufa Chancho', cantidad, platos: 1, factor: cantidad, comanda: 'Comanda 7', comandaId: 'c7' }];
+    const d = (cantidad) => [{ nombre: 'Chancho a la leña', cantidad, platos: 1, factor: cantidad, comanda: 'Comanda 7', comandaId: 'c7' }];
     pintar(app, [mov('trozo-panceta', 'ingreso', 5, hora('09:00'), 'Ingreso cocido', 'cocido')], [
         { rubro: 'trozo-panceta', nombre: 'Pieza de panceta', cantidad: 1, fecha: hora('12:00'), detalle: d(1) },
-        { rubro: 'chaufa-chancho', nombre: 'Chaufa de chancho', cantidad: 1, fecha: hora('12:00'), detalle: d(1) }
+        { rubro: 'chancho-lena', nombre: 'Chancho a la leña', cantidad: 1, fecha: hora('12:00'), detalle: d(1) }
     ]);
     app.abrirVentaFila(app.filaReal('trozo_panceta'));
     expect(app.ventaInfo.lineas).toHaveLength(1);
@@ -964,19 +964,32 @@ test('un plato que gasta dos productos cuenta una vez como plato', () => {
     expect(app.ventaInfo.nota).toBe('');
 });
 
-test('chaufa conserva cantidades reales y comandas distintas sin contar otra vez sus ingredientes', () => {
-    const app = crearApp();
+test('Chaufa de chancho conserva sus comandas en Panceta y su fila no vuelve con datos anteriores', () => {
+    const app = crearApp({}, { InventarioRelaciones });
+    app.asegurarFila('arroz-chaufa-chancho', 'Arroz Chaufa Chancho', 'panceta');
+    expect(app.filaPorClave('arroz-chaufa-chancho')).toBeFalsy();
     const detalle = (id, n) => [{ nombre: 'Arroz Chaufa Chancho', cantidad: n, platos: n, factor: 1, comandaId: id, comanda: id }];
     const ventas = ['c1', 'c2'].flatMap((id, i) => [
         { rubro: 'trozo-panceta', cantidad: i + 1, fecha: hora('12:00'), detalle: detalle(id, i + 1) },
         { rubro: 'chaufa-chancho', cantidad: i + 1, fecha: hora('12:00'), detalle: detalle(id, i + 1) }
     ]);
-    pintar(app, [mov('trozo-panceta', 'ingreso', 10, hora('09:00'), 'Ingreso cocido', 'cocido')], ventas);
+    const libro = pintar(app, [
+        mov('trozo-panceta', 'ingreso', 10, hora('09:00'), 'Ingreso cocido', 'cocido'),
+        mov('chaufa-chancho', 'ingreso', 2, horaAyer('11:00'))
+    ], ventas);
+    expect(libro.filas.some((f) => f.rubro === 'chaufa-chancho')).toBe(false);
+    expect(libro.ventas.map((v) => v.rubro)).toEqual(['trozo-panceta', 'trozo-panceta']);
+    expect(app.filaReal('chaufa_chancho')).toBeNull();
+    expect(app.stockCuadro('trozo_panceta', 'cocido')).toBe(7);
+    expect(app.platosDeTrozoPanceta()).toContainEqual(expect.objectContaining({ nombre: 'Arroz Chaufa Chancho', cantidad: 1 }));
+    app.ventasPeriodo = ventas;
     app.abrirVentaFila(app.filaReal('trozo_panceta'));
     expect(app.ventaInfo.lineas).toHaveLength(2);
     expect(app.ventaInfo.lineas.map((l) => l.cantidad).sort()).toEqual([1, 2]);
     expect(app.ventaInfo.total).toBe(3);
     expect(app.ventaInfo.propia).toBe(app.ventaColumna(app.filaReal('trozo_panceta')));
+    app.reporteDiaVista = app.vistaReporteHoja({ ventas }, []);
+    expect(app.totalReporteVenta()).toBe(3);
 });
 
 test('el modal conserva las partes reales consumidas de una reserva del mismo plato', () => {

@@ -22,11 +22,15 @@
         return norm(plato) + '\0' + norm(rubro);
     }
 
+    function esRubroRetirado(rubro) {
+        return /^(?:arroz[ -]+)?chaufa(?:[ -]+de)?[ -]+chancho(?:[ -]+a[ -]+la[ -]+lena)?$/.test(norm(rubro));
+    }
+
     function sanearItem(raw) {
         if (!raw || typeof raw !== 'object') return null;
         var plato = String(raw.plato || '').trim().slice(0, 160);
         var rubro = String(raw.rubro || '').trim().slice(0, 80);
-        if (!plato || !rubro) return null;
+        if (!plato || !rubro || esRubroRetirado(rubro)) return null;
         if (raw.quitada === true) return { plato: plato, rubro: rubro, quitada: true };
         var cantidad = raw.cantidad;
         if (cantidad === '—' || cantidad === '-') cantidad = '—';
@@ -92,6 +96,7 @@
         var ids = {};
         var siguiente = 1;
         function colocar(item) {
+            if (esRubroRetirado(item.rubro)) return;
             var k = claveRelacion(item.plato, item.rubro);
             if (tumbas[k] || vistos[k]) return;
             vistos[k] = true;
@@ -118,6 +123,7 @@
     return {
         norm: norm,
         claveRelacion: claveRelacion,
+        esRubroRetirado: esRubroRetirado,
         sanearGuardado: sanearGuardado,
         fusionarRelaciones: fusionarRelaciones
     };

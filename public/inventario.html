@@ -11401,7 +11401,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           pieza_pota: 'pieza-pota',
           chicharron_chancho: 'chicharron-chancho',
           cuy: 'cuy',
-          chaufa_chancho: 'chaufa-chancho',
           chancho_lena: 'chancho-lena',
           chancho_lena_bbq: 'chancho-lena-bbq',
           carne_bistec: 'bisteck',
@@ -11652,6 +11651,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         relacionesLib() {
           return window.InventarioRelaciones || null;
+        },
+
+        esRubroRetirado(rubro) {
+          return rubro === 'chaufa-chancho' || !!this.relacionesLib()?.esRubroRetirado?.(rubro);
         },
 
         async cargarRelacionesGuardadas() {
@@ -11940,12 +11943,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (n.includes('frugos') && !ya('Frugos 1.5L')) push(p, 'Frugos 1.5L', 1, 'frugos');
               const pizza = this.nombrePizza(n);
               if (pizza && !ya(pizza)) push(p, pizza, 1, 'pizza');
-              if ((n.includes('chancho') && n.includes('lena') && n.includes('bbq')) || (n.includes('chancho') && n.includes('bbq') && n.includes('lena'))) {
+              if (n.includes('chaufa') && n.includes('chancho')) {
+                if (!ya('Pieza de panceta') && !ya('Trozo de panceta')) push(p, 'Pieza de panceta', 1, 'pieza');
+              } else if ((n.includes('chancho') && n.includes('lena') && n.includes('bbq')) || (n.includes('chancho') && n.includes('bbq') && n.includes('lena'))) {
                 if (!ya('Pieza de panceta') && !ya('Trozo de panceta')) push(p, 'Pieza de panceta', 6, 'pieza');
               } else if (n.includes('chancho') && n.includes('lena')) {
                 if (!ya('Pieza de panceta') && !ya('Trozo de panceta')) push(p, 'Pieza de panceta', 4, 'pieza');
-              } else if (n.includes('chaufa') && n.includes('chancho')) {
-                if (!ya('Pieza de panceta') && !ya('Trozo de panceta')) push(p, 'Pieza de panceta', 1, 'pieza');
               }
               if (n.includes('desayuno criollo')) {
                 if (!ya('Chicharrón de chancho crudo')) push(p, 'Chicharrón de chancho crudo', 0.5, 'porción');
@@ -13192,7 +13195,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         vistaReporteHoja(k, movs) {
           const movimientos = (movs || []).filter(Boolean);
-          const ventas = ((k && k.ventas) || []).filter(Boolean);
+          const ventas = ((k && k.ventas) || []).filter((v) => v && !this.esRubroRetirado(v.rubro || v.plato));
           const catalogo = (k && k.carta && k.carta.kardex) || [];
           const nombres = new Map();
           const nombrar = (clave, nombre) => { if (clave && nombre && !nombres.has(clave)) nombres.set(clave, nombre); };
@@ -13890,7 +13893,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             arroz_verde: ['arroz-verde', 'arroz-pato'],
             arroz_beata: ['arroz-beata'],
             arroz_rio_lindo: ['arroz-rio-lindo'],
-            trozo_panceta: ['trozo-panceta', 'chancho-lena', 'chancho-lena-bbq', 'chaufa-chancho', 'mix-lena'],
+            trozo_panceta: ['trozo-panceta', 'chancho-lena', 'chancho-lena-bbq', 'mix-lena'],
             chicharron_chancho: ['chicharron-chancho', 'fuente-chicharron-chancho', 'medio-chicharron-chancho', 'desayuno-criollo'],
             pieza_pescado: ['pieza-pescado', 'duo-marino', 'ceviche', 'ceviche-pescado', 'chicharron-pescado', 'jalea-pescado', 'pescado-frito'],
             pieza_pota: ['pieza-pota', 'ceviche-pota', 'chicharron-pota'],
@@ -14525,7 +14528,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // filete junior = 0,5; milanesa junior y T643 no entran. null = no entra al kardex.
         ventaKardexNormalizada(v) {
           let rubro = v && (v.rubro || v.plato);
-          if (!rubro || rubro === 'milanesa-junior' || rubro === 'milanesa_junior' || (v && v.codigo === 'T643')) return null;
+          if (!rubro || this.esRubroRetirado(rubro) || rubro === 'milanesa-junior' || rubro === 'milanesa_junior' || (v && v.codigo === 'T643')) return null;
           let n = Number(v && v.cantidad) || 0;
           let tipo = v && v.tipoProducto === 'crudo' ? 'crudo' : 'cocido';
           if (rubro === 'filete-pollo' || rubro === 'filete_pollo') {
@@ -16804,7 +16807,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             { id: 'panceta', grupo: 'panceta', nombre: 'Panceta', detalle: '1 panceta = 6 tiras', unidad: 'unid', saldoAnterior: 5, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 3, transformacion: 1, destinoTrans: '→ tiras', inventario: null, crudo: 4, cocido: 0 },
             { id: 'tira_panceta', grupo: 'panceta', nombre: 'Tira de panceta', detalle: 'Sale de la panceta. No se vende', unidad: 'tiras', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 0, transformacion: 0, destinoTrans: '→ trozos', inventario: null, crudo: 0, cocido: 0 },
             { id: 'trozo_panceta', grupo: 'panceta', nombre: 'Pieza de panceta', detalle: 'Sale de las tiras. Solo cocido', unidad: 'pzas', saldoAnterior: 0, ingreso: 0, ingresoCocido: 12, correccion: 0, venta: 0, ritmoVentaDiario: 12, transformacion: 0, destinoTrans: '', inventario: null, soloCocido: true, tieneCocido: false, crudo: 0, cocido: 12 },
-            { id: 'chaufa_chancho', grupo: 'panceta', nombre: 'Chaufa de chancho', detalle: 'Usa 1 trozo de panceta', unidad: 'pza', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 1, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'chicharron_chancho', grupo: null, nombre: 'Chicharrón de chancho crudo', detalle: 'Ingreso por unidad. No sale de la panceta', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'cuy', grupo: null, nombre: 'Cuy', detalle: 'Ingreso por unidad. El medio vale 0.5', unidad: 'unid', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 1, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
             { id: 'pieza_pescado', grupo: null, nombre: 'Pieza de pescado', detalle: 'Ingreso directo. Los platos vinculados restan esta pieza', unidad: 'pzas', saldoAnterior: 0, ingreso: 0, correccion: 0, venta: 0, ritmoVentaDiario: 2, transformacion: 0, destinoTrans: '', inventario: null, crudo: 0, cocido: 0 },
@@ -20631,7 +20633,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           };
           if (id === 'pollo_baby') return 'trans-pollo-baby';
           if (pollo[id]) return 'trans-pollo';
-          if (id === 'panceta' || id === 'tira_panceta' || id === 'trozo_panceta' || id === 'chaufa_chancho' || id === 'chancho_lena' || id === 'chancho_lena_bbq') return 'trans-panceta';
+          if (id === 'panceta' || id === 'tira_panceta' || id === 'trozo_panceta' || id === 'chancho_lena' || id === 'chancho_lena_bbq') return 'trans-panceta';
           if (id === 'carne_pachamanca' || id === 'cerdo_pachamanca' || id === 'carnero_pachamanca') return 'trans-pachamanca';
           if (id === 'carnero' || id === 'seco_carnero') return 'trans-carnero';
           if (id === 'chicharron_chancho') return 'trans-chicharron';
@@ -24797,6 +24799,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.crearProductoError = 'Completa el nombre y la clave del producto.';
             return;
           }
+          if (this.esRubroRetirado(clave) || this.esRubroRetirado(nombre)) {
+            this.crearProductoError = 'Arroz Chaufa Chancho usa el stock de Pieza de panceta.';
+            return;
+          }
           const clavesExistentes = new Set(Object.values(this.claveDeFila || {}));
           if (clavesExistentes.has(clave)) {
             this.crearProductoError = 'La clave «' + clave + '» ya existe en Inventario Tabla. Elige otra sin duplicar.';
@@ -25783,7 +25789,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         asegurarFila(clave, nombre, grupo) {
-          if (!clave) return;
+          if (!clave || this.esRubroRetirado(clave)) return;
           const id = this.idDeClave(clave);
           this.claveDeFila[id] = clave;
           if (this.filaReal(id)) return;

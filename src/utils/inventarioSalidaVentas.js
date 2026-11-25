@@ -3,7 +3,7 @@
 const { matchComandasEstadisticas } = require('./estadisticasComandas');
 const { boundsDiaOperativo } = require('./diaOperativoRestaurante');
 const { armarContadorPlatos, fichaDePlato } = require('./contadorPlatosReporte');
-const { claveDe } = require('./inventarioRubros');
+const { claveDe, esRubroRetirado } = require('./inventarioRubros');
 const { semilla, consumoDeFila, leerGuardados } = require('./inventarioMapas');
 const logger = require('./logger');
 
@@ -312,7 +312,7 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
             rubrosDeFila(fila, mapasVenta, meta && meta.bebidas),
             meta && meta.relaciones,
             fila
-        );
+        ).filter((m) => m && !esRubroRetirado(m.rubro));
         // La yuca opcional ya tiene su propia fila cuando se eligió en la comanda.
         if (fila && fila.guarnicionOpcional && !fila.esGuarnicion) {
             mapas = mapas.filter((m) => m && m.rubro !== 'yuca');
@@ -327,7 +327,7 @@ function partirSalida(filas, comanda, mapasVenta, meta) {
         if (nombreFila.includes('filete') && nombreFila.includes('junior') && mapas.some((m) => m && (m.rubro === 'filete-junior' || m.rubro === 'filete_junior'))) {
             mapas = mapas.filter((m) => m && m.rubro !== 'filete' && m.rubro !== 'filete-pollo');
         }
-        mapas = soloPiezaDeChanchoLena(mapas, fila && fila.nombre);
+        mapas = soloPiezaDePanceta(mapas, fila && fila.nombre);
         const cantidad = Number(fila && fila.cantidad) || 0;
         if (!mapas.length || cantidad <= 0) continue;
         const fuentes = fila && fila.fuentes && typeof fila.fuentes === 'object' ? fila.fuentes : null;
@@ -450,9 +450,9 @@ function rubrosDeFila(fila, mapas, bebidas) {
     } else if (n.includes('filete junior')) add('filete-junior', 0.5);
     else if (n.includes('filete de pollo')) add('filete-pollo');
     else if (n.includes('mix') && n.includes('lena')) { add('trozo-panceta', 3); add('pollo-lena', 1); }
+    else if (n.includes('chaufa') && n.includes('chancho')) add('trozo-panceta', 1);
     else if (n.includes('chancho') && n.includes('lena') && n.includes('bbq')) add('trozo-panceta', 6);
     else if (n.includes('chancho') && n.includes('lena')) add('trozo-panceta', 4);
-    else if (n.includes('chaufa') && n.includes('chancho')) add('trozo-panceta', 1);
     else if (n.includes('desayuno criollo')) add('chicharron-chancho', 0.5);
     else if (n.includes('fuente') && n.includes('chicharron') && n.includes('chancho')) add('chicharron-chancho', 2);
     else if ((n.includes('1/2') || n.includes('medio')) && n.includes('chicharron') && n.includes('chancho')) add('chicharron-chancho', 0.5);
@@ -635,21 +635,20 @@ function rubroPropioDeNombre(n) {
 }
 
 /**
- * Chancho a la leña y el BBQ salen de Pieza de panceta (4 y 6).
- * No tienen fila propia: un vínculo que suma chancho-lena o chancho-lena-bbq
- * dejaba un crudo −1 y la emergencia, aunque la pieza sí tenía stock.
+ * Chancho a la leña, BBQ y Arroz Chaufa Chancho consumen Pieza de panceta.
+ * El factor del vínculo tiene prioridad sobre el factor predeterminado de cada plato.
  */
-function soloPiezaDeChanchoLena(mapas, nombre) {
+function soloPiezaDePanceta(mapas, nombre) {
     const n = norm(nombre);
-    if (!n.includes('chancho') || !n.includes('lena') || n.includes('panceta')) return mapas;
-    const limpio = (mapas || []).filter((m) => m && m.rubro !== 'chancho-lena' && m.rubro !== 'chancho-lena-bbq');
+    const chaufa = n.includes('chaufa') && n.includes('chancho');
+    if (!chaufa && (!n.includes('chancho') || !n.includes('lena') || n.includes('panceta'))) return mapas;
+    const limpio = mapas.filter((m) => m.rubro !== 'chancho-lena' && m.rubro !== 'chancho-lena-bbq');
     // La fila «Con arroz» solo lleva el arroz. Si aquí se suma la pieza, el mismo plato se cuenta dos veces.
     if (/\bcon arroz$/.test(n)) return limpio;
     const bbq = n.includes('bbq');
-    const lena = !bbq && !n.includes('mix');
-    if (!bbq && !lena) return mapas;
-    if (!limpio.some((m) => m && m.rubro === 'trozo-panceta')) {
-        limpio.push({ rubro: 'trozo-panceta', factor: bbq ? 6 : 4 });
+    if (!chaufa && !bbq && n.includes('mix')) return mapas;
+    if (!limpio.some((m) => m.rubro === 'trozo-panceta')) {
+        limpio.push({ rubro: 'trozo-panceta', factor: chaufa ? 1 : (bbq ? 6 : 4) });
     }
     return limpio;
 }

@@ -2,6 +2,7 @@
 
 const { armarKardex } = require('./inventarioKardex');
 const { tipoProductoDe } = require('./inventarioCascadaVenta');
+const { esRubroRetirado } = require('../../public/assets/js/inventarioRelaciones');
 
 /** Productos de la tabla Kardex. `suma` arma la fila con esas piezas. */
 const KARDEX = [
@@ -66,7 +67,6 @@ const KARDEX = [
     { clave: 'salt-pollo', nombre: 'Salt de pollo' },
     { clave: 'chaufa-pollo', nombre: 'Chaufa de pollo' },
     { clave: 'chaufa-bistec', nombre: 'Chaufa de bistec' },
-    { clave: 'chaufa-chancho', nombre: 'Chaufa de chancho' },
     { clave: 'milanesa', nombre: 'Milanesa' },
     { clave: 'milanesa-junior', nombre: 'Milanesa junior' },
     { clave: 'filete-junior', nombre: 'Filete junior' },
@@ -166,13 +166,13 @@ function filasDeRubros(movimientos, desde, hasta, umbralPorClave, extras) {
     const defs = clavesGuardables();
     const ya = new Set(defs.map((d) => d.clave));
     (extras || []).forEach((e) => {
-        if (!e || !e.clave || ya.has(e.clave)) return;
+        if (!e || !e.clave || ya.has(e.clave) || esRubroRetirado(e.clave)) return;
         ya.add(e.clave);
         defs.push({ clave: e.clave, nombre: e.nombre || e.clave });
     });
     (movimientos || []).forEach((m) => {
         const clave = m && m.rubro;
-        if (!clave || ya.has(clave)) return;
+        if (!clave || ya.has(clave) || esRubroRetirado(clave)) return;
         if (!/^[a-z0-9]+(?:-[a-z0-9]+){0,12}$/.test(String(clave)) || String(clave).length > 80) return;
         ya.add(clave);
         defs.push({ clave: clave, nombre: m.nombre || clave });
@@ -247,6 +247,7 @@ module.exports = {
     GRUPOS,
     claveDe,
     clavesGuardables,
+    esRubroRetirado,
     filasDeRubros,
     ceroFila,
     sumarFilas,

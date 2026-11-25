@@ -647,6 +647,16 @@ test('tamal de chancho y tamal de pollo descuentan su propia fila', () => {
     expect(filas.some((f) => f.rubro === 'tamal-pollo' && f.nombre === 'Tamal de pollo')).toBe(true);
 });
 
+test.each(['Arroz Chaufa Chancho', 'Arroz chaufa de chancho a la leña'])('%s descuenta solo Pieza de panceta', (plato) => {
+    const fila = { nombre: plato, cantidad: 2 };
+    const relacionAnterior = { plato, rubro: 'Chaufa de chancho', cantidad: 1 };
+    const relacionPanceta = { plato, rubro: 'Trozo de panceta', cantidad: 1.5 };
+    const mapaAnterior = [{ platos: [{ id: 'chaufa', nombre: plato, cuelgaDe: 'chaufa-chancho', cantidad: 1, venta: true }] }];
+
+    expect(partirSalida([fila], 'Comanda 7', null, { relaciones: [relacionAnterior, relacionPanceta] }).porRubro).toEqual({ 'trozo-panceta': 3 });
+    expect(partirSalida([fila], 'Comanda 7', mapaAnterior).porRubro).toEqual({ 'trozo-panceta': 2 });
+});
+
 test('chancho a la leña BBQ solo gasta 6 piezas y no su fila cruda', () => {
     const partido = partirSalida(
         [{ nombre: 'Chancho a la leña BBQ', cantidad: 1 }],

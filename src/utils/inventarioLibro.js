@@ -1,7 +1,7 @@
 'use strict';
 
 const { boundsDiaOperativo, ymdOperativo } = require('./diaOperativoRestaurante');
-const { clavesGuardables } = require('./inventarioRubros');
+const { clavesGuardables, esRubroRetirado } = require('./inventarioRubros');
 const {
     perfilRubro,
     cubetaDe,
@@ -181,7 +181,7 @@ function definiciones(movimientos, ventas, extras) {
     const defs = clavesGuardables().map((d) => ({ clave: d.clave, nombre: d.nombre }));
     const ya = new Set(defs.map((d) => d.clave));
     const sumar = (clave, nombre) => {
-        if (!clave || ya.has(clave)) return;
+        if (!clave || ya.has(clave) || esRubroRetirado(clave)) return;
         ya.add(clave);
         defs.push({ clave, nombre: nombre || clave });
     };
@@ -221,11 +221,12 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
     const distribuciones = new Map();
     (movimientos || []).forEach((m) => {
         const t = new Date(m && m.fecha).getTime();
-        if (m && m.rubro && Number.isFinite(t)) eventos.push({ t, mov: m });
+        if (m && m.rubro && !esRubroRetirado(m.rubro) && Number.isFinite(t)) eventos.push({ t, mov: m });
     });
     (ventas || []).forEach((v) => {
         const t = new Date(v && v.fecha).getTime();
-        if (v && (v.rubro || v.plato) && Number(v.cantidad) > 0 && Number.isFinite(t)) eventos.push({ t, venta: v });
+        const rubro = v && (v.rubro || v.plato);
+        if (rubro && !esRubroRetirado(rubro) && Number(v.cantidad) > 0 && Number.isFinite(t)) eventos.push({ t, venta: v });
     });
     eventos.sort((a, b) => a.t - b.t || Number(!!b.mov) - Number(!!a.mov));
 

@@ -33,3 +33,12 @@ test('volver a vincular borra la marca de quitado', () => {
     expect(guardado.quitadas).toEqual([]);
     expect(guardado.manuales).toHaveLength(1);
 });
+
+test('la relación guardada de Chaufa conserva el rubro de Panceta sin reponer su fila retirada', () => {
+    const plato = 'Arroz Chaufa Chancho';
+    const vista = fusionarRelaciones([{ plato, rubro: 'Pieza de panceta', cantidad: 1 }], {
+        manuales: [{ plato, rubro: 'Trozo de panceta', cantidad: 1 }, { plato, rubro: 'Chaufa de chancho', cantidad: 1 }],
+        quitadas: [{ plato, rubro: 'Pieza de panceta' }]
+    });
+    expect(vista).toEqual([expect.objectContaining({ plato, rubro: 'Trozo de panceta', cantidad: 1 })]);
+});
