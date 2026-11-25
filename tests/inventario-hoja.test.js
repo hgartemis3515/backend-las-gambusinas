@@ -764,6 +764,29 @@ test('Queda y su detalle muestran el mismo faltante de una venta manual', () => 
     expect(app.saldoRealInfo.faltantes).toMatchObject([{ cantidad: 1 }]);
 });
 
+test('Queda de pecho, pierna y octavo dice qué producto no tiene stock', () => {
+    const app = crearApp();
+    pintar(app, [
+        mov('arroz-pollo', 'egreso', 1, hora('08:00'), 'Venta manual'),
+        mov('pollo-lena', 'egreso', 2, hora('09:00'), 'Venta manual'),
+        mov('pollada', 'egreso', 3, hora('10:00'), 'Venta manual')
+    ]);
+    for (const [id, nombre, cantidad] of [
+        ['octavo_pollo', 'Arroz con pollo', 1],
+        ['pechuga', 'Pecho a la Leña', 2],
+        ['pierna', 'Pollada', 3]
+    ]) {
+        const row = app.filaReal(id);
+        app.abrirDesgloseGrupo(row, 'queda');
+        const enGrupo = app.desgloseGrupo.faltantes.find((f) => f.nombre.startsWith(nombre));
+        expect(enGrupo).toMatchObject({ cantidad });
+        expect(app.textoFaltanteStock(enGrupo)).toBe('No hay stock (' + enGrupo.nombre + '). Falta ingresar ' + cantidad + '.');
+        app.abrirModalProcedimientoSaldoReal(row);
+        const enProc = app.saldoRealInfo.faltantes.find((f) => f.nombre.startsWith(nombre));
+        expect(app.textoFaltanteStock(enProc)).toBe('No hay stock (' + enProc.nombre + '). Falta ingresar ' + cantidad + '.');
+    }
+});
+
 test.each([
     [0, 9, 'No hay stock (9)'],
     [4, 9, 'No hay stock (5)'],

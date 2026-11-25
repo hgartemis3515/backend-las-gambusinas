@@ -1421,6 +1421,15 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
       animation: saldo-anterior-alarma 1s ease-in-out infinite;
       border-radius: 6px;
     }
+    .aviso-falta-ingresar {
+      display: block;
+      list-style: none;
+      margin: 0.35rem 0;
+      padding: 0.6rem 0.8rem;
+      border-radius: 0.6rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
     .stock-cero-alarma {
       animation: saldo-anterior-alarma 1s ease-in-out infinite;
       border-color: #dc2626 !important;
@@ -9458,9 +9467,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           </template>
         </div>
         <p x-show="desgloseGrupo.columna === 'queda' && !desgloseGrupo.total && !desgloseGrupo.faltantes.length" class="px-5 py-2 text-sm text-amber-200">No hay stock. Agrega una cantidad mayor que cero.</p>
-        <ul x-show="desgloseGrupo.faltantes.length" class="px-5 py-2 text-sm text-amber-200">
+        <ul x-show="desgloseGrupo.faltantes.length" class="px-5 py-2 text-sm list-none">
           <template x-for="f in desgloseGrupo.faltantes" :key="f.id">
-            <li x-text="textoFaltanteStock(f)"></li>
+            <li :class="f.avisoSinStock ? 'saldo-anterior-alarma aviso-falta-ingresar' : 'text-amber-200'" x-text="textoFaltanteStock(f)"></li>
           </template>
         </ul>
         <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-[#26263a] bg-[#0b0b12]">
@@ -10637,9 +10646,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <div class="flex-1 overflow-y-auto p-5 space-y-3 bg-[#0a0a0f]">
 
           <p x-show="!saldoRealInfo.familia && !saldoRealInfo.faltantes.length" class="text-sm text-amber-200">No hay stock. Agrega una cantidad mayor que cero.</p>
-          <ul x-show="saldoRealInfo.faltantes.length" class="text-sm text-amber-200">
+          <ul x-show="saldoRealInfo.faltantes.length" class="text-sm list-none">
             <template x-for="f in saldoRealInfo.faltantes" :key="f.id">
-              <li x-text="textoFaltanteStock(f)"></li>
+              <li :class="f.avisoSinStock ? 'saldo-anterior-alarma aviso-falta-ingresar' : 'text-amber-200'" x-text="textoFaltanteStock(f)"></li>
             </template>
           </ul>
 
@@ -17960,17 +17969,28 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return faltante > 0 ? 'No hay stock (' + this.formatNum(faltante) + ')' : 'No hay stock';
         },
 
+        grupoAvisoSinStock(row) {
+          return !!(row && (row.id === 'pechuga' || row.id === 'pierna' || row.id === 'octavo_pollo'));
+        },
+
         faltantesStock(row) {
-          return this.filasDelGrupo(row).flatMap((fila) => this.tiposDe(fila).filter((tipo) => this.emergenciaTipo(fila, tipo))
-            .map((tipo) => ({
-              id: fila.id + '|' + tipo,
-              nombre: fila.nombre + (fila.tieneCocido ? ' (' + this.etiquetaTipo(tipo, fila) + ')' : ''),
-              cantidad: this.redondear3(-this.quedaSinTopeTipo(fila, tipo)),
-              unidad: fila.unidad || 'unid'
-            })));
+          const aviso = this.grupoAvisoSinStock(row);
+          return this.filasDelGrupo(row).flatMap((fila) => this.tiposDe(fila).filter((tipo) => {
+            if (this.esFilaPapas(fila) || this.quedaSinTopeTipo(fila, tipo) >= -0.0004) return false;
+            return aviso || this.emergenciaTipo(fila, tipo);
+          }).map((tipo) => ({
+            id: fila.id + '|' + tipo,
+            nombre: fila.nombre + (fila.tieneCocido ? (aviso ? ' · ' + this.etiquetaTipo(tipo, fila) : ' (' + this.etiquetaTipo(tipo, fila) + ')') : ''),
+            cantidad: this.redondear3(-this.quedaSinTopeTipo(fila, tipo)),
+            unidad: fila.unidad || 'unid',
+            avisoSinStock: aviso
+          })));
         },
 
         textoFaltanteStock(faltante) {
+          if (faltante.avisoSinStock) {
+            return 'No hay stock (' + faltante.nombre + '). Falta ingresar ' + this.formatNum(faltante.cantidad) + '.';
+          }
           return faltante.nombre + ' · Agrega ' + this.formatNum(faltante.cantidad) + ' ' + faltante.unidad
             + ' para cubrir el faltante y una cantidad adicional para que quede stock.';
         },
