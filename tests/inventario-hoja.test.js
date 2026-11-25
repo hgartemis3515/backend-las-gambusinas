@@ -1049,6 +1049,25 @@ test('editar apertura de un día pasado usa el inicio de ese día', () => {
     expect(app.fechaCierreVista()).toBeUndefined();
 });
 
+test('la venta muestra Mix de chancho a la leña y conserva el nombre de la comanda', () => {
+    const app = crearApp();
+    expect(app.nombreVisibleVenta('Panceta de chancho leña')).toBe('Mix de chancho a la leña');
+    expect(app.nombreVisibleVenta('Panceta de chancho a la leña + papas doradas + plátano + ensalada'))
+        .toBe('Mix de chancho a la leña + papas doradas + plátano + ensalada');
+    expect(app.nombreVisibleVenta('1/2 Panceta de chancho a la leña + papas doradas + choclo + ensalada'))
+        .toBe('1/2 Mix de chancho a la leña + papas doradas + choclo + ensalada');
+    expect(app.nombreVisibleVenta('Costillar de chancho a la leña a la BBQ + papas fritas + arroz + ensalada'))
+        .toBe('Costillar de chancho a la leña a la BBQ + papas fritas + arroz + ensalada');
+    const fila = { clave: 'trozo-panceta', nombre: 'Pieza de panceta', claves: ['trozo-panceta'] };
+    const venta = {
+        rubro: 'trozo-panceta', nombre: 'Panceta de chancho leña', cantidad: 3, tipoProducto: 'cocido',
+        detalle: [{ nombre: 'Panceta de chancho leña', cantidad: 3, platos: 1, comanda: 'Comanda 4', comandaId: 'c4', hora: hora('13:00') }]
+    };
+    const info = app.detalleVenta(fila, { ventas: [venta], movimientos: [] });
+    expect(info.lineas[0].nombre).toBe('Panceta de chancho leña');
+    expect(app.nombreVisibleVenta(info.lineas[0].nombre)).toBe('Mix de chancho a la leña');
+});
+
 test('Arroz con pollo no entra a Emergencia: esa venta sale de Arroz verde + pato', () => {
     const app = crearApp();
     pintar(app, [
