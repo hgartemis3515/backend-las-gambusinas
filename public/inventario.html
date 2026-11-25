@@ -13750,7 +13750,6 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         lineaEsDePecho(rubro, nombre) {
           const n = this.norm(nombre);
           if (rubro === 'sandwiches') return this.esPanConPollo(nombre) || n === 'sandwiches' || n === 'sandwich';
-          if (rubro === 'pollo-lena') return (n.includes('1/4') || n.includes('cuarto')) && !n.includes('mix');
           if (rubro === 'menu-pecho' || rubro === 'menu' || rubro === 'pechuga-pollo') {
             return n.includes('arroz con pollo') || (n.includes('caldo') && n.includes('pollo')) || n.includes('pollo a la olla') || n.includes('pollo olla');
           }
@@ -13964,6 +13963,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const claves = new Set((f && f.claves) || [f && f.clave]);
           const ventas = pack && pack.ventas ? pack.ventas : [];
           const movimientos = pack && pack.movimientos ? pack.movimientos : [];
+          const esVistaPecho = !f.reporte && f.clave === 'pechuga-pollo';
           const map = new Map();
           const clavePlatoComanda = (p) => {
             const comanda = p && (p.comandaId || p.comanda);
@@ -14037,14 +14037,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               if (!claves.has(rubro) && !claves.has(v.origen)) return;
             }
             const uso = usoDe(v);
+            // El rubro de salida ya identifica el corte de leña, incluso si cambia el nombre en la carta.
+            const descuentaPechoLena = esVistaPecho && rubro === 'pollo-lena';
             const partes = f.reporte ? this.partesVentaReporte(v) : (Array.isArray(v.detalle) && v.detalle.length
               ? v.detalle
               : [{ nombre: v.nombre || rubro, cantidad: v.cantidad, comanda: '', hora: v.fecha }]);
             partes.forEach((p) => {
               // El producto ya explica esta venta: el registro de su plato relacionado no es otra unidad.
               // Una reserva del mismo plato sí puede ser una parte adicional del consumo.
-              if (!f.reporte && rubro !== f.clave && v.origen !== f.clave && platosPropios.has(clavePlatoComanda(p))) return;
-              if (!f.reporte && f.clave === 'pechuga-pollo' && !this.lineaEsDePecho(rubro, p.nombre || v.nombre)) return;
+              if (!f.reporte && !descuentaPechoLena && rubro !== f.clave && v.origen !== f.clave && platosPropios.has(clavePlatoComanda(p))) return;
+              if (esVistaPecho && !descuentaPechoLena && !this.lineaEsDePecho(rubro, p.nombre || v.nombre)) return;
               sumar({
                 nombre: p.nombre,
                 cantidad: p.cantidad,

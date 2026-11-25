@@ -757,6 +757,38 @@ test('Venta Comandas de pierna muestra las siete ventas del modal sin descontarl
     expect(app.ventaComandasCocido(pierna)).toBe(0);
 });
 
+test('Venta Comandas de Pecho incluye todos los débitos de Pecho a la leña', () => {
+    const app = crearApp();
+    const mixtoPecho = 'Mixto a la leña Pecho';
+    const cuarto = '1/4 pollo a la leña';
+    const { porRubro, detalle } = partirSalida([
+        { nombre: mixtoPecho, cantidad: 3 },
+        { nombre: 'Mixto a la leña Pierna', cantidad: 4 },
+        { nombre: cuarto, cantidad: 3, cortes: { Pec: 2, Pie: 1 } }
+    ], 'Comanda 20', null, { comandaId: 'c20' });
+    pintar(app, [
+        mov('pechuga-pollo', 'ingreso', 10, hora('09:00')),
+        mov('pollo-lena', 'ingreso', 12, hora('09:00'), 'Ingreso cocido', 'cocido'),
+        mov('pierna-lena', 'ingreso', 12, hora('09:00'), 'Ingreso cocido', 'cocido')
+    ], [
+        ...Object.entries(porRubro).map(([rubro, cantidad]) => ({ rubro, cantidad, detalle: detalle[rubro], fecha: hora('12:00') })),
+        { rubro: 'pollo-lena', nombre: 'Pecho a la Leña', cantidad: 1, fecha: hora('13:00') }
+    ]);
+    const pecho = app.filaReal('pechuga');
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(10);
+    expect(app.stockCuadro('pollo_lena', 'cocido')).toBe(6);
+    expect(app.stockCuadro('pierna_lena', 'cocido')).toBe(7);
+    expect(app.ventaComandasCocido(pecho)).toBe(6);
+    app.abrirVentaFila(pecho);
+    expect(app.ventaInfo).toMatchObject({ total: 6, propia: 0 });
+    expect(app.ventaInfo.lineas).toHaveLength(3);
+    expect(app.ventaInfo.lineas.map(({ nombre, cantidad }) => ({ nombre, cantidad }))).toEqual(expect.arrayContaining([
+        { nombre: 'Pecho a la Leña', cantidad: 1 },
+        { nombre: cuarto, cantidad: 2 },
+        { nombre: mixtoPecho, cantidad: 3 }
+    ]));
+});
+
 test('Pecho muestra Pan con Pollo en ventas y permite editar su consumo de Sandwich cocido', async () => {
     const plato = 'Pan con Pollo';
     const app = crearApp({}, { InventarioRelaciones });
