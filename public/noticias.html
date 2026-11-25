@@ -835,6 +835,7 @@
                 <div class="flex items-center gap-2 shrink-0">
                   <template x-if="confirmRetirarId !== n._id">
                     <div class="flex gap-2">
+                      <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37]/15 transition cursor-pointer disabled:opacity-50" x-show="n.vigente" @click="reenviar(n)" :disabled="reenviandoId === n._id" x-text="reenviandoId === n._id ? 'Enviando…' : 'Reenviar'"></button>
                       <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-[rgba(212,175,55,0.35)] text-white hover:border-[#d4af37] hover:text-[#d4af37] transition cursor-pointer" x-show="n.vigente" @click="editar(n)">Editar</button>
                       <button type="button" class="text-xs font-bold px-3 py-2 rounded-lg border border-red-400/50 text-red-300 hover:bg-red-500/20 transition cursor-pointer" @click="confirmRetirarId = n._id">Eliminar</button>
                     </div>
@@ -1507,6 +1508,7 @@ function noticiasApp() {
     tieneContenido: false,
     borradorRecuperado: false,
     confirmRetirarId: null,
+    reenviandoId: null,
     modalRecorte: false,
     modalProgramar: false,
     modalProgramadas: false,
@@ -2822,6 +2824,23 @@ function noticiasApp() {
       } finally {
         this.guardando = false;
         this.avisoCarga = '';
+      }
+    },
+    async reenviar(n) {
+      if (!n?._id || this.reenviandoId) return;
+      this.reenviandoId = n._id;
+      try {
+        const res = await fetch('/api/noticias/' + n._id + '/reenviar', { method: 'POST', headers: this.headers() });
+        const data = await leerJson(res);
+        if (!res.ok) {
+          this.mostrarToast(data.error || 'No se pudo reenviar', 'error');
+          return;
+        }
+        this.mostrarToast('Reenviado a los mismos destinatarios');
+      } catch (_) {
+        this.mostrarToast('Sin conexión con el servidor', 'error');
+      } finally {
+        this.reenviandoId = null;
       }
     },
     async retirar(n) {

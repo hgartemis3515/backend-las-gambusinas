@@ -354,6 +354,40 @@ async function reintentarProgramada(id) {
     return programadaPublica(doc.toObject());
 }
 
+function avisoReenvio(doc) {
+    const noticia = noticiaPublica(doc);
+    return {
+        titulo: noticia.titulo,
+        cuerpoHtml: noticia.cuerpoHtml,
+        autor: { nombre: noticia.autor?.nombre || '' },
+        temporal: true,
+        reenvio: true,
+        noticiaId: String(noticia._id),
+        destinos: noticia.destinos,
+        cocinaAlcance: noticia.cocinaAlcance,
+        pantallas: noticia.pantallas,
+        mozosAlcance: noticia.mozosAlcance,
+        mozoIds: noticia.mozoIds,
+        segundosEnPantalla: noticia.segundosEnPantalla,
+        segundosSalirMozos: noticia.segundosSalirMozos,
+    };
+}
+
+async function reenviarNoticia(id) {
+    if (!idNoticia(id)) {
+        const err = new Error('Noticia no encontrada');
+        err.status = 404;
+        throw err;
+    }
+    const doc = await Noticia.findById(id).lean();
+    if (!doc || doc.vigente === false) {
+        const err = new Error('Esa publicación ya no está en el archivo vigente');
+        err.status = 404;
+        throw err;
+    }
+    return avisoReenvio(doc);
+}
+
 async function retirarNoticia(id) {
     const doc = await Noticia.findByIdAndDelete(id).lean();
     if (!doc) {
@@ -374,6 +408,7 @@ module.exports = {
     actualizarNoticia,
     idsMozosActivosHoy,
     retirarNoticia,
+    reenviarNoticia,
     programarNoticia,
     listarProgramadas,
     cancelarProgramada,

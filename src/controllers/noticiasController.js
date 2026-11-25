@@ -279,6 +279,16 @@ router.put('/noticias/:id', adminAuth, puedePublicar, async (req, res) => {
     }
 });
 
+router.post('/noticias/:id/reenviar', adminAuth, puedePublicar, async (req, res) => {
+    try {
+        const aviso = await repo.reenviarNoticia(req.params.id);
+        emitirAvisoTemporal(aviso);
+        res.json({ reenviado: true });
+    } catch (error) {
+        res.status(error.status || 500).json({ error: error.message || 'No se pudo reenviar' });
+    }
+});
+
 router.patch('/noticias/:id/retirar', adminAuth, puedePublicar, async (req, res) => {
     try {
         const noticia = await repo.retirarNoticia(req.params.id);
