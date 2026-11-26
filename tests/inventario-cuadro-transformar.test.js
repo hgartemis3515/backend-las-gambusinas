@@ -253,6 +253,28 @@ describe('Platos y piezas que salen de otra', () => {
         expect(formula('cocido|pollo_lena')).toEqual({ stock: 0, transformado: 0 });
     });
 
+    test.each([
+        ['carne_pachamanca', 'pachamanca-res'],
+        ['cerdo_pachamanca', 'pachamanca-chancho'],
+        ['carnero_pachamanca', 'pachamanca-cordero']
+    ])('el cocido de %s suma y devuelve el macerado sin gastar el cocido que ya tenía', async (id, rubro) => {
+        const { app, recargar, formula } = escenario([
+            [id, 8], [id, 3, 'Ingreso independiente cocido', 'cocido']
+        ], { [rubro]: { soloCocido: false, tieneCocido: true } });
+        const clave = `cocido|${id}`;
+        expect(formula(clave)).toEqual({ stock: 3, transformado: 0 });
+        expect(await app.cuadroFormulaTransformar(clave, input(5))).toBe(true);
+        recargar();
+        expect(formula(clave)).toEqual({ stock: 3, transformado: 5 });
+        expect(app.stockCuadro(id, 'cocido')).toBe(8);
+        expect(app.stockCuadro(id, 'crudo')).toBe(3);
+
+        expect(await app.cuadroFormulaTransformar(clave, input(0))).toBe(true);
+        recargar();
+        expect(formula(clave)).toEqual({ stock: 3, transformado: 0 });
+        expect(app.stockCuadro(id, 'crudo')).toBe(8);
+    });
+
     test('Filete: lo escrito son filetes y el pecho baja según su factor', async () => {
         const { app, recargar, formula } = escenario([['pechuga', 10]]);
         const factor = Number(app.config.factorFiletesPorPechuga) || 1;
@@ -423,7 +445,7 @@ describe('Teclado calculadora', () => {
         expect(app.octavosStockCorte('piernas')).toBe(35);
     });
 
-    test('los sectores del octavo y los demás campos abren el teclado sin cuenta', () => {
+    test('el ingreso directo a un sector y los campos sin fórmula abren el teclado sin cuenta', () => {
         const { app } = escenario([['octavo_pollo', 10, 'Ingreso independiente crudo · pierna']]);
         expect(app.formulaTeclado({ dataset: { ingreso: 'directo|octavo_pollo|crudo|piernas|beata' } })).toBe(null);
         expect(app.formulaTeclado({ dataset: {} })).toBe(null);
@@ -443,7 +465,7 @@ describe('HTML', () => {
         expect(transformar).toContain(`@change="fijarStockConIngreso('pechuga', 'crudo', $event.target)"`);
         expect(transformar).toContain(`@change="fijarStockConIngreso('pierna', 'crudo', $event.target)"`);
         const bloques = transformar.match(/<div class="tf-bloque"[\s\S]*?<\/label>/g);
-        expect(bloques.length).toBe(15);
+        expect(bloques.length).toBe(16);
         expect(transformar).toContain('x-for="tipo in tiposDe(filaReal(plato.id))"');
         bloques.forEach((b) => {
             expect(b).toMatch(/>Stock<\/span>[\s\S]*>\+<\/span>[\s\S]*>Transformar<\/span>/);
@@ -452,6 +474,14 @@ describe('HTML', () => {
             expect(b).not.toMatch(/kg|porciones/);
         });
         expect(transformar).toContain('fijarIngresoArrozCuadro(d.campo, $event.target.value)');
+    });
+
+    test('el grupo Pachamanca usa la fórmula de cocido para cada corte y conserva el campo de macerado', () => {
+        const pachamanca = transformar.slice(transformar.indexOf('id="trans-pachamanca"'));
+        const inicioCocido = pachamanca.indexOf('x-if="tienePaseCocido(corteId)"');
+        expect(pachamanca.slice(0, inicioCocido)).toContain(`@change="cuadroPachamanca(corteId, 'crudo', $event.target)"`);
+        expect(pachamanca.slice(inicioCocido)).toContain(`claveFormula: 'cocido|' + corteId`);
+        expect(pachamanca.slice(inicioCocido)).toContain(':data-formula="claveFormula"');
     });
 
     test('cada Ingreso y cada Transformar llevan su marca para el teclado', () => {

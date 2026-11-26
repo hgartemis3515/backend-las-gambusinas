@@ -284,7 +284,7 @@ test('los octavos restan su pieza, y platos y sectores restan el octavo de ese c
     expect(app.octavosStockCorte('piernas')).toBe(4);
     expect(libro.filas.find((f) => f.rubro === 'octavo-pollo' && f.tipoProducto === 'crudo').cortes.queda.pierna).toBe(4);
     expect(app.origenIngresoDe(app.filaReal('arroz_con_pollo')).transformado).toBe(2);
-    expect(await app.cuadroOctavoDestino('beata', 'piernas', input(1))).toBe(true);
+    expect(await app.cuadroFormulaTransformar('octavoSector|beata|piernas', input(1))).toBe(true);
     recargar();
     expect(app.octavosEnDestino('beata', 'piernas')).toBe(1);
     expect(app.octavosStockCorte('piernas')).toBe(3);

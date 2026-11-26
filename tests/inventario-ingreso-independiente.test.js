@@ -8,9 +8,22 @@ const code = html.slice(html.indexOf('function inventarioApp()'), html.lastIndex
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const fechaIngreso = '2026-11-18T12:00:00-05:00';
 const input = (v) => ({ value: String(v), dataset: {}, style: { setProperty: jest.fn() } });
+function abrirTeclado(app, el) {
+    app.$refs = {
+        dialogoTecladoTransformar: { open: false, showModal() { this.open = true; }, close() { this.open = false; } },
+        valorTecladoTransformar: {
+            value: '',
+            select() { this.setSelectionRange(0, this.value.length); },
+            setSelectionRange(inicio, fin) { this.selectionStart = inicio; this.selectionEnd = fin; }
+        }
+    };
+    app.sonarVenta = jest.fn();
+    app.abrirTecladoTransformar({ target: el, preventDefault() {} });
+}
+
 function escenario(iniciales = []) {
     const storage = { getItem: () => null };
-    const crear = vm.runInNewContext('(' + code.trim() + ')', { window: {}, localStorage: storage, sessionStorage: storage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0 });
+    const crear = vm.runInNewContext('(' + code.trim() + ')', { window: {}, localStorage: storage, sessionStorage: storage, Event, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0 });
     const app = crear();
     app.$nextTick = (fn) => fn && fn();
     app.restaurarEjemploDespiece(true); app.vaciarNumeros(); app.aplicarOpcionesCocido([]);
@@ -75,6 +88,86 @@ test('1 a 2 edita el total, reenviar 2 no duplica y 2 a 0 restaura la base', () 
     expect(guardados[3]).toMatchObject({ clase: 'ingreso', cantidad: -2 }); recargar();
     expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(0); expect(app.stockCuadro('filete', 'crudo')).toBe(127);
     expect(app.getRow('filete').ingreso).toBe(127);
+});
+
+test.each([
+    ['pieza_pescado', 'pieza-pescado', ['3'], 3],
+    ['pieza_pota', 'pieza-pota', ['3'], 3],
+    ['chicharron_chancho', 'chicharron-chancho', ['3'], 3],
+    ['cuy', 'cuy', ['3', ',', '5'], 3.5]
+])('el teclado de %s suma Stock + Ingresar y conserva el total al recargar', (id, rubro, teclas, monto) => {
+    const { app, guardados, recargar } = escenario([
+        { rubro, cantidad: 10 },
+        { rubro, cantidad: 2, motivo: 'Ingreso independiente crudo' }
+    ]);
+    const marcado = html.split('\n').find((linea) => linea.includes(`@change="registrarIngresoDirecto('${id}', 'crudo', $event.target)"`));
+    const ingreso = vm.runInNewContext(marcado.match(/:data-ingreso="([^"]+)"/)[1]);
+    const etiquetaMonto = marcado.match(/data-etiqueta-monto="([^"]+)"/)[1];
+    const el = {
+        ...input(app.ingresoDirectoPeriodo(id, 'crudo')),
+        dataset: { ingreso, etiquetaMonto },
+        isConnected: true, min: '0', max: '', step: marcado.match(/ step="([^"]+)"/)?.[1] || '',
+        matches: () => true, getAttribute: () => id, setAttribute: jest.fn(),
+        dispatchEvent(ev) { if (ev.type === 'change') app.registrarIngresoDirecto(id, 'crudo', this); }
+    };
+    abrirTeclado(app, el);
+    expect(app.tecladoTransformar.etiquetaMonto).toBe('Ingresar');
+    expect(app.tecladoTransformar.formula.stock).toBe(10);
+    expect(app.totalTecladoTransformar()).toBe(12);
+
+    for (const tecla of teclas) app.pulsarTeclaTransformar(tecla, { detail: 0 });
+    expect(app.totalTecladoTransformar()).toBe(10 + monto);
+    app.aplicarTecladoTransformar();
+    expect(guardados[2]).toMatchObject({ rubro, clase: 'ingreso', cantidad: monto - 2 });
+    recargar();
+    expect(app.stockCuadro(id, 'crudo')).toBe(10 + monto);
+});
+
+test.each([
+    ['pieza_pescado', 'pieza-pescado'],
+    ['seco_carnero', 'seco-cordero']
+])('Stock actual de %s reabre con el ingreso del período y permite quitarlo', (id, rubro) => {
+    const { app, guardados, recargar } = escenario([
+        { rubro, cantidad: 55, fecha: '2026-11-17T10:00:00-05:00' }
+    ]);
+    const el = {
+        ...input(55), dataset: { stockIngreso: id + '|crudo' },
+        isConnected: true, min: '0', max: '', step: 'any',
+        matches: () => true, getAttribute: () => id, setAttribute: jest.fn(),
+        dispatchEvent: jest.fn()
+    };
+    abrirTeclado(app, el);
+    expect(app.tecladoTransformar.cantidad).toBe('0');
+    app.pulsarTeclaTransformar('1', { detail: 0 });
+    expect(app.totalTecladoTransformar()).toBe(56);
+    app.aplicarTecladoTransformar();
+    expect(guardados[1]).toMatchObject({ rubro, clase: 'ingreso', cantidad: 1, motivo: 'Ingreso independiente crudo' });
+    recargar();
+    expect(app.stockCuadro(id, 'crudo')).toBe(56);
+
+    recargar('2026-11-19');
+    abrirTeclado(app, el);
+    expect(app.tecladoTransformar.cantidad).toBe('0');
+    expect(app.tecladoTransformar.formula.stock).toBe(56);
+    app.cerrarTecladoTransformar();
+
+    recargar('2026-11-18');
+    abrirTeclado(app, el);
+    expect(app.tecladoTransformar.cantidad).toBe('1');
+    expect(app.tecladoTransformar.formula.stock).toBe(55);
+    expect(app.totalTecladoTransformar()).toBe(56);
+    app.aplicarTecladoTransformar();
+    expect(guardados).toHaveLength(2);
+
+    abrirTeclado(app, el);
+    app.pulsarTeclaTransformar('0', { detail: 0 });
+    expect(app.totalTecladoTransformar()).toBe(55);
+    app.aplicarTecladoTransformar();
+    expect(guardados[2]).toMatchObject({ rubro, clase: 'ingreso', cantidad: -1, motivo: 'Ingreso independiente crudo' });
+    recargar();
+    expect(app.stockCuadro(id, 'crudo')).toBe(55);
+    expect(app.ingresoDirectoPeriodo(id, 'crudo')).toBe(0);
+    expect(el.dispatchEvent).not.toHaveBeenCalled();
 });
 
 test('el modal de Pecho reduce y quita su ingreso sin reducir el saldo que ya existía', () => {

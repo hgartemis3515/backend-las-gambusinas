@@ -1447,6 +1447,72 @@ describe('descarga manual de octavos en el modal de ventas', () => {
 
 describe('Procedimiento saldo real de Octavo de pollo', () => {
     test.each([['beata', 'Beata'], ['personal', 'Personal'], ['eventos', 'Evento'], ['rio-lindo', 'Rio Lindo']])(
+        '%s muestra el stock pendiente y transforma por separado pecho y pierna', async (id, nombre) => {
+            const app = crearApp();
+            const rubro = 'octavo-pollo';
+            const movimientos = [
+                mov(rubro, 'ingreso', 12, horaAyer('09:00'), 'Ingreso · pecho'),
+                mov(rubro, 'ingreso', 12, horaAyer('09:00'), 'Ingreso · pierna'),
+                mov(rubro, 'regulacion', -3, horaAyer('10:00'), `Separado · ${nombre} · pecho`),
+                mov(rubro, 'ingreso', 2.5, hora('09:00'), `Ingreso independiente crudo · Sector ${nombre} · pierna`),
+                mov(rubro, 'regulacion', -2.5, hora('09:01'), `Separado · ${nombre} · pierna`)
+            ];
+            app.productoBloqueado = () => false;
+            app.pulseRowTotal = () => {};
+            let minuto = 0;
+            app.encolarMovimientos = (lista) => {
+                const fecha = hora(`11:0${minuto++}`);
+                movimientos.push(...lista.map((m) => ({ ...m, fecha })));
+            };
+            const recargar = () => {
+                pintar(app, movimientos.slice());
+                app.movimientosPeriodo = movimientos.slice(3);
+            };
+            const pecho = `octavoSector|${id}|pechugas`;
+            const pierna = `octavoSector|${id}|piernas`;
+            const input = (v) => ({ value: String(v), dataset: {}, style: { setProperty() {} } });
+            recargar();
+            expect(app.formulaTransformar(pecho)).toMatchObject({ stock: 3, transformado: 0 });
+            expect(app.formulaTransformar(pierna)).toMatchObject({ stock: 2.5, transformado: 0 });
+            expect(await app.cuadroFormulaTransformar(pecho, input(4))).toBe(true);
+            expect(await app.cuadroFormulaTransformar(pierna, input(3))).toBe(true);
+            expect(app.formulaTransformar(pecho)).toMatchObject({ stock: 3, transformado: 4 });
+            expect(app.formulaTransformar(pierna)).toMatchObject({ stock: 2.5, transformado: 3 });
+            recargar();
+            expect(app.octavosEnDestino(id, 'pechugas')).toBe(7);
+            expect(app.octavosStockCorte('pechugas')).toBe(5);
+            expect(await app.cuadroFormulaTransformar(pecho, input(0))).toBe(true);
+            recargar();
+            expect(app.formulaTransformar(pecho)).toMatchObject({ stock: 3, transformado: 0 });
+            expect(app.formulaTransformar(pierna)).toMatchObject({ stock: 2.5, transformado: 3 });
+            expect(app.octavosStockCorte('pechugas')).toBe(9);
+        }
+    );
+
+    test('una descarga y su anulación conservan el origen del stock pendiente de un sector', () => {
+        const app = crearApp();
+        const rubro = 'octavo-pollo';
+        const movimientos = [
+            mov(rubro, 'ingreso', 12, horaAyer('09:00'), 'Ingreso · pecho'),
+            mov(rubro, 'regulacion', -3, horaAyer('10:00'), 'Separado · Beata · pecho'),
+            mov(rubro, 'regulacion', -4, hora('09:00'), 'Separado · Beata · pecho'),
+            { ...mov(rubro, 'regulacion', 7, hora('10:00'), 'Separado · Beata · pecho'), lote: 'vm-descarga-octavo' },
+            { ...mov(rubro, 'egreso', 7, hora('10:01'), 'Venta manual · Beata · pecho'), lote: 'vm-descarga-octavo' },
+            mov(rubro, 'ingreso', 2, hora('11:00'), 'Ingreso independiente crudo · Sector Beata · pecho'),
+            mov(rubro, 'regulacion', -2, hora('11:01'), 'Separado · Beata · pecho')
+        ];
+        const clave = 'octavoSector|beata|pechugas';
+        pintar(app, movimientos.slice());
+        app.movimientosPeriodo = movimientos.slice(2).reverse();
+        expect(app.formulaTransformar(clave)).toMatchObject({ stock: 2, transformado: 0 });
+
+        movimientos[4] = mov(rubro, 'regulacion', -7, hora('10:01'), 'Separado · Beata · pecho');
+        pintar(app, movimientos.slice());
+        app.movimientosPeriodo = movimientos.slice(2).reverse();
+        expect(app.formulaTransformar(clave)).toMatchObject({ stock: 5, transformado: 4 });
+    });
+
+    test.each([['beata', 'Beata'], ['personal', 'Personal'], ['eventos', 'Evento'], ['rio-lindo', 'Rio Lindo']])(
         'los pendientes de %s cruzan el día y se registran al descargar', (id, nombre) => {
             const app = crearApp();
             const clave = 'octavo-pollo';
