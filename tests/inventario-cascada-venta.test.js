@@ -119,6 +119,11 @@ test('estas filas nacen con cuadro de cocido', () => {
     expect(semillaCocido('menu-pecho').tieneCocido).toBe(false);
     expect(semillaCocido('menu-pierna').tieneCocido).toBe(false);
     expect(semillaCocido('sandwiches')).toEqual({ tieneCocido: false, reservaClave: '' });
+    expect(semillaCocido('arroz-pollo')).toEqual({ tieneCocido: false, soloCocido: true, reservaClave: '' });
+    expect(validarCocidoConfig('arroz-pollo', { soloCocido: true })).toEqual({ valido: true, tieneCocido: false, soloCocido: true, reservaClave: '' });
+    expect(validarCocidoConfig('caldo-pollo', { soloCocido: false })).toEqual({ valido: true, tieneCocido: true, soloCocido: false, reservaClave: '' });
+    expect(validarCocidoConfig('pollo-olla', { soloCocido: 'false' })).toMatchObject({ valido: false });
+    expect(validarCocidoConfig('panceta', { soloCocido: true })).toMatchObject({ valido: false });
 });
 
 test('la pieza de panceta solo gasta cocido', () => {
@@ -208,9 +213,9 @@ test('arroz con pollo, olla y caldo solo restan su cocido', () => {
     expect(out.map((v) => v.rubro + '|' + v.tipoProducto + ':' + v.cantidad)).toEqual(['arroz-pollo|cocido:4']);
 });
 
-test('panceta queda en crudo y la tira y la pieza solo en cocido', () => {
+test('panceta entera conserva el crudo, la tira permite cocción y la pieza usa cocido', () => {
     expect(validarCocidoConfig('panceta', { tieneCocido: true })).toEqual({ valido: true, tieneCocido: false, reservaClave: '' });
-    expect(validarCocidoConfig('tira-panceta', { tieneCocido: true, reservaClave: 'filete' })).toEqual({ valido: true, tieneCocido: false, reservaClave: '' });
+    expect(validarCocidoConfig('tira-panceta', { tieneCocido: false, reservaClave: 'filete' })).toEqual({ valido: true, tieneCocido: true, reservaClave: '' });
     expect(cadenaDe('panceta', { tieneCocido: true })).toEqual([{ rubro: 'panceta', tipo: 'crudo' }]);
     expect(cadenaDe('tira-panceta', { tieneCocido: true })).toEqual([{ rubro: 'tira-panceta', tipo: 'cocido' }]);
     expect(cadenaDe('trozo-panceta', { tieneCocido: true })).toEqual([{ rubro: 'trozo-panceta', tipo: 'cocido' }]);

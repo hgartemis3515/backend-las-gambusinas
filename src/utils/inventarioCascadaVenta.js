@@ -38,9 +38,10 @@ const SEMILLA = {
     'milanesa-junior': { tieneCocido: false, reservaClave: 'filete' },
     'chi-pollo-bbq': { tieneCocido: false, reservaClave: 'filete' },
     'chi-pollo-acevichada': { tieneCocido: false, reservaClave: 'filete' },
-    'arroz-pollo': { tieneCocido: true, reservaClave: '' },
-    'pollo-olla': { tieneCocido: true, reservaClave: '' },
-    'caldo-pollo': { tieneCocido: true, reservaClave: '' }
+    'tira-panceta': { tieneCocido: true, reservaClave: '' },
+    'arroz-pollo': { tieneCocido: false, soloCocido: true, reservaClave: '' },
+    'pollo-olla': { tieneCocido: false, soloCocido: true, reservaClave: '' },
+    'caldo-pollo': { tieneCocido: false, soloCocido: true, reservaClave: '' }
 };
 
 function esMateria(clave) {
@@ -69,12 +70,16 @@ function esStockGeneral(clave) {
  */
 function perfilRubro(clave, opcion) {
     const c = String(clave || '');
+    if (esPlatoOctavoVenta(c)) {
+        const soloCocido = opcion?.soloCocido !== false;
+        return { tieneCocido: !soloCocido, soloCocido };
+    }
     const base = opcion && typeof opcion.tieneCocido === 'boolean' ? opcion : semillaCocido(c);
     let tieneCocido = !esMateria(c) && SOLO_CRUDO.indexOf(c) === -1 && base.tieneCocido === true;
     let soloCocido = false;
-    if (c === 'pierna-lena' || c === 'pollo-baby') tieneCocido = true;
+    if (c === 'pierna-lena' || c === 'pollo-baby' || c === 'tira-panceta') tieneCocido = true;
     if (c === 'panceta') tieneCocido = false;
-    if (c === 'tira-panceta' || c === 'trozo-panceta' || c === 'tamal-chancho' || c === 'tamal-pollo' || c === 'sandwiches') {
+    if (c === 'trozo-panceta' || c === 'tamal-chancho' || c === 'tamal-pollo' || c === 'sandwiches') {
         tieneCocido = false;
         soloCocido = true;
     }
@@ -88,7 +93,6 @@ function perfilRubro(clave, opcion) {
     }
     if (c === 'carnero') tieneCocido = true;
     if (c === 'menu' || c === 'menu-pecho' || c === 'menu-pierna') tieneCocido = false;
-    if (c === 'arroz-pollo' || c === 'pollo-olla' || c === 'caldo-pollo') tieneCocido = true;
     if (c === 'seco-cordero' || c === 'pachamanca-pollo-pecho' || c === 'pachamanca-pollo') tieneCocido = true;
     if (c === 'pollada') {
         tieneCocido = true;
@@ -117,7 +121,7 @@ function esReservaValida(clave) {
 function semillaCocido(clave) {
     const s = SEMILLA[clave];
     if (!s || esMateria(clave)) return { tieneCocido: false, reservaClave: '' };
-    return { tieneCocido: s.tieneCocido === true, reservaClave: s.reservaClave || '' };
+    return { tieneCocido: s.tieneCocido === true, ...(s.soloCocido ? { soloCocido: true } : {}), reservaClave: s.reservaClave || '' };
 }
 
 function esMixPechoLena(venta) {
@@ -356,8 +360,14 @@ function normalizarVenta(v) {
 
 function validarCocidoConfig(clave, config) {
     const body = config || {};
+    if (Object.hasOwn(body, 'soloCocido')) {
+        if (!esPlatoOctavoVenta(clave)) return { valido: false, error: 'Este producto no admite cambiar el modo de cocido' };
+        if (typeof body.soloCocido !== 'boolean') return { valido: false, error: 'Solo cocido debe ser una opción marcada o desmarcada' };
+        return { valido: true, tieneCocido: !body.soloCocido, soloCocido: body.soloCocido, reservaClave: '' };
+    }
     if (esMateria(clave) || clave === 'sandwiches') return { valido: true, tieneCocido: false, reservaClave: '' };
-    if (clave === 'panceta' || clave === 'tira-panceta' || clave === 'trozo-panceta') {
+    if (clave === 'tira-panceta') return { valido: true, tieneCocido: true, reservaClave: '' };
+    if (clave === 'panceta' || clave === 'trozo-panceta') {
         return { valido: true, tieneCocido: false, reservaClave: '' };
     }
     const reserva = String(body.reservaClave || '').trim();

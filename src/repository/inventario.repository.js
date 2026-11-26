@@ -9,12 +9,34 @@ const { sanearGuardado } = require('../../public/assets/js/inventarioRelaciones'
 const MapaSemantico = require('../database/models/inventarioMapa.model');
 const { boundsDiaCalendario, boundsDiaOperativo, ymdOperativo, esSoloFechaYMD, ampliarTramoAlDia } = require('../utils/diaOperativoRestaurante');
 const { egresosVentaHasta, invalidarCacheVentas } = require('../utils/inventarioSalidaVentas');
-const { semillaCocido, validarCocidoConfig, esMateria, perfilRubro } = require('../utils/inventarioCascadaVenta');
+const { semillaCocido, validarCocidoConfig, esMateria, esPlatoOctavoVenta, perfilRubro } = require('../utils/inventarioCascadaVenta');
 const Rubro = require('../database/models/inventarioRubro.model');
 const Reporte = require('../database/models/inventarioReporte.model');
 const logger = require('../utils/logger');
 
-const SELECT_LIBRO = 'rubro nombre tipoProducto clase cantidad fecha motivo paseTipo reviertePase';
+const SELECT_LIBRO = 'rubro nombre tipoProducto clase cantidad fecha motivo paseTipo reviertePase conteoUnificado';
+const PLATOS_OCTAVO = ['arroz-pollo', 'caldo-pollo', 'pollo-olla'];
+let activacionSoloCocido;
+
+function activarSoloCocidoOctavo() {
+    if (!activacionSoloCocido) {
+        activacionSoloCocido = Rubro.bulkWrite(PLATOS_OCTAVO.map((clave) => ({
+            updateOne: {
+                filter: { clave },
+                update: [{ $set: {
+                    cambiosSoloCocido: { $ifNull: ['$cambiosSoloCocido', [{ fecha: '$$NOW', soloCocido: true }]] },
+                    soloCocido: { $ifNull: ['$soloCocido', true] }
+                } }],
+                upsert: true
+            }
+        }))).catch((error) => {
+            activacionSoloCocido = null;
+            throw error;
+        });
+    }
+    return activacionSoloCocido;
+}
+
 let cacheMovAntes = null;
 
 function invalidarMovimientosAnteriores(fecha) {
@@ -168,6 +190,7 @@ async function listarMovimientos({ plato, tipo, desde, hasta, ciclo }) {
         paseCantidad: d.paseCantidad,
         paseRevertido: d.paseRevertido,
         reviertePase: d.reviertePase,
+        conteoUnificado: d.conteoUnificado,
         fecha: d.fecha
     }));
 }
@@ -242,10 +265,15 @@ async function crearMovimiento(data, usuarioId) {
             throw err;
         }
     }
-    const sandwich = rubro?.clave === 'sandwiches';
-    const tipo = sandwich ? 'cocido' : tipoPedido;
-    if (sandwich && motivo === 'Ingreso independiente crudo') motivo = 'Ingreso independiente cocido';
     const paseTipo = data.paseTipo === true;
+    const rubroClave = rubro?.clave;
+    const sandwich = rubroClave === 'sandwiches';
+    if (esPlatoOctavoVenta(rubroClave)) await activarSoloCocidoOctavo();
+    const unificado = !paseTipo && esPlatoOctavoVenta(rubroClave)
+        && perfilRubro(rubroClave, await Rubro.findOne({ clave: rubroClave }).select('soloCocido').lean()).soloCocido;
+    const tipo = sandwich || unificado ? 'cocido' : tipoPedido;
+    if (sandwich && motivo === 'Ingreso independiente crudo') motivo = 'Ingreso independiente cocido';
+    if (unificado) motivo = motivo.replace(/^(Ingreso independiente|Conteo) crudo\b/, '$1 cocido');
     if (paseTipo) {
         if (!rubro || clase !== 'ingreso' || cantidad <= 0 || !motivo.startsWith('Pasa de ' + otroTipo(tipo) + ' ')) {
             throw Object.assign(new Error('El pase entre crudo y cocido no es válido.'), { statusCode: 400 });
@@ -268,6 +296,7 @@ async function crearMovimiento(data, usuarioId) {
         motivo,
         lote,
         ...(paseTipo ? { paseTipo } : {}),
+        ...(unificado && clase === 'inventario' ? { conteoUnificado: true } : {}),
         comanda: data.comanda && mongoose.Types.ObjectId.isValid(data.comanda) ? data.comanda : null,
         usuario: usuarioId && mongoose.Types.ObjectId.isValid(usuarioId) ? usuarioId : null,
         fecha: paseTipo ? new Date() : fechaMovimiento(data.fecha)
@@ -303,7 +332,8 @@ function lineasReporte(filas) {
 }
 
 async function opcionesCocido() {
-    const docs = await Rubro.find({}).select('clave tieneCocido reservaClave stockMinimo').lean();
+    await activarSoloCocidoOctavo();
+    const docs = await Rubro.find({}).select('clave tieneCocido soloCocido cambiosSoloCocido reservaClave stockMinimo').lean();
     const porClave = {};
     (docs || []).forEach((d) => { porClave[d.clave] = d; });
     const mapas = await leerGuardados().catch(() => []);
@@ -316,7 +346,7 @@ async function opcionesCocido() {
         let reservaClave = guardado ? (doc.reservaClave || '') : sem.reservaClave;
         if (!reservaClave && sem.reservaClave) reservaClave = sem.reservaClave;
         const soloCrudo = ['milanesa', 'filete-junior', 'milanesa-junior', 'salt-pollo', 'chaufa-pollo', 'chicharron-pollo', 'chi-pollo-bbq', 'chi-pollo-acevichada'];
-        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'arroz-pollo', 'pollo-olla', 'caldo-pollo', 'seco-cordero', 'pachamanca-pollo', 'pachamanca-pollo-pecho', 'tamal-chancho', 'tamal-pollo', 'pollada'];
+        const conCocido = ['pechuga-pato', 'pierna-pato', 'pollo-baby', 'pierna-lena', 'carnero', 'seco-cordero', 'pachamanca-pollo', 'pachamanca-pollo-pecho', 'tamal-chancho', 'tamal-pollo', 'pollada'];
         if (esMateria(d.clave) || soloCrudo.indexOf(d.clave) !== -1) {
             tieneCocido = false;
             if (!esMateria(d.clave) && !reservaClave) reservaClave = 'pechuga-pollo';
@@ -328,13 +358,20 @@ async function opcionesCocido() {
         if (d.clave === 'seco-cordero') reservaClave = '';
         if (d.clave === 'pollo-lena' || d.clave === 'caldo-pollo') reservaClave = '';
         if (conCocido.indexOf(d.clave) !== -1) tieneCocido = true;
-        if (d.clave === 'panceta' || d.clave === 'tira-panceta' || d.clave === 'trozo-panceta') tieneCocido = false;
+        if (d.clave === 'panceta' || d.clave === 'trozo-panceta') tieneCocido = false;
+        if (d.clave === 'tira-panceta') {
+            tieneCocido = true;
+            reservaClave = '';
+        }
         if (d.clave === 'sandwiches') {
             tieneCocido = false;
             reservaClave = '';
         }
         if (d.clave === 'menu' || d.clave === 'menu-pecho' || d.clave === 'menu-pierna') tieneCocido = false;
-        return { clave: d.clave, nombre: d.nombre, tieneCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
+        const modoOctavo = esPlatoOctavoVenta(d.clave) ? perfilRubro(d.clave, doc) : null;
+        if (modoOctavo) reservaClave = '';
+        const cambiosSoloCocido = modoOctavo ? doc?.cambiosSoloCocido : undefined;
+        return { clave: d.clave, nombre: d.nombre, tieneCocido, ...modoOctavo, cambiosSoloCocido, reservaClave, stockMinimo: doc ? (Number(doc.stockMinimo) || 0) : 0 };
     });
 }
 
@@ -659,7 +696,7 @@ async function guardarUmbralRubro(clave, body) {
         set.crudo = n;
         set.cocido = n;
     }
-    if (body && (body.tieneCocido !== undefined || body.reservaClave !== undefined)) {
+    if (body && (body.tieneCocido !== undefined || body.reservaClave !== undefined || body.soloCocido !== undefined)) {
         const valido = validarCocidoConfig(def.clave, body);
         if (!valido.valido) {
             const err = new Error(valido.error);
@@ -667,24 +704,32 @@ async function guardarUmbralRubro(clave, body) {
             throw err;
         }
         set.tieneCocido = valido.tieneCocido;
+        if (valido.soloCocido !== undefined) set.soloCocido = valido.soloCocido;
         set.reservaClave = valido.reservaClave;
     }
     if (!Object.keys(set).length) return { clave: def.clave };
-    await Rubro.findOneAndUpdate(
-        { clave: def.clave },
-        { $set: set },
-        { upsert: true, new: true }
-    );
+    const modo = set.soloCocido;
+    if (typeof modo === 'boolean') await activarSoloCocidoOctavo();
+    const cambios = { $ifNull: ['$cambiosSoloCocido', []] };
+    const update = typeof modo === 'boolean' ? [{ $set: {
+        ...set,
+        cambiosSoloCocido: { $cond: [
+            { $ne: [{ $ifNull: ['$soloCocido', true] }, modo] },
+            { $concatArrays: [cambios, [{ fecha: '$$NOW', soloCocido: modo }]] },
+            cambios
+        ] }
+    } }] : { $set: set };
+    await Rubro.findOneAndUpdate({ clave: def.clave }, update, { upsert: true, new: true });
     const despues = await alertasActuales();
     emitirAlerta({ alertas: despues, cambio: null });
-    return { clave: def.clave };
+    return { clave: def.clave, ...(set.soloCocido !== undefined ? { soloCocido: set.soloCocido, tieneCocido: set.tieneCocido } : {}) };
 }
 
 async function alertasRubro() {
     const hasta = new Date();
     const [guardados, ventasPack, umbrales, opciones, mapas] = await Promise.all([
         Movimiento.find({ rubro: { $nin: [null, ''] } })
-            .select('rubro nombre tipoProducto clase cantidad fecha motivo paseTipo reviertePase')
+            .select(SELECT_LIBRO)
             .lean(),
         egresosVentaHasta(hasta),
         umbralesRubro(),

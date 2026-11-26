@@ -36,6 +36,80 @@ test('Sandwich arrastra el stock al cocido y descuenta ahí las comandas y venta
     expect(libro.ventas).toEqual([expect.objectContaining({ rubro, tipoProducto: 'cocido', cantidad: 3 })]);
 });
 
+test.each(['arroz-pollo', 'caldo-pollo', 'pollo-olla'])('%s unifica los tipos, conserva los cortes y descuenta ambas ventas en cocido', (rubro) => {
+    const ymd = '2026-11-10';
+    const movs = [
+        mov(rubro, 'ingreso', 7, hora(ymd, '09:00'), 'Sale de Octavo de pollo · pecho'),
+        mov(rubro, 'ingreso', 6, hora(ymd, '09:01'), 'Sale de Octavo de pollo · pierna', 'cocido'),
+        { ...mov(rubro, 'ingreso', 2, hora(ymd, '10:00'), 'Pasa de crudo Plato · pecho', 'cocido'), paseTipo: true },
+        mov(rubro, 'egreso', 1, hora(ymd, '13:00'), 'Venta manual · pierna', 'cocido')
+    ];
+    const libro = dia(ymd, movs, [venta(rubro, 3, hora(ymd, '12:00'))]);
+    expect(fila(libro, rubro)).toMatchObject({ venta: 0, ingresoBruto: 0, queda: 0 });
+    expect(fila(libro, rubro, 'cocido')).toMatchObject({ ingresoBruto: 13, venta: 3, egreso: 1, queda: 9, pechoOctavo: 6.25 });
+    expect(libro.ventas).toEqual([expect.objectContaining({ rubro, tipoProducto: 'cocido', cantidad: 3 })]);
+
+    const separado = dia(ymd, movs, [venta(rubro, 3, hora(ymd, '12:00'))], {
+        opciones: { [rubro]: { soloCocido: false } }
+    });
+    expect(fila(separado, rubro)).toMatchObject({ ingresoBruto: 5, venta: 0, queda: 5, pechoOctavo: 5 });
+    expect(fila(separado, rubro, 'cocido')).toMatchObject({ ingresoBruto: 8, venta: 3, egreso: 1, queda: 4 });
+});
+
+test('un conteo anterior corrige su tipo y un conteo unificado reemplaza todo el saldo', () => {
+    const rubro = 'caldo-pollo';
+    const ymd = '2026-11-10';
+    const anteriores = [
+        mov(rubro, 'ingreso', 8, hora(ymd, '09:00')),
+        mov(rubro, 'ingreso', 5, hora(ymd, '09:01'), 'Ingreso cocido', 'cocido'),
+        { ...mov(rubro, 'ingreso', 2, hora(ymd, '10:00'), 'Pasa de crudo Caldo de pollo', 'cocido'), paseTipo: true },
+        mov(rubro, 'inventario', 3, hora(ymd, '11:00'), 'Conteo crudo'),
+        mov(rubro, 'inventario', 4, hora(ymd, '12:00'), 'Conteo cocido', 'cocido')
+    ];
+    const unificado = { ...mov(rubro, 'inventario', 5, hora(ymd, '13:00'), 'Conteo cocido', 'cocido'), conteoUnificado: true };
+    expect(fila(dia(ymd, anteriores), rubro, 'cocido')).toMatchObject({ conteo: 7, queda: 7 });
+    expect(fila(dia(ymd, [...anteriores, unificado]), rubro, 'cocido')).toMatchObject({ conteo: 5, queda: 5 });
+    const separado = dia(ymd, [...anteriores, unificado], [], { opciones: { [rubro]: { soloCocido: false } } });
+    expect(fila(separado, rubro)).toMatchObject({ queda: 0 });
+    expect(fila(separado, rubro, 'cocido')).toMatchObject({ conteo: 5, queda: 5 });
+});
+
+test('separar y reunificar después del cierre conserva lo vendido en modo unificado', () => {
+    const rubro = 'arroz-pollo';
+    const ymd = '2026-11-10';
+    const siguiente = '2026-11-11';
+    const movs = [
+        mov(rubro, 'ingreso', 6, hora(ymd, '09:00'), 'Sale de Octavo de pollo · pecho'),
+        mov(rubro, 'ingreso', 4, hora(ymd, '09:00'), 'Sale de Octavo de pollo · pierna', 'cocido')
+    ];
+    const ventas = [venta(rubro, 8, hora(ymd, '12:00'))];
+    const separado = { fecha: hora(siguiente, '10:00'), soloCocido: false };
+    const reunificado = { fecha: hora(siguiente, '13:00'), soloCocido: true };
+    const conModo = (soloCocido, cambiosSoloCocido) => dia(siguiente, movs, ventas, {
+        opciones: { [rubro]: { soloCocido, cambiosSoloCocido } }
+    });
+
+    expect(fila(conModo(true, []), rubro, 'cocido')).toMatchObject({ saldoInicial: 2, queda: 2, pechoOctavo: 2 });
+    const libroSeparado = conModo(false, [separado]);
+    expect(fila(libroSeparado, rubro, 'crudo')).toMatchObject({ saldoInicial: 2, queda: 2, pechoOctavo: 2 });
+    expect(fila(libroSeparado, rubro, 'cocido')).toMatchObject({ queda: 0 });
+    expect(fila(conModo(true, [separado, reunificado]), rubro, 'cocido')).toMatchObject({ saldoInicial: 2, queda: 2 });
+});
+
+test('la devolución unificada de un pase registrado en crudo conserva el cocido previo', () => {
+    const rubro = 'pollo-olla';
+    const ymd = '2026-11-10';
+    const alDia = dia(ymd, [
+        mov(rubro, 'ingreso', 5, hora(ymd, '09:00'), 'Ingreso independiente cocido · pecho', 'cocido'),
+        mov(rubro, 'ingreso', 4, hora(ymd, '10:00'), 'Sale de Octavo de pollo · pecho'),
+        mov(rubro, 'ingreso', -2, hora(ymd, '11:00'), 'Sale de Octavo de pollo · pecho', 'cocido')
+    ], [], { opciones: { [rubro]: {
+        soloCocido: false, cambiosSoloCocido: [{ fecha: hora(ymd, '12:00'), soloCocido: false }]
+    } } });
+    expect(fila(alDia, rubro, 'crudo')).toMatchObject({ ingresoBruto: 2, queda: 2, pechoOctavo: 2 });
+    expect(fila(alDia, rubro, 'cocido')).toMatchObject({ ingresoBruto: 5, queda: 5, pechoOctavo: 5 });
+});
+
 test('el saldo anterior de hoy es lo que quedó ayer', () => {
     const movs = [mov('bisteck', 'ingreso', 10, hora('2026-11-10', '10:00'))];
     const ventas = [venta('bisteck', 3, hora('2026-11-10', '13:00'))];

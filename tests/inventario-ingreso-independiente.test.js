@@ -219,11 +219,25 @@ test('editar y deshacer cocido no consume ni devuelve crudo', () => {
     app.registrarIngresoDirecto('pollo_baby', 'cocido', input('0')); recargar(); expect(app.stockCuadro('pollo_baby', 'cocido')).toBe(2); expect(app.stockCuadro('pollo_baby', 'crudo')).toBe(7); expect(app.ingresoDirectoPeriodo('pollo_baby', 'cocido')).toBe(0);
 });
 
-test.each([['arroz_blanco', 'arroz-blanco'], ['arroz_verde', 'arroz-verde'], ['tira_panceta', 'tira-panceta'], ['trozo_panceta', 'trozo-panceta']])('%s permite revertir ingreso sin gastar materia prima', (id, rubro) => {
+test.each([['arroz_blanco', 'arroz-blanco'], ['arroz_verde', 'arroz-verde'], ['trozo_panceta', 'trozo-panceta']])('%s permite revertir ingreso sin gastar materia prima', (id, rubro) => {
     const { app, guardados, recargar } = escenario([{ rubro: 'arroz', cantidad: 50 }, { rubro: 'panceta', cantidad: 20 }]); const otros = plain(app.rows.filter((r) => r.id !== id));
     app.registrarIngresoDirecto(id, 'crudo', input('8')); expect(app.stockCuadro(id, 'cocido')).toBe(8); expect(app.ingresoDirectoPeriodo(id, 'cocido')).toBe(8);
     expect(guardados[2]).toMatchObject({ rubro, clase: 'ingreso', tipoProducto: 'cocido', cantidad: 8 }); expect(plain(app.rows.filter((r) => r.id !== id))).toEqual(otros);
     app.registrarIngresoDirecto(id, 'cocido', input('0')); recargar(); expect(app.stockCuadro(id, 'cocido')).toBe(0); expect(app.ingresoDirectoPeriodo(id, 'cocido')).toBe(0); expect(app.stockCuadro('arroz', 'crudo')).toBe(50); expect(app.stockCuadro('panceta', 'crudo')).toBe(20);
+});
+
+test.each(['crudo', 'cocido'])('Tira de panceta permite revertir ingreso %s sin gastar panceta ni cambiar el otro tipo', (tipo) => {
+    const { app, guardados, recargar } = escenario([{ rubro: 'panceta', cantidad: 20 }]);
+    const otro = tipo === 'crudo' ? 'cocido' : 'crudo';
+    expect(app.registrarIngresoDirecto('tira_panceta', tipo, input('8'))).toBe(true);
+    recargar();
+    expect(app.stockCuadro('tira_panceta', tipo)).toBe(8);
+    expect(app.stockCuadro('tira_panceta', otro)).toBe(0);
+    expect(guardados[1]).toMatchObject({ rubro: 'tira-panceta', tipoProducto: tipo, cantidad: 8 });
+    expect(app.registrarIngresoDirecto('tira_panceta', tipo, input('0'))).toBe(true);
+    recargar();
+    expect(app.stockCuadro('tira_panceta', tipo)).toBe(0);
+    expect(app.stockCuadro('panceta', 'crudo')).toBe(20);
 });
 
 test.each([['arroz_beata', 'arroz-beata'], ['arroz_rio_lindo', 'arroz-rio-lindo']])('%s edita ingreso sin descarga ni ventas', (id, rubro) => {

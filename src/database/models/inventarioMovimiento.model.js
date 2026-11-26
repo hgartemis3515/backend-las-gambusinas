@@ -11,6 +11,7 @@ const inventarioMovimientoSchema = new mongoose.Schema({
     motivo: { type: String, required: true, trim: true, maxlength: 200 },
     lote: { type: String, default: '', trim: true, maxlength: 40 },
     paseTipo: { type: Boolean },
+    conteoUnificado: { type: Boolean },
     reviertePase: { type: mongoose.Schema.Types.ObjectId },
     comanda: { type: mongoose.Schema.Types.ObjectId, ref: 'Comanda', default: null },
     usuario: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },

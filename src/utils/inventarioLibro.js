@@ -154,6 +154,8 @@ function ventanaVacia() {
         venta: 0,
         cubierta: 0,
         ajuste: 0,
+        octavoPecho: 0,
+        octavoPierna: 0,
         conteo: null,
         difConteo: 0
     };
@@ -204,9 +206,13 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
         if (!perfiles[clave]) perfiles[clave] = perfilRubro(clave, ops[clave]);
         return perfiles[clave];
     };
+    // Los tres platos de octavo conservan sus tipos de origen en el libro. El modo de la
+    // fecha del movimiento determina si pueden compartir saldo; el modo actual solo arma la vista.
+    const tipoDeCubeta = (rubro, tipo) => esPlatoOctavoVenta(rubro)
+        ? (tipo === 'cocido' ? 'cocido' : 'crudo') : cubetaDe(perfilDe(rubro), tipo);
     const cubetas = new Map();
     const cubeta = (rubro, tipo) => {
-        const key = rubro + '|' + cubetaDe(perfilDe(rubro), tipo);
+        const key = rubro + '|' + tipoDeCubeta(rubro, tipo);
         let c = cubetas.get(key);
         if (!c) {
             c = nuevaCubeta();
@@ -219,6 +225,19 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
     const eventos = [];
     const pases = indexarPases(movimientos);
     const distribuciones = new Map();
+    const modosOctavo = new Map();
+    const soloCocidoEnLibro = (rubro) => esPlatoOctavoVenta(rubro)
+        && (modosOctavo.get(rubro) ?? perfilDe(rubro).soloCocido);
+    for (const [rubro, op] of Object.entries(ops)) {
+        if (!esPlatoOctavoVenta(rubro)) continue;
+        const cambios = (op?.cambiosSoloCocido || []).map((cambio) => ({
+            t: new Date(cambio.fecha).getTime(), cambioModo: rubro, soloCocido: cambio.soloCocido
+        })).filter((cambio) => typeof cambio.soloCocido === 'boolean' && Number.isFinite(cambio.t)).sort((a, b) => a.t - b.t);
+        if (cambios.length) {
+            modosOctavo.set(rubro, !cambios[0].soloCocido);
+            eventos.push(...cambios);
+        }
+    }
     (movimientos || []).forEach((m) => {
         const t = new Date(m && m.fecha).getTime();
         if (m && m.rubro && !esRubroRetirado(m.rubro) && Number.isFinite(t)) eventos.push({ t, mov: m });
@@ -228,7 +247,7 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
         const rubro = v && (v.rubro || v.plato);
         if (rubro && !esRubroRetirado(rubro) && Number(v.cantidad) > 0 && Number.isFinite(t)) eventos.push({ t, venta: v });
     });
-    eventos.sort((a, b) => a.t - b.t || Number(!!b.mov) - Number(!!a.mov));
+    eventos.sort((a, b) => a.t - b.t || Number(!!b.cambioModo) - Number(!!a.cambioModo) || Number(!!b.mov) - Number(!!a.mov));
 
     let finDia = -Infinity;
     let inicioDia = -Infinity;
@@ -241,6 +260,8 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
     const cortes = { pierna: 0, pecho: 0 };
     let cortesIniciales = { pierna: 0, pecho: 0 };
     const pendientesSectores = {};
+    const conteosOctavo = new Map();
+    const tiposTransferidosOctavo = new Map();
 
     // Lo marcado pasa al día siguiente, sin superar lo que de verdad quedó.
     const cerrarCortes = () => {
@@ -393,13 +414,56 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
         if (entrada._id) distribuciones.set(String(entrada._id), { ingreso, ajuste });
     };
 
+    const ajustarCubetaOctavo = (c, cantidad) => {
+        const antes = Math.max(0, saldoDe(c));
+        c.mov += cantidad;
+        if (enVentana) c.w.ajuste += cantidad;
+        ajustarPecho(c, antes, '');
+    };
+
+    const cubrirFaltanteOctavo = (rubro) => {
+        const crudo = cubeta(rubro, 'crudo');
+        const cocido = cubeta(rubro, 'cocido');
+        const saldoCrudo = saldoDe(crudo);
+        const saldoCocido = saldoDe(cocido);
+        if (saldoCrudo * saldoCocido >= 0) return;
+        const crudoRecibe = saldoCrudo < 0;
+        const cantidad = Math.min(Math.abs(saldoCrudo), Math.abs(saldoCocido));
+        ajustarCubetaOctavo(crudo, crudoRecibe ? cantidad : -cantidad);
+        ajustarCubetaOctavo(cocido, crudoRecibe ? -cantidad : cantidad);
+    };
+
+    const descontarOctavo = (rubro, tipo, n, corte, descontar, saldoDeTipo = saldoDe) => {
+        const tipos = [tipo, otroTipo(tipo)];
+        const stocks = tipos.map((t) => cubeta(rubro, t));
+        const cantidades = [0, 0];
+        let falta = n;
+        for (const marca of corte ? [corte, ''] : ['']) {
+            stocks.forEach((c, i) => {
+                const saldo = Math.max(0, saldoDeTipo(c));
+                const pecho = Math.min(saldo, c.pecho);
+                const disponible = marca === 'pecho' ? pecho : (marca === 'pierna' ? saldo - pecho : saldo);
+                const toma = Math.min(falta, Math.max(0, disponible - cantidades[i]));
+                cantidades[i] += toma;
+                falta -= toma;
+            });
+        }
+        cantidades[0] += falta;
+        stocks.forEach((c, i) => {
+            if (!cantidades[i]) return;
+            const antes = Math.max(0, saldoDe(c));
+            descontar(c, cantidades[i], tipos[i]);
+            ajustarPecho(c, antes, corte);
+        });
+    };
+
     const aplicarVenta = (v, t) => {
         const rubro = v.rubro || v.plato;
         const op = ops[rubro] || semillaCocido(rubro);
         const vistos = new Set();
         const cadena = [];
         cadenaDeVenta(v, op).forEach((e) => {
-            const tipo = cubetaDe(perfilDe(e.rubro), e.tipo);
+            const tipo = tipoDeCubeta(e.rubro, e.tipo);
             const key = e.rubro + '|' + tipo;
             if (vistos.has(key)) return;
             vistos.add(key);
@@ -418,7 +482,12 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
         });
         registrosDeVenta(v, op, partes).forEach((rec) => {
             const nv = normalizarVenta(rec);
-            if (nv) {
+            if (nv && !nv.sinSaldo && soloCocidoEnLibro(nv.rubro)) {
+                descontarOctavo(nv.rubro, nv.tipo, nv.n, '', (c, n) => {
+                    c.mov -= n;
+                    if (enVentana) c.w.venta += n;
+                });
+            } else if (nv) {
                 const c = cubeta(nv.rubro, nv.tipo);
                 if (!nv.sinSaldo) {
                     const antes = Math.max(0, saldoDe(c));
@@ -437,11 +506,75 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
         });
     };
 
+    const aplicarMovimientoOctavo = (m, t) => {
+        const rubro = m.rubro;
+        const tipo = tipoDeCubeta(rubro, m.tipoProducto);
+        const c = cubeta(rubro, tipo);
+        const unificado = soloCocidoEnLibro(rubro);
+        const corte = corteDeMotivo(m.motivo);
+        const n = Number(m.cantidad) || 0;
+        const apertura = m.clase === 'ingreso' && esApertura(m.motivo);
+        const saldoTotal = () => saldoDe(cubeta(rubro, 'crudo')) + saldoDe(cubeta(rubro, 'cocido'));
+        const ingresoOctavo = m.clase === 'ingreso' && /^Sale de Octavo de pollo · (?:pecho|pierna)$/i.test(m.motivo || '');
+        const campoTransferencia = corte === 'pecho' ? 'octavoPecho' : 'octavoPierna';
+        const aplicar = (cubetaFuente, cantidad) => {
+            aplicarMovimiento(cubetaFuente, m, cantidad, t);
+            if (enVentana && ingresoOctavo) cubetaFuente.w[campoTransferencia] += cantidad;
+        };
+        const descontar = (fuente, cantidad, signo) => descontarOctavo(rubro, fuente, cantidad, corte,
+            (cubetaFuente, monto) => aplicar(cubetaFuente, monto * signo), apertura ? (c) => c.abre : saldoDe);
+        const claveTransferencia = rubro + '|' + corte;
+        const transferidos = tiposTransferidosOctavo.get(claveTransferencia) || { crudo: 0, cocido: 0 };
+        const contar = m.clase === 'inventario' && esConteo(m.motivo);
+        const antesConteo = contar ? saldoTotal() : 0;
+
+        if (unificado && ingresoOctavo && n < 0) {
+            let falta = -n;
+            for (const fuente of [tipo, otroTipo(tipo)]) {
+                // Las devoluciones de una transformación antigua salen primero de donde entró ese corte.
+                const cantidad = Math.min(falta, Math.max(0, transferidos[fuente]));
+                if (cantidad) descontar(fuente, cantidad, -1);
+                transferidos[fuente] -= cantidad;
+                falta -= cantidad;
+            }
+            if (falta > 0) descontar(tipo, falta, -1);
+        } else if (unificado && m.clase === 'egreso' && n > 0) {
+            descontar(tipo, n, 1);
+        } else if (unificado && n < 0 && (m.clase === 'regulacion' || m.clase === 'ingreso')) {
+            descontar(tipo, -n, -1);
+        } else {
+            let antes = Math.max(0, saldoDe(c));
+            if (m.clase === 'inventario' && m.conteoUnificado) {
+                const crudo = cubeta(rubro, 'crudo');
+                antes += Math.max(0, saldoDe(crudo));
+                c.pecho += crudo.pecho;
+                aplicarMovimiento(crudo, { ...m, motivo: '' }, 0, t);
+                crudo.pecho = 0;
+            }
+            aplicar(c, n);
+            ajustarPecho(c, antes, corte);
+            if (ingresoOctavo) transferidos[tipo] += n;
+        }
+        if (ingresoOctavo) tiposTransferidosOctavo.set(claveTransferencia, transferidos);
+        if (unificado) cubrirFaltanteOctavo(rubro);
+        if (enVentana && contar) conteosOctavo.set(rubro, { conteo: saldoTotal(), difConteo: saldoTotal() - antesConteo });
+    };
+
     for (const e of eventos) {
         if (e.t > hastaMs) break;
         avanzarDia(e.t);
         if (!enVentana && e.t >= desdeMs) entrarVentana();
-        if (e.mov) {
+        if (e.cambioModo) {
+            modosOctavo.set(e.cambioModo, e.soloCocido);
+            if (e.soloCocido) {
+                // El cambio de vista arrastra lo disponible. Los faltantes previos no consumen el otro tipo.
+                for (const tipo of ['crudo', 'cocido']) {
+                    const c = cubeta(e.cambioModo, tipo);
+                    const falta = Math.max(0, -saldoDe(c));
+                    if (falta) ajustarCubetaOctavo(c, falta);
+                }
+            }
+        } else if (e.mov) {
             const m = e.mov;
             if (m.rubro === CLAVE_OCTAVO && (m.tipoProducto || 'crudo') === 'crudo' && m.clase === 'regulacion') {
                 const separado = /^Separado · (Beata|Personal|Eventos?|R[ií]o Lindo) · (pecho|pierna)$/i.exec(m.motivo || '');
@@ -453,13 +586,14 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
             }
             const pase = pases.get(m);
             if (pase) {
-                if (pase.entrada === m) aplicarPase(pase);
+                if (pase.entrada === m) {
+                    aplicarPase(pase);
+                    if (soloCocidoEnLibro(m.rubro)) cubrirFaltanteOctavo(m.rubro);
+                }
                 continue;
             }
-            const c = cubeta(m.rubro, m.tipoProducto);
-            const antes = Math.max(0, saldoDe(c));
-            aplicarMovimiento(c, m, Number(m.cantidad) || 0, e.t);
-            if (c.pecho !== undefined) ajustarPecho(c, antes, corteDeMotivo(m.motivo));
+            if (esPlatoOctavoVenta(m.rubro)) aplicarMovimientoOctavo(m, e.t);
+            else aplicarMovimiento(cubeta(m.rubro, m.tipoProducto), m, Number(m.cantidad) || 0, e.t);
         } else aplicarVenta(e.venta, e.t);
     }
     if (!enVentana) {
@@ -474,8 +608,24 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
     const cortesDe = (c) => ({ pierna: entero(c.pierna), pecho: entero(c.pecho) });
     definiciones(movimientos, ventas, extras).forEach((def) => {
         const minimo = umbralDe[def.clave] || {};
+        const unificado = esPlatoOctavoVenta(def.clave) && perfilDe(def.clave).soloCocido;
+        let combinado;
+        if (unificado) {
+            combinado = { abre: 0, mov: 0, pecho: 0, w: ventanaVacia() };
+            for (const tipo of ['crudo', 'cocido']) {
+                const c = cubetas.get(def.clave + '|' + tipo);
+                if (!c) continue;
+                combinado.mov += saldoDe(c);
+                combinado.pecho += c.pecho;
+                for (const campo of Object.keys(combinado.w)) {
+                    if (campo !== 'conteo' && campo !== 'difConteo') combinado.w[campo] += c.w[campo];
+                }
+            }
+            Object.assign(combinado.w, conteosOctavo.get(def.clave));
+        }
         ['crudo', 'cocido'].forEach((tipo) => {
-            const c = cubetas.get(def.clave + '|' + tipo);
+            const crudoOculto = unificado && tipo === 'crudo';
+            const c = unificado ? (crudoOculto ? undefined : combinado) : cubetas.get(def.clave + '|' + tipo);
             const w = c ? c.w : ventanaVacia();
             const transformacion = Math.max(0, r3(w.pase));
             const ingresoBruto = w.ingresos + transformacion;
@@ -483,13 +633,16 @@ function armarLibro({ movimientos = [], ventas, opciones, umbrales, extras, desd
             const ajuste = w.ajuste + (w.inicial < 0 ? w.inicial : 0);
             const sinTope = c ? saldoDe(c) : 0;
             const queda = Math.max(0, sinTope);
-            const umbral = Number(tipo === 'crudo' ? minimo.crudo : minimo.cocido) || 0;
+            const umbral = crudoOculto ? 0 : (Number(minimo[tipo]) || 0);
             const extraOctavo = def.clave === CLAVE_OCTAVO && tipo === 'crudo'
                 ? { cortes: { inicial: cortesDe(cortesIniciales), queda: cortesDe(cortes) }, pendientesSectores }
                 : {};
             filas.push({
                 ...extraOctavo,
-                ...(esPlatoOctavoVenta(def.clave) ? { pechoOctavo: c ? c.pecho : 0 } : {}),
+                ...(esPlatoOctavoVenta(def.clave) ? {
+                    pechoOctavo: c ? c.pecho : 0,
+                    octavoTransformado: { pecho: r3(w.octavoPecho), pierna: r3(w.octavoPierna) }
+                } : {}),
                 plato: def.clave,
                 rubro: def.clave,
                 platoId: 0,

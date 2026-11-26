@@ -8,7 +8,7 @@ jest.mock('../src/utils/inventarioSalidaVentas', () => ({ egresosVentaHasta: asy
 jest.mock('../src/database/models/inventarioMovimiento.model', () => ({
     find() {}, findById() {}, exists() {}, distinct() {}, create() {}
 }));
-jest.mock('../src/database/models/inventarioRubro.model', () => ({ find() {} }));
+jest.mock('../src/database/models/inventarioRubro.model', () => ({ find() {}, bulkWrite: async () => ({}) }));
 jest.mock('../src/database/models/plato.model', () => ({}));
 jest.mock('../src/database/models/inventarioMapa.model', () => ({}));
 jest.mock('../src/database/models/inventarioReporte.model', () => ({}));

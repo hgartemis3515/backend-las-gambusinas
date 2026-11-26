@@ -11,15 +11,15 @@ const DIA = '2026-11-18';
 const fecha = `${DIA}T12:00:00-05:00`;
 const input = (v) => ({ value: String(v), dataset: {}, style: { setProperty: () => {} } });
 
-function escenario(iniciales) {
+function escenario(iniciales, window = {}, opciones = {}) {
     const storage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
     const app = vm.runInNewContext('(' + code.trim() + ')', {
-        window: {}, localStorage: storage, sessionStorage: storage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0
+        window, localStorage: storage, sessionStorage: storage, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0
     })();
     app.$nextTick = (fn) => fn && fn();
     app.restaurarEjemploDespiece(true);
     app.vaciarNumeros();
-    app.aplicarOpcionesCocido([]);
+    app.aplicarOpcionesCocido(Object.entries(opciones).map(([clave, opcion]) => ({ clave, ...opcion })));
     app.pulseRowTotal = () => {};
     app.productoBloqueado = () => false;
     app.activeTab = 'transformar';
@@ -34,8 +34,9 @@ function escenario(iniciales) {
     }));
     const recargar = () => {
         const b = boundsDiaOperativo(DIA);
-        const libro = armarLibro({ movimientos: guardados, ventas: [], desde: b.inicio, hasta: b.fin });
+        const libro = armarLibro({ movimientos: guardados, ventas: [], opciones, desde: b.inicio, hasta: b.fin });
         app.movimientosPeriodo = plain(guardados.filter((m) => new Date(m.fecha) >= b.inicio && new Date(m.fecha) <= b.fin));
+        app._movimientosRangoKardex = app.queryRango(app.rangoVista());
         app.movimientosTurno = app.movimientosPeriodo.slice();
         app.ventasPeriodo = libro.ventas;
         app.aplicarKardex(libro.filas, app.movimientosPeriodo, libro.ventas);
@@ -48,6 +49,86 @@ function escenario(iniciales) {
 }
 
 const base = [['pechuga-pollo', 10], ['pierna-pollo', 10]];
+
+test('el historial de salida de Pecho conserva sus pases por destino y descuenta la devolución', () => {
+    const { app, nuevos } = escenario([
+        ['pechuga-pollo', 120, 'Ingreso inicial'],
+        ['pechuga-pollo', 20, 'Sale de Pollo fresco'],
+        ['pechuga-pollo', -9, 'Ajuste de stock crudo'],
+        ['pechuga-pollo', -60, 'Pasa a Filete de pollo', 'crudo', `${DIA}T11:00:00-05:00`],
+        ['pechuga-pollo', -10, 'Pasa a Filete de pollo', 'crudo', `${DIA}T11:30:00-05:00`],
+        ['pechuga-pollo', -30, 'Pasa a Pecho a la Leña', 'crudo', `${DIA}T12:00:00-05:00`],
+        ['pechuga-pollo', 4, 'Pasa a Filete de pollo', 'crudo', `${DIA}T13:00:00-05:00`],
+        ['filete', -3, 'Pasa a Filete de pollo']
+    ]);
+    const saldo = app.stockCuadro('pechuga', 'crudo');
+    const salida = app.resumenSalidaProducto('pechuga');
+
+    expect(salida).toMatchObject({ id: 'pechuga', total: 96 });
+    expect(app.cantidadSalidaTransformar(salida.total)).toBe('−96');
+    expect(salida.grupos.map(({ destino, total, movimientos }) => [destino, total, movimientos.map((m) => m.cantidad)]))
+        .toEqual([['Filete de pollo', 66, [-4, 10, 60]], ['Pecho a la Leña', 30, [30]]]);
+    expect(app.resumenSalidaProducto('filete')).toBeNull();
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(saldo);
+    expect(nuevos()).toHaveLength(0);
+});
+
+test('el historial usa el día o turno de Transformar y espera los movimientos del período elegido', () => {
+    const ayer = '2026-11-17';
+    const turno = {
+        dia: { desde: `${DIA}T04:00:00-05:00`, hasta: `${DIA}T16:59:59.999-05:00` },
+        noche: { desde: `${DIA}T17:00:00-05:00`, hasta: '2026-11-19T03:59:59.999-05:00' }
+    };
+    const { app, guardados } = escenario([
+        ['pechuga-pollo', -8, 'Pasa a Filete de pollo', 'crudo', `${ayer}T14:00:00-05:00`],
+        ['pechuga-pollo', -5, 'Pasa a Filete de pollo', 'crudo', `${DIA}T16:59:59.999-05:00`],
+        ['pechuga-pollo', -3, 'Pasa a Pecho a la Leña', 'crudo', `${DIA}T17:00:00-05:00`],
+        ['pechuga-pollo', -1, 'Pasa a Pecho a la Leña', 'crudo', '2026-11-19T03:59:59.999-05:00']
+    ], {
+        TurnosDiaNoche: {
+            esSegmento: (periodo) => Boolean(turno[periodo]),
+            rangoDe: (periodo) => turno[periodo],
+            addDaysYMD: (ymd) => new Date(Date.parse(ymd) + 86400000).toISOString().slice(0, 10)
+        }
+    });
+    app.periodo = 'ayer';
+    app.rangoPeriodoTransformar = () => {
+        const dia = app.periodoTransformar === 'ayer' ? ayer : DIA;
+        return { desde: dia, hasta: dia };
+    };
+
+    app.periodoTransformar = 'dia';
+    expect(app.resumenSalidaProducto('pechuga')).toMatchObject({ total: 5 });
+    app.periodoTransformar = 'noche';
+    expect(app.resumenSalidaProducto('pechuga')).toMatchObject({ total: 4 });
+    app.periodoTransformar = 'ayer';
+    expect(app.resumenSalidaProducto('pechuga')).toBeNull();
+
+    app.movimientosPeriodo = plain(guardados);
+    app._movimientosRangoKardex = app.queryRango(app.rangoPeriodoTransformar());
+    expect(app.resumenSalidaProducto('pechuga')).toMatchObject({ total: 8 });
+});
+
+test('el historial cuenta una sola salida por cocción y omite pases anulados', () => {
+    const { app } = escenario([['pollo-lena', 20], ['pollo-lena', 10, 'Ingreso cocido', 'cocido']]);
+    const pase = (paseId, tipoProducto, cantidad, motivo, atributos = {}) => ({
+        rubro: 'pollo-lena', clase: 'ingreso', fecha, paseId, paseDestino: 'cocido', tipoProducto, cantidad, motivo, ...atributos
+    });
+    app.movimientosPeriodo = app.movimientosPeriodo.concat([
+        pase('vigente', 'crudo', -5, 'Pasa a cocido Pecho a la Leña'),
+        pase('vigente', 'cocido', 5, 'Pasa de crudo Pecho a la Leña'),
+        pase('anulado', 'crudo', -3, 'Pasa a cocido Pecho a la Leña', { paseRevertido: true }),
+        pase('anulado', 'cocido', 3, 'Pasa de crudo Pecho a la Leña', { paseRevertido: true }),
+        pase(undefined, 'crudo', 3, 'Pasa de cocido Pecho a la Leña', { reviertePase: 'anulado' }),
+        pase(undefined, 'cocido', -3, 'Pasa a crudo Pecho a la Leña', { reviertePase: 'anulado' }),
+        pase(undefined, 'crudo', -2, 'Cocido desde crudo Pecho a la Leña')
+    ]);
+
+    const salida = app.resumenSalidaProducto('pollo_lena');
+    expect(salida).toMatchObject({ total: 7 });
+    expect(salida.grupos).toMatchObject([{ destino: 'Cocido', origen: 'Crudo', total: 7 }]);
+    expect(salida.grupos[0].movimientos.map((m) => m.cantidad)).toEqual([5, 2]);
+});
 
 test('subir el crudo de Pecho a la leña resta Pecho de pollo y no crea un ingreso', async () => {
     const { app, recargar, nuevos } = escenario(base);
@@ -149,9 +230,9 @@ test('los octavos restan su pieza, y platos y sectores restan el octavo de ese c
     recargar();
     expect(app.octavosStockCorte('piernas')).toBe(6);
     expect(app.stockCuadro('pierna', 'crudo')).toBe(7);
-    expect(await app.cuadroOctavoPlato('arroz_con_pollo', 'piernas', 'crudo', input(2))).toBe(true);
+    expect(await app.cuadroOctavoPlato('arroz_con_pollo', 'piernas', 'cocido', input(2))).toBe(true);
     const libro = recargar();
-    expect(app.stockOctavoPlato('arroz_con_pollo', 'piernas', 'crudo')).toBe(2);
+    expect(app.stockOctavoPlato('arroz_con_pollo', 'piernas', 'cocido')).toBe(2);
     expect(app.octavosStockCorte('piernas')).toBe(4);
     expect(libro.filas.find((f) => f.rubro === 'octavo-pollo' && f.tipoProducto === 'crudo').cortes.queda.pierna).toBe(4);
     expect(app.origenIngresoDe(app.filaReal('arroz_con_pollo')).transformado).toBe(2);
@@ -170,7 +251,7 @@ test.each([
     const { app, recargar, nuevos } = escenario([
         [rubro, 5, 'Ingreso independiente crudo · pecho', 'crudo', ayer],
         [rubro, 3, 'Ingreso independiente crudo · pierna', 'crudo', ayer]
-    ]);
+    ], {}, { [rubro]: { soloCocido: false, tieneCocido: true } });
     const crudo = (corte) => app.stockOctavoPlato(id, corte, 'crudo');
     const cocido = (corte) => app.stockOctavoPlato(id, corte, 'cocido');
     const mover = (corte, objetivo) => app.cuadroOctavoPlato(id, corte, 'cocido', input(objetivo));
@@ -196,7 +277,7 @@ test('el crudo sin marca sigue disponible al lado de las entradas marcadas de pe
     const { app, recargar } = escenario([
         ['caldo-pollo', 3],
         ['caldo-pollo', 2, 'Ingreso independiente crudo · pecho']
-    ]);
+    ], {}, { 'caldo-pollo': { soloCocido: false, tieneCocido: true } });
     expect(await app.cuadroOctavoPlato('caldo_pollo', 'piernas', 'cocido', input(3))).toBe(true);
     recargar();
     expect(app.stockOctavoPlato('caldo_pollo', 'pechugas', 'crudo')).toBe(2);

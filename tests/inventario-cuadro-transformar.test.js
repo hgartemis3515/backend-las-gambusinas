@@ -12,7 +12,7 @@ const DIA = '2026-11-18';
 const fecha = `${DIA}T12:00:00-05:00`;
 const input = (v) => ({ value: String(v), dataset: {}, style: { setProperty: () => {} } });
 
-function escenario(iniciales) {
+function escenario(iniciales, opciones = {}) {
     const storage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
     class Event { constructor(type) { this.type = type; } }
     const app = vm.runInNewContext('(' + code.trim() + ')', {
@@ -21,7 +21,7 @@ function escenario(iniciales) {
     app.$nextTick = (fn) => fn && fn();
     app.restaurarEjemploDespiece(true);
     app.vaciarNumeros();
-    app.aplicarOpcionesCocido([]);
+    app.aplicarOpcionesCocido(Object.entries(opciones).map(([clave, opcion]) => ({ clave, ...opcion })));
     app.pulseRowTotal = () => {};
     app.productoBloqueado = () => false;
     app.activeTab = 'transformar';
@@ -38,7 +38,7 @@ function escenario(iniciales) {
     }));
     const recargar = () => {
         const b = boundsDiaOperativo(DIA);
-        const libro = armarLibro({ movimientos: guardados, ventas: [], desde: b.inicio, hasta: b.fin });
+        const libro = armarLibro({ movimientos: guardados, ventas: [], opciones, desde: b.inicio, hasta: b.fin });
         // Como el servidor al listar: el pase Crudo ↔ Cocido guardado trae también su salida.
         const otro = (t) => (t === 'cocido' ? 'crudo' : 'cocido');
         const visibles = guardados.flatMap((m) => (!m.paseTipo ? [m] : [m, {
@@ -96,7 +96,7 @@ describe('Octavo de pollo', () => {
         const { app, recargar, formula } = escenario(octavoBase);
         await app.cuadroFormulaTransformar('octavo|piernas', input(60));
         recargar();
-        expect(await app.cuadroFormulaTransformar('platoOctavo|arroz_con_pollo|piernas|crudo', input(20))).toBe(true);
+        expect(await app.cuadroFormulaTransformar('platoOctavo|arroz_con_pollo|piernas|cocido', input(20))).toBe(true);
         recargar();
         expect(app.octavosStockCorte('piernas')).toBe(70);
         expect(formula('octavo|piernas')).toEqual({ stock: 10, transformado: 60 });
@@ -171,7 +171,9 @@ describe('Octavo de pollo', () => {
     });
 
     test('los platos del octavo pasan su crudo desde el octavo y su cocido desde el crudo', async () => {
-        const { app, recargar, formula } = escenario([['octavo_pollo', 10, 'Ingreso independiente crudo · pierna']]);
+        const { app, recargar, formula } = escenario([['octavo_pollo', 10, 'Ingreso independiente crudo · pierna']], {
+            'arroz-pollo': { soloCocido: false, tieneCocido: true }
+        });
         expect(await app.cuadroFormulaTransformar('platoOctavo|arroz_con_pollo|piernas|crudo', input(4))).toBe(true);
         recargar();
         expect(app.octavosStockCorte('piernas')).toBe(6);
@@ -181,6 +183,37 @@ describe('Octavo de pollo', () => {
         expect(formula('platoOctavo|arroz_con_pollo|piernas|cocido')).toEqual({ stock: 0, transformado: 3 });
         expect(formula('platoOctavo|arroz_con_pollo|piernas|crudo')).toEqual({ stock: 0, transformado: 1 });
         expect(formula('platoOctavo|arroz_con_pollo|pechugas|crudo')).toEqual({ stock: 0, transformado: 0 });
+    });
+
+    test.each([
+        ['arroz_con_pollo', 'Arroz con pollo'], ['pollo_olla', 'Pollo a la olla'], ['caldo_pollo', 'Caldo de pollo']
+    ])('%s usa un cuadro cocido que recibe y devuelve el corte del octavo', async (id, nombre) => {
+        const { app, recargar, formula, nuevos } = escenario([
+            ['octavo_pollo', 10, 'Ingreso independiente crudo · pierna'],
+            [id, 3, 'Ingreso independiente crudo · pierna'],
+            [id, 2, 'Ingreso independiente cocido · pierna', 'cocido'],
+            [id, 1, 'Ingreso independiente crudo · pecho']
+        ]);
+        const cocido = `platoOctavo|${id}|piernas|cocido`;
+        expect(app.formulaTransformar(`platoOctavo|${id}|piernas|crudo`).fijar).toBeNull();
+        expect(formula(cocido)).toEqual({ stock: 5, transformado: 0 });
+        expect(await app.cuadroFormulaTransformar(cocido, input(4))).toBe(true);
+        expect(app.octavosStockCorte('piernas')).toBe(6);
+        expect(nuevos()).toEqual([
+            expect.objectContaining({ rubro: 'octavo-pollo', cantidad: -4, tipoProducto: 'crudo', motivo: `Pasa a ${nombre} · pierna` }),
+            expect.objectContaining({ rubro: app.claveDeFila[id], cantidad: 4, tipoProducto: 'cocido', motivo: 'Sale de Octavo de pollo · pierna' })
+        ]);
+        recargar();
+        expect(formula(cocido)).toEqual({ stock: 5, transformado: 4 });
+        expect(app.stockOctavoPlato(id, 'pechugas', 'cocido')).toBe(1);
+        expect(app.platosIngresoOctavo(app.filaReal(id))[0]).toMatchObject({
+            soloCocido: true, piernaCrudo: 0, piernaCocido: 9, pechoCrudo: 0, pechoCocido: 1
+        });
+
+        expect(await app.cuadroFormulaTransformar(cocido, input(0))).toBe(true);
+        recargar();
+        expect(formula(cocido)).toEqual({ stock: 5, transformado: 0 });
+        expect(app.octavosStockCorte('piernas')).toBe(10);
     });
 });
 
@@ -239,6 +272,49 @@ describe('Platos y piezas que salen de otra', () => {
         expect(el.value).toBe('12');
         recargar();
         expect(formula('tira')).toEqual({ stock: 0, transformado: 12 });
+        expect(app.stockCuadro('tira_panceta', 'crudo')).toBe(12);
+        expect(app.stockCuadro('tira_panceta', 'cocido')).toBe(0);
+        expect(app.ingresoVisibleTipo(app.filaReal('tira_panceta'), 'crudo')).toBe(0);
+    });
+
+    test('deshacer un lote crudo conserva el lote cocido que se registró antes en el mismo período', async () => {
+        const { app, recargar, formula } = escenario([
+            ['panceta', 3], ['panceta', -1, 'Pasa a tiras'], ['tira_panceta', 6, 'Sale de Panceta', 'cocido']
+        ]);
+        expect(app.pancetasHoy()).toBe(1);
+        expect(formula('tira')).toEqual({ stock: 0, transformado: 0 });
+        expect(await app.cuadroFormulaTransformar('tira', input(6))).toBe(true);
+        recargar();
+        expect(app.pancetasHoy()).toBe(2);
+        expect(await app.cuadroFormulaTransformar('tira', input(0))).toBe(true);
+        recargar();
+        expect(app.pancetasHoy()).toBe(1);
+        expect(app.stockCuadro('panceta', 'crudo')).toBe(2);
+        expect(app.stockCuadro('tira_panceta', 'crudo')).toBe(0);
+        expect(formula('cocido|tira_panceta')).toEqual({ stock: 6, transformado: 0 });
+    });
+
+    test('cocinar tiras conserva el cocido anterior y las piezas gastan solo el cocido', async () => {
+        const { app, recargar, formula, nuevos } = escenario([
+            ['panceta', 3], ['tira_panceta', 2, 'Sale de Panceta', 'cocido']
+        ]);
+        const cocido = 'cocido|tira_panceta';
+        expect(formula(cocido)).toEqual({ stock: 2, transformado: 0 });
+        expect(await app.cuadroFormulaTransformar('tira', input(6))).toBe(true);
+        recargar();
+        expect(await app.cuadroFormulaTransformar(cocido, input(3))).toBe(true);
+        expect(nuevos().at(-1)).toMatchObject({ rubro: 'tira-panceta', tipoProducto: 'cocido', paseTipo: true, cantidad: 3 });
+        recargar();
+        expect(formula(cocido)).toEqual({ stock: 2, transformado: 3 });
+        expect(app.stockCuadro('tira_panceta', 'crudo')).toBe(3);
+        expect(app.fijarTirasUsadas(1)).toBe(true);
+        recargar();
+        expect(app.stockCuadro('tira_panceta', 'cocido')).toBe(4);
+        expect(app.stockCuadro('tira_panceta', 'crudo')).toBe(3);
+        expect(await app.cuadroFormulaTransformar(cocido, input(0))).toBe(true);
+        recargar();
+        expect(app.stockCuadro('tira_panceta', 'crudo')).toBe(6);
+        expect(formula(cocido)).toEqual({ stock: 1, transformado: 0 });
     });
 
     test('usar tiras descuenta su ingreso total cocido de inmediato y al recargar', () => {
@@ -304,7 +380,8 @@ describe('Teclado calculadora', () => {
     test('el teclado ajusta un lote de 6 tiras cuando quedan 5 y conserva la tira usada', async () => {
         const { app, recargar, formula } = escenario([['panceta', 3]]);
         await app.cuadroFormulaTransformar('tira', input(6));
-        app.fijarTirasUsadas(1);
+        expect(await app.cuadroFormulaTransformar('cocido|tira_panceta', input(1))).toBe(true);
+        expect(app.fijarTirasUsadas(1)).toBe(true);
         recargar();
         expect(formula('tira')).toEqual({ stock: 0, transformado: 5 });
         expect(await app.cuadroFormulaTransformar('tira', input(0))).toBe(false);
@@ -366,7 +443,8 @@ describe('HTML', () => {
         expect(transformar).toContain(`@change="fijarStockConIngreso('pechuga', 'crudo', $event.target)"`);
         expect(transformar).toContain(`@change="fijarStockConIngreso('pierna', 'crudo', $event.target)"`);
         const bloques = transformar.match(/<div class="tf-bloque"[\s\S]*?<\/label>/g);
-        expect(bloques.length).toBe(16);
+        expect(bloques.length).toBe(15);
+        expect(transformar).toContain('x-for="tipo in tiposDe(filaReal(plato.id))"');
         bloques.forEach((b) => {
             expect(b).toMatch(/>Stock<\/span>[\s\S]*>\+<\/span>[\s\S]*>Transformar<\/span>/);
             expect(b).toMatch(/min="0" :value="ft\.transformado"/);

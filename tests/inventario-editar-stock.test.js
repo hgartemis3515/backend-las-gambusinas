@@ -153,15 +153,15 @@ test('solo cocido establece su apertura cocida', async () => {
     expect(app.stockCuadro('tira_panceta', 'cocido')).toBe(0);
 });
 
-test('platos por corte conservan apertura pecho y pierna al reabrir y repetir', async () => {
+test('platos solo cocidos conservan la apertura histórica por corte al reabrir y repetir', async () => {
     const { app, recargar } = escenario([mov('pollo-olla', 3, apertura, 'crudo', 'Ajuste apertura · pecho'), mov('pollo-olla', 7, apertura, 'crudo', 'Ajuste apertura · pierna'), mov('pollo-olla', 2, hoy)]);
     app.abrirEditarStock('pollo_olla');
-    expect(app.editarStock.lineas[0]).toMatchObject({ pecho: { crudo: 3 }, pierna: { crudo: 7 } });
-    app.editarStock.lineas[0].pecho.crudo = 4; app.editarStock.lineas[0].pierna.crudo = 5;
+    expect(app.editarStock.lineas[0]).toMatchObject({ pecho: { cocido: 3 }, pierna: { cocido: 7 } });
+    app.editarStock.lineas[0].pecho.cocido = 4; app.editarStock.lineas[0].pierna.cocido = 5;
     await app.guardarModalStock(); recargar();
-    expect(app.filaReal('pollo_olla')).toMatchObject({ saldoAnterior: 9, ingreso: 2, correccion: 0 });
+    expect(app.filaReal('pollo_olla')).toMatchObject({ saldoAnteriorCocido: 9, ingresoCocido: 2, saldoAnterior: 0 });
     app.abrirEditarStock('pollo_olla');
-    expect(app.editarStock.lineas[0]).toMatchObject({ pecho: { crudo: 4 }, pierna: { crudo: 5 } });
+    expect(app.editarStock.lineas[0]).toMatchObject({ pecho: { cocido: 4 }, pierna: { cocido: 5 } });
     const escritos = app.paso.mock.calls.length; await app.guardarModalStock();
     expect(app.paso).toHaveBeenCalledTimes(escritos);
 });
@@ -266,16 +266,16 @@ test('grupo de tabla guarda apertura de padre y platos en el mismo modal', async
     app.filasTransformacionDe = (r) => r.id === 'arroz' ? [app.filaReal('pollo_olla')] : [];
     app.abrirEditarStockFila(app.filaReal('arroz'));
     app.editarStock.lineas[0].crudo = 8;
-    app.editarStock.lineas[1].pecho.crudo = 3; app.editarStock.lineas[1].pierna.crudo = 4;
+    app.editarStock.lineas[1].pecho.cocido = 3; app.editarStock.lineas[1].pierna.cocido = 4;
     expect(await app.guardarModalStock()).toBe(true);
     expect(app.filaReal('arroz').saldoAnterior).toBe(8);
-    expect(app.filaReal('pollo_olla').saldoAnterior).toBe(7);
+    expect(app.filaReal('pollo_olla').saldoAnteriorCocido).toBe(7);
 });
 
 test('validacion de todas las lineas impide una escritura parcial', async () => {
     const { app } = escenario();
     app.abrirEditarStock('pollo_olla');
-    app.editarStock.lineas[0].pecho.crudo = 5; app.editarStock.lineas[0].pierna.crudo = -1;
+    app.editarStock.lineas[0].pecho.cocido = 5; app.editarStock.lineas[0].pierna.cocido = -1;
     expect(await app.guardarModalStock()).toBe(false);
     expect(app.paso).not.toHaveBeenCalled(); expect(app.editarStock.abierto).toBe(true);
 });
@@ -375,10 +375,10 @@ test('pachamanca pierna conserva 30 crudos y 33 cocidos en saldo anterior y qued
 
 test('texto largo conserva las marcas de corte y el limite del modelo', async () => {
     const { app, guardados } = escenario();
-    app.abrirEditarStock('pollo_olla'); app.editarStock.lineas[0].pecho.crudo = 3; app.editarStock.lineas[0].pierna.crudo = 4;
+    app.abrirEditarStock('pollo_olla'); app.editarStock.lineas[0].pecho.cocido = 3; app.editarStock.lineas[0].pierna.cocido = 4;
     app.editarStock.motivo = 'Texto con pecho y pierna '.repeat(12);
     await app.guardarModalStock();
     expect(guardados.every((m) => m.motivo.length <= 200 && m.motivo.startsWith('Ajuste apertura'))).toBe(true);
     app.abrirEditarStock('pollo_olla');
-    expect(app.editarStock.lineas[0]).toMatchObject({ pecho: { crudo: 3 }, pierna: { crudo: 4 } });
+    expect(app.editarStock.lineas[0]).toMatchObject({ pecho: { cocido: 3 }, pierna: { cocido: 4 } });
 });

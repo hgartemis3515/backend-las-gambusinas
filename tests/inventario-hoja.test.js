@@ -40,6 +40,47 @@ function pintar(app, movimientos, ventas, ymd = '2026-11-11') {
     return libro;
 }
 
+test('configuración Tabla ofrece los tres platos en solo cocido por defecto y permite cambiar uno', async () => {
+    const app = crearApp();
+    const listar = () => app.draftCocido.filter((d) => d.soloCocido !== undefined);
+    app.openConversionesModal();
+    expect(listar().map((d) => d.clave).sort()).toEqual(['arroz-pollo', 'caldo-pollo', 'pollo-olla']);
+    expect(listar().every((d) => d.soloCocido)).toBe(true);
+    const cambiar = listar().find((d) => d.clave === 'pollo-olla');
+    cambiar.soloCocido = false;
+    app.api = jest.fn(async () => {});
+    app.cargarKardex = jest.fn(async () => {
+        app.cocidoOpciones = [{ clave: 'pollo-olla', tieneCocido: true, soloCocido: false }];
+        app.aplicarOpcionesCocido(app.cocidoOpciones);
+    });
+    await app.guardarCocidoConfig();
+    expect(app.api).toHaveBeenCalledTimes(1);
+    expect(app.api).toHaveBeenCalledWith('/inventario/rubros/pollo-olla', {
+        method: 'PUT', body: JSON.stringify({ soloCocido: false })
+    });
+    expect(app.tiposDe(app.filaReal('pollo_olla'))).toEqual(['crudo', 'cocido']);
+    expect(app.tiposDe(app.filaReal('caldo_pollo'))).toEqual(['cocido']);
+    app.openConversionesModal();
+    expect(listar().find((d) => d.clave === 'pollo-olla').soloCocido).toBe(false);
+});
+
+test.each([['arroz_con_pollo', 'arroz-pollo'], ['caldo_pollo', 'caldo-pollo'], ['pollo_olla', 'pollo-olla']])(
+    '%s reúne la apertura histórica y descuenta ventas del único saldo de Tabla', (id, rubro) => {
+        const app = crearApp();
+        const movimientos = [
+            mov(rubro, 'ingreso', 6, horaAyer('16:30'), 'Ingreso inicial · pecho'),
+            mov(rubro, 'ingreso', 4, horaAyer('16:30'), 'Ingreso inicial · pierna', 'cocido'),
+            mov(rubro, 'egreso', 1, hora('08:00'), 'Venta manual · pierna', 'cocido')
+        ];
+        pintar(app, movimientos, [{ rubro, cantidad: 2, fecha: hora('09:00'), tipoProducto: 'cocido' }]);
+        const row = app.filaReal(id);
+        expect(app.tiposDe(row)).toEqual(['cocido']);
+        expect(row).toMatchObject({ saldoAnteriorCocido: 10, venta: 0, ventaCocido: 3, cocido: 7 });
+        expect(app.calcSaldoTipo(row, 'cocido')).toBe(7);
+        expect(row.repartoPlatoOctavo.cocido.saldo).toBe(7);
+    }
+);
+
 test.each([[10, 0, 10], [0, 10, 10], [1, 10, 4]])('cocinar conserva el origen de las cantidades (%i de apertura, %i de ingreso)', (apertura, ingreso, cocina) => {
     const app = crearApp();
     const rubro = 'pachamanca-chancho';
@@ -122,6 +163,7 @@ test.each([
     ['octavo_pollo', 'arroz_con_pollo', ' · pecho']
 ])('la lupa de %s muestra el pase a su plato y solo la cocción que quedó', (id, idPlato, marca) => {
     const app = crearApp();
+    if (id === 'octavo_pollo') app.aplicarOpcionesCocido([{ clave: 'arroz-pollo', tieneCocido: true, soloCocido: false }]);
     const row = app.filaReal(id);
     const plato = app.filaReal(idPlato);
     const rubro = app.claveDeFila[idPlato];
@@ -210,6 +252,7 @@ test('la lupa de Pecho resume el resultado y deja los pasos relacionados en orde
 
 test('la lupa de Octavo conserva el origen de cada corte y no descuenta el cocido de otro corte', () => {
     const app = crearApp();
+    app.aplicarOpcionesCocido([{ clave: 'caldo-pollo', tieneCocido: true, soloCocido: false }]);
     const octavo = app.filaReal('octavo_pollo');
     const caldo = app.filaReal('caldo_pollo');
     const rubro = app.claveDeFila[octavo.id];
@@ -260,6 +303,7 @@ test('la lupa deja separado un pase sin la entrada registrada en el destino', ()
 
 test('el recorrido de Pecho respeta que una pieza se transforma en dos octavos', () => {
     const app = crearApp();
+    app.aplicarOpcionesCocido([{ clave: 'caldo-pollo', tieneCocido: true, soloCocido: false }]);
     const pecho = app.filaReal('pechuga');
     const octavo = app.filaReal('octavo_pollo');
     const caldo = app.filaReal('caldo_pollo');
@@ -1706,7 +1750,7 @@ describe('modales del grupo de Octavo de pollo', () => {
         expect(textos(principal.hayCortes)).toEqual(['Pierna 6', 'Pecho 4']);
         expect(principal.cuadros.map((c) => [c.etiqueta, c.hay])).toEqual([['Pierna', 6], ['Pecho', 4]]);
         const plato = app.ingresoGrupo.lineas.find((l) => l.id === 'arroz_con_pollo');
-        expect(plato.cuadros.map((c) => c.etiqueta)).toEqual(expect.arrayContaining(['Pierna crudo', 'Pecho crudo']));
+        expect(plato.cuadros.map((c) => c.etiqueta)).toEqual(['Pierna cocido', 'Pecho cocido']);
         expect(plato.hayCortes).toHaveLength(2);
     });
 });
