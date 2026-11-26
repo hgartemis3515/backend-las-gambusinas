@@ -3932,7 +3932,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                                   <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                     <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|' + ad.id), monto: null }" x-effect="ft = formulaTransformar('cocido|' + ad.id)">
-                                      <div class="tf-formula" :class="ft.stock <= 0 ? 'stock-cero-alarma' : ''">
+                                      <div class="tf-formula" :class="formulaSinStock(ft, monto) ? 'stock-cero-alarma' : ''">
                                         <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                         <span class="tf-op" aria-hidden="true">+</span>
                                         <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + ad.nombre" :data-formula="'cocido|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="cuadroFormulaTransformar('cocido|' + ad.id, $event.target).finally(() => { monto = null; })"></label>
@@ -4046,7 +4046,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                   <p class="caja-stock-etiq">Stock actual (Cocido):</p>
                                   <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                                     <div class="tf-bloque" x-data="{ ft: formulaTransformar('cocido|' + ad.id), monto: null }" x-effect="ft = formulaTransformar('cocido|' + ad.id)">
-                                      <div class="tf-formula" :class="ft.stock <= 0 ? 'stock-cero-alarma' : ''">
+                                      <div class="tf-formula" :class="formulaSinStock(ft, monto) ? 'stock-cero-alarma' : ''">
                                         <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                                         <span class="tf-op" aria-hidden="true">+</span>
                                         <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="'Transformar crudo en cocido de ' + ad.nombre" :data-formula="'cocido|' + ad.id" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="cuadroFormulaTransformar('cocido|' + ad.id, $event.target).finally(() => { monto = null; })"></label>
@@ -4653,7 +4653,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <p class="caja-stock-etiq" x-text="tipoTira === 'crudo' ? 'Stock actual (Crudo)' : 'Stock actual (Cocido)'"></p>
                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
                   <div class="tf-bloque" x-data="{ ft: formulaTransformar(formulaTira), monto: null }" x-effect="ft = formulaTransformar(formulaTira)">
-                    <div class="tf-formula" :class="ft.stock <= 0 ? 'stock-cero-alarma' : ''">
+                    <div class="tf-formula" :class="formulaSinStock(ft, monto) ? 'stock-cero-alarma' : ''">
                       <div class="tf-campo"><span class="tf-etiq">Stock</span><span class="tf-num" x-text="formatNum(ft.stock)"></span></div>
                       <span class="tf-op" aria-hidden="true">+</span>
                       <label class="tf-campo tf-campo-ing"><span class="tf-etiq">Transformar</span><input type="number" class="tf-num" min="0" :value="ft.transformado" :step="ft.paso" :disabled="!ft.fijar" :aria-label="tipoTira === 'crudo' ? 'Tiras crudas que salen de la panceta (1 panceta = 6 tiras)' : 'Transformar crudo en cocido de Tira de panceta'" :data-formula="formulaTira" @input="monto = Number($el.value) || 0; ajustarCajaDigitos($el)" @change="cuadroFormulaTransformar(formulaTira, $event.target).finally(() => { monto = null; })"></label>
@@ -8724,6 +8724,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 <span class="block text-[11px] text-[#a0a0b8] font-normal">Marcado: arroz blanco y arroz verde se llenan en kg y las porciones van abajo. Sin marcar: se llenan en porciones, como antes.</span>
               </span>
             </label>
+            <label class="flex items-start gap-2 text-sm text-white cursor-pointer">
+              <input type="checkbox" class="accent-[#d4af37] w-4 h-4 mt-0.5" :checked="frescoTransformadoEnCero" @change="setFrescoTransformadoEnCero($event.target.checked)" data-testid="config-fresco-en-cero">
+              <span>Pollo fresco y Pato fresco quedan en 0 al transformar
+                <span class="block text-[11px] text-[#a0a0b8] font-normal">Marcado: si transformas 10, esos 10 quedan en 0. El fresco descuenta lo que ya pasó a pecho y pierna.</span>
+              </span>
+            </label>
           </div>
         </div>
 
@@ -11052,6 +11058,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         mostrarIngresosTransformar: true,
         // Transformar de arroz blanco y verde: true se llena en kg, false en porciones (como antes).
         arrozEnKg: true,
+        // Marcado: transformar 10 pollos o patos deja esos 10 en 0.
+        frescoTransformadoEnCero: true,
         compactView: false,
         soundEnabled: true,
         busqueda: '',
@@ -17631,7 +17639,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         valorTipo(row, base, tipo) {
-          return Number(row && row[this.campoTipo(base, tipo)]) || 0;
+          const n = Number(row && row[this.campoTipo(base, tipo)]) || 0;
+          // Lo que salió a un vinculado (sandwich, filete, pecho, pierna) también es transformación,
+          // aunque el pase haya quedado solo anotado en el destino.
+          if (base !== 'transformacion' || tipo === 'cocido' || !row) return n;
+          return this.redondear3(n + this.extraTransformacionVinculada(row));
         },
 
         etiquetaTipo(tipo, row) {
@@ -19894,6 +19906,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             this.mostrarEncabezadoMapa = ver('inventario-transformar-encabezado-mapa');
             this.mostrarIngresosTransformar = localStorage.getItem('inventario-transformar-ingresos') !== '0';
             this.arrozEnKg = localStorage.getItem('inventario-transformar-arroz-kg') !== '0';
+            this.frescoTransformadoEnCero = localStorage.getItem('inventario-tabla-fresco-en-cero') !== '0';
           } catch (e) {}
         },
 
@@ -19902,6 +19915,16 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           try {
             localStorage.setItem('inventario-transformar-arroz-kg', this.arrozEnKg ? '1' : '0');
           } catch (e) {}
+        },
+
+        setFrescoTransformadoEnCero(activo) {
+          this.frescoTransformadoEnCero = !!activo;
+          this._faltantesTrans = null;
+          this._indiceSalidasTransformar = null;
+          try {
+            localStorage.setItem('inventario-tabla-fresco-en-cero', this.frescoTransformadoEnCero ? '1' : '0');
+          } catch (e) {}
+          this.tocarHoja();
         },
 
         setOcultarIngresosTransformar(ocultar) {
@@ -21263,6 +21286,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             for (const grupo of this.resumenSectoresOctavoPeriodo(sectores).grupos) {
               if (grupo.salida) agregar(filaOctavo, grupo.nombre, 'Separación · ' + grupo.corte, grupo.salida, grupo.fecha, true);
             }
+          }
+          for (const [id, info] of this.faltantesTransformacion()) {
+            const row = this.filaReal(id);
+            if (!row) continue;
+            for (const parte of info.partes) agregar(row, parte.nombre, 'Vinculado', parte.unidades, parte.fecha || 0);
           }
           for (const salida of indice.values()) {
             salida.grupos = Array.from(salida.grupos.values());
@@ -23558,6 +23586,150 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         // clave: 'filete', 'hijo|<padre>|<plato>', 'octavo|<corte>', 'platoOctavo|<plato>|<corte>|<tipo>',
         // 'cocido|<producto>', 'tira', 'mapa|<mapa>|<clave del corte>', 'arroz|<campo>'.
         // stock y transformado reparten el saldo disponible del cuadro.
+        // El rojo avisa solo cuando no hay nada: Stock 0 + Transformar 12 sigue siendo stock.
+        formulaSinStock(ft, monto) {
+          if (!ft) return true;
+          const transformado = monto === null || monto === undefined ? ft.transformado : monto;
+          return this.redondear3((Number(ft.stock) || 0) + (Number(transformado) || 0)) <= 0;
+        },
+
+        extraTransformacionVinculada(row) {
+          const info = row && this.faltantesTransformacion().get(row.id);
+          return info ? info.unidades : 0;
+        },
+
+        // Destinos que recibieron «Sale de / Viene de» este producto y el origen no tiene el pase.
+        // Pollo fresco y pato fresco solo descuentan si la opción de Tabla está marcada.
+        faltantesTransformacion() {
+          const lista = this.movimientosPeriodo || [];
+          const firma = [
+            this.frescoTransformadoEnCero ? '1' : '0',
+            Number(this.config && this.config.factorFiletesPorPechuga) || 0,
+            Number(this.config && this.config.factorFiletesPorPierna) || 0,
+            Number(this.config && this.config.factorPechugasPorFresco) || 0,
+            Number(this.config && this.config.factorPiernasPorFresco) || 0
+          ].join('|');
+          const cache = this._faltantesTrans;
+          if (cache && cache.lista === lista && cache.firma === firma) return cache.map;
+          if (this._armandoFaltantes) return new Map();
+          this._armandoFaltantes = true;
+          try {
+            const map = this.calcularFaltantesTransformacion(lista);
+            this._faltantesTrans = { lista, firma, map };
+            return map;
+          } finally {
+            this._armandoFaltantes = false;
+          }
+        },
+
+        calcularFaltantesTransformacion(lista) {
+          const recibos = new Map();
+          for (const m of lista) {
+            if (!m || m.clase !== 'ingreso' || !m.rubro) continue;
+            const n = Number(m.cantidad) || 0;
+            if (!n) continue;
+            const concepto = this.norm(String(m.motivo || '').split(' · ')[0]);
+            let origenNombre = '';
+            if (concepto.indexOf('sale de ') === 0) origenNombre = concepto.slice('sale de '.length);
+            else if (concepto.indexOf('viene de ') === 0) origenNombre = concepto.slice('viene de '.length);
+            else continue;
+            let bag = recibos.get(origenNombre);
+            if (!bag) { bag = new Map(); recibos.set(origenNombre, bag); }
+            bag.set(m.rubro, this.redondear3((bag.get(m.rubro) || 0) + n));
+          }
+          const out = new Map();
+          const sumar = (row, parte) => {
+            if (!(parte.unidades > 0)) return;
+            let acc = out.get(row.id);
+            if (!acc) { acc = { unidades: 0, partes: [] }; out.set(row.id, acc); }
+            acc.unidades = this.redondear3(acc.unidades + parte.unidades);
+            acc.partes.push(parte);
+          };
+          for (const row of this.rows || []) {
+            const bag = recibos.get(this.norm(row.nombre));
+            if (!bag) continue;
+            const fresco = row.id === 'pollo_fresco' || row.id === 'pato_fresco';
+            if (fresco) {
+              if (!this.frescoTransformadoEnCero) continue;
+              const cortes = this.cortesDeFrescoTransformado(row);
+              let implied = 0;
+              let fecha = 0;
+              for (const corte of cortes) {
+                const hijo = this.filaReal(corte.id);
+                const clave = hijo && this.claveDeFila[hijo.id];
+                const recibido = clave ? (bag.get(clave) || 0) : 0;
+                if (!(corte.factor > 0) || recibido <= 0) continue;
+                implied = Math.max(implied, this.redondear3(recibido / corte.factor));
+              }
+              const ya = this.transformadoHoy(row.id, row.id === 'pollo_fresco' ? 'Pasa a piezas' : 'Pasa a cortes');
+              const extra = this.redondear3(Math.max(0, implied - ya));
+              sumar(row, { nombre: row.id === 'pollo_fresco' ? 'Pecho y Pierna' : 'Pecho y Pierna de pato', unidades: extra, fecha });
+              continue;
+            }
+            if (row.id === 'arroz' || row.id === 'arroz_blanco' || row.id === 'arroz_verde' || row.id === 'arroz_beata') continue;
+            for (const [rubro, recibido] of bag) {
+              if (!(recibido > 0)) continue;
+              const hijo = this.filaPorClave(rubro);
+              if (!hijo || hijo.id === row.id) continue;
+              const factor = this.factorDesdeOrigen(row.id, hijo.id);
+              if (!(factor > 0)) continue;
+              const unidades = this.redondear3(recibido / factor);
+              const ya = this.redondear3(this.yaPasoHacia(row.id, hijo.id) + this.paseMasivoYaContado(row.id, hijo.id));
+              const extra = this.redondear3(Math.max(0, unidades - ya));
+              sumar(row, { nombre: hijo.nombre, unidades: extra, fecha: 0 });
+            }
+          }
+          return out;
+        },
+
+        cortesDeFrescoTransformado(row) {
+          if (row.id === 'pollo_fresco') {
+            return [
+              { id: 'pechuga', factor: Number(this.config.factorPechugasPorFresco) || 2 },
+              { id: 'pierna', factor: Number(this.config.factorPiernasPorFresco) || 2 }
+            ];
+          }
+          const mapa = this.mapaPatoFresco && this.mapaPatoFresco();
+          const cortes = mapa ? this.cortesDeOrigen(mapa).filter((c) => Number(c.factor) > 0) : [];
+          if (cortes.length) return cortes.map((c) => ({ id: this.idDeClave(c.clave), factor: Number(c.factor) || 0 }));
+          return [{ id: 'pechuga_pato', factor: 2 }, { id: 'pierna_pato', factor: 2 }];
+        },
+
+        factorDesdeOrigen(origenId, destinoId) {
+          if (origenId === 'pechuga' && destinoId === 'filete') return Number(this.config.factorFiletesPorPechuga) || 1;
+          if (origenId === 'pierna' && destinoId === 'filete') {
+            const f = Number(this.config.factorFiletesPorPierna);
+            return f > 0 ? f : 0;
+          }
+          if ((origenId === 'pechuga' || origenId === 'pierna') && destinoId === 'octavo_pollo') return this.factorOctavosPorPieza();
+          if (origenId === 'panceta' && destinoId === 'tira_panceta') return 6;
+          if (origenId === 'arroz') return 0;
+          return 1;
+        },
+
+        // «Pasa a Arroz con pollo · pierna» cuenta como pase hacia ese plato.
+        yaPasoHacia(origenId, destinoId) {
+          const clave = this.claveDeFila[origenId];
+          const prefijo = this.norm(this.motivoHacia(destinoId));
+          if (!clave || !prefijo) return 0;
+          let total = 0;
+          for (const m of this.movimientosPeriodo || []) {
+            if (!m || m.clase !== 'ingreso' || m.rubro !== clave) continue;
+            const concepto = this.norm(String(m.motivo || '').split(' · ')[0]);
+            if (concepto !== prefijo) continue;
+            total -= Number(m.cantidad) || 0;
+          }
+          return this.redondear3(total);
+        },
+
+        paseMasivoYaContado(origenId, destinoId) {
+          if (origenId === 'panceta' && destinoId === 'tira_panceta') return this.transformadoHoy(origenId, 'Pasa a tiras');
+          if (origenId === 'tira_panceta' && destinoId === 'trozo_panceta') return this.transformadoHoy(origenId, 'Pasa a trozos');
+          if (origenId === 'pescado_entero' && destinoId === 'pieza_pescado') return this.transformadoHoy(origenId, 'Pasa a piezas');
+          if (origenId === 'pota' && destinoId === 'pieza_pota') return this.transformadoHoy(origenId, 'Pasa a piezas');
+          return 0;
+        },
+
         formulaTransformar(clave) {
           const [tipoCuadro, a, b, c] = String(clave || '').split('|');
           const vacio = { stock: 0, transformado: 0, fijar: null, paso: 'any', entero: false };

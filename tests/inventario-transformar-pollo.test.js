@@ -157,6 +157,54 @@ test.each([['pechugas', 'pechuga'], ['piernas', 'pierna']])('cada plato de %s re
     });
 });
 
+test('el transformado de Pecho incluye el sandwich aunque el pase haya quedado solo en el destino', () => {
+    const { app } = escenario([
+        ['pechuga-pollo', 22, 'Ingreso inicial'],
+        ['pechuga-pollo', -20, 'Pasa a Filete de pollo'],
+        ['filete', 20, 'Sale de Pecho de Pollo'],
+        ['sandwiches', 2, 'Sale de Pecho de Pollo', 'cocido']
+    ]);
+    const pecho = app.filaReal('pechuga');
+    expect(app.valorTipo(pecho, 'ingreso', 'crudo')).toBe(22);
+    expect(app.valorTipo(pecho, 'transformacion', 'crudo')).toBe(22);
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(0);
+    const salida = app.resumenSalidaProducto('pechuga');
+    expect(salida.total).toBe(22);
+    expect(salida.grupos.map((g) => [g.destino, g.total])).toEqual(expect.arrayContaining([['Sandwich', 2]]));
+});
+
+test('un pase de filete ya anotado en el pecho no se vuelve a sumar', () => {
+    const { app } = escenario([
+        ['pechuga-pollo', 10, 'Ingreso inicial'],
+        ['pechuga-pollo', -4, 'Pasa a Filete de pollo'],
+        ['filete', 4, 'Sale de Pecho de Pollo']
+    ]);
+    const pecho = app.filaReal('pechuga');
+    expect(app.valorTipo(pecho, 'transformacion', 'crudo')).toBe(4);
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(6);
+});
+
+test('transformar 10 pollos o patos deja esos 10 en 0 si la opción de Tabla está marcada', () => {
+    const { app } = escenario([
+        ['pollo-origen', 10, 'Ingreso inicial'],
+        ['pechuga-pollo', 20, 'Sale de Pollo fresco'],
+        ['pierna-pollo', 20, 'Sale de Pollo fresco'],
+        ['pato', 10, 'Ingreso inicial'],
+        ['pechuga-pato', 20, 'Sale de Pato fresco'],
+        ['pierna-pato', 20, 'Sale de Pato fresco']
+    ]);
+    expect(app.frescoTransformadoEnCero).toBe(true);
+    expect(app.stockCuadro('pollo_fresco', 'crudo')).toBe(0);
+    expect(app.valorTipo(app.filaReal('pollo_fresco'), 'transformacion', 'crudo')).toBe(10);
+    expect(app.stockCuadro('pato_fresco', 'crudo')).toBe(0);
+    expect(app.valorTipo(app.filaReal('pato_fresco'), 'transformacion', 'crudo')).toBe(10);
+
+    app.setFrescoTransformadoEnCero(false);
+    expect(app.stockCuadro('pollo_fresco', 'crudo')).toBe(10);
+    expect(app.stockCuadro('pato_fresco', 'crudo')).toBe(10);
+    expect(app.valorTipo(app.filaReal('pollo_fresco'), 'transformacion', 'crudo')).toBe(0);
+});
+
 test('transformar Pecho de Pollo en Sandwich alimenta la única caja de cocido', async () => {
     const { app, recargar, nuevos } = escenario([['pechuga-pollo', 10], ['sandwiches', 2, 'Sale de Pecho de Pollo']]);
     const clave = 'hijo|pechuga|sandwich';
@@ -169,7 +217,7 @@ test('transformar Pecho de Pollo en Sandwich alimenta la única caja de cocido',
     expect(app.formulaTransformar(clave)).toMatchObject({ stock: 0, transformado: 3 });
     expect(app.stockCuadro('sandwich', 'crudo')).toBe(0);
     expect(app.stockCuadro('sandwich', 'cocido')).toBe(3);
-    expect(app.stockCuadro('pechuga', 'crudo')).toBe(9);
+    expect(app.stockCuadro('pechuga', 'crudo')).toBe(7);
 });
 
 test('bajar el cuadro devuelve la pieza a su origen', async () => {
