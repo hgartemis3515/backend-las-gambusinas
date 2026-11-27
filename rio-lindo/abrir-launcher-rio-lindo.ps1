@@ -22,7 +22,7 @@ if (-not (Test-Path -LiteralPath $configFile)) {
             facturacion = (Join-Path $base 'NO_CONFIGURADO_FACTURACION')
         }
         ports = @{ backend = 3020; cocina = 3021; expoMetro = 8082; facturacion = 5175 }
-        publicBaseUrl = 'http://127.0.0.1:3020'
+        publicBaseUrl = 'http://192.168.50.102:3020'
         cloneParentDir = $base
         cloneUrls = @{
             backend = 'https://github.com/linareskiara005-hub/backend-rio-lindo.git'
