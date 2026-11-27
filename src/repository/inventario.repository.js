@@ -272,8 +272,13 @@ async function crearMovimiento(data, usuarioId) {
     const unificado = !paseTipo && esPlatoOctavoVenta(rubroClave)
         && perfilRubro(rubroClave, await Rubro.findOne({ clave: rubroClave }).select('soloCocido').lean()).soloCocido;
     const tipo = sandwich || unificado ? 'cocido' : tipoPedido;
+    const marcaNota = ' · Motivo: ';
+    const corteNota = motivo.indexOf(marcaNota);
+    const notaIngreso = corteNota === -1 ? '' : motivo.slice(corteNota);
+    if (corteNota !== -1) motivo = motivo.slice(0, corteNota);
     if (sandwich && motivo === 'Ingreso independiente crudo') motivo = 'Ingreso independiente cocido';
     if (unificado) motivo = motivo.replace(/^(Ingreso independiente|Conteo) crudo\b/, '$1 cocido');
+    if (notaIngreso) motivo += notaIngreso;
     if (paseTipo) {
         if (!rubro || clase !== 'ingreso' || cantidad <= 0 || !motivo.startsWith('Pasa de ' + otroTipo(tipo) + ' ')) {
             throw Object.assign(new Error('El pase entre crudo y cocido no es válido.'), { statusCode: 400 });

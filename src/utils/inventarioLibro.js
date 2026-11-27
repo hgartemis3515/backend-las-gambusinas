@@ -43,9 +43,16 @@ function esNotaReparto(motivo) {
     return /^Saldo anterior · (?:pecho|pierna|sin separar)$/.test(String(motivo || ''));
 }
 
+function motivoSinNota(motivo) {
+    const texto = String(motivo || '');
+    const marca = ' · Motivo: ';
+    const corte = texto.indexOf(marca);
+    return corte === -1 ? texto : texto.slice(0, corte);
+}
+
 /** Corte que indica un motivo. Misma regla que motivoEsCorte en inventario.html. */
 function corteDeMotivo(motivo) {
-    const m = String(motivo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const m = motivoSinNota(motivo).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     if (/(?:^|·)\s*sin separar\s*$/.test(m)) return '';
     const marca = m.match(/(?:^|·)\s*(pecho|pierna)\s*$/);
     if (marca) return marca[1];
@@ -71,7 +78,7 @@ function esPaseTransformacion(motivo) {
 // Beata, Personal, Evento y Rio Lindo son descarga. El cuadro anota el ingreso
 // y lo separa en el mismo momento: no es mercadería que entró.
 function esDescargaSector(motivo) {
-    return /·\s*Sector\s+(?:Beata|Personal|Evento|Eventos|Rio Lindo)\b/i.test(String(motivo || ''));
+    return /·\s*Sector\s+(?:Beata|Personal|Evento|Eventos|Rio Lindo)\b/i.test(motivoSinNota(motivo));
 }
 
 const otroTipo = (tipo) => tipo === 'cocido' ? 'crudo' : 'cocido';

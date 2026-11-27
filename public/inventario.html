@@ -1089,6 +1089,14 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     .teclado-transformar .teclado-transformar-acciones button { flex: 1; font-size: 0.85rem; }
     .teclado-transformar .teclado-transformar-aplicar { color: #211800; background: #e0bb53; border-color: #e0bb53; }
     .teclado-transformar .teclado-transformar-aplicar:hover { background: #f4d87a; }
+    .teclado-transformar .teclado-transformar-motivo { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.7rem; }
+    .teclado-transformar .teclado-transformar-motivo span { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #f4d87a; }
+    .teclado-transformar .teclado-transformar-motivo em { font-style: normal; font-weight: 600; letter-spacing: 0; text-transform: none; color: #a0a0b8; }
+    .teclado-transformar .teclado-transformar-motivo input {
+      width: 100%; min-height: 2.4rem; border: 1px solid #3d3d54; border-radius: 0.6rem;
+      background: #12121c; color: #fff; padding: 0.4rem 0.65rem; font-size: 0.85rem; font-weight: 600;
+    }
+    .teclado-transformar .teclado-transformar-motivo input::placeholder { color: #6d6d88; font-weight: 500; }
     .teclado-transformar .teclado-transformar-error { color: #fda4af; font-size: 0.8rem; margin-top: 0.5rem; }
     @keyframes teclado-transformar-entrada {
       from { opacity: 0; transform: translateY(0.4rem) scale(0.97); }
@@ -8101,6 +8109,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         <button type="button" @click="cerrarTecladoTransformar()">Cancelar</button>
         <button type="submit" class="teclado-transformar-aplicar">Aplicar</button>
       </div>
+      <label class="teclado-transformar-motivo" x-show="tecladoTransformar.formula && tecladoTransformar.formula.tipo === 'Ingreso'" x-cloak>
+        <span>Motivo <em>opcional</em></span>
+        <input type="text" maxlength="120" autocomplete="off" placeholder="Puedes dejarlo vacío" aria-label="Motivo del ingreso" x-model="tecladoTransformar.motivo">
+      </label>
     </form>
   </dialog>
 
@@ -9424,6 +9436,9 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                     <h5 class="rep-nombre font-bold text-white leading-snug" x-text="f.nombre"></h5>
                     <span x-show="!reporteDetalles.ingreso || f.lineas.length > 1" class="rep-num font-mono font-extrabold text-emerald-300 shrink-0" x-text="formatNum(f.ingreso)"></span>
                   </div>
+                  <template x-for="l in f.lineas" :key="'mot-ing-' + l.id">
+                    <p x-show="!reporteDetalles.ingreso && l.nota" class="text-sm text-[#f4d87a] mt-1" x-text="'Motivo: ' + l.nota"></p>
+                  </template>
                   <template x-if="reporteDetalles.ingreso">
                     <ul class="mt-1">
                       <template x-for="l in f.lineas" :key="l.id">
@@ -9431,6 +9446,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                           <div>
                             <p x-show="l.clave !== f.clave" class="font-semibold text-white" x-text="l.nombre"></p>
                             <p class="text-sm text-[#c8c8dc]" x-text="[l.tipo, l.corte, l.detalle].filter(Boolean).join(' · ')"></p>
+                            <p x-show="l.nota" class="text-sm text-[#f4d87a]" x-text="'Motivo: ' + l.nota"></p>
                           </div>
                           <span class="font-mono font-bold text-emerald-200" x-text="'+' + formatNum(l.cantidad)"></span>
                         </li>
@@ -9532,6 +9548,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <div class="ori-texto-movimiento">
                 <p class="text-xs uppercase font-bold" :class="linea.clase === 'transformacion' ? 'text-orange-300' : 'text-emerald-300'" x-text="linea.clase === 'transformacion' ? 'Transformación' : 'Ingreso'"></p>
                 <p class="text-lg font-bold text-white leading-snug" x-text="linea.texto"></p>
+                <p x-show="linea.nota" class="text-sm text-[#f4d87a]" x-text="'Motivo: ' + linea.nota"></p>
                 <p class="text-sm text-[#a0a0b8]" x-text="linea.hora + (linea.veces > 1 ? (' · ' + linea.veces + ' veces') : '')"></p>
               </div>
               <div class="ml-auto flex items-center gap-2 shrink-0">
@@ -11365,7 +11382,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         // Estado del cuadro Transformar
-        tecladoTransformar: { etiqueta: '', etiquetaMonto: 'Cantidad', cantidad: '', decimales: false, error: '', formula: null },
+        tecladoTransformar: { etiqueta: '', etiquetaMonto: 'Cantidad', cantidad: '', decimales: false, error: '', formula: null, motivo: '' },
+        motivoIngresoPendiente: '',
         despiece: {
           frescos: 10,
           ingresoCorte: { pechuga: 0, pierna: 0 },
@@ -13214,6 +13232,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const destinoAntiguo = !sale && concepto.startsWith('Pasa a ');
             const corte = esOctavo(clave) ? (this.motivoEsCorte(motivo, 'pierna') ? 'Pierna'
               : (this.motivoEsCorte(motivo, 'pecho') ? 'Pecho' : '')) : '';
+            const nota = this.notaMotivoIngreso(motivo);
             let detalle = this.textoOrigenIngreso(concepto);
             if (/^(?:Sale|Viene) de /.test(concepto)) detalle = 'Desde ' + concepto.replace(/^(?:Sale|Viene) de /, '');
             else if (/^Pasa de (?:crudo|cocido)\b/.test(concepto)) detalle = 'Desde ' + concepto.split(' ')[2];
@@ -13227,7 +13246,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!series.has(id)) series.set(id, { eventos: [], pendiente: 0, sobrantes: [] });
             const serie = series.get(id);
             const manual = this.claseOrigenIngreso(motivo) === 'ingreso';
-            const evento = { clave, cubeta, tipo, corte, detalle, sale, manual, orden, fecha: new Date(m.fecha).getTime() };
+            const evento = { clave, cubeta, tipo, corte, detalle, nota, sale, manual, orden, fecha: new Date(m.fecha).getTime() };
             if (sale) cantidad = -cantidad;
             // Un ajuste o una devolución cancela la última anotación del mismo movimiento.
             if (cantidad < 0) {
@@ -13383,7 +13402,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             const producto = productos.get(clave);
             producto[seccion] = this.redondear3(producto[seccion] + cantidad);
             const lineas = grupos.get(grupo)[seccion];
-            const id = JSON.stringify([clave, datos.tipo, datos.corte, datos.detalle, this.norm(datos.plato)]);
+            const id = JSON.stringify([clave, datos.tipo, datos.corte, datos.detalle, datos.nota || '', this.norm(datos.plato)]);
             if (!lineas.has(id)) lineas.set(id, Object.assign({ id, clave, nombre, cantidad: 0 }, datos));
             const linea = lineas.get(id);
             linea.cantidad = this.redondear3(linea.cantidad + cantidad);
@@ -13391,7 +13410,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const tipoDe = (tipo, clave) => this.esVentaStockGeneral(clave) ? 'Stock general' : this.etiquetaTipo(tipo, this.filaPorClave(clave));
           this.ingresosFinalesReporte(movimientos, nombreDe, esOctavo).forEach((l) => {
             agregar('ingreso', l.clave, l.cantidad, {
-              tipo: tipoDe(l.tipo, l.clave), corte: l.corte || (esOctavo(l.clave) ? 'Corte sin indicar' : ''), detalle: l.detalle
+              tipo: tipoDe(l.tipo, l.clave), corte: l.corte || (esOctavo(l.clave) ? 'Corte sin indicar' : ''),
+              detalle: l.detalle, nota: l.nota || ''
             });
           });
           ventas.forEach((v) => {
@@ -13549,7 +13569,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         textoOrigenIngreso(motivo) {
-          const m = String(motivo || '');
+          const m = this.motivoSinNota(motivo);
           if (/^(?:Sale|Viene) de /.test(m)) return 'Se transformó desde ' + m.replace(/^(?:Sale|Viene) de /, '');
           if (m.indexOf('Devuelve a ') === 0) return 'Devolvió a ' + m.slice('Devuelve a '.length);
           if (this.esPaseEntreTipos(m)) return m.indexOf('Pasa de ') === 0 ? ('Llegó por pase: ' + m) : ('Salió por pase: ' + m);
@@ -13568,7 +13588,40 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         // Lo escrito en Beata, Personal, Evento o Rio Lindo sale de stock. No es un ingreso.
         esIngresoDescargaSector(motivo) {
-          return /·\s*Sector\s+(?:Beata|Personal|Evento|Eventos|Rio Lindo)\b/i.test(String(motivo || ''));
+          return /·\s*Sector\s+(?:Beata|Personal|Evento|Eventos|Rio Lindo)\b/i.test(this.motivoSinNota(motivo));
+        },
+
+        motivoSinNota(motivo) {
+          const m = String(motivo || '');
+          const marca = ' · Motivo: ';
+          const corte = m.indexOf(marca);
+          return corte === -1 ? m : m.slice(0, corte);
+        },
+
+        notaMotivoIngreso(motivo) {
+          const m = String(motivo || '');
+          const marca = ' · Motivo: ';
+          const corte = m.indexOf(marca);
+          return corte === -1 ? '' : m.slice(corte + marca.length).trim();
+        },
+
+        limpiarNotaIngreso(nota) {
+          return String(nota || '').replace(/[·\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+        },
+
+        motivoConNota(base, nota) {
+          const limpio = this.limpiarNotaIngreso(nota);
+          const texto = String(base || '');
+          if (!limpio) return texto;
+          const marca = ' · Motivo: ';
+          const cupo = 200 - texto.length - marca.length;
+          if (cupo < 1) return texto;
+          return texto + marca + limpio.slice(0, cupo);
+        },
+
+        motivoIngresoDirecto(guardado, base) {
+          const m = String(guardado || '');
+          return m === base || m.startsWith(String(base || '') + ' · Motivo:');
         },
 
         esSalidaIngreso(motivo, nombreFila, nombreMovimiento) {
@@ -13633,7 +13686,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             // Contar la entrada del pase: la API también entrega una salida por la misma cantidad.
             const esEntrada = m.paseId ? tipo === m.paseDestino : !!desde && tipo !== desde;
             if (!esEntrada || (tipo !== 'crudo' && tipo !== 'cocido')) continue;
-            const corte = this.esPlatoOctavo(plato) ? / · (pecho|pierna)$/i.exec(motivo)?.[1].toLowerCase() || '' : '';
+            const corte = this.esPlatoOctavo(plato) ? / · (pecho|pierna)$/i.exec(this.motivoSinNota(motivo))?.[1].toLowerCase() || '' : '';
             const clave = m.rubro + '|' + corte;
             let linea = cocciones.get(clave);
             if (!linea) {
@@ -13666,7 +13719,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const corteDe = (clave, motivo) => {
             if (clave === claveOctavo) return this.motivoEsCorte(motivo, 'pecho') ? 'pecho'
               : (this.motivoEsCorte(motivo, 'pierna') ? 'pierna' : '');
-            return / · (pecho|pierna)$/i.exec(motivo)?.[1].toLowerCase() || '';
+            return / · (pecho|pierna)$/i.exec(this.motivoSinNota(motivo))?.[1].toLowerCase() || '';
           };
           const conceptoDe = (motivo) => this.norm(motivo.split(' · ')[0]);
           const filas = new Map([[raiz, row], ...destinos.map(({ fila }) => [claveDe(fila), fila])]);
@@ -13952,11 +14005,12 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!g) {
               const texto = this.textoOrigenIngreso(motivo);
               g = { clase, salida, entrada: !salida && /^(?:Sale|Viene) de /.test(motivo),
-                texto: fila.id === row.id ? texto : (fila.nombre + ': ' + texto), cantidad: 0, veces: 0, fecha: 0,
+                texto: fila.id === row.id ? texto : (fila.nombre + ': ' + texto),
+                nota: this.notaMotivoIngreso(motivo), cantidad: 0, veces: 0, fecha: 0,
                 rubro: m.rubro, paseId, paseDestino: m.paseDestino || (paseHistorico ? (salida ? tipoHistorico[2] : tp) : ''),
                 paseCantidad: m.paseCantidad || (paseHistorico ? Math.abs(n) : 0),
                 paseLado: pasaTipo ? pasaTipo[1] : '', paseOrigen: pasaTipo ? pasaTipo[2] : '',
-                paseCorte: (/ · (pecho|pierna)$/i.exec(motivo)?.[1] || '').toLowerCase() };
+                paseCorte: (/ · (pecho|pierna)$/i.exec(this.motivoSinNota(motivo))?.[1] || '').toLowerCase() };
               grupos.set(key, g);
             }
             g.cantidad = this.redondear3(g.cantidad + n);
@@ -21693,7 +21747,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         motivoEsCorte(motivo, corte) {
-          const m = this.norm(motivo);
+          const m = this.norm(this.motivoSinNota(motivo));
           // La última marca explícita manda: el motivo libre puede mencionar ambos cortes.
           if (/(?:^|·)\s*sin separar\s*$/.test(m)) return false;
           const marca = m.match(/(?:^|·)\s*(pecho|pierna)\s*$/);
@@ -22061,8 +22115,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const total = (this.movimientosPeriodo || []).reduce((suma, m) => {
             if (!m || m.rubro !== ctx.clave || m.clase !== 'ingreso') return suma;
             const tipoMovimiento = m.tipoProducto || 'crudo';
-            const ingresoAnterior = motivoAnterior && tipoMovimiento === 'crudo' && m.motivo === motivoAnterior;
-            if (!ingresoAnterior && (m.motivo !== ctx.motivo || tipoMovimiento !== ctx.tipo)) return suma;
+            const ingresoAnterior = motivoAnterior && tipoMovimiento === 'crudo' && this.motivoIngresoDirecto(m.motivo, motivoAnterior);
+            if (!ingresoAnterior && (!this.motivoIngresoDirecto(m.motivo, ctx.motivo) || tipoMovimiento !== ctx.tipo)) return suma;
             const t = new Date(m.fecha).getTime();
             if (Number.isFinite(t) && (t < desde || t > hasta)) return suma;
             if ((rango.excluir || []).some((r) => t >= new Date(r.desde).getTime()
@@ -22095,11 +22149,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const movimientos = [];
           const agregar = (clase, n, texto) => movimientos.push({ rubro: clave, clase, tipoProducto: tipoFinal,
             cantidad: n, motivo: texto, fecha, fechaFija, nombre: row.nombre });
-          if (cantidad) {
+            if (cantidad) {
             const base = destino ? 'correccion' : 'ingreso';
             const campo = this.campoTipo(base, tipoFinal);
             row[campo] = this.redondear3(this.valorTipo(row, base, tipoFinal) + cantidad);
-            agregar('ingreso', cantidad, motivo);
+            agregar('ingreso', cantidad, this.motivoConNota(motivo, this.motivoIngresoPendiente));
           }
           const ajuste = destino ? this.redondear3(-cantidad - (correccion || 0)) : (correccion || 0);
           if (ajuste) {
@@ -23402,7 +23456,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             cantidad: formula?.ingresoStock ? String(formula.cantidad) : (el.value || el.dataset.ceroAntesDeEditar || ''),
             decimales: el.step !== '1',
             error: '',
-            formula
+            formula,
+            motivo: ''
           };
           const entrada = this.$refs.valorTecladoTransformar;
           entrada.value = this.tecladoTransformar.cantidad;
@@ -23482,6 +23537,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const texto = this.tecladoTransformar.cantidad.trim().replace(',', '.');
           const valor = Number(texto);
           const formula = this.tecladoTransformar.formula;
+          const nota = formula?.tipo === 'Ingreso' ? this.limpiarNotaIngreso(this.tecladoTransformar.motivo) : '';
           const actual = formula?.ingresoStock ? formula.cantidad : (el.value || el.dataset.ceroAntesDeEditar);
           if (texto !== '' && Number(actual) === valor) return this.cerrarTecladoTransformar();
           if (!/^-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(texto) || !Number.isFinite(valor)
@@ -23491,15 +23547,20 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             return;
           }
           this.cerrarTecladoTransformar();
-          if (formula?.ingresoStock) {
-            const [id, tipo] = formula.ingresoStock.split('|');
-            const ctx = this.contextoIngresoDirecto(id, tipo);
-            if (ctx) this.fijarIngresoDirectoPeriodo(ctx, valor);
-            return;
+          this.motivoIngresoPendiente = nota;
+          try {
+            if (formula?.ingresoStock) {
+              const [id, tipo] = formula.ingresoStock.split('|');
+              const ctx = this.contextoIngresoDirecto(id, tipo);
+              if (ctx) this.fijarIngresoDirectoPeriodo(ctx, valor);
+              return;
+            }
+            el.value = String(valor);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          } finally {
+            this.motivoIngresoPendiente = '';
           }
-          el.value = String(valor);
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
         },
 
         vaciarSiCero(ev) {

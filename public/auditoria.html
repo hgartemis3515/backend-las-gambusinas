@@ -186,7 +186,8 @@ tailwind.config = {
                 <span x-show="idComandaAuditoria(a)" class="text-txt-muted font-mono block text-[10px]" x-text="idComandaAuditoria(a)"></span>
                 <span x-show="a.metadata?.resumen" class="text-txt-secondary block" x-text="a.metadata.resumen"></span>
                 <span x-show="a.metadata?.platoNombre" class="text-txt-secondary" x-text="a.metadata.platoNombre"></span>
-                <span x-show="a.motivo" class="text-txt-muted block text-[10px]" x-text="a.motivo?.substring(0, 30) + (a.motivo?.length > 30 ? '...' : '')"></span>
+                <span x-show="a.motivo" class="text-txt-muted block text-[10px]" x-text="textoMotivoLista(a)"></span>
+                <span x-show="notaIngresoAuditoria(a)" class="text-[#d4af37] block text-[10px]" x-text="'Motivo: ' + notaIngresoAuditoria(a)"></span>
                 <span x-show="a.metadata?.cronometro" class="text-[#9c88ff] block text-[10px] font-mono" x-text="'⏱ ' + a.metadata.cronometro"></span>
               </td>
               <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-bg-sidebar" x-text="a.modulo"></span></td>
@@ -254,7 +255,7 @@ tailwind.config = {
           </div>
           <div>
             <p class="text-[10px] text-[#5a5a7a] mb-0.5">Motivo</p>
-            <p class="font-medium" x-text="selectedRegistro?.motivo || 'N/A'"></p>
+            <p class="font-medium" x-text="textoMotivoDetalle(selectedRegistro)"></p>
           </div>
           <div>
             <p class="text-[10px] text-[#5a5a7a] mb-0.5">Dirección IP</p>
@@ -333,7 +334,11 @@ tailwind.config = {
             </div>
             <div>
               <p class="text-[10px] text-[#5a5a7a] mb-0.5">Motivo</p>
-              <p class="font-medium" x-text="selectedRegistro?.motivo || '—'"></p>
+              <p class="font-medium" x-text="motivoSistemaAuditoria(selectedRegistro) || '—'"></p>
+            </div>
+            <div class="col-span-2" x-show="notaIngresoAuditoria(selectedRegistro)">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Motivo del ingreso</p>
+              <p class="font-medium text-[#d4af37]" x-text="notaIngresoAuditoria(selectedRegistro)"></p>
             </div>
           </div>
         </div>
@@ -1003,6 +1008,30 @@ function auditoriaApp() {
 
     esAccionInventario(accion) {
       return String(accion || '').startsWith('INVENTARIO_');
+    },
+
+    notaIngresoAuditoria(reg) {
+      const m = String(reg?.motivo || reg?.metadata?.motivo || '');
+      const marca = ' · Motivo: ';
+      const corte = m.indexOf(marca);
+      return corte === -1 ? '' : m.slice(corte + marca.length).trim();
+    },
+
+    motivoSistemaAuditoria(reg) {
+      const m = String(reg?.motivo || '');
+      const marca = ' · Motivo: ';
+      const corte = m.indexOf(marca);
+      return (corte === -1 ? m : m.slice(0, corte)).trim();
+    },
+
+    textoMotivoLista(reg) {
+      const base = this.motivoSistemaAuditoria(reg);
+      if (!base) return '';
+      return base.length > 30 ? base.substring(0, 30) + '...' : base;
+    },
+
+    textoMotivoDetalle(reg) {
+      return this.notaIngresoAuditoria(reg) || reg?.motivo || 'N/A';
     },
 
     textoCantidadInventario(reg) {

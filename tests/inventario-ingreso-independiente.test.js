@@ -588,6 +588,48 @@ test('vaciar un ingreso existente equivale a ponerlo en cero', () => {
     expect(app.stockCuadro('filete', 'crudo')).toBe(127);
 });
 
+test('el teclado de ingreso guarda el motivo opcional y lo muestra en el reporte y la transformación', () => {
+    const { app, guardados, recargar } = escenario([
+        { rubro: 'filete', cantidad: 10 },
+        { rubro: 'filete', cantidad: 2, motivo: 'Ingreso independiente crudo' }
+    ]);
+    const el = {
+        ...input('2'),
+        dataset: { ingreso: 'directo|filete|crudo', etiquetaMonto: 'Ingresar' },
+        isConnected: true, min: '0', max: '', step: 'any',
+        matches: () => true, getAttribute: () => 'filete', setAttribute: jest.fn(),
+        dispatchEvent(ev) { if (ev.type === 'change') app.registrarIngresoDirecto('filete', 'crudo', this); }
+    };
+    abrirTeclado(app, el);
+    expect(app.tecladoTransformar.formula.tipo).toBe('Ingreso');
+    app.tecladoTransformar.cantidad = '5';
+    app.tecladoTransformar.motivo = '  Compra del mercado  ';
+    app.aplicarTecladoTransformar();
+    expect(guardados.at(-1)).toMatchObject({
+        clase: 'ingreso', cantidad: 3, motivo: 'Ingreso independiente crudo · Motivo: Compra del mercado'
+    });
+    recargar();
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(5);
+    expect(app.stockCuadro('filete', 'crudo')).toBe(15);
+    const origen = app.origenIngresoDe(app.filaReal('filete'), 'crudo', true);
+    expect(origen.lineas.some((l) => l.nota === 'Compra del mercado')).toBe(true);
+    const reporte = app.vistaReporteHoja({ filas: [], ventas: [], carta: { kardex: [] } }, app.movimientosPeriodo);
+    const fila = reporte.filas.find((f) => f.ingreso.some((l) => l.nota === 'Compra del mercado'));
+    expect(fila).toBeTruthy();
+
+    abrirTeclado(app, el);
+    app.tecladoTransformar.motivo = 'Otro motivo';
+    app.aplicarTecladoTransformar();
+    expect(guardados.some((m) => String(m.motivo).includes('Otro motivo'))).toBe(false);
+
+    abrirTeclado(app, el);
+    app.tecladoTransformar.cantidad = '6';
+    app.aplicarTecladoTransformar();
+    expect(guardados.at(-1).motivo).toBe('Ingreso independiente crudo');
+    recargar();
+    expect(app.ingresoDirectoPeriodo('filete', 'crudo')).toBe(6);
+});
+
 test('un ingreso en turno cerrado permanece dentro de ese turno', () => {
     const { app, guardados } = escenario();
     app.rangoIngresoDirecto = () => ({ desde: '2020-01-01T09:00:00.000Z', hasta: '2020-01-01T18:00:00.000Z' });

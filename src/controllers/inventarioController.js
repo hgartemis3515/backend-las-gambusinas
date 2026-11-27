@@ -13,6 +13,13 @@ const ACCION_INVENTARIO = {
     egreso: 'INVENTARIO_EGRESO'
 };
 
+function notaUsuarioIngreso(motivo) {
+    const texto = String(motivo || '');
+    const marca = ' · Motivo: ';
+    const corte = texto.indexOf(marca);
+    return corte === -1 ? '' : texto.slice(corte + marca.length).trim();
+}
+
 function resumenMovimiento(doc) {
     const nombre = doc.nombre || 'Producto';
     const tipo = doc.tipoProducto || '';
@@ -28,7 +35,9 @@ function resumenMovimiento(doc) {
         if (nota.indexOf('Venta manual') === 0) return nombre + ' · venta manual · ' + tipo + ' · ' + cant;
         return nombre + ' · ' + tipo + ' · salida ' + cant;
     }
-    return nombre + ' · ' + tipo + ' · ingreso ' + cant;
+    const base = nombre + ' · ' + tipo + ' · ingreso ' + cant;
+    const nota = notaUsuarioIngreso(doc.motivo);
+    return nota ? base + ' · ' + nota : base;
 }
 
 async function auditarMovimiento(req, doc) {
