@@ -2399,7 +2399,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icono-acceso-kardex"/></svg>
   </button>
   <button type="button" class="btn-acceso-stock btn-dm-venta btn-dm-cuadro" :disabled="!filaReal(productoCuadro) && !filaReal(familiaCuadro)"
-    @click.stop="abrirVentaManual(filaReal(productoCuadro) || filaReal(familiaCuadro))" :aria-label="'Descarga manual de ' + nombreFila(productoCuadro || familiaCuadro)" title="Descarga manual: resta cocido, luego crudo y luego la reserva">DM</button>
+    @click.stop="abrirVentaManual(filaReal(productoCuadro) || filaReal(familiaCuadro), typeof sectorCuadro === 'undefined' ? null : sectorCuadro)" :aria-label="'Descarga manual de ' + (typeof sectorCuadro === 'undefined' ? nombreFila(productoCuadro || familiaCuadro) : sectorCuadro.nombre)" title="Descarga manual: resta cocido, luego crudo y luego la reserva">DM</button>
   <button type="button" class="btn-acceso-stock btn-ir-inventario" :disabled="!filaReal(productoCuadro) && !filaReal(familiaCuadro)"
     @click.stop="irAFilaProducto(productoCuadro, familiaCuadro)" :aria-label="'Ir a Inventario Tabla: ' + nombreFila(productoCuadro || familiaCuadro)" title="Ir a Inventario Tabla">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icono-acceso-abajo"/></svg>
@@ -3503,6 +3503,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </span>
             </div>
             <span class="text-sm font-extrabold text-white block">Arroz crudo</span>
+            <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('arroz') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
             <div class="caja-stock">
               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
               <div class="caja-stock-step">
@@ -3675,6 +3676,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                   </span>
                 </div>
                 <h3 class="text-base font-extrabold text-white">Pollo fresco</h3>
+                <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('pollo_fresco') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
                 <div class="origen-stock-flujo">
                   <div class="caja-stock">
                     <p class="caja-stock-etiq">Stock actual (Crudo):</p>
@@ -3730,6 +3732,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </span>
                       </div>
                       <h3 class="text-sm font-extrabold text-white">Pecho de pollo</h3>
+                      <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('pechuga') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
                       <div class="caja-stock">
                         <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                         <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
@@ -3765,6 +3768,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               </span>
                             </div>
                             <h4 class="text-sm font-bold text-white">Filete de pollo</h4>
+                            <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('filete') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
                             <div class="caja-stock">
                               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                               <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
@@ -3974,6 +3978,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </span>
                       </div>
                       <h3 class="text-sm font-extrabold text-white">Pierna de pollo</h3>
+                      <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('pierna') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
                       <div class="caja-stock">
                         <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                         <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
@@ -4088,6 +4093,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                         </span>
                       </div>
                       <h4 class="tr-node-title">Octavo de pollo</h4>
+                      <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('octavo_pollo') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
                       <div class="bg-[#131522] border border-[#282a40] rounded-lg px-3 py-2 text-center">
                         <p class="text-[10.5px] font-semibold text-[#a9adc4]">Stock total (Crudo)</p>
                         <p class="text-xl font-mono font-extrabold text-amber-200 leading-tight mt-0.5" x-text="formatNum(totalOctavosLibres())"></p>
@@ -4204,7 +4210,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                               <div class="tr-dish-head">
                                 <span class="tr-dish-title" x-text="dest.nombre"></span>
                                 <span class="octavo-sector-acciones">
-                                  <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'octavo_pollo' }, familiaCuadro: '' }">
+                                  <span class="acciones-cuadro-stock" x-data="{ get productoCuadro() { return 'octavo_pollo' }, familiaCuadro: '', get sectorCuadro() { return dest } }">
                                     <span class="accesos-cuadro-stock" x-html="$refs.accesosCuadroStock.innerHTML"></span>
                                     <button type="button" class="btn-lapiz-stock" :aria-label="'Editar stock de ' + dest.nombre" title="Editar stock" @click="abrirEditarSector(dest)"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                                   </span>
@@ -4215,6 +4221,13 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                                 </span>
                               </div>
                               <p class="text-[10px] font-mono text-amber-200 px-0.5" x-show="octavosSeparadosSector(dest.id) > 0" x-text="'Sin descargar: ' + formatNum(octavosSeparadosSector(dest.id))"></p>
+                              <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get ventaSector() { return totalVentaFiltro(filtroVentaSectorOctavo(dest)) } }" x-show="ventaSector > 0" x-cloak>
+                                <span x-text="'Venta ' + formatNum(ventaSector)"></span>
+                                <button type="button" class="btn-lupa-venta lupa-cuadro con-venta w-6 h-6 rounded-md border inline-flex items-center justify-center cursor-pointer shrink-0"
+                                  :aria-label="'Ver ventas de ' + dest.nombre" title="Ver descargas manuales" @click.stop="abrirVentaSectorOctavo(dest)">
+                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><use href="#icono-acceso-buscar"/></svg>
+                                </button>
+                              </div>
                               <div class="octavo-cortes octavo-cortes-formula">
                                 <template x-for="corte in ['pechugas', 'piernas']" :key="dest.id + '-' + corte">
                                   <div class="space-y-1.5 bg-[#11121d] border border-red-900/50 rounded-lg p-1.5">
@@ -4509,6 +4522,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </span>
             </div>
             <h3 class="text-sm font-extrabold text-white">Pollo Baby</h3>
+            <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('pollo_baby') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
             <div class="caja-stock">
               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
               <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
@@ -4618,6 +4632,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </span>
             </div>
             <h3 class="text-sm font-extrabold text-white">Panceta entera</h3>
+            <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('panceta') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
             <div class="caja-stock">
               <p class="caja-stock-etiq">Stock actual (Crudo):</p>
               <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
@@ -4652,6 +4667,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               </span>
             </div>
             <h3 class="text-sm font-extrabold text-white">Tira de panceta</h3>
+            <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('tira_panceta') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
             <div class="resumen-salida-transformar" x-data="{ get salida() { return resumenSalidaProducto('tira_panceta') } }" x-show="salida" x-cloak x-html="$refs.contenidoSalidaTransformar.innerHTML"></div>
             <template x-for="tipoTira in ['crudo', 'cocido']" :key="tipoTira">
               <div class="caja-stock" :class="{ 'caja-stock-cocido': tipoTira === 'cocido' }" x-data="{ get formulaTira() { return tipoTira === 'crudo' ? 'tira' : 'cocido|tira_panceta' } }">
@@ -4966,6 +4982,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
                 </span>
               </div>
               <span class="text-sm font-bold text-white block">Seco de carnero</span>
+              <div class="detalle-cuadro-transformar caja-stock-venta" x-data="{ get filaVentaCuadro() { return filaDetalleCuadro('seco_carnero') } }" x-show="ventaComandasCocido(filaVentaCuadro) > 0" x-cloak x-html="$refs.detalleVentaTransformar.innerHTML"></div>
               <div class="caja-stock">
                 <p class="caja-stock-etiq">Stock actual (Crudo):</p>
                 <div class="control-ingreso-stock" x-data="{ ingresoVisible: false }" @keydown.escape.stop="ingresoVisible = false">
@@ -9988,7 +10005,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
               <h3 class="text-lg font-semibold text-[#ff0000]">Descarga manual</h3>
               <span class="px-2 py-0.5 rounded bg-[#0a0a0f] border border-[#26263a] text-xs font-mono text-[#d4af37]" x-text="'Queda: ' + formatNum(saldoRealColumna(ventaManualFila)) + ' ' + (ventaManualFila.unidad || 'unid')"></span>
             </div>
-            <p class="text-sm font-bold text-white mt-1" x-text="ventaManualFila.nombre"></p>
+            <p class="text-sm font-bold text-white mt-1" x-text="ventaManualSector ? ventaManualFila.nombre + ' · ' + ventaManualSector.nombre : ventaManualFila.nombre"></p>
             <p class="text-xs text-[#a0a0b8] mt-0.5">Resta de este producto o de un plato vinculado. No es una comanda.</p>
           </div>
           <button type="button" class="text-[#a0a0b8] hover:text-white text-xl leading-none px-1 cursor-pointer" @click="ventaManualAbierta = false" aria-label="Cerrar">×</button>
@@ -10099,7 +10116,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         </div>
 
         <label class="block text-xs text-[#a0a0b8]">Motivo <span class="text-[#5a5a7a]">(opcional)</span>
-          <div class="mt-1.5 flex flex-wrap gap-2">
+          <div class="mt-1.5 flex flex-wrap gap-2" x-show="!ventaManualSector">
             <template x-for="sug in sectoresDescarga()" :key="'dm-sector-' + sug.id">
               <button type="button" @click="ponerMotivoDescarga(sug.nombre)" :aria-pressed="ventaManualMotivo === sug.nombre" :aria-label="'Motivo ' + sug.nombre" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition" :class="ventaManualMotivo === sug.nombre ? 'bg-[#ff0000] text-white border-[#ff0000]' : 'bg-[#0a0a0f] text-[#a0a0b8] border-[#26263a] hover:text-white'" x-text="sug.nombre"></button>
             </template>
@@ -12199,6 +12216,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         modalGrupoCerrando: false,
         ventaManualAbierta: false,
         ventaManualFila: null,
+        ventaManualSector: null,
         ventaManualCantidad: 1,
         ventaManualMotivo: '',
         ventaManualGuardando: false,
@@ -14068,7 +14086,19 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         abrirVentaFila(row) {
           if (!row) return;
-          this.abrirVenta(this.filtroVentaFila(row), { ventas: this.ventasPeriodo || [], movimientos: this.movimientosPeriodo || [] });
+          this.abrirVenta(this.filtroVentaFila(row), this.datosVentasVista());
+        },
+
+        filtroVentaSectorOctavo(dest) {
+          const row = this.filaReal('octavo_pollo');
+          if (!dest || !row) return null;
+          const clave = this.claveDeFila.octavo_pollo;
+          return { nombre: dest.nombre, sector: dest.nombre, clave, claves: this.clavesVentaDe(row), venta: 0 };
+        },
+
+        abrirVentaSectorOctavo(dest) {
+          const filtro = this.filtroVentaSectorOctavo(dest);
+          if (filtro) this.abrirVenta(filtro, this.datosVentasVista());
         },
 
         filaDetalleCuadro(id) {
@@ -14181,7 +14211,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           sueltos.forEach((m) => grupos.push({ lote: '', movs: [m] }));
           const lineas = [];
           grupos.forEach((g) => {
-            const visibles = g.movs.filter((m) => claves.has(m.rubro));
+            const visibles = g.movs.filter((m) => claves.has(m.rubro) && (!f?.sector || this.sectorDeMotivo(m.motivo) === f.sector));
             const cantidad = visibles.reduce((a, m) => a + (Number(m.cantidad) || 0), 0);
             if (!cantidad) return;
             const primero = visibles.slice().sort((a, b) => new Date(a.fecha) - new Date(b.fecha))[0];
@@ -14245,7 +14275,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             if (!filtro) return;
             const pack = desdeReporte
               ? { ventas: this.reporteDiaVista.ventas, movimientos: this.reporteDiaVista.movimientos }
-              : { ventas: this.ventasPeriodo || [], movimientos: this.movimientosPeriodo || [] };
+              : this.datosVentasVista();
             this.abrirVenta(filtro, pack, desdeReporte);
           } catch (e) {
             this.toastMessage = e.message || 'No se pudo eliminar la descarga manual';
@@ -14256,7 +14286,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
 
         detalleVenta(f, pack) {
           const claves = new Set((f && f.claves) || [f && f.clave]);
-          const ventas = pack && pack.ventas ? pack.ventas : [];
+          const ventas = !f.sector && pack && pack.ventas ? pack.ventas : [];
           const movimientos = pack && pack.movimientos ? pack.movimientos : [];
           const esVistaPecho = !f.reporte && f.clave === 'pechuga-pollo';
           const map = new Map();
@@ -14356,7 +14386,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             });
           });
           (movimientos || []).forEach((m) => {
-            if (!claves.has(m.rubro) || m.clase !== 'egreso') return;
+            if (f.sector || !claves.has(m.rubro) || m.clase !== 'egreso') return;
             const motivo = String(m.motivo || '');
             if (motivo.indexOf('Venta') !== 0 || motivo.indexOf('Venta manual') === 0) return;
             const tipo = m.tipoProducto === 'cocido' ? 'Cocido' : 'Crudo';
@@ -14391,18 +14421,18 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const totalLineas = this.redondear3(lineas.reduce((a, l) => a + (Number(l.cantidad) || 0), 0));
           const propia = this.redondear3(lineas.reduce((a, l) => a + (Number(l.propia) || 0), 0));
           let nota = '';
-          if (!f.reporte && f.clave && Math.abs(totalLineas - propia) > 0.0005) {
+          if (!f.reporte && !f.sector && f.clave && Math.abs(totalLineas - propia) > 0.0005) {
             nota = propia > 0
               ? ('De esta fila se restaron ' + this.formatNum(propia) + '. Los otros ' + this.formatNum(this.redondear3(totalLineas - propia)) + ' salieron de sus platos o de la pieza principal.')
               : 'Estas ventas no restan el stock de esta fila: salieron de sus platos o de la pieza principal.';
           }
           return {
             nombre: f.nombre,
-            total: f.reporte ? totalLineas : (totalLineas || f.venta),
+            total: f.reporte || pack?.omitirTotalFila ? totalLineas : (totalLineas || f.venta),
             propia,
             nota,
             lineas: lineas,
-            esOctavo: !!(f && (f.id === 'octavo_pollo' || f.clave === 'octavo-pollo' || this.esPlatoOctavo({ id: f.id, nombre: f.nombre, filaId: f.id })))
+            esOctavo: !f.sector && (f.id === 'octavo_pollo' || f.clave === 'octavo-pollo' || this.esPlatoOctavo({ id: f.id, nombre: f.nombre, filaId: f.id }))
           };
         },
 
@@ -15047,9 +15077,10 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           if (this.descargarSectorOctavo(destino, motivo)) this.$refs.modalDescargaSector.close();
         },
 
-        abrirVentaManual(row) {
+        abrirVentaManual(row, sector = null) {
           if (!row) return;
           this.ventaManualFila = row;
+          this.ventaManualSector = sector;
           this.ventaManualCantidad = 1;
           this.ventaManualMotivo = '';
           this.ventaManualModo = 'unidad';
@@ -15277,7 +15308,8 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
             return;
           }
           const marca = this.ventaManualPideCorte() ? (' · ' + this.marcaCorte(this.ventaManualCorte)) : '';
-          const motivo = nota ? (base + marca + ' · ' + nota) : (base + marca);
+          const sector = this.ventaManualSector;
+          const motivo = base + marca + (sector ? ' · Sector ' + sector.nombre : '') + (nota ? ' · ' + nota : '');
           this.ventaManualGuardando = true;
           const lote = this.loteVentaManual();
           try {
@@ -18428,20 +18460,57 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
         },
 
         ventaComandasCocido(row) {
-          if (!row) return 0;
-          const ventas = this.ventasPeriodo;
-          const movimientos = this.movimientosPeriodo;
+          return row ? this.totalVentaFiltro(this.filtroVentaFila(row)) : 0;
+        },
+
+        datosVentasVista() {
+          const ventas = this.ventasPeriodo || [];
+          const movimientos = this.movimientosPeriodo || [];
+          if (this.activeTab !== 'transformar') return { ventas, movimientos };
+
+          // El kardex conserva el día completo para el stock. Ventas usa las horas del período visible.
+          const rango = this.rangoPeriodoTransformar();
+          const cargado = this._movimientosRangoKardex;
+          const pendiente = !!cargado && cargado !== this.queryRango(rango);
+          const { desde, fin, exclusiones, acotado } = this.limitesPeriodoTransformar(rango);
+          const firma = JSON.stringify([desde, fin, exclusiones, acotado, pendiente]);
+          const cache = this._cacheDatosVentasTransformar;
+          if (cache && cache.ventas === ventas && cache.movimientos === movimientos && cache.firma === firma) return cache.datos;
+
+          const enPeriodo = (fecha) => {
+            const t = fecha ? new Date(fecha).getTime() : NaN;
+            if (!Number.isFinite(t)) return !acotado && !fecha;
+            return t >= desde && t <= fin && !exclusiones.some(([inicio, cierre]) => t >= inicio && t <= cierre);
+          };
+          const datos = {
+            omitirTotalFila: acotado || pendiente,
+            ventas: pendiente ? [] : ventas.flatMap((v) => {
+              if (!v) return [];
+              if (!v.detalle?.length) return enPeriodo(v.fecha) ? [v] : [];
+              const detalle = v.detalle.filter((p) => p && enPeriodo(p.hora || v.fecha));
+              if (!detalle.length) return [];
+              return [detalle.length === v.detalle.length ? v : { ...v, detalle }];
+            }),
+            movimientos: pendiente ? [] : movimientos.filter((m) => m?.clase === 'egreso' && enPeriodo(m.fecha))
+          };
+          this._cacheDatosVentasTransformar = { ventas, movimientos, firma, datos };
+          return datos;
+        },
+
+        totalVentaFiltro(filtro) {
+          if (!filtro) return 0;
+          const datos = this.datosVentasVista();
+          const { ventas, movimientos, omitirTotalFila } = datos;
           const rev = this._revHoja || 0;
-          const firma = [rev, ventas.length, movimientos.length].join('|');
+          const firma = [rev, ventas.length, movimientos.length, !!omitirTotalFila].join('|');
           let cache = this._cacheTotalVentaComandas;
           if (!cache || cache.ventas !== ventas || cache.movimientos !== movimientos || cache.firma !== firma) {
             cache = { ventas, movimientos, firma, totales: new Map() };
             this._cacheTotalVentaComandas = cache;
           }
-          const filtro = this.filtroVentaFila(row);
-          const clave = JSON.stringify([filtro.id, filtro.clave, filtro.claves, filtro.incluirCubierta, filtro.venta]);
+          const clave = JSON.stringify([filtro.id, filtro.clave, filtro.claves, filtro.incluirCubierta, filtro.venta, filtro.sector]);
           if (cache.totales.has(clave)) return cache.totales.get(clave);
-          const total = this.detalleVenta(filtro, { ventas, movimientos }).total;
+          const total = this.detalleVenta(filtro, datos).total;
           cache.totales.set(clave, total);
           return total;
         },
@@ -21231,7 +21300,7 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           return destino;
         },
 
-        indiceSalidasTransformar(rango) {
+        limitesPeriodoTransformar(rango) {
           const TD = window.TurnosDiaNoche;
           const periodo = this.periodoTransformar;
           const tramo = TD?.esSegmento(periodo) ? (TD.rangoDe(periodo, this) || rango) : rango;
@@ -21240,6 +21309,11 @@ RAZONAMIENTO DE DISEÑO Y ARQUITECTURA DE INVENTARIO (LAS GAMBUSINAS):
           const segmento = tramo === rango ? null : this.turnosSegmentos?.find((s) => s.id === periodo);
           const exclusiones = (tramo.excluir || []).map((r) => [Date.parse(r.desde), Date.parse(r.hasta) - (r.abierto ? 0 : 1)]);
           const fin = segmento && periodo !== 'noche' && !segmento.abierto ? hasta - 1 : hasta;
+          return { desde, fin, exclusiones, acotado: tramo !== rango };
+        },
+
+        indiceSalidasTransformar(rango) {
+          const { desde, fin, exclusiones } = this.limitesPeriodoTransformar(rango);
           const firma = [desde, fin, ...exclusiones].join('|');
           const lista = this.movimientosPeriodo || [];
           const cache = this._indiceSalidasTransformar;

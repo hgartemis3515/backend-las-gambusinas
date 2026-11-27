@@ -429,7 +429,7 @@ test('los cuadros de Transformar llevan el botón DM junto al Kardex y abren la 
     expect(kardex).toBeGreaterThan(-1);
     expect(dm).toBeGreaterThan(kardex);
     expect(dm).toBeLessThan(plantilla.indexOf('btn-ir-inventario'));
-    expect(plantilla).toContain('abrirVentaManual(filaReal(productoCuadro) || filaReal(familiaCuadro))');
+    expect(plantilla).toMatch(/abrirVentaManual\(filaReal\(productoCuadro\) \|\| filaReal\(familiaCuadro\), .*sectorCuadro\)/);
     const { app } = escenario(base);
     app.abrirVentaManual(app.filaReal('pollo_lena'));
     expect(app.ventaManualAbierta).toBe(true);

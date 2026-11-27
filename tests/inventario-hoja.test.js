@@ -1357,6 +1357,88 @@ describe('descarga manual de octavos en el modal de ventas', () => {
         expect(lineas([mov(2, 'Venta manual')]).lineas[0].uso).toBe('Principal — Octavo de pollo');
     });
 
+    test('Ventas de Beata incluye sus descargas DM anteriores y las del botón DM de su cuadro', async () => {
+        const app = crearApp();
+        const beata = app.destinosOctavoExtra().find((dest) => dest.id === 'beata');
+        pintar(app, [
+            mov(20, 'Ingreso · pecho', { clase: 'ingreso' }),
+            mov(2, 'Venta manual · pecho · Beata'),
+            mov(4, 'Venta manual · Personal · pecho'),
+            mov(1, 'Venta manual · pecho')
+        ], []);
+        app.paso = jest.fn(async (rubro, tipoProducto, cantidad, motivo, clase, nombre, _fecha, lote) => {
+            app.anotarMovs([mov(cantidad, motivo, { rubro, tipoProducto, clase, nombre, lote })]);
+        });
+        app.cargarKardex = jest.fn(async () => {});
+        const filtro = app.filtroVentaSectorOctavo(beata);
+        expect(app.totalVentaFiltro(filtro)).toBe(2);
+        app.abrirVentaManual(app.filaReal('octavo_pollo'), beata);
+        app.ventaManualCantidad = 3;
+        app.ventaManualMotivo = 'Almuerzo de prueba';
+        await app.confirmarVentaManual();
+
+        expect(app.paso).toHaveBeenCalledWith('octavo-pollo', 'crudo', 3,
+            'Venta manual · pecho · Sector Beata · Almuerzo de prueba', 'egreso', expect.any(String), null, expect.any(String));
+        expect(app.totalVentaFiltro(filtro)).toBe(5);
+        expect(app.ventaComandasCocido(app.filaReal('octavo_pollo'))).toBe(10);
+        app.abrirVentaSectorOctavo(beata);
+        expect(app.ventaInfo).toMatchObject({ nombre: 'Beata', total: 5, esOctavo: false });
+        expect(app.ventaInfo.lineas.map(({ cantidad, motivo }) => ({ cantidad, motivo }))).toEqual(expect.arrayContaining([
+            { cantidad: 2, motivo: 'Beata' },
+            { cantidad: 3, motivo: 'Sector Beata · Almuerzo de prueba' }
+        ]));
+    });
+
+    test('Ventas de Transformar usa el cierre de caja para separar Hoy, Día, Noche y Ayer', () => {
+        const window = {};
+        vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../public/assets/js/turnosDiaNoche.js'), 'utf8'), { window });
+        const app = crearApp({}, window);
+        app.activeTab = 'transformar';
+        app.fechaHoy = () => '2026-11-11';
+        app.ymdOperativo = app.fechaHoy;
+        app.primerCierreHoyAt = hora('16:00');
+        app.turnosSegmentos = [
+            { id: 'dia', desde: hora('04:00'), hasta: hora('16:00'), abierto: false },
+            { id: 'caja-2', desde: hora('19:00'), hasta: hora('20:00'), abierto: false },
+            { id: 'noche', desde: hora('16:00'), hasta: '2026-11-12T03:59:59.999-05:00',
+                excluir: [{ desde: hora('19:00'), hasta: hora('20:00'), abierto: false }] }
+        ];
+        const beata = app.destinosOctavoExtra().find((dest) => dest.id === 'beata');
+        const sector = app.filtroVentaSectorOctavo(beata);
+        const pescado = app.filaReal('pieza_pescado');
+        app.movimientosPeriodo = [
+            [7, hora('03:59')], [2, hora('12:00')], [3, hora('16:00')], [4, hora('19:00')],
+            [1, hora('20:00')], [5, '2026-11-12T03:59:59.999-05:00'], [13, '2026-11-12T04:00:00-05:00']
+        ].map(([cantidad, fecha]) => mov(cantidad, 'Venta manual · pecho · Sector Beata', { fecha }));
+        app.ventasPeriodo = [{
+            rubro: 'pieza-pescado', nombre: 'Pieza de pescado', cantidad: 14, fecha: hora('16:00'),
+            detalle: [
+                { nombre: 'Pieza de pescado', cantidad: 6, hora: hora('15:59'), comanda: 'Día' },
+                { nombre: 'Pieza de pescado', cantidad: 8, hora: hora('16:00'), comanda: 'Noche' }
+            ]
+        }];
+        app._movimientosRangoKardex = app.queryRango(app.rangoPeriodoTransformar());
+
+        for (const [periodo, totalSector, totalPescado] of [
+            ['hoy', 15, 14], ['dia', 2, 6], ['noche', 9, 8], ['caja-2', 4, 0], ['hoy', 15, 14]
+        ]) {
+            app.periodoTransformar = periodo;
+            expect(app.totalVentaFiltro(sector)).toBe(totalSector);
+            app.abrirVentaSectorOctavo(beata);
+            expect(app.ventaInfo.total).toBe(totalSector);
+            expect(app.ventaInfo.lineas.reduce((a, linea) => a + linea.cantidad, 0)).toBe(totalSector);
+            app.abrirVentaFila(pescado);
+            expect(app.ventaInfo.total).toBe(totalPescado);
+            expect(app.totalVentaFiltro({ ...app.filtroVentaFila(pescado), venta: 14 })).toBe(totalPescado);
+        }
+        app.periodoTransformar = 'ayer';
+        expect(app.totalVentaFiltro(sector)).toBe(0);
+        app._movimientosRangoKardex = app.queryRango(app.rangoPeriodoTransformar());
+        expect(app.totalVentaFiltro(sector)).toBe(7);
+        app.abrirVentaSectorOctavo(beata);
+        expect(app.ventaInfo.lineas.map((linea) => linea.cantidad)).toEqual([7]);
+    });
+
     test.each([
         ['beata', 'Beata', 'Entrega acordada · pierna · 12:00'],
         ['personal', 'Personal', ''],
@@ -1396,6 +1478,8 @@ describe('descarga manual de octavos en el modal de ventas', () => {
         app.descargaSector.motivo = motivo;
         app.confirmarDescargaSector();
         expect(app.$refs.modalDescargaSector.close).toHaveBeenCalledTimes(1);
+        const filtroSector = app.filtroVentaSectorOctavo(app.descargaSector.destino);
+        expect(app.totalVentaFiltro(filtroSector)).toBe(5);
         expect(app.octavosEnDestino(id, 'pechugas')).toBe(0);
         expect(app.octavosEnDestino(id, 'piernas')).toBe(0);
         comprobarIngreso(10, 2);
@@ -1438,6 +1522,7 @@ describe('descarga manual de octavos en el modal de ventas', () => {
             body: JSON.stringify({ lote: linea.lote })
         }));
         expect(app.ventaInfo.lineas).toHaveLength(0);
+        expect(app.totalVentaFiltro(filtroSector)).toBe(0);
         expect(app.octavosEnDestino(id, 'pechugas')).toBe(3);
         expect(app.octavosEnDestino(id, 'piernas')).toBe(3);
         expect(app.stockCuadro('octavo_pollo', 'crudo')).toBe(9);
